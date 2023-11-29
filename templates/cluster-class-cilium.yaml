@@ -1,0 +1,399 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: ClusterClass
+metadata:
+  name: proxmox-clusterclass-cilium-v0.1.0
+spec:
+  controlPlane:
+    namingStrategy:
+      template: "{{ .cluster.name }}-control-plane-{{ .random }}"
+    ref:
+      apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+      kind: KubeadmControlPlaneTemplate
+      name: proxmox-clusterclass-v0.1.0-control-plane
+    machineInfrastructure:
+      ref:
+        kind: ProxmoxMachineTemplate
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        name: proxmox-clusterclass-v0.1.0-workertemplate
+    machineHealthCheck:
+      maxUnhealthy: 100%
+      nodeStartupTimeout: 15m
+      unhealthyConditions:
+        - type: Ready
+          status: Unknown
+          timeout: 300s
+        - type: Ready
+          status: "False"
+          timeout: 300s
+  infrastructure:
+    ref:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      kind: ProxmoxClusterTemplate
+      name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
+  workers:
+    machineDeployments:
+      - class: proxmox-worker
+        template:
+          bootstrap:
+            ref:
+              apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+              kind: KubeadmConfigTemplate
+              name: proxmox-clusterclass-v0.1.0-workertemplate
+          infrastructure:
+            ref:
+              apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+              kind: ProxmoxMachineTemplate
+              name: proxmox-clusterclass-v0.1.0-workertemplate
+        machineHealthCheck:
+          maxUnhealthy: 33%
+          nodeStartupTimeout: 15m
+          unhealthyConditions:
+            - type: Ready
+              status: Unknown
+              timeout: 300s
+            - type: Ready
+              status: "False"
+              timeout: 300s
+        namingStrategy:
+           template: "{{ .cluster.name }}-worker-{{ .random }}"
+  variables:
+    - name: controlPlaneEndpoint
+      required: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            host:
+              example: 10.10.10.9
+              type: string
+            port:
+              type: integer
+              default: 6443
+    - name: ipamConfig
+      required: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            addresses:
+              minItems: 1
+              type: array
+              items:
+                type: string
+              default:
+              - "10.10.10.10-10.10.10.15"
+            prefix:
+              type: integer
+              default: 24
+            gateway:
+              type: string
+              default: "10.10.10.1"
+    - name: dnsServers
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          default: [8.8.8.8, 8.8.4.4]
+          example: [8.8.8.8, 8.8.4.4]
+    - name: allowedNodes
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: array
+          items:
+            type: string
+          example: ["pve1", "pve2", "pve3"]
+    - name: sshAuthorizedKeys
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: array
+          items:
+            type: string
+          default: []
+          example: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 example@capmox","ssh-rsa ..."]
+    - name: kubernetesVersion
+      required: true
+      schema:
+        openAPIV3Schema:
+          type: string
+          default: "1.25.10"
+          example: "1.25.10"
+    - name: proxmoxSourceNode
+      required: true
+      schema:
+        openAPIV3Schema:
+          type: string
+    - name: templateID
+      required: true
+      schema:
+        openAPIV3Schema:
+          type: integer
+          example: 100
+    - name: virtualIPNetworkInterface
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: string
+          default: ""
+          example: "vmbr0"
+  patches:
+  - name: ProxmoxClusterTemplateGeneral
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxClusterTemplate
+          matchResources:
+            infrastructureCluster: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/allowedNodes
+            valueFrom:
+              variable: allowedNodes
+          - op: add
+            path: /spec/template/spec/controlPlaneEndpoint/host
+            valueFrom:
+              variable: controlPlaneEndpoint.host
+          - op: add
+            path: /spec/template/spec/controlPlaneEndpoint/port
+            valueFrom:
+              variable: controlPlaneEndpoint.port
+          - op: replace
+            path: /spec/template/spec/ipamConfig/addresses
+            valueFrom:
+              variable: ipamConfig.addresses
+          - op: replace
+            path: /spec/template/spec/ipamConfig/prefix
+            valueFrom:
+              variable: ipamConfig.prefix
+          - op: replace
+            path: /spec/template/spec/ipamConfig/gateway
+            valueFrom:
+              variable: ipamConfig.gateway
+          - op: replace
+            path: /spec/template/spec/dnsServers
+            valueFrom:
+              variable: dnsServers
+          - op: replace
+            path: /spec/template/spec/sshAuthorizedKeys
+            valueFrom:
+              variable: sshAuthorizedKeys
+          - op: replace
+            path: /spec/template/spec/virtualIPNetworkInterface
+            valueFrom:
+              variable: virtualIPNetworkInterface
+  - name: ControlPlaneSetup
+    description: "How to bind the Control Plane and what K8S version"
+    definitions:
+      - selector:
+          apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+          kind: KubeadmControlPlaneTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/version
+            valueFrom:
+              variable: kubernetesVersion
+          - op: add
+            path: /spec/template/spec/kubeadmConfigSpec/users
+            valueFrom:
+              template: |
+                - name: root
+                  sshAuthorizedKeys: {{ .sshAuthorizedKeys }}
+          - op: add
+            path: /spec/template/spec/kubeadmConfigSpec/files
+            valueFrom:
+              template: |
+                - owner: root:root
+                  path: /etc/kubernetes/manifests/kube-vip.yaml
+                  content: |
+                    apiVersion: v1
+                    kind: Pod
+                    metadata:
+                      creationTimestamp: null
+                      name: kube-vip
+                      namespace: kube-system
+                    spec:
+                      containers:
+                      - args:
+                        - manager
+                        env:
+                        - name: cp_enable
+                          value: "true"
+                        - name: vip_interface
+                          value: "{{ .virtualIPNetworkInterface }}"
+                        - name: address
+                          value: "{{ .controlPlaneEndpoint.host }}"
+                        - name: port
+                          value: "6443"
+                        - name: vip_arp
+                          value: "true"
+                        - name: vip_leaderelection
+                          value: "true"
+                        - name: vip_leaseduration
+                          value: "15"
+                        - name: vip_renewdeadline
+                          value: "10"
+                        - name: vip_retryperiod
+                          value: "2"
+                        image: ghcr.io/kube-vip/kube-vip:v0.5.11
+                        imagePullPolicy: IfNotPresent
+                        name: kube-vip
+                        resources: {}
+                        securityContext:
+                          capabilities:
+                            add:
+                            - NET_ADMIN
+                            - NET_RAW
+                        volumeMounts:
+                        - mountPath: /etc/kubernetes/admin.conf
+                          name: kubeconfig
+                      hostAliases:
+                      - hostnames:
+                        - kubernetes
+                        ip: 127.0.0.1
+                      hostNetwork: true
+                      volumes:
+                      - hostPath:
+                          path: /etc/kubernetes/admin.conf
+                          type: FileOrCreate
+                        name: kubeconfig
+  - name: WorkerNodeSetup
+    description: "Configure VM Worker Initialisation"
+    definitions:
+      - selector:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          matchResources:
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/users
+            valueFrom:
+              template: |
+                - name: root
+                  sshAuthorizedKeys: {{ .sshAuthorizedKeys }}
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+        jsonPatches:
+          - op: replace
+            path: /spec/template/spec/sourceNode
+            valueFrom:
+              variable: proxmoxSourceNode
+          - op: replace
+            path: /spec/template/spec/templateID
+            valueFrom:
+              variable: templateID
+  - name: ControlPaneNodeSetup
+    description: "Configure VM Control Pane Node Initialisation"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: replace
+            path: /spec/template/spec/sourceNode
+            valueFrom:
+              variable: proxmoxSourceNode
+          - op: replace
+            path: /spec/template/spec/templateID
+            valueFrom:
+              variable: templateID
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlaneTemplate
+metadata:
+  name: proxmox-clusterclass-v0.1.0-control-plane
+spec:
+  template:
+    spec:
+      kubeadmConfigSpec:
+        initConfiguration:
+          nodeRegistration:
+            kubeletExtraArgs:
+              provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+        joinConfiguration:
+          nodeRegistration:
+            kubeletExtraArgs:
+              provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxClusterTemplate
+metadata:
+  name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
+spec:
+  template:
+    spec:
+      controlPlaneEndpoint:
+        host: 10.10.10.9
+        port: 6443
+      ipamConfig:
+        addresses: [10.10.10.10-10.10.10.20]
+        prefix: 24
+        gateway: 10.10.10.1
+      dnsServers: [8.8.8.8, 8.8.4.4]
+      sshAuthorizedKeys: []
+      kubernetesVersion: 1.25.10
+      virtualIPNetworkInterface: ""
+---
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: proxmox-clusterclass-v0.1.0-control-plane
+spec:
+  template:
+    spec:
+      sourceNode: pve1
+      templateID: 100
+      format: qcow2
+      full: true
+---
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: proxmox-clusterclass-v0.1.0-workertemplate
+spec:
+  template:
+    spec:
+      sourceNode: pve1
+      templateID: 100
+      format: qcow2
+      full: true
+---
+kind: KubeadmConfigTemplate
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+metadata:
+  name: proxmox-clusterclass-v0.1.0-workertemplate
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+---
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: proxmox-cluster-crs-cilium-0
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      cluster.x-k8s.io/proxmox-cluster-cni: cilium
+  resources:
+    - kind: ConfigMap
+      name: cilium

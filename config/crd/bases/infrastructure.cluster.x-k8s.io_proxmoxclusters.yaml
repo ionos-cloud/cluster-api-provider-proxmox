@@ -131,6 +131,10 @@ spec:
                 x-kubernetes-validations:
                 - message: IPv6Config addresses must be provided
                   rule: self.addresses.size() > 0
+              kubernetesVersion:
+                description: KubernetesVersion contains the version of kubernetes
+                  installed by kubeadm
+                type: string
               schedulerHints:
                 description: SchedulerHints allows to influence the decision on where
                   a VM will be scheduled. For example by applying a multiplicator
@@ -147,6 +151,20 @@ spec:
                     format: int64
                     type: integer
                 type: object
+              sshAuthorizedKeys:
+                description: SshAuthorizedKeys contains the authorized keys deployed
+                  to the PROXMOX VMs
+                items:
+                  type: string
+                type: array
+              templateID:
+                description: TemplateID is the ID for the template used for cloning
+                  proxmox VMs
+                type: integer
+              virtualIPNetworkInterface:
+                description: VirtualIPNetworkInterface is the interface used by your
+                  VM
+                type: string
             required:
             - dnsServers
             type: object
