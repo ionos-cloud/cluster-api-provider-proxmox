@@ -14,6 +14,8 @@ on:
       - main
       - release-*
 
+permissions: write-all
+
 jobs:
   image:
     name: build image
@@ -28,18 +30,18 @@ jobs:
           images: ghcr.io/ionos-cloud/cluster-api-provider-proxmox
 
       - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+#        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.BOT_USERNAME }}
-          password: ${{ secrets.BOT_PAT }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
