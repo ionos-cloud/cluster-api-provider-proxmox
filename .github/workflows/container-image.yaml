@@ -14,7 +14,9 @@ on:
       - main
       - release-*
 
-permissions: write-all
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   image:
