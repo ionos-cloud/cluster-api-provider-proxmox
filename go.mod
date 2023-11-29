@@ -3,7 +3,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 go 1.20
 
 require (
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.3.0
 	github.com/google/uuid v1.3.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/luthermonson/go-proxmox v0.0.0-beta2
