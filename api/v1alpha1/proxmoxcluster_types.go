@@ -67,21 +67,29 @@ type ProxmoxClusterSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
 
-	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs
-    // +optional
-    SshAuthorizedKeys []string `json:"sshAuthorizedKeys"`
+	// ProxmoxVMNodeCloneSpec is the configuration pertaining to all items configurable
+	// in the configuration and cloning of a proxmox VM.
+	// +optional
+	NodeCloneSpec ProxmoxClusterNodeCloneSpec `json:"nodeCloneSpec"`
+}
 
-    // KubernetesVersion contains the version of kubernetes installed by kubeadm
-    // +optional
-    KubernetesVersion string `json:"kubernetesVersion"`
+// ProxmoxClusterNodeCloneSpec is the configuration pertaining to all items configurable
+// in the configuration and cloning of a proxmox VM.
+type ProxmoxClusterNodeCloneSpec struct {
+	// Specification of to be created Cluster VMs.
+	NodeSpec ProxmoxMachineSpec `json:",inline"`
 
-    // TemplateID is the ID for the template used for cloning proxmox VMs
-    // +optional
-    TemplateID int `json:"templateID"`
+	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
+	// +optional
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys"`
 
-    // VirtualIPNetworkInterface is the interface used by your VM
-    // +optional
-    VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
+	// VirtualIPNetworkInterface is the interface name used by KubeADM.
+	// +optional
+	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
+
+	// KubernetesVersion contains the version of kubernetes installed by kubeadm.
+	// +optional
+	KubernetesVersion string `json:"kubernetesVersion"`
 }
 
 // IPConfigSpec contains information about available IP config.
