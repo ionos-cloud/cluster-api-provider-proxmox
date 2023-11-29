@@ -267,7 +267,7 @@ We provide the following ClusterClasses:
 ### Creating a cluster from a ClusterClass
 1. Choose a ClusterClass
 All ClusterClasses provide the same features except for the CNI they refer to. The base ClusterClass
-also does not provide MachineHealthChecks as those can not be succesful until a CNI is deployed.
+also does not provide MachineHealthChecks as those can not be successful until a CNI is deployed.
 
 We recommend that you start with a ClusterClass which defines a CNI. Please
 refer to [CNI Cilium](#flavor-with-cilium-cni) for details on how to get started.

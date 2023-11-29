@@ -21,7 +21,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
-// ProxmoxClusterTemplateSpec defines the desired state of ProxmoxClusterTemplate
+// ProxmoxClusterTemplateSpec defines the desired state of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateSpec struct {
 	Template ProxmoxClusterTemplateResource `json:"template"`
 }
@@ -35,27 +35,20 @@ type ProxmoxClusterTemplateResource struct {
 	Spec       ProxmoxClusterSpec   `json:"spec"`
 }
 
-// ProxmoxClusterTemplateStatus defines the observed state of ProxmoxClusterTemplate
-type ProxmoxClusterTemplateStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
-
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// ProxmoxClusterTemplate is the Schema for the proxmoxclustertemplates API
+// ProxmoxClusterTemplate is the Schema for the proxmoxclustertemplates API.
 type ProxmoxClusterTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ProxmoxClusterTemplateSpec   `json:"spec,omitempty"`
-	Status ProxmoxClusterTemplateStatus `json:"status,omitempty"`
+	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// ProxmoxClusterTemplateList contains a list of ProxmoxClusterTemplate
+// ProxmoxClusterTemplateList contains a list of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

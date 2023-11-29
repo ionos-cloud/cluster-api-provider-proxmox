@@ -1,3 +1,4 @@
+---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: ClusterClass
 metadata:
@@ -106,40 +107,73 @@ spec:
           items:
             type: string
           example: ["pve1", "pve2", "pve3"]
-    - name: sshAuthorizedKeys
-      required: false
-      schema:
-        openAPIV3Schema:
-          type: array
-          items:
-            type: string
-          default: []
-          example: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 example@capmox","ssh-rsa ..."]
-    - name: kubernetesVersion
+    - name: nodeCloneSpec
       required: true
       schema:
         openAPIV3Schema:
-          type: string
-          default: "1.25.10"
-          example: "1.25.10"
-    - name: proxmoxSourceNode
-      required: true
-      schema:
-        openAPIV3Schema:
-          type: string
-    - name: templateID
-      required: true
-      schema:
-        openAPIV3Schema:
-          type: integer
-          example: 100
-    - name: virtualIPNetworkInterface
-      required: false
-      schema:
-        openAPIV3Schema:
-          type: string
-          default: ""
-          example: "vmbr0"
+          type: object
+          required:
+          - sourceNode
+          properties:
+            sshAuthorizedKeys:
+              type: array
+              items:
+                type: string
+              default: []
+              example: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 example@capmox","ssh-rsa ..."]
+            kubernetesVersion:
+              type: string
+              default: "1.25.10"
+              example: "1.25.10"
+            sourceNode:
+              type: string
+              example: pve1
+            templateID:
+              type: integer
+              example: 100
+            virtualIPNetworkInterface:
+              type: string
+              default: ""
+              example: "vmbr0"
+            numSockets:
+              type: integer
+              example: 2
+            numCores:
+              type: integer
+              example: 1
+            memoryMiB:
+              type: integer
+              example: 2048
+            vmNetwork:
+              type: object
+              properties:
+                default:
+                  type: object
+                  properties:
+                    bridge:
+                      type: string
+                      example: vmbr0
+                    model:
+                      type: string
+                      default: virtio
+                      example: virtio
+                additionalDevices:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      bridge:
+                        type: string
+                        example: vmbr1
+                      model:
+                        type: string
+                        example: virtio
+                      ipv4PoolRef:
+                        type: object
+                      ipv6PoolRef:
+                        type: object
+                      dnsServers:
+                        type: object
   patches:
   - name: ProxmoxClusterTemplateGeneral
     definitions:
@@ -178,13 +212,17 @@ spec:
             valueFrom:
               variable: dnsServers
           - op: replace
-            path: /spec/template/spec/sshAuthorizedKeys
+            path: /spec/template/spec/nodeCloneSpec/sshAuthorizedKeys
             valueFrom:
-              variable: sshAuthorizedKeys
+              variable: nodeCloneSpec.sshAuthorizedKeys
           - op: replace
-            path: /spec/template/spec/virtualIPNetworkInterface
+            path: /spec/template/spec/nodeCloneSpec/virtualIPNetworkInterface
             valueFrom:
-              variable: virtualIPNetworkInterface
+              variable: nodeCloneSpec.virtualIPNetworkInterface
+          - op: replace
+            path: /spec/template/spec/nodeCloneSpec/sourceNode
+            valueFrom:
+              variable: nodeCloneSpec.sourceNode
   - name: ControlPlaneSetup
     description: "How to bind the Control Plane and what K8S version"
     definitions:
@@ -197,13 +235,13 @@ spec:
           - op: add
             path: /spec/template/spec/version
             valueFrom:
-              variable: kubernetesVersion
+              variable: nodeCloneSpec.kubernetesVersion
           - op: add
             path: /spec/template/spec/kubeadmConfigSpec/users
             valueFrom:
               template: |
                 - name: root
-                  sshAuthorizedKeys: {{ .sshAuthorizedKeys }}
+                  sshAuthorizedKeys: {{ .nodeCloneSpec.sshAuthorizedKeys }}
           - op: add
             path: /spec/template/spec/kubeadmConfigSpec/files
             valueFrom:
@@ -225,7 +263,7 @@ spec:
                         - name: cp_enable
                           value: "true"
                         - name: vip_interface
-                          value: "{{ .virtualIPNetworkInterface }}"
+                          value: "{{ .nodeCloneSpec.virtualIPNetworkInterface }}"
                         - name: address
                           value: "{{ .controlPlaneEndpoint.host }}"
                         - name: port
@@ -278,7 +316,7 @@ spec:
             valueFrom:
               template: |
                 - name: root
-                  sshAuthorizedKeys: {{ .sshAuthorizedKeys }}
+                  sshAuthorizedKeys: {{ .nodeCloneSpec.sshAuthorizedKeys }}
       - selector:
           apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
           kind: ProxmoxMachineTemplate
@@ -290,11 +328,11 @@ spec:
           - op: replace
             path: /spec/template/spec/sourceNode
             valueFrom:
-              variable: proxmoxSourceNode
+              variable: nodeCloneSpec.sourceNode
           - op: replace
             path: /spec/template/spec/templateID
             valueFrom:
-              variable: templateID
+              variable: nodeCloneSpec.templateID
   - name: ControlPaneNodeSetup
     description: "Configure VM Control Pane Node Initialisation"
     definitions:
@@ -307,11 +345,28 @@ spec:
           - op: replace
             path: /spec/template/spec/sourceNode
             valueFrom:
-              variable: proxmoxSourceNode
+              variable: nodeCloneSpec.sourceNode
           - op: replace
             path: /spec/template/spec/templateID
             valueFrom:
-              variable: templateID
+              variable: nodeCloneSpec.templateID
+  - name: WorkerNodeSockets
+    description: "Configure VM Node Sockets"
+    enabledIf: "{{ if .nodeCloneSpec.numSockets }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/numSockets
+            valueFrom:
+              variable: nodeCloneSpec.numSockets
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlaneTemplate
@@ -345,9 +400,11 @@ spec:
         prefix: 24
         gateway: 10.10.10.1
       dnsServers: [8.8.8.8, 8.8.4.4]
-      sshAuthorizedKeys: []
-      kubernetesVersion: 1.25.10
-      virtualIPNetworkInterface: ""
+      nodeCloneSpec:
+        sourceNode: pve1
+        sshAuthorizedKeys: []
+        kubernetesVersion: 1.25.10
+        virtualIPNetworkInterface: ""
 ---
 kind: ProxmoxMachineTemplate
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
