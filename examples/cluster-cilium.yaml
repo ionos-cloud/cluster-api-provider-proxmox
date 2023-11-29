@@ -6,9 +6,6 @@ metadata:
     cluster.x-k8s.io/proxmox-cluster-cni: cilium
   name: capmox-cluster
 spec:
-  #clusterNetwork:
-  #  pods:
-  #    cidrBlocks: ["192.168.0.0/16"]
   topology:
     class: proxmox-clusterclass-cilium-v0.1.0
     version: 1.25.10
@@ -16,34 +13,34 @@ spec:
       replicas: 1
     workers:
       machineDeployments:
-        - class: proxmox-worker
-          name: proxmox-worker-pool
-          replicas: 3
+      - class: proxmox-worker
+        name: proxmox-worker-pool
+        replicas: 3
     variables:
-    - name: templateID
-      value: 100
+    - name: allowedNodes
+      value:
+      - pve1
+      - pve2
+      - pve3
     - name: controlPlaneEndpoint
       value:
         host: 10.10.10.9
         port: 6443
     - name: dnsServers
       value:
-        - 8.8.8.8
-        - 8.8.4.4
+      - 8.8.8.8
+      - 8.8.4.4
     - name: ipv4Config
       value:
         addresses: [10.10.10.10-10.10.10.20]
         gateway: 10.10.10.1
         prefix: 1
-    - name: sshAuthorizedKeys
+    - name: nodeCloneSpec
       value:
+        # numSockets: 1
+        # numCores: 1
+        sshAuthorizedKeys:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 capmox@k8s.io
-    - name: proxmoxSourceNode
-      value: pve1
-  # - name: virtualIPNetworkInterface
-  #   value: vmbr0
-    - name: allowedNodes
-      value:
-        - pve1
-        - pve2
-        - pve3
+        sourceNode: pve1
+        templateID: 100
+        # virtualIPNetworkInterface: vmbr0

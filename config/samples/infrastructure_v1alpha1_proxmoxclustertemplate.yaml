@@ -1,0 +1,12 @@
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxClusterTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: proxmoxclustertemplate
+    app.kubernetes.io/instance: proxmoxclustertemplate-sample
+    app.kubernetes.io/part-of: cluster-api-provider-proxmox
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cluster-api-provider-proxmox
+  name: proxmoxclustertemplate-sample
+spec:
