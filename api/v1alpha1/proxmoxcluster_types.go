@@ -66,6 +66,22 @@ type ProxmoxClusterSpec struct {
 	// DNSServers contains information about nameservers used by the machines.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
+
+	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs
+    // +optional
+    SshAuthorizedKeys []string `json:"sshAuthorizedKeys"`
+
+    // KubernetesVersion contains the version of kubernetes installed by kubeadm
+    // +optional
+    KubernetesVersion string `json:"kubernetesVersion"`
+
+    // TemplateID is the ID for the template used for cloning proxmox VMs
+    // +optional
+    TemplateID int `json:"templateID"`
+
+    // VirtualIPNetworkInterface is the interface used by your VM
+    // +optional
+    VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
 }
 
 // IPConfigSpec contains information about available IP config.
