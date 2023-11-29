@@ -32,7 +32,7 @@ jobs:
           images: ghcr.io/ionos-cloud/cluster-api-provider-proxmox
 
       - name: Login to GitHub Container Registry
-#        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -43,7 +43,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
