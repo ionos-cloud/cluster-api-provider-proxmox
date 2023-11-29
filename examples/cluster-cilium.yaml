@@ -30,7 +30,7 @@ spec:
       value:
         - 8.8.8.8
         - 8.8.4.4
-    - name: ipamConfig
+    - name: ipv4Config
       value:
         addresses: [10.10.10.10-10.10.10.20]
         gateway: 10.10.10.1
