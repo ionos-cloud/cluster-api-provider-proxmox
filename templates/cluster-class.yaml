@@ -2,7 +2,7 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: ClusterClass
 metadata:
-  name: proxmox-clusterclass-cilium-v0.1.0
+  name: proxmox-clusterclass-v0.1.0
 spec:
   controlPlane:
     namingStrategy:
@@ -30,7 +30,7 @@ spec:
     ref:
       apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
       kind: ProxmoxClusterTemplate
-      name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
+      name: proxmox-clusterclass-v0.1.0-clustertemplate
   workers:
     machineDeployments:
       - class: proxmox-worker
@@ -525,7 +525,7 @@ spec:
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: ProxmoxClusterTemplate
 metadata:
-  name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
+  name: proxmox-clusterclass-v0.1.0-clustertemplate
 spec:
   template:
     spec:
@@ -578,16 +578,3 @@ spec:
         nodeRegistration:
           kubeletExtraArgs:
             provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
----
-apiVersion: addons.cluster.x-k8s.io/v1beta1
-kind: ClusterResourceSet
-metadata:
-  name: proxmox-cluster-crs-cilium-0
-  namespace: default
-spec:
-  clusterSelector:
-    matchLabels:
-      cluster.x-k8s.io/proxmox-cluster-cni: cilium
-  resources:
-    - kind: ConfigMap
-      name: cilium

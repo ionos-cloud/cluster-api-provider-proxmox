@@ -437,7 +437,7 @@ spec:
                             type: integer
                           virtualIPNetworkInterface:
                             description: VirtualIPNetworkInterface is the interface
-                              name used by KubeADM.
+                              the k8s control plane binds to.
                             type: string
                           virtualMachineID:
                             description: VirtualMachineID is the Proxmox identifier

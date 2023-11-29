@@ -258,11 +258,11 @@ to be set in your capi controller and in the environment of clusterctl.
 
 We provide the following ClusterClasses:
 
-| Flavor         | Tepmlate File                                   | CRS File                      |
-|----------------| ----------------------------------------------- |-------------------------------|
-| cilium         | templates/cluster-class-cilium.yaml             | templates/crs/cni/cilium.yaml |
-| calico         | templates/cluster-class-calico.yaml             | templates/crs/cni/calico.yaml |
-| default        | templates/cluster-class.yaml                    | -                             |
+| Flavor         | Template File                                   | CRS File                      | Example Cluster Manifest     |
+|----------------| ----------------------------------------------- |-------------------------------|-------------------------------
+| cilium         | templates/cluster-class-cilium.yaml             | templates/crs/cni/cilium.yaml | examples/cluster-cilium.yaml |
+| calico         | templates/cluster-class-calico.yaml             | templates/crs/cni/calico.yaml | examples/cluster-calico.yaml |
+| default        | templates/cluster-class.yaml                    | -                             | examples/cluster.yaml        |
 
 ### Creating a cluster from a ClusterClass
 1. Choose a ClusterClass
@@ -272,7 +272,7 @@ also does not provide MachineHealthChecks as those can not be successful until a
 We recommend that you start with a ClusterClass which defines a CNI. Please
 refer to [CNI Cilium](#flavor-with-cilium-cni) for details on how to get started.
 
-Apply the ClusterClass custom resource definition so you can create a manifest using it:
+Apply the ClusterClass custom resource definition so you can create cluster manifests:
 
 ```bash
 kubectl apply -f templates/cluster-class-cilium.yaml

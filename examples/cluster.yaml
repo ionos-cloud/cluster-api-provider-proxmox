@@ -3,11 +3,11 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   labels:
-    cluster.x-k8s.io/proxmox-cluster-cni: cilium
+    cluster.x-k8s.io/proxmox-cluster-cni:
   name: capmox-cluster
 spec:
   topology:
-    class: proxmox-clusterclass-cilium-v0.1.0
+    class: proxmox-clusterclass-v0.1.0
     version: 1.25.10
     controlPlane:
       replicas: 1
