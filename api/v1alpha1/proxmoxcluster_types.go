@@ -76,14 +76,13 @@ type ProxmoxClusterSpec struct {
 // ProxmoxClusterNodeCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
 type ProxmoxClusterNodeCloneSpec struct {
-	// Specification of to be created Cluster VMs.
-	NodeSpec ProxmoxMachineSpec `json:",inline"`
+	ProxmoxMachineSpec `json:",inline"`
 
 	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +optional
 	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys"`
 
-	// VirtualIPNetworkInterface is the interface name used by KubeADM.
+	// VirtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
 	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
 
