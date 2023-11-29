@@ -1,0 +1,31 @@
+# permissions for end users to edit proxmoxclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: proxmoxcluster-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: cluster-api-provider-proxmox
+    app.kubernetes.io/part-of: cluster-api-provider-proxmox
+    app.kubernetes.io/managed-by: kustomize
+  name: proxmoxcluster-editor-role
+rules:
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - proxmoxclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - proxmoxclusters/status
+  verbs:
+  - get

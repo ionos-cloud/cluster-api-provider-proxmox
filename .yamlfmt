@@ -1,0 +1,17 @@
+include:
+- metadata.yaml
+- .github
+- config/default
+- config/manager
+- config/samples
+- config/webhook
+- examples
+exclude:
+- .github/workflows
+formatter:
+  include_document_start: true
+  indent: 2
+  indentless_arrays: true
+  max_line_length: 120
+  retain_line_breaks: true
+  type: basic

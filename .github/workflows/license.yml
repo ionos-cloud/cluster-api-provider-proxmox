@@ -1,0 +1,14 @@
+# Checks if all go files have the required license header
+name: License
+on: [ pull_request ]
+
+jobs:
+  license:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - uses: viperproject/check-license-header@v2
+        with:
+          path: .
+          config: .github/workflows/license.conf
+          strict: false

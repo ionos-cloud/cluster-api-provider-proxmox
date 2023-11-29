@@ -1,0 +1,35 @@
+export PROXMOX_URL=https://pve.example.com
+export PROXMOX_TOKEN=""
+export PROXMOX_SECRET=""
+export PROXMOX_SOURCENODE="pve"
+export TEMPLATE_VMID=100
+export VM_SSH_KEYS="ssh-ed25519 ..., ssh-ed25519 ..."
+export KUBERNETES_VERSION="1.25.1"
+export CONTROL_PLANE_ENDPOINT_IP=10.10.10.4
+export NODE_IP_RANGES="[10.10.10.5-10.10.10.50, 10.10.10.55-10.10.10.70]"
+export GATEWAY="10.10.10.1"
+export IP_PREFIX=24
+export DNS_SERVERS="[8.8.8.8,8.8.4.4]"
+export ALLOWED_NODES="[pve1,pve2,pve3]"
+
+
+# Optional config for boot disk and default NIC
+export BOOT_VOLUME_DEVICE=scsi0
+export BOOT_VOLUME_SIZE=100
+export NUM_SOCKETS=2
+export NUM_CORES=4
+export MEMORY_MIB=16384
+export BRIDGE=vmbr0
+
+# Multiple NICS
+export NODE_SECONDARY_IP_RANGES="[10.10.10.100-10.10.10.150]"
+export SECONDARY_IP_PREFIX=24
+export SECONDARY_GATEWAY="10.10.10.254"
+export SECONDARY_DNS_SERVERS="[8.8.8.8, 8.8.4.4]"
+export SECONDARY_BRIDGE=vmbr1
+
+
+# IPV6
+export NODE_IPV6_RANGES="[2001:db8:1::1-2001:db8:1::10]"
+export IPV6_PREFIX=64
+export IPV6_GATEWAY="2001:db8:1::1"

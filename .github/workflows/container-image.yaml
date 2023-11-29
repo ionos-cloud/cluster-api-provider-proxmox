@@ -1,0 +1,53 @@
+name: container-image
+
+on:
+  push:
+    branches:
+      - main
+      - release-*
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+  pull_request:
+    branches:
+      - main
+      - release-*
+
+jobs:
+  image:
+    name: build image
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@v4.1.1
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ionos-cloud/cluster-api-provider-proxmox
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.BOT_USERNAME }}
+          password: ${{ secrets.BOT_PAT }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Scan image
+        if: github.event_name == 'pull_request'
+        uses: anchore/scan-action@v3
+        id: scan
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+          add-cpes-if-none: true
+          output-format: table
