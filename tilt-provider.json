@@ -1,0 +1,18 @@
+[
+  {
+    "name": "proxmox",
+    "config": {
+      "image": "ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev",
+      "live_reload_deps": [
+        "cmd",
+        "go.mod",
+        "go.sum",
+        "api",
+        "internal",
+        "pkg"
+      ],
+      "label": "CAPMOX",
+      "go_main": "cmd/main.go"
+    }
+  }
+]

@@ -1,0 +1,10 @@
+---
+apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+kind: InClusterIPPool
+metadata:
+  name: inclusterippool-sample
+spec:
+  addresses:
+  - 10.10.10.4-10.10.10.254
+  prefix: 24
+  gateway: 10.10.10.1

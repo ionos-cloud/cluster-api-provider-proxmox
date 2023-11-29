@@ -1,0 +1,37 @@
+---
+extends: default
+
+rules:
+  # the default of 80 is overly-restrictive, particularly when nested
+  line-length:
+    max: 120
+    level: warning
+  # as this repository also contains generated yaml, we only enforce
+  # indentation consistency within a file
+  indentation:
+    spaces: consistent
+    indent-sequences: consistent
+  # we can only choose from true or false. since we have files containing
+  # several documents, we explicitly require document-starts
+  document-start:
+    present: true
+  comments:
+    min-spaces-from-content: 1
+  # comments-indentation linting has unwanted edgecases:
+  # https://github.com/adrienverge/yamllint/issues/141
+  comments-indentation: disable
+
+ignore:
+# generated files
+- config/crd
+- config/crd
+- config/certmanager
+- config/prometheus
+- config/rbac
+- out
+- .*.yaml
+- .*.yml
+# these are clusterctl templates, not yaml
+- templates
+# github actions checked by actionlint
+- .github/workflows

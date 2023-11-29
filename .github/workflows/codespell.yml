@@ -1,0 +1,15 @@
+# Helps catch spelling errors
+name: Codespell
+on: [ pull_request ]
+
+jobs:
+  codespell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - uses: codespell-project/actions-codespell@94259cd8be02ad2903ba34a22d9c13de21a74461 # v2.0
+        with:
+          skip: .git,_artifacts,*.sum
+          ignore_words_file: .codespellignore
+          check_filenames: true
+          check_hidden: true

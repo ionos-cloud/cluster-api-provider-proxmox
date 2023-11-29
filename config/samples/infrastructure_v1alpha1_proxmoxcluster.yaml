@@ -1,0 +1,24 @@
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: proxmoxcluster
+    app.kubernetes.io/instance: proxmoxcluster-sample
+    app.kubernetes.io/part-of: cluster-api-provider-proxmox
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cluster-api-provider-proxmox
+  name: proxmoxcluster-sample
+spec:
+  ipamConfig:
+    addresses:
+    - 10.10.10.2
+    - 10.10.10.5-10.10.10.100
+    prefix: 24
+    gateway: 10.10.10.1
+  allowedNodes:
+  - pve1
+  - pve2
+  dnsServers:
+  - 8.8.8.8
+  - 8.8.4.4
