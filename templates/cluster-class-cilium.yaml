@@ -69,7 +69,7 @@ spec:
             port:
               type: integer
               default: 6443
-    - name: ipamConfig
+    - name: ipv4Config
       required: true
       schema:
         openAPIV3Schema:
@@ -162,17 +162,17 @@ spec:
             valueFrom:
               variable: controlPlaneEndpoint.port
           - op: replace
-            path: /spec/template/spec/ipamConfig/addresses
+            path: /spec/template/spec/ipv4Config/addresses
             valueFrom:
-              variable: ipamConfig.addresses
+              variable: ipv4Config.addresses
           - op: replace
-            path: /spec/template/spec/ipamConfig/prefix
+            path: /spec/template/spec/ipv4Config/prefix
             valueFrom:
-              variable: ipamConfig.prefix
+              variable: ipv4Config.prefix
           - op: replace
-            path: /spec/template/spec/ipamConfig/gateway
+            path: /spec/template/spec/ipv4Config/gateway
             valueFrom:
-              variable: ipamConfig.gateway
+              variable: ipv4Config.gateway
           - op: replace
             path: /spec/template/spec/dnsServers
             valueFrom:
@@ -340,7 +340,7 @@ spec:
       controlPlaneEndpoint:
         host: 10.10.10.9
         port: 6443
-      ipamConfig:
+      ipv4Config:
         addresses: [10.10.10.10-10.10.10.20]
         prefix: 24
         gateway: 10.10.10.1

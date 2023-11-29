@@ -19,6 +19,7 @@ Table of contents
             * [Additional flavors](#additional-flavors)
          * [Cleaning a cluster](#cleaning-a-cluster)
          * [Custom cluster templates](#custom-cluster-templates)
+      * [Using Cluster Classes](#using-cluster-classes)
 
 <!-- Added by: root, at: Fri Dec 10 13:11:36 CET 2021 -->
 
@@ -104,7 +105,9 @@ NUM_SOCKETS: "2"                                              # The number of so
 NUM_CORES: "4"                                                # The number of cores for the VMs.
 MEMORY_MIB: "8048"                                            # The memory size for the VMs.
 
+<<<<<<< HEAD
 EXP_CLUSTER_RESOURCE_SET: "true"                              # This enables the ClusterResourceSet feature that we are using to deploy CNI
+CLUSTER_TOPOLOGY: "true"                                      # This enables experimental ClusterClass templating
 ```
 
 the `CONTROL_PLANE_ENDPOINT_IP` is an IP that must be on the same subnet as the control plane machines
@@ -243,3 +246,60 @@ $ clusterctl generate custom-cluster proxmox-quickstart \
     --worker-machine-count 3 \
     --from ~/workspace/custom-cluster-template.yaml > custom-cluster.yaml
 ```
+
+## Using Cluster Classes
+[ClusterClass](https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/)
+is an experimental feature to manage clusters without templating. In this case, you only
+need to write the cluster definition (referring to the cluster class), and all required resources
+are automatically created for you.
+
+This feature requires [CLUSTER_TOPOLOGY](https://cluster-api.sigs.k8s.io/tasks/experimental-features/experimental-features#enabling-experimental-features-on-tilt)
+to be set in your capi controller and in the environment of clusterctl.
+
+We provide the following ClusterClasses:
+
+| Flavor         | Tepmlate File                                   | CRS File                      |
+|----------------| ----------------------------------------------- |-------------------------------|
+| cilium         | templates/cluster-class-cilium.yaml             | templates/crs/cni/cilium.yaml |
+| calico         | templates/cluster-class-calico.yaml             | templates/crs/cni/calico.yaml |
+| default        | templates/cluster-class.yaml                    | -                             |
+
+### Creating a cluster from a ClusterClass
+1. Choose a ClusterClass
+All ClusterClasses provide the same features except for the CNI they refer to. The base ClusterClass
+also does not provide MachineHealthChecks as those can not be succesful until a CNI is deployed.
+
+We recommend that you start with a ClusterClass which defines a CNI. Please
+refer to [CNI Cilium](#flavor-with-cilium-cni) for details on how to get started.
+
+Apply the ClusterClass custom resource definition so you can create a manifest using it:
+
+```bash
+kubectl apply -f templates/cluster-class-cilium.yaml
+```
+
+2. Write the cluster manifest
+An example can be found in [examples/cluster-cilum.yaml](../examples/cluster-cilium.yaml).
+
+Important fields:
+- `.metadata.name: cluster-name` the name of the cluster to be generated.
+- `.spec.topology.class: `proxmox-clusterclass-cilium-v0.1.0` the clusterClass used for generating resources.
+- `.spec.topology.version: 1.25.10` The k8s version used by kubeadm.
+
+All possible fields refer to [CAPMOX environment variables](#capmox-environment-variables).
+
+3. Preview the cluster topology
+
+```bash
+clusterctl alpha topology plan -f examples/cluster-cilium.yaml -o out/
+```
+
+The to-be-created resources will be located in `out/created`.
+
+4. Apply the Cluster Manifest
+
+```bash
+kubectl apply -f mycluster.yaml
+```
+
+If you run into issues, refer to [Cluster Health and deployment status](#cluster-health-and-deployment-status).
