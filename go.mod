@@ -19,7 +19,7 @@ require (
 	k8s.io/client-go v0.27.2
 	k8s.io/klog/v2 v2.100.1
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
-	sigs.k8s.io/cluster-api v1.5.0
+	sigs.k8s.io/cluster-api v1.5.3
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0-alpha.3
 	sigs.k8s.io/controller-runtime v0.15.1
 )
