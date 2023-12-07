@@ -8,7 +8,7 @@ Table of contents
 * [About CAPMOX](#about-capmox)
 * [CAPMOX Dependencies](#capmox-dependencies)
 * [Getting Started](#getting-started)
-    * [Proxmox API Token](#promox-api-token)
+    * [Proxmox VE API Token](#promox-api-token)
 * [Setting up a development environment](#how-to-setup-a-development-environment)
     * [Running Tilt](#running-tilt)
 * [Make Targets](#make-targets)
@@ -19,7 +19,7 @@ Table of contents
     * [Uninstalling CAPMOX](#uninstalling-capmox)
 
 ## About CAPMOX
-CAPMOX is a Kubernetes Cluster API provider for Proxmox.
+CAPMOX is a Kubernetes Cluster API provider for Proxmox Virtual Environment.
 
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/).
 
@@ -55,8 +55,8 @@ in cluster-api's Tiltfile do not hold. We strongly advise against this approach.
 
 If you're having trouble setting any of this up, check the [Troubleshooting](Troubleshooting.md) docs.
 
-### Proxmox API Token
-Cluster-api-provider-proxmox requires a running proxmox instance and an API token for access. See the [Proxmox wiki](https://pve.proxmox.com/wiki/Proxmox_VE_API#API_Tokens)
+### Proxmox VE API Token
+Cluster-api-provider-proxmox requires a running Proxmox VE instance and an API token for access. See the [Proxmox wiki](https://pve.proxmox.com/wiki/Proxmox_VE_API#API_Tokens)
 for more information.
 
 ## How to setup a development environment
@@ -90,14 +90,14 @@ for more information.
   }
 }
 ```
-  This file instructs Tilt to use the Proxmox and ipam-provider-in-cluster repositories. `allowed_contexts` is used to add
+  This file instructs Tilt to use the cluster-api-provider-proxmox and ipam-provider-in-cluster repositories. `allowed_contexts` is used to add
   allowed clusters other than kind (which is always implicitly enabled).
 
 - If you don't have a cluster, create a new kind cluster:
 ```
 kind create cluster --name capi-test
 ```
-- cluster-api-provider-proxmox uses environment variables to connect to Proxmox. These need to be set in the shell which spawns Tilt.
+- cluster-api-provider-proxmox uses environment variables to connect to Proxmox VE. These need to be set in the shell which spawns Tilt.
   Tilt will pass these to the respective Kubernetes pods created. All variables are documented in `../cluster-api-provider-proxmox/envfile.example`.
   Copy `../cluster-api-provider-proxmox/envfile.example` to `../cluster-api-provider-proxmox/envfile` and make changes pertaining to your configuration.
   For documentation on environment variables, see [usage](Usage.md#environment-variables)
