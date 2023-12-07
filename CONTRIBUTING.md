@@ -1,6 +1,6 @@
-# Contributing to Cluster API Provider for Proxmox
+# Contributing to Cluster API Provider for Proxmox Virtual Environment
 
-Thank you for considering contributing to the Cluster API provider for Proxmox. We appreciate your time and effort to help make this project better. To ensure a smooth collaboration, please follow the guidelines below.
+Thank you for considering contributing to the Cluster API Provider for Proxmox VE. We appreciate your time and effort to help make this project better. To ensure a smooth collaboration, please follow the guidelines below.
 
 ## Code of Conduct
 
@@ -59,4 +59,4 @@ Ensure that your changes are reflected in the documentation. If you are introduc
 If you encounter any issues or have suggestions for improvement, please open an issue on the GitHub repository.
 
 ## Thank You
-Thank you for your contribution! Your efforts help make the Cluster API provider for Proxmox better for everyone. We appreciate your dedication to the project and the CNCF community.
+Thank you for your contribution! Your efforts help make the Cluster API Provider for Proxmox VE better for everyone. We appreciate your dedication to the project and the CNCF community.
