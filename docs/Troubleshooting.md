@@ -53,3 +53,13 @@ A fix is to create this directory, then start Docker.
 
 ## Kind/Podman
 TODO
+
+## Kind/cluster-api incompatibility
+If you encounter errors like
+* `missing MachineDeployment strategy` on your `MachineDeployment`
+* `failed to call webhook: the server could not find the requested resource` in your capmox-controller's logs
+or others, please check the image tag of the `capi-controller-manager` Deployment and compare it against our [compatibility matrix](https://github.com/ionos-cloud/cluster-api-provider-proxmox/blob/main/README.md#compatibility-with-cluster-api-and-kubernetes-versions).
+```
+kubectl get deployment/capi-controller-manager -o yaml | yq '.spec.template.spec.containers[].image'
+```
+If your capi-controller is too new, you can pass a `--core cluster-api:v1.5.3` during `clusterctl init`, to force an older version. By default it installs the latest version from the [kubernetes-sigs/cluster-api](https://github.com/kubernetes-sigs/cluster-api) project.
