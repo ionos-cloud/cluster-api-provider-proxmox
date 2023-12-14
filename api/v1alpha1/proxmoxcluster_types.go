@@ -278,5 +278,5 @@ func (c *ProxmoxCluster) addNodeLocation(loc NodeLocation, isControlPlane bool) 
 }
 
 func init() {
-	SchemeBuilder.Register(&ProxmoxCluster{}, &ProxmoxClusterList{})
+	objectTypes = append(objectTypes, &ProxmoxCluster{}, &ProxmoxClusterList{})
 }
