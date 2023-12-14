@@ -91,7 +91,7 @@ func handleIPAddressForDevice(ctx context.Context, machineScope *scope.MachineSc
 		}
 		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
 		// IpAddress not yet created.
-		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, device, format, ipamRef)
+		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, device, format, machineScope.InfraCluster.Cluster.GetName(), ipamRef)
 		if err != nil {
 			return "", errors.Wrapf(err, "unable to create Ip address claim for machine %s", machineScope.Name())
 		}
