@@ -152,7 +152,7 @@ func (h *Helper) GetGlobalInClusterIPPool(ctx context.Context, ref *corev1.Typed
 }
 
 // CreateIPAddressClaim creates an IPAddressClaim for a given object.
-func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, device, format string, ref *corev1.TypedLocalObjectReference) error {
+func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, device, format, clusterNameLabel string, ref *corev1.TypedLocalObjectReference) error {
 	var gvk schema.GroupVersionKind
 	key := client.ObjectKey{
 		Namespace: owner.GetNamespace(),
@@ -201,7 +201,7 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 	// Ensures that the claim has a reference to the cluster of the VM to
 	// support pausing reconciliation.
 	labels := map[string]string{
-		clusterv1.ClusterNameLabel: h.cluster.GetName(),
+		clusterv1.ClusterNameLabel: clusterNameLabel,
 	}
 
 	desired := &ipamv1.IPAddressClaim{
