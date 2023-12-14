@@ -158,6 +158,7 @@ We provide the following templates:
 | xl-nodes       | templates/cluster-template-xl-nodes.yaml        | -                             |
 | default        | templates/cluster-template.yaml                 | -                             |
 
+For more information about advanced clusters please check our [advanced setups docs](advanced-setups.md).
 
 #### Flavor with Cilium CNI
 Before this cluster can be deployed, `cilium` needs to be configured. As a first step we
