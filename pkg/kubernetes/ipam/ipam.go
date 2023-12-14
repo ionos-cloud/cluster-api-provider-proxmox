@@ -200,15 +200,15 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 
 	// Ensures that the claim has a reference to the cluster of the VM to
 	// support pausing reconciliation.
-	annotations := map[string]string{
-		clusterv1.ClusterNameAnnotation: h.cluster.GetName(),
+	labels := map[string]string{
+		clusterv1.ClusterNameLabel: h.cluster.GetName(),
 	}
 
 	desired := &ipamv1.IPAddressClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        fmt.Sprintf("%s-%s-%s", owner.GetName(), device, suffix),
-			Namespace:   owner.GetNamespace(),
-			Annotations: annotations,
+			Name:      fmt.Sprintf("%s-%s-%s", owner.GetName(), device, suffix),
+			Namespace: owner.GetNamespace(),
+			Labels:    labels,
 		},
 		Spec: ipamv1.IPAddressClaimSpec{
 			PoolRef: corev1.TypedLocalObjectReference{

@@ -18,6 +18,7 @@ package ipam
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -236,6 +237,15 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 
 	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, infrav1.IPV4Format, nil)
 	s.NoError(err)
+
+	// Ensure cluster label is set.
+	var claim ipamv1.IPAddressClaim
+	name := fmt.Sprintf("%s-%s-%s", getCluster().GetName(), device, infrav1.DefaultSuffix)
+	nn := types.NamespacedName{Name: name, Namespace: getCluster().GetNamespace()}
+	err = s.cl.Get(s.ctx, nn, &claim)
+	s.NoError(err)
+	s.Contains(claim.ObjectMeta.Labels, clusterv1.ClusterNameLabel)
+	s.Equal(getCluster().GetName(), claim.ObjectMeta.Labels[clusterv1.ClusterNameLabel])
 
 	// additional device with InClusterIPPool
 	s.NoError(s.helper.ctrlClient.Create(s.ctx, &ipamicv1.InClusterIPPool{
