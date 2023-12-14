@@ -67,9 +67,7 @@ spec:
         # seccompProfile:
         #   type: RuntimeDefault
       containers:
-      - command:
-        - /manager
-        args:
+      - args:
         - --leader-elect
         - --feature-gates=ClusterTopology=${ClusterTopology:=false}
         - "--metrics-bind-address=localhost:8080"
