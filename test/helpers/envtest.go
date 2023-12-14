@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"path/filepath"
 	goruntime "runtime"
-	"time"
 
 	"golang.org/x/tools/go/packages"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -33,14 +32,14 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/record"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1alpha1"
+	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
@@ -95,12 +94,11 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 	}
 
 	env := &envtest.Environment{
-		KubeAPIServerFlags: []string{
-			"--disable-admission-plugins=NamespaceLifecycle",
-		},
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     crdsPaths,
 	}
+	apiServer := env.ControlPlane.GetAPIServer()
+	apiServer.Configure().Set("disable-admission-plugins", "NamespaceLifecycle")
 
 	if setupWebhook {
 		env.WebhookInstallOptions = envtest.WebhookInstallOptions{
@@ -114,10 +112,9 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 	}
 
 	opts := ctrl.Options{
-		Scheme:             scheme,
-		EventBroadcaster:   record.NewBroadcasterForTests(time.Second),
-		LeaderElection:     false,
-		MetricsBindAddress: "0",
+		Scheme:         scheme,
+		LeaderElection: false,
+		Metrics:        metricsserver.Options{BindAddress: "0"},
 	}
 
 	whio := &env.WebhookInstallOptions
