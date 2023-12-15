@@ -40,11 +40,11 @@ const (
 	  {{- end }}
       routes:
       {{- if $element.Gateway }}
-        - to: default
+        - to: 0.0.0.0/0
           via: {{ $element.Gateway }}
 	  {{- end }}
       {{- if $element.Gateway6 }}
-        - to: default
+        - to: '::/0'
           via: {{ $element.Gateway6 }}
 	  {{- end }}
       {{- if $element.DNSServers }}

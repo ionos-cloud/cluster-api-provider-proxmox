@@ -35,7 +35,7 @@ const (
       addresses:
         - 10.10.10.12/24
       routes:
-        - to: default
+        - to: 0.0.0.0/0
           via: 10.10.10.1
       nameservers:
         addresses:
@@ -53,7 +53,7 @@ const (
       addresses:
         - 10.10.10.12/24
       routes:
-        - to: default
+        - to: 0.0.0.0/0
           via: 10.10.10.1`
 
 	expectedValidNetworkConfigMultipleNics = `network:
@@ -67,7 +67,7 @@ const (
       addresses:
         - 10.10.10.12/24
       routes:
-        - to: default
+        - to: 0.0.0.0/0
           via: 10.10.10.1
       nameservers:
         addresses:
@@ -80,7 +80,7 @@ const (
       addresses:
         - 196.168.100.124/24
       routes:
-        - to: default
+        - to: 0.0.0.0/0
           via: 196.168.100.254
       nameservers:
         addresses:
@@ -99,9 +99,9 @@ const (
         - 10.10.10.12/24
         - 2001:db8::1/64
       routes:
-        - to: default
+        - to: 0.0.0.0/0
           via: 10.10.10.1
-        - to: default
+        - to: '::/0'
           via: 2001:db8::1
       nameservers:
         addresses:
@@ -119,7 +119,7 @@ const (
       addresses:
         - 2001:db8::1/64
       routes:
-        - to: default
+        - to: '::/0'
           via: 2001:db8::1
       nameservers:
         addresses:
