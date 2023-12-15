@@ -155,9 +155,9 @@ We provide the following templates:
 | cilium         | templates/cluster-template-cilium.yaml          | templates/crs/cni/cilium.yaml |
 | calico         | templates/cluster-template-calico.yaml          | templates/crs/cni/calico.yaml |
 | multiple-vlans | templates/cluster-template-multiple-vlans.yaml  | -                             |
-| xl-nodes       | templates/cluster-template-xl-nodes.yaml        | -                             |
 | default        | templates/cluster-template.yaml                 | -                             |
 
+For more information about advanced clusters please check our [advanced setups docs](advanced-setups.md).
 
 #### Flavor with Cilium CNI
 Before this cluster can be deployed, `cilium` needs to be configured. As a first step we
