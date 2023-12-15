@@ -24,15 +24,15 @@ In the cluster template flavor=multiple-vlans you can define a secondary network
 To do that you will need to set extra environment variables along with the required ones:
 
 ```bash
-# SECONDARY_IP_RANGES The secondary IP ranges for Cluster nodes
+# The secondary IP ranges for Cluster nodes
 export NODE_SECONDARY_IP_RANGES="[10.10.10.100-10.10.10.150]"
-# SECONDARY_IP_PREFIX Subnet Mask in CIDR notation for your node secondary IP ranges
+# The Subnet Mask in CIDR notation for your node secondary IP ranges
 export SECONDARY_IP_PREFIX=24
-# SECONDARY_GATEWAY The secondary gateway for the machines network-config
+# The secondary gateway for the machines network-config
 export SECONDARY_GATEWAY="10.10.10.254"
-# SECONDARY_DNS_SERVERS The secondary dns nameservers for the machines network-config
+# The secondary dns nameservers for the machines network-config
 export SECONDARY_DNS_SERVERS="[8.8.8.8, 8.8.4.4]"
-# SECONDARY_BRIDGE The Proxmox secondary network device for VMs
+# The Proxmox secondary network bridge for VMs
 export SECONDARY_BRIDGE=vmbr2
 ```
 
@@ -52,11 +52,11 @@ clusterctl generate cluster test-multiple-vlans  \
 Regarding dual-stack support, you can use the following environment variables to define the IPv6 ranges for the VMs:
 
 ```bash
-# IPV6_NODE_IP_RANGES The IPv6 ranges for Cluster nodes
+# The IPv6 ranges for Cluster nodes
 export NODE_IPV6_RANGES="[2001:db8:1::1-2001:db8:1::10]"
-# NODE_IPV6_PREFIX Subnet Mask in CIDR notation for your node IPv6 ranges
+# The Subnet Mask in CIDR notation for your node IPv6 ranges
 export IPV6_PREFIX=64
-# IPV6_GATEWAY The ipv6 gateway for the machines network-config.
+# The ipv6 gateway for the machines network-config.
 export IPV6_GATEWAY="2001:db8:1::1"
 ```
 
@@ -70,7 +70,6 @@ clusterctl generate cluster test-duacl-stack  \
   --worker-machine-count=2 \
   --flavor=dual-stack > cluster.yaml
 ```
-
 
 
 ## Notes
