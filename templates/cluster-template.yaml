@@ -123,6 +123,17 @@ spec:
       templateID: ${TEMPLATE_VMID}
       format: "qcow2"
       full: true
+      numSockets: ${NUM_SOCKETS:=2}
+      numCores: ${NUM_CORES:=4}
+      memoryMiB: ${MEMORY_MIB:=16384}
+      disks:
+        bootVolume:
+          disk: ${BOOT_VOLUME_DEVICE}
+          sizeGb: ${BOOT_VOLUME_SIZE:=100}
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -161,6 +172,17 @@ spec:
       templateID: ${TEMPLATE_VMID}
       format: "qcow2"
       full: true
+      numSockets: ${NUM_SOCKETS:=2}
+      numCores: ${NUM_CORES:=4}
+      memoryMiB: ${MEMORY_MIB:=16384}
+      disks:
+        bootVolume:
+          disk: ${BOOT_VOLUME_DEVICE}
+          sizeGb: ${BOOT_VOLUME_SIZE:=100}
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
