@@ -61,6 +61,29 @@ type ProxmoxClusterSpec struct {
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
+
+	// ProxmoxVMNodeCloneSpec is the configuration pertaining to all items configurable
+	// in the configuration and cloning of a proxmox VM.
+	// +optional
+	NodeCloneSpec ProxmoxClusterNodeCloneSpec `json:"nodeCloneSpec"`
+}
+
+// ProxmoxClusterNodeCloneSpec is the configuration pertaining to all items configurable
+// in the configuration and cloning of a proxmox VM.
+type ProxmoxClusterNodeCloneSpec struct {
+	ProxmoxMachineSpec `json:",inline"`
+
+	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
+	// +optional
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys"`
+
+	// VirtualIPNetworkInterface is the interface the k8s control plane binds to.
+	// +optional
+	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
+
+	// KubernetesVersion contains the version of kubernetes installed by kubeadm.
+	// +optional
+	KubernetesVersion string `json:"kubernetesVersion"`
 }
 
 // ProxmoxClusterStatus defines the observed state of ProxmoxCluster.
