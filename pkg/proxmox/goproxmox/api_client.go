@@ -138,6 +138,12 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 
 // DeleteVM deletes a VM based on the nodeName and vmID.
 func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error) {
+	// A vmID can not be lower than 100.
+	// If the provided vmID is lower (like -1 in issue #31), just error out without calling the API.
+	if vmID < 100 {
+		return nil, fmt.Errorf("vm with id %d does not exist", vmID)
+	}
+
 	node, err := c.Node(ctx, nodeName)
 	if err != nil {
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
