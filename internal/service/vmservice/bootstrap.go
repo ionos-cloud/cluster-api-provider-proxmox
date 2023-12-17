@@ -161,12 +161,21 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	ip := IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
 	gw := ipAddr.Spec.Gateway
 
-	return &cloudinit.NetworkConfigData{
+	cloudinitNetworkConfigData := &cloudinit.NetworkConfigData{
 		MacAddress: macAddress,
-		IPAddress:  ip,
-		Gateway:    gw,
 		DNSServers: dns,
-	}, nil
+	}
+
+	// If it's an IPv6 address, we must set Gateway6 and IPV6Address instead
+	if strings.Contains(ip, ":") {
+		cloudinitNetworkConfigData.Gateway6 = gw
+		cloudinitNetworkConfigData.IPV6Address = ip
+	} else {
+		cloudinitNetworkConfigData.Gateway = gw
+		cloudinitNetworkConfigData.IPAddress = ip
+	}
+
+	return cloudinitNetworkConfigData, nil
 }
 
 func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineScope) ([]cloudinit.NetworkConfigData, error) {
@@ -194,8 +203,8 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 		case config.MacAddress != conf.MacAddress:
 			return nil, errors.New("default network device ipv4 and ipv6 have different mac addresses")
 		default:
-			config.IPV6Address = conf.IPAddress
-			config.Gateway6 = conf.Gateway
+			config.IPV6Address = conf.IPV6Address
+			config.Gateway6 = conf.Gateway6
 		}
 	}
 
@@ -238,8 +247,8 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 			case config.MacAddress != conf.MacAddress:
 				return nil, errors.New("additional network device ipv4 and ipv6 have different mac addresses")
 			default:
-				config.IPV6Address = conf.IPAddress
-				config.Gateway6 = conf.Gateway
+				config.IPV6Address = conf.IPV6Address
+				config.Gateway6 = conf.Gateway6
 			}
 		}
 
