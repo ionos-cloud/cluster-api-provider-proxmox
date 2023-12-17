@@ -191,8 +191,12 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	if machineScope.ProxmoxMachine.Spec.Network != nil && shouldUpdateNetworkDevices(machineScope) {
 		// adding the default network device.
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
-			Name:  infrav1alpha1.DefaultNetworkDevice,
-			Value: formatNetworkDevice(*machineScope.ProxmoxMachine.Spec.Network.Default.Model, machineScope.ProxmoxMachine.Spec.Network.Default.Bridge),
+			Name: infrav1alpha1.DefaultNetworkDevice,
+			Value: formatNetworkDevice(
+				*machineScope.ProxmoxMachine.Spec.Network.Default.Model,
+				machineScope.ProxmoxMachine.Spec.Network.Default.Bridge,
+				*machineScope.ProxmoxMachine.Spec.Network.Default.MTU,
+			),
 		})
 
 		// handing additional network devices.
@@ -200,7 +204,7 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		for _, v := range devices {
 			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
 				Name:  v.Name,
-				Value: formatNetworkDevice(*v.Model, v.Bridge),
+				Value: formatNetworkDevice(*v.Model, v.Bridge, *v.MTU),
 			})
 		}
 	}

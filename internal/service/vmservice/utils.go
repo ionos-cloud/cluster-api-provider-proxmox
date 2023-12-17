@@ -103,8 +103,8 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 // formatNetworkDevice formats a network device config
 // example 'virtio,bridge=vmbr0'.
-func formatNetworkDevice(model, bridge string) string {
-	return fmt.Sprintf("%s,bridge=%s", model, bridge)
+func formatNetworkDevice(model, bridge string, mtu uint16) string {
+	return fmt.Sprintf("%s,bridge=%s,mtu=%d", model, bridge, mtu)
 }
 
 // extractMACAddress returns the macaddress out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1.

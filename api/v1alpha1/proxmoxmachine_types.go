@@ -216,6 +216,13 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Enum=e1000;virtio;rtl8139;vmxnet3
 	// +kubebuilder:default=virtio
 	Model *string `json:"model,omitempty"`
+
+	// MTU is the network device Maximum Transmission Unit.
+	// Only works with virtio Model.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1500
+	MTU *uint16 `json:"mtu,omitempty"`
 }
 
 // AdditionalNetworkDevice the definition of a Proxmox network device.
