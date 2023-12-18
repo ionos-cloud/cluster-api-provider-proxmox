@@ -200,5 +200,29 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("at least one pool reference must be set, either ipv4PoolRef or ipv6PoolRef")))
 		})
+
+		It("Should not allow machine with network device mtu less than 1", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				Default: &NetworkDevice{
+					Bridge: "vmbr0",
+					MTU:    ptr.To(uint16(0)),
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
+		})
+
+		It("Should not allow machine with network device mtu greater than 65520", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				Default: &NetworkDevice{
+					Bridge: "vmbr0",
+					MTU:    ptr.To(uint16(65521)),
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be less than or equal to 65520")))
+		})
 	})
 })
