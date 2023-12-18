@@ -195,10 +195,27 @@ func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName strin
 	}
 
 	for _, vm := range vms {
+		// Ignore VM Templates, as they can't be started.
+		if vm.Template {
+			continue
+		}
 		if reservableMemory < vm.MaxMem {
 			reservableMemory = 0
 		} else {
 			reservableMemory -= vm.MaxMem
+		}
+	}
+
+	containers, err := node.Containers(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("cannot list containers for node %s: %w", nodeName, err)
+	}
+
+	for _, ct := range containers {
+		if reservableMemory < ct.MaxMem {
+			reservableMemory = 0
+		} else {
+			reservableMemory -= ct.MaxMem
 		}
 	}
 
