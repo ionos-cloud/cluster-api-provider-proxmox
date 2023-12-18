@@ -30,7 +30,17 @@ const (
     eth{{ $index }}:
       match:
         macaddress: {{ $element.MacAddress }}
+      {{- if $element.DHCP4 }}
+      dhcp4: true
+      {{- else }}
       dhcp4: 'no'
+      {{- end }}
+      {{- if $element.DHCP6 }}
+      dhcp6: true
+      {{- else }}
+      dhcp6: 'no'
+      {{- end }}
+      {{- if or (and (not $element.DHCP4) $element.IPAddress) (and (not $element.DHCP6) $element.IPV6Address) }}
       addresses:
       {{- if $element.IPAddress }}
         - {{ $element.IPAddress }}
@@ -47,6 +57,7 @@ const (
         - to: '::/0'
           via: {{ $element.Gateway6 }}
 	  {{- end }}
+      {{- end }}
       {{- if $element.DNSServers }}
       nameservers:
         addresses:
@@ -86,17 +97,31 @@ func (r *NetworkConfig) validate() error {
 		return ErrMissingNetworkConfigData
 	}
 	for _, d := range r.data.NetworkConfigData {
-		err := validIPAddress(d.IPAddress)
-		err6 := validIPAddress(d.IPV6Address)
-		if err != nil && err6 != nil {
-			return err
-		}
-
-		if d.Gateway == "" && d.Gateway6 == "" {
-			return ErrMissingGateway
+		if !d.DHCP4 && !d.DHCP6 && len(d.IPAddress) == 0 && len(d.IPV6Address) == 0 {
+			return ErrMissingIPAddress
 		}
 		if d.MacAddress == "" {
 			return ErrMissingMacAddress
+		}
+
+		if !d.DHCP4 && len(d.IPAddress) > 0 {
+			err := validIPAddress(d.IPAddress)
+			if err != nil {
+				return err
+			}
+			if d.Gateway == "" {
+				return ErrMissingGateway
+			}
+		}
+
+		if !d.DHCP6 && len(d.IPV6Address) > 0 {
+			err6 := validIPAddress(d.IPV6Address)
+			if err6 != nil {
+				return err6
+			}
+			if d.Gateway6 == "" {
+				return ErrMissingGateway
+			}
 		}
 	}
 	return nil

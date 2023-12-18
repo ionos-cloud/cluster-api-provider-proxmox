@@ -32,6 +32,7 @@ const (
       match:
         macaddress: 92:60:a0:5b:22:c2
       dhcp4: 'no'
+      dhcp6: 'no'
       addresses:
         - 10.10.10.12/24
       routes:
@@ -50,6 +51,7 @@ const (
       match:
         macaddress: 92:60:a0:5b:22:c2
       dhcp4: 'no'
+      dhcp6: 'no'
       addresses:
         - 10.10.10.12/24
       routes:
@@ -64,6 +66,7 @@ const (
       match:
         macaddress: 92:60:a0:5b:22:c2
       dhcp4: 'no'
+      dhcp6: 'no'
       addresses:
         - 10.10.10.12/24
       routes:
@@ -77,6 +80,7 @@ const (
       match:
         macaddress: b4:87:18:bf:a3:60
       dhcp4: 'no'
+      dhcp6: 'no'
       addresses:
         - 196.168.100.124/24
       routes:
@@ -95,6 +99,7 @@ const (
       match:
         macaddress: 92:60:a0:5b:22:c2
       dhcp4: 'no'
+      dhcp6: 'no'
       addresses:
         - 10.10.10.12/24
         - 2001:db8::1/64
@@ -116,11 +121,73 @@ const (
       match:
         macaddress: 92:60:a0:5b:22:c2
       dhcp4: 'no'
+      dhcp6: 'no'
       addresses:
         - 2001:db8::1/64
       routes:
         - to: '::/0'
           via: 2001:db8::1
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4`
+
+	expectedValidNetworkConfigDHCP = `network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: true
+      dhcp6: true
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4`
+
+	expectedValidNetworkConfigDHCP4 = `network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: true
+      dhcp6: 'no'
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4`
+
+	expectedValidNetworkConfigDHCP6 = `network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: 'no'
+      dhcp6: true
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 8.8.4.4`
+
+	expectedValidNetworkConfigWithDHCP = `network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: 'no'
+      dhcp6: true
+      addresses:
+        - 10.10.10.12/24
+      routes:
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
       nameservers:
         addresses:
           - 8.8.8.8
@@ -142,8 +209,8 @@ func TestNetworkConfig_Render(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ValidNetworkConfig": {
-			reason: "render valid network-config",
+		"ValidStaticNetworkConfig": {
+			reason: "render valid network-config with static ip",
 			args: args{
 				nics: []NetworkConfigData{
 					{
@@ -156,6 +223,24 @@ func TestNetworkConfig_Render(t *testing.T) {
 			},
 			want: want{
 				network: expectedValidNetworkConfig,
+				err:     nil,
+			},
+		},
+		"ValidStaticNetworkConfigWithDHCP": {
+			reason: "render valid network-config with ipv6 static ip and dhcp",
+			args: args{
+				nics: []NetworkConfigData{
+					{
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP6:      true,
+						IPAddress:  "10.10.10.12/24",
+						Gateway:    "10.10.10.1",
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+				},
+			},
+			want: want{
+				network: expectedValidNetworkConfigWithDHCP,
 				err:     nil,
 			},
 		},
@@ -323,6 +408,57 @@ func TestNetworkConfig_Render(t *testing.T) {
 			},
 			want: want{
 				network: expectedValidNetworkConfigIPV6,
+				err:     nil,
+			},
+		},
+		"ValidNetworkConfigDHCP": {
+			reason: "render valid network-config with dhcp",
+			args: args{
+				nics: []NetworkConfigData{
+					{
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true,
+						DHCP6:      true,
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+				},
+			},
+			want: want{
+				network: expectedValidNetworkConfigDHCP,
+				err:     nil,
+			},
+		},
+		"ValidNetworkConfigDHCP4": {
+			reason: "render valid network-config with dhcp",
+			args: args{
+				nics: []NetworkConfigData{
+					{
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true,
+						DHCP6:      false,
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+				},
+			},
+			want: want{
+				network: expectedValidNetworkConfigDHCP4,
+				err:     nil,
+			},
+		},
+		"ValidNetworkConfigDHCP6": {
+			reason: "render valid network-config with dhcp",
+			args: args{
+				nics: []NetworkConfigData{
+					{
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      false,
+						DHCP6:      true,
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+				},
+			},
+			want: want{
+				network: expectedValidNetworkConfigDHCP6,
 				err:     nil,
 			},
 		},
