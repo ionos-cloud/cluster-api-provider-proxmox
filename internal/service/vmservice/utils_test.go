@@ -54,39 +54,106 @@ func TestExtractUUID(t *testing.T) {
 	}
 }
 
-func TestExtractNetworkModelAndBridge(t *testing.T) {
+func TestExtractNetworkModel(t *testing.T) {
 	type match struct {
-		test           string
-		expectedModel  string
-		expectedBridge string
+		test     string
+		expected string
 	}
 
 	goodstrings := []match{
-		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1", "virtio", "vmbr1"},
-		{"foo,virtio=A6:23:64:4D:84:CB,bridge=vmbr1", "virtio", "vmbr1"},
-		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1", "virtio", "vmbr1"},
-		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,foo", "virtio", "vmbr1"},
-		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,foo=bar", "virtio", "vmbr1"},
+		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", "virtio"},
+		{"foo,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", "virtio"},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", "virtio"},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,foo", "virtio"},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,foo=bar", "virtio"},
+		{"foo=bar,e1000=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,foo=bar", "e1000"},
+		{"foo=bar,e1000=a6:23:64:4d:84:Cb,bridge=vmbr1,mtu=9000,foo=bar", "e1000"},
 	}
 
 	badstrings := []string{
 		"bridge=vmbr1",
-		"virtio=,bridge=vmbr1",
-		"virtio=,bridge=",
+		"virtio=",
+		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
+		"a6:23:64:4d:84:Cb",
+		"=",
+		"",
+	}
+
+	for _, m := range goodstrings {
+		model := extractNetworkModel(m.test)
+		require.Equal(t, m.expected, model)
+	}
+
+	for _, s := range badstrings {
+		model := extractNetworkModel(s)
+		require.Empty(t, model)
+	}
+}
+
+func TestExtractNetworkBridge(t *testing.T) {
+	type match struct {
+		test     string
+		expected string
+	}
+
+	goodstrings := []match{
+		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", "vmbr1"},
+		{"foo,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", "vmbr1"},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", "vmbr1"},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,foo", "vmbr1"},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,foo=bar", "vmbr1"},
+	}
+
+	badstrings := []string{
+		"virtio=",
+		"bridge=",
 		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
 		"",
 	}
 
 	for _, m := range goodstrings {
-		model, bridge := extractNetworkModelAndBridge(m.test)
-		require.Equal(t, m.expectedModel, model)
-		require.Equal(t, m.expectedBridge, bridge)
+		bridge := extractNetworkBridge(m.test)
+		require.Equal(t, m.expected, bridge)
 	}
 
 	for _, s := range badstrings {
-		model, bridge := extractNetworkModelAndBridge(s)
-		require.Empty(t, model)
+		bridge := extractNetworkBridge(s)
 		require.Empty(t, bridge)
+	}
+}
+
+func TestExtractNetworkMTU(t *testing.T) {
+	type match struct {
+		test     string
+		expected uint16
+	}
+
+	goodstrings := []match{
+		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", 1500},
+		{"foo,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", 1500},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", 1500},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,foo", 9000},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,foo=bar", 9000},
+		{"foo=bar,e1000=A6:23:64:4D:84:CB,bridge=vmbr1,foo=bar", 1500},
+	}
+
+	badstrings := []string{
+		"virtio=",
+		"bridge=",
+		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
+		"",
+	}
+
+	for _, m := range goodstrings {
+		mtu := extractNetworkMTU(m.test)
+		require.Equal(t, m.expected, mtu)
+	}
+
+	for _, s := range badstrings {
+		mtu := extractNetworkMTU(s)
+
+		// when mtu is not specified, it should be default 1500
+		require.Equal(t, uint16(1500), mtu)
 	}
 }
 
@@ -143,12 +210,12 @@ func TestShouldUpdateNetworkDevices_AdditionalDeviceNeedsUpdate(t *testing.T) {
 func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
-		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio")},
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
-			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")}},
+			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))}},
 		},
 	}
-	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CD,bridge=vmbr0", "virtio=A6:23:64:4D:84:CD,bridge=vmbr1"))
+	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CD,bridge=vmbr0,mtu=1500", "virtio=A6:23:64:4D:84:CD,bridge=vmbr1,mtu=1500"))
 
 	require.False(t, shouldUpdateNetworkDevices(machineScope))
 }
