@@ -209,6 +209,7 @@ spec:
                           default: 1500
                           description: MTU is the network device Maximum Transmission
                             Unit. Only works with virtio Model.
+                          maximum: 65520
                           minimum: 1
                           type: integer
                         name:
@@ -255,6 +256,7 @@ spec:
                         default: 1500
                         description: MTU is the network device Maximum Transmission
                           Unit. Only works with virtio Model.
+                        maximum: 65520
                         minimum: 1
                         type: integer
                     required:
