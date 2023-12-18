@@ -64,7 +64,45 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 				newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}}))
 
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu`,
-				newJSONResponder(200, proxmox.VirtualMachines{{MaxMem: test.maxMem}}))
+				// Somehow, setting proxmox.VirtualMachines{} ALWAYS has `Template: true` when defined this way.
+				// So it's better to just define a legitimate json response
+				newJSONResponder(200, []interface{}{
+					map[string]interface{}{
+						"name":      "legit-worker",
+						"maxmem":    test.maxMem,
+						"vmid":      1111,
+						"diskwrite": 0,
+						"mem":       0,
+						"uptime":    0,
+						"disk":      0,
+						"cpu":       0,
+						"cpus":      1,
+						"status":    "stopped",
+						"netout":    0,
+						"maxdisk":   0,
+						"netin":     0,
+						"diskread":  0,
+					},
+					map[string]interface{}{
+						"name":      "template",
+						"maxmem":    102400,
+						"vmid":      2222,
+						"diskwrite": 0,
+						"mem":       0,
+						"uptime":    0,
+						"disk":      0,
+						"cpu":       0,
+						"template":  1,
+						"cpus":      1,
+						"status":    "stopped",
+						"netout":    0,
+						"maxdisk":   0,
+						"netin":     0,
+						"diskread":  0,
+					}}))
+
+			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/lxc`,
+				newJSONResponder(200, proxmox.Containers{}))
 
 			reservable, err := client.GetReservableMemoryBytes(context.Background(), "test")
 			require.NoError(t, err)
