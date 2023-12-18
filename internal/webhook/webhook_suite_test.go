@@ -65,6 +65,9 @@ var _ = BeforeSuite(func() {
 	err = (&ProxmoxCluster{}).SetupWebhookWithManager(testEnv.Manager)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&ProxmoxMachine{}).SetupWebhookWithManager(testEnv.Manager)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {
