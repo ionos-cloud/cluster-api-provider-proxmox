@@ -1,0 +1,12 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxMachine
+metadata:
+  labels:
+    app.kubernetes.io/name: proxmoxmachine
+    app.kubernetes.io/instance: proxmoxmachine-sample
+    app.kubernetes.io/part-of: cluster-api-provider-proxmox
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cluster-api-provider-proxmox
+  name: proxmoxmachine-sample
+spec:
+  # TODO(user): Add fields here

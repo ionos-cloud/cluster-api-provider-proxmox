@@ -4,4 +4,6 @@ resources:
 - infrastructure_v1alpha1_proxmoxcluster.yaml
 - infrastructure_v1alpha1_proxmoxmachine.yaml
 - infrastructure_v1alpha1_proxmoxmachinetemplate.yaml
+- infrastructure_v1alpha2_proxmoxcluster.yaml
+- infrastructure_v1alpha2_proxmoxmachine.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

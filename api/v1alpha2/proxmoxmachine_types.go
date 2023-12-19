@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	"fmt"
@@ -100,13 +100,9 @@ type Storage struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +optional
 	BootVolume *DiskSize `json:"bootVolume,omitempty"`
-
-	// TODO Intended to add handling for additional volumes,
-	// which will be added to the node.
-	// e.g. AdditionalVolumes []DiskSize.
 }
 
-// DiskSize is contains values for the disk device and size.
+// DiskSize is containing values for the disk device and size.
 type DiskSize struct {
 	// Disk is the name of the disk device, that should be resized.
 	// Example values are: ide[0-3], scsi[0-30], sata[0-5].
@@ -216,6 +212,16 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Enum=e1000;virtio;rtl8139;vmxnet3
 	// +kubebuilder:default=virtio
 	Model *string `json:"model,omitempty"`
+
+	// DHCP4 defines whether the network device should use DHCPv4.
+	// +optional
+	// +kubebuilder:default=false
+	DHCP4 bool `json:"dhcp4,omitempty"`
+
+	// DHCP6 defines whether the network device should use DHCPv6.
+	// +optional
+	// +kubebuilder:default=false
+	DHCP6 bool `json:"dhcp6,omitempty"`
 }
 
 // AdditionalNetworkDevice the definition of a Proxmox network device.
@@ -332,7 +338,7 @@ type ProxmoxMachineStatus struct {
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
 
-	// Conditions defines current service state of the ProxmoxMachine.
+	// Conditions define the current service state of the ProxmoxMachine.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
@@ -349,6 +355,7 @@ type IPAddress struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxmachines,scope=Namespaced,categories=cluster-api;proxmox,shortName=moxm
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this ProxmoxMachine belongs"
@@ -413,5 +420,5 @@ func (d *DiskSize) FormatSize() string {
 }
 
 func init() {
-	SchemeBuilder.Register(&ProxmoxMachine{}, &ProxmoxMachineList{})
+	objectTypes = append(objectTypes, &ProxmoxMachine{}, &ProxmoxMachineList{})
 }

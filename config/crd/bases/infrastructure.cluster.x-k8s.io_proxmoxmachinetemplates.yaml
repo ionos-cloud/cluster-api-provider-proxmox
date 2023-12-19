@@ -334,4 +334,344 @@ spec:
             type: object
         type: object
     served: true
+    storage: false
+  - name: v1alpha2
+    schema:
+      openAPIV3Schema:
+        description: ProxmoxMachineTemplate is the Schema for the proxmoxmachinetemplates
+          API.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ProxmoxMachineTemplateSpec defines the desired state of ProxmoxMachineTemplate.
+            properties:
+              template:
+                description: ProxmoxMachineTemplateResource defines the spec and metadata
+                  for ProxmoxMachineTemplate supported by capi.
+                properties:
+                  metadata:
+                    description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: 'Annotations is an unstructured key value map
+                          stored with a resource that may be set by external tools
+                          to store and retrieve arbitrary metadata. They are not queryable
+                          and should be preserved when modifying objects. More info:
+                          http://kubernetes.io/docs/user-guide/annotations'
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: 'Map of string keys and values that can be used
+                          to organize and categorize (scope and select) objects. May
+                          match selectors of replication controllers and services.
+                          More info: http://kubernetes.io/docs/user-guide/labels'
+                        type: object
+                    type: object
+                  spec:
+                    description: ProxmoxMachineSpec defines the desired state of ProxmoxMachine.
+                    properties:
+                      description:
+                        description: Description for the new VM.
+                        type: string
+                      disks:
+                        description: Disks contains a set of disk configuration options,
+                          which will be applied before the first startup.
+                        properties:
+                          bootVolume:
+                            description: BootVolume defines the storage size for the
+                              boot volume. This field is optional, and should only
+                              be set if you want to change the size of the boot volume.
+                            properties:
+                              disk:
+                                description: 'Disk is the name of the disk device,
+                                  that should be resized. Example values are: ide[0-3],
+                                  scsi[0-30], sata[0-5].'
+                                type: string
+                              sizeGb:
+                                description: "Size defines the size in gigabyte. \n
+                                  As Proxmox does not support shrinking, the size
+                                  must be bigger than the already configured size
+                                  in the template."
+                                format: int32
+                                minimum: 5
+                                type: integer
+                            required:
+                            - disk
+                            - sizeGb
+                            type: object
+                            x-kubernetes-validations:
+                            - message: Value is immutable
+                              rule: self == oldSelf
+                        type: object
+                      format:
+                        default: raw
+                        description: Format for file storage. Only valid for full
+                          clone.
+                        enum:
+                        - raw
+                        - qcow2
+                        - vmdk
+                        type: string
+                      full:
+                        default: true
+                        description: Full Create a full copy of all disks. This is
+                          always done when you clone a normal VM. Create a Full clone
+                          by default.
+                        type: boolean
+                      memoryMiB:
+                        description: MemoryMiB is the size of a virtual machine's
+                          memory, in MiB. Defaults to the property value in the template
+                          from which the virtual machine is cloned.
+                        format: int32
+                        multipleOf: 8
+                        type: integer
+                      network:
+                        description: Network is the network configuration for this
+                          machine's VM.
+                        properties:
+                          additionalDevices:
+                            description: AdditionalDevices defines additional network
+                              devices bound to the virtual machine.
+                            items:
+                              description: AdditionalNetworkDevice the definition
+                                of a Proxmox network device.
+                              properties:
+                                bridge:
+                                  description: Bridge is the network bridge to attach
+                                    to the machine.
+                                  minLength: 1
+                                  type: string
+                                dhcp4:
+                                  default: false
+                                  description: DHCP4 defines whether the network device
+                                    should use DHCPv4.
+                                  type: boolean
+                                dhcp6:
+                                  default: false
+                                  description: DHCP6 defines whether the network device
+                                    should use DHCPv6.
+                                  type: boolean
+                                dnsServers:
+                                  description: DNSServers contains information about
+                                    nameservers to be used for this interface. If
+                                    this field is not set, it will use the default
+                                    dns servers from the ProxmoxCluster.
+                                  items:
+                                    type: string
+                                  minItems: 1
+                                  type: array
+                                ipv4PoolRef:
+                                  description: IPv4PoolRef is a reference to an IPAM
+                                    Pool resource, which exposes IPv4 addresses. The
+                                    network device will use an available IP address
+                                    from the referenced pool. This can be combined
+                                    with `IPv6PoolRef` in order to enable dual stack.
+                                  properties:
+                                    apiGroup:
+                                      description: APIGroup is the group for the resource
+                                        being referenced. If APIGroup is not specified,
+                                        the specified Kind must be in the core API
+                                        group. For any other third-party types, APIGroup
+                                        is required.
+                                      type: string
+                                    kind:
+                                      description: Kind is the type of resource being
+                                        referenced
+                                      type: string
+                                    name:
+                                      description: Name is the name of resource being
+                                        referenced
+                                      type: string
+                                  required:
+                                  - kind
+                                  - name
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                  x-kubernetes-validations:
+                                  - message: ipv4PoolRef allows only IPAM apiGroup
+                                      ipam.cluster.x-k8s.io
+                                    rule: self.apiGroup == 'ipam.cluster.x-k8s.io'
+                                  - message: ipv4PoolRef allows either InClusterIPPool
+                                      or GlobalInClusterIPPool
+                                    rule: self.kind == 'InClusterIPPool' || self.kind
+                                      == 'GlobalInClusterIPPool'
+                                ipv6PoolRef:
+                                  description: IPv6PoolRef is a reference to an IPAM
+                                    pool resource, which exposes IPv6 addresses. The
+                                    network device will use an available IP address
+                                    from the referenced pool. this can be combined
+                                    with `IPv4PoolRef` in order to enable dual stack.
+                                  properties:
+                                    apiGroup:
+                                      description: APIGroup is the group for the resource
+                                        being referenced. If APIGroup is not specified,
+                                        the specified Kind must be in the core API
+                                        group. For any other third-party types, APIGroup
+                                        is required.
+                                      type: string
+                                    kind:
+                                      description: Kind is the type of resource being
+                                        referenced
+                                      type: string
+                                    name:
+                                      description: Name is the name of resource being
+                                        referenced
+                                      type: string
+                                  required:
+                                  - kind
+                                  - name
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                  x-kubernetes-validations:
+                                  - message: ipv6PoolRef allows only IPAM apiGroup
+                                      ipam.cluster.x-k8s.io
+                                    rule: self.apiGroup == 'ipam.cluster.x-k8s.io'
+                                  - message: ipv6PoolRef allows either InClusterIPPool
+                                      or GlobalInClusterIPPool
+                                    rule: self.kind == 'InClusterIPPool' || self.kind
+                                      == 'GlobalInClusterIPPool'
+                                model:
+                                  default: virtio
+                                  description: Model is the network device model.
+                                  enum:
+                                  - e1000
+                                  - virtio
+                                  - rtl8139
+                                  - vmxnet3
+                                  type: string
+                                name:
+                                  description: Name is the network device name. must
+                                    be unique within the virtual machine and different
+                                    from the primary device 'net0'.
+                                  minLength: 1
+                                  type: string
+                                  x-kubernetes-validations:
+                                  - message: additional network devices doesn't allow
+                                      net0
+                                    rule: self != 'net0'
+                              required:
+                              - bridge
+                              - name
+                              type: object
+                              x-kubernetes-validations:
+                              - message: at least one pool reference must be set,
+                                  either ipv4PoolRef or ipv6PoolRef
+                                rule: self.ipv4PoolRef != null || self.ipv6PoolRef
+                                  != null
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          default:
+                            description: Default is the default network device, which
+                              will be used for the primary network interface. net0
+                              is always the default network device.
+                            properties:
+                              bridge:
+                                description: Bridge is the network bridge to attach
+                                  to the machine.
+                                minLength: 1
+                                type: string
+                              dhcp4:
+                                default: false
+                                description: DHCP4 defines whether the network device
+                                  should use DHCPv4.
+                                type: boolean
+                              dhcp6:
+                                default: false
+                                description: DHCP6 defines whether the network device
+                                  should use DHCPv6.
+                                type: boolean
+                              model:
+                                default: virtio
+                                description: Model is the network device model.
+                                enum:
+                                - e1000
+                                - virtio
+                                - rtl8139
+                                - vmxnet3
+                                type: string
+                            required:
+                            - bridge
+                            type: object
+                        type: object
+                      numCores:
+                        description: NumCores is the number of cores per CPU socket
+                          in a virtual machine. Defaults to the property value in
+                          the template from which the virtual machine is cloned.
+                        format: int32
+                        minimum: 1
+                        type: integer
+                      numSockets:
+                        description: NumSockets is the number of CPU sockets in a
+                          virtual machine. Defaults to the property value in the template
+                          from which the virtual machine is cloned.
+                        format: int32
+                        minimum: 1
+                        type: integer
+                      pool:
+                        description: Pool Add the new VM to the specified pool.
+                        type: string
+                      providerID:
+                        description: ProviderID is the virtual machine BIOS UUID formatted
+                          as proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
+                        type: string
+                      snapName:
+                        description: SnapName The name of the snapshot.
+                        type: string
+                      sourceNode:
+                        description: "SourceNode is the initially selected proxmox
+                          node. This node will be used to locate the template VM,
+                          which will be used for cloning operations. \n Cloning will
+                          be performed according to the configuration. Setting the
+                          `Target` field will tell Proxmox to clone the VM on that
+                          target node. \n When Target is not set and the ProxmoxCluster
+                          contains a set of `AllowedNodes`, the algorithm will instead
+                          evenly distribute the VMs across the nodes from that list.
+                          \n If neither a `Target` nor `AllowedNodes` was set, the
+                          VM will be cloned onto the same node as SourceNode."
+                        minLength: 1
+                        type: string
+                      storage:
+                        description: Storage for full clone.
+                        type: string
+                      target:
+                        description: Target node. Only allowed if the original VM
+                          is on shared storage.
+                        type: string
+                      templateID:
+                        description: TemplateID the vm_template vmid used for cloning
+                          a new VM.
+                        format: int32
+                        type: integer
+                      virtualMachineID:
+                        description: VirtualMachineID is the Proxmox identifier for
+                          the ProxmoxMachine vm.
+                        format: int64
+                        type: integer
+                    required:
+                    - sourceNode
+                    type: object
+                required:
+                - spec
+                type: object
+            required:
+            - template
+            type: object
+        type: object
+    served: true
     storage: true

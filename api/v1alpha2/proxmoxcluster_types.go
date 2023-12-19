@@ -14,22 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-)
-
-const (
-	// ProxmoxClusterKind the ProxmoxCluster kind.
-	ProxmoxClusterKind = "ProxmoxCluster"
-	// ClusterFinalizer allows cleaning up resources associated with
-	// ProxmoxCluster before removing it from the apiserver.
-	ClusterFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
 // ProxmoxClusterSpec defines the desired state of ProxmoxCluster.
@@ -44,23 +35,56 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
+	NetworkConfig `json:",inline"`
+}
+
+// NetworkConfig contains information about the network configuration of the cluster.
+type NetworkConfig struct {
 	// IPv4Config contains information about available IPV4 address pools and the gateway.
 	// this can be combined with ipv6Config in order to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *ipamicv1.InClusterIPPoolSpec `json:"ipv4Config,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IP Config addresses must be provided"
+	IPv4Config *IPConfig `json:"ipv4Config,omitempty"`
 
 	// IPv6Config contains information about available IPV6 address pools and the gateway.
 	// this can be combined with ipv4Config in order to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *ipamicv1.InClusterIPPoolSpec `json:"ipv6Config,omitempty"`
+	IPv6Config IPConfig `json:"ipv6Config,omitempty"`
 
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
+}
+
+// IPConfig contains information about available IP config.
+type IPConfig struct {
+	// DHCP indicates whether DHCP is enabled for the machines.
+	// DHCP is mutually exclusive with IPv4Config static addresses.
+	// If DHCP is true, IPv4Config and IPv6Config must not be set.
+	// +optional
+	// +kubebuilder:default=false
+	DHCP bool `json:"dhcp,omitempty"`
+
+	// Addresses is a list of IP addresses that can be assigned. This set of
+	// addresses can be non-contiguous.
+	// +optional
+	Addresses []string `json:"addresses,omitempty"`
+
+	// Prefix is the network prefix to use.
+	// +kubebuilder:validation:Maximum=128
+	// +optional
+	Prefix int `json:"prefix,omitempty"`
+
+	// Gateway
+	// +optional
+	Gateway string `json:"gateway,omitempty"`
+}
+
+// IPPoolSpec defines the desired state of IP Pool.
+type IPPoolSpec struct {
 }
 
 // ProxmoxClusterStatus defines the observed state of ProxmoxCluster.
@@ -108,6 +132,7 @@ type NodeLocation struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:storageversion
 //+kubebuilder:resource:path=proxmoxclusters,scope=Namespaced,categories=cluster-api,singular=proxmoxcluster
 //+kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels['cluster\\.x-k8s\\.io/cluster-name']",description="Cluster"
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Cluster infrastructure is ready"
@@ -277,12 +302,6 @@ func (c *ProxmoxCluster) addNodeLocation(loc NodeLocation, isControlPlane bool) 
 	c.Status.NodeLocations.Workers = append(c.Status.NodeLocations.Workers, loc)
 }
 
-// Hub marks DOCluster as a conversion hub.
-func (*ProxmoxCluster) Hub() {}
-
-// Hub marks DOClusterList as a conversion hub.
-func (*ProxmoxClusterList) Hub() {}
-
 func init() {
-	SchemeBuilder.Register(&ProxmoxCluster{}, &ProxmoxClusterList{})
+	objectTypes = append(objectTypes, &ProxmoxCluster{}, &ProxmoxClusterList{})
 }
