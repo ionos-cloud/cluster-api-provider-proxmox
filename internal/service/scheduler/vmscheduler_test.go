@@ -21,8 +21,9 @@ import (
 	"fmt"
 	"testing"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/stretchr/testify/require"
+
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 type fakeResourceClient map[string]uint64

@@ -20,8 +20,9 @@ import (
 	"context"
 	"testing"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/stretchr/testify/require"
+
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 func TestReconcilePowerState_MissingIPAddress(t *testing.T) {
@@ -36,7 +37,7 @@ func TestReconcilePowerState_MissingIPAddress(t *testing.T) {
 func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1.IPAddress{infrav1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 
 	vm := newStoppedVM()
 	task := newTask()

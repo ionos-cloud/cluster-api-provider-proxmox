@@ -46,8 +46,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
-	infrastructurev1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
@@ -75,10 +75,10 @@ var (
 func init() {
 	_ = clusterv1.AddToScheme(scheme)
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = infrastructurev1alpha1.AddToScheme(scheme)
+	_ = infrav1alpha1.AddToScheme(scheme)
 	_ = ipamicv1.AddToScheme(scheme)
 	_ = ipamv1.AddToScheme(scheme)
-	_ = infrastructurev1alpha2.AddToScheme(scheme)
+	_ = infrav1alpha2.AddToScheme(scheme)
 
 	//+kubebuilder:scaffold:scheme
 }
@@ -144,6 +144,14 @@ func main() {
 	if enableWebhooks {
 		if err = (&webhook.ProxmoxCluster{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxCluster")
+			os.Exit(1)
+		}
+		if err = (&webhook.ProxmoxMachine{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachine")
+			os.Exit(1)
+		}
+		if err = (&webhook.ProxmoxMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachineTemplate")
 			os.Exit(1)
 		}
 	}

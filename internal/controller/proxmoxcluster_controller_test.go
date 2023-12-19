@@ -36,7 +36,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -116,7 +116,7 @@ var _ = Describe("Controller Test", func() {
 		})
 		It("Should successfully create IPAM IPV6 related resources", func() {
 			cl := buildProxmoxCluster(clusterName)
-			cl.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+			cl.Spec.IPv6Config = &infrav1.IPConfig{
 				Addresses: []string{"2001:db8::/64"},
 				Prefix:    64,
 				Gateway:   "2001:db8::1",
@@ -232,16 +232,18 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 				Host: "10.10.10.11",
 				Port: 6443,
 			},
-			IPv4Config: &ipamicv1.InClusterIPPoolSpec{
-				Addresses: []string{
-					"10.10.10.2-10.10.10.10",
-					"10.10.10.100-10.10.10.125",
-					"10.10.10.192/64",
+			NetworkConfig: infrav1.NetworkConfig{
+				IPv4Config: &infrav1.IPConfig{
+					Addresses: []string{
+						"10.10.10.2-10.10.10.10",
+						"10.10.10.100-10.10.10.125",
+						"10.10.10.192/64",
+					},
+					Gateway: "10.10.10.1",
+					Prefix:  24,
 				},
-				Gateway: "10.10.10.1",
-				Prefix:  24,
+				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 			},
-			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 		},
 	}
 

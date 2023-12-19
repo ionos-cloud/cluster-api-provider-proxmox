@@ -23,6 +23,14 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
+const (
+	// ProxmoxClusterKind the ProxmoxCluster kind.
+	ProxmoxClusterKind = "ProxmoxCluster"
+	// ClusterFinalizer allows cleaning up resources associated with
+	// ProxmoxCluster before removing it from the apiserver.
+	ClusterFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io"
+)
+
 // ProxmoxClusterSpec defines the desired state of ProxmoxCluster.
 type ProxmoxClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
@@ -52,7 +60,7 @@ type NetworkConfig struct {
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config IPConfig `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfig `json:"ipv6Config,omitempty"`
 
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
@@ -61,13 +69,6 @@ type NetworkConfig struct {
 
 // IPConfig contains information about available IP config.
 type IPConfig struct {
-	// DHCP indicates whether DHCP is enabled for the machines.
-	// DHCP is mutually exclusive with IPv4Config static addresses.
-	// If DHCP is true, IPv4Config and IPv6Config must not be set.
-	// +optional
-	// +kubebuilder:default=false
-	DHCP bool `json:"dhcp,omitempty"`
-
 	// Addresses is a list of IP addresses that can be assigned. This set of
 	// addresses can be non-contiguous.
 	// +optional
@@ -81,6 +82,13 @@ type IPConfig struct {
 	// Gateway
 	// +optional
 	Gateway string `json:"gateway,omitempty"`
+
+	// DHCP indicates whether DHCP is enabled for the machines.
+	// DHCP is mutually exclusive with IPv4Config static addresses.
+	// If DHCP is true, IPv4Config and IPv6Config must not be set.
+	// +optional
+	// +kubebuilder:default=false
+	DHCP bool `json:"dhcp,omitempty"`
 }
 
 // IPPoolSpec defines the desired state of IP Pool.

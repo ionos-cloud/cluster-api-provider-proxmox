@@ -19,7 +19,7 @@ package scope
 import (
 	"testing"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/stretchr/testify/require"
@@ -34,11 +34,11 @@ func TestNewClusterScope_MissingParams(t *testing.T) {
 		name   string
 		params ClusterScopeParams
 	}{
-		{"missing client", ClusterScopeParams{Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing cluster", ClusterScopeParams{Client: client, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing client", ClusterScopeParams{Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing cluster", ClusterScopeParams{Client: client, ProxmoxCluster: &infrav1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
 		{"missing proxmox cluster", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing ipam helper", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}}},
-		{"missing proxmox client", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing ipam helper", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}}},
+		{"missing proxmox client", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1.ProxmoxCluster{}, IPAMHelper: &ipam.Helper{}}},
 	}
 
 	for _, test := range tests {

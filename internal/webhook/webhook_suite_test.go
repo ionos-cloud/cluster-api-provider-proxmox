@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -34,6 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to

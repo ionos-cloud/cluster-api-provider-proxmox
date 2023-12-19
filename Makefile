@@ -13,10 +13,6 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-# set --output-base used for conversion-gen which needs to be different for in GOPATH and outside GOPATH dev
-ifneq ($(abspath $(ROOT_DIR)),$(GOPATH)/src/github.com/ionos-cloud/cluster-api-provider-proxmox)
-  OUTPUT_BASE := --output-base=$(ROOT_DIR)
-endif
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.

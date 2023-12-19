@@ -11,7 +11,7 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-infrastructure-cluster-x-k8s-io-v1alpha1-proxmoxcluster
+      path: /validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxcluster
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: validation.proxmoxcluster.infrastructure.cluster.x-k8s.io
@@ -19,10 +19,52 @@ webhooks:
   - apiGroups:
     - infrastructure.cluster.x-k8s.io
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
     resources:
     - proxmoxclusters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachine
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: validation.proxmoxmachine.infrastructure.cluster.x-k8s.io
+  rules:
+  - apiGroups:
+    - infrastructure.cluster.x-k8s.io
+    apiVersions:
+    - v1alpha2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - proxmoxmachines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachinetemplate
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: validation.proxmoxmachinetemplate.infrastructure.cluster.x-k8s.io
+  rules:
+  - apiGroups:
+    - infrastructure.cluster.x-k8s.io
+    apiVersions:
+    - v1alpha2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - proxmoxmachinetemplates
   sideEffects: None

@@ -28,7 +28,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -42,7 +42,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	if !machineHasIPAddress(machineScope.ProxmoxMachine) {
 		// skip machine doesn't have an IpAddress yet.
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
 		return true, nil
 	}
 
@@ -56,7 +56,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	// Get the bootstrap data.
 	bootstrapData, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.CloningFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return false, err
 	}
 
@@ -64,7 +64,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	nicData, err := getNetworkConfigData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, err.Error())
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return false, err
 	}
 
@@ -76,7 +76,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err = injector.Inject(ctx); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return false, errors.Wrap(err, "cloud-init iso inject failed")
 	}
 
@@ -123,7 +123,7 @@ func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, e
 
 func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]cloudinit.NetworkConfigData, error) {
 	// provide a default in case network is not defined
-	network := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1alpha1.NetworkSpec{})
+	network := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{})
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, 1+len(network.AdditionalDevices))
 
 	defaultConfig, err := getDefaultNetworkDevice(ctx, machineScope)
@@ -211,7 +211,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 	return []cloudinit.NetworkConfigData{config}, nil
 }
 
-func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha1.NetworkSpec) ([]cloudinit.NetworkConfigData, error) {
+func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1.NetworkSpec) ([]cloudinit.NetworkConfigData, error) {
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.AdditionalDevices))
 
 	// additional network devices.
@@ -219,7 +219,7 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 		var config = ptr.To(cloudinit.NetworkConfigData{})
 
 		if nic.IPv4PoolRef != nil {
-			device := fmt.Sprintf("%s-%s", nic.Name, infrav1alpha1.DefaultSuffix)
+			device := fmt.Sprintf("%s-%s", nic.Name, infrav1.DefaultSuffix)
 			conf, err := getNetworkConfigDataForDevice(ctx, machineScope, device)
 			if err != nil {
 				return nil, errors.Wrapf(err, "unable to get network config data for device=%s", device)
@@ -231,7 +231,7 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 		}
 
 		if nic.IPv6PoolRef != nil {
-			suffix := infrav1alpha1.DefaultSuffix + "6"
+			suffix := infrav1.DefaultSuffix + "6"
 			device := fmt.Sprintf("%s-%s", nic.Name, suffix)
 			conf, err := getNetworkConfigDataForDevice(ctx, machineScope, device)
 			if err != nil {

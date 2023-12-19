@@ -132,7 +132,11 @@ func (in *NetworkConfig) DeepCopyInto(out *NetworkConfig) {
 		*out = new(IPConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	in.IPv6Config.DeepCopyInto(&out.IPv6Config)
+	if in.IPv6Config != nil {
+		in, out := &in.IPv6Config, &out.IPv6Config
+		*out = new(IPConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.DNSServers != nil {
 		in, out := &in.DNSServers, &out.DNSServers
 		*out = make([]string, len(*in))

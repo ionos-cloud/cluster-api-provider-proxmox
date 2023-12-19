@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -76,7 +76,7 @@ type ProxmoxClusterReconciler struct {
 func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	logger := log.FromContext(ctx)
 
-	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{}
+	proxmoxCluster := &infrav1.ProxmoxCluster{}
 	if err := r.Client.Get(ctx, req.NamespacedName, proxmoxCluster); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -154,11 +154,11 @@ func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterS
 	// Requeue if there are one or more machines left.
 	if len(machines) > 0 {
 		clusterScope.Info("waiting for machines to be deleted", "remaining", len(machines))
-		return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+		return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 	}
 
 	clusterScope.Info("cluster deleted successfully")
-	ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
+	ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 	return ctrl.Result{}, nil
 }
 
@@ -166,7 +166,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	clusterScope.Logger.Info("Reconciling ProxmoxCluster")
 
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
-	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
+	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
 	res, err := r.reconcileIPAM(ctx, clusterScope)
 	if err != nil {
@@ -177,7 +177,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		return res, nil
 	}
 
-	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady)
+	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterReady)
 
 	clusterScope.ProxmoxCluster.Status.Ready = true
 
@@ -194,10 +194,10 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 	}
 
 	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil {
-		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV4Format)
+		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPV4Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+				return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 			}
 
 			return ctrl.Result{}, err
@@ -205,10 +205,10 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolV4)
 	}
 	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil {
-		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV6Format)
+		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPV6Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+				return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 			}
 
 			return ctrl.Result{}, err
@@ -219,8 +219,8 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 	return reconcile.Result{}, nil
 }
 
-func (r *ProxmoxClusterReconciler) listProxmoxMachinesForCluster(ctx context.Context, clusterScope *scope.ClusterScope) ([]infrav1alpha1.ProxmoxMachine, error) {
-	var machineList infrav1alpha1.ProxmoxMachineList
+func (r *ProxmoxClusterReconciler) listProxmoxMachinesForCluster(ctx context.Context, clusterScope *scope.ClusterScope) ([]infrav1.ProxmoxMachine, error) {
+	var machineList infrav1.ProxmoxMachineList
 
 	err := r.List(ctx, &machineList, client.InNamespace(clusterScope.Namespace()), client.MatchingLabels{
 		clusterv1.ClusterNameLabel: clusterScope.Name(),
@@ -236,10 +236,10 @@ func (r *ProxmoxClusterReconciler) listProxmoxMachinesForCluster(ctx context.Con
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrav1alpha1.ProxmoxCluster{}).
+		For(&infrav1.ProxmoxCluster{}).
 		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
 		Watches(&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
+			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1.GroupVersion.WithKind(infrav1.ProxmoxClusterKind), mgr.GetClient(), &infrav1.ProxmoxCluster{})),
 			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
 		Complete(r)
 }

@@ -21,7 +21,7 @@ import (
 	"regexp"
 
 	"github.com/google/uuid"
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -74,7 +74,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
 
 	if machineScope.ProxmoxMachine.Spec.Network.Default != nil {
-		net0 := nets[infrav1alpha1.DefaultNetworkDevice]
+		net0 := nets[infrav1.DefaultNetworkDevice]
 		if net0 == "" {
 			return true
 		}

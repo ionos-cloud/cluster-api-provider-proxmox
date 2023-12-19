@@ -44,23 +44,43 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
+	NetworkConfig `json:",inline"`
+}
+
+// NetworkConfig contains information about the network configuration of the cluster.
+type NetworkConfig struct {
 	// IPv4Config contains information about available IPV4 address pools and the gateway.
 	// this can be combined with ipv6Config in order to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *ipamicv1.InClusterIPPoolSpec `json:"ipv4Config,omitempty"`
+	IPv4Config *IPConfig `json:"ipv4Config,omitempty"`
 
 	// IPv6Config contains information about available IPV6 address pools and the gateway.
 	// this can be combined with ipv4Config in order to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *ipamicv1.InClusterIPPoolSpec `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfig `json:"ipv6Config,omitempty"`
 
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
+}
+
+// IPConfig contains information about available IP config.
+type IPConfig struct {
+	// Addresses is a list of IP addresses that can be assigned. This set of
+	// addresses can be non-contiguous.
+	Addresses []string `json:"addresses"`
+
+	// Prefix is the network prefix to use.
+	// +kubebuilder:validation:Maximum=128
+	Prefix int `json:"prefix"`
+
+	// Gateway
+	// +optional
+	Gateway string `json:"gateway,omitempty"`
 }
 
 // ProxmoxClusterStatus defines the observed state of ProxmoxCluster.
@@ -169,7 +189,7 @@ func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool *ipamicv1.InClusterIPPool) {
 
 // AddNodeLocation will add a node location to either the control plane or worker
 // node locations based on the `isControlPlane` parameter.
-func (c *ProxmoxCluster) AddNodeLocation(loc NodeLocation, isControlPlane bool) {
+func (c *ProxmoxCluster) AddNodeLocation(loc NodeLocation, isControlPlane bool) { //nolint
 	if c.Status.NodeLocations == nil {
 		c.Status.NodeLocations = new(NodeLocations)
 	}
@@ -276,12 +296,6 @@ func (c *ProxmoxCluster) addNodeLocation(loc NodeLocation, isControlPlane bool) 
 
 	c.Status.NodeLocations.Workers = append(c.Status.NodeLocations.Workers, loc)
 }
-
-// Hub marks DOCluster as a conversion hub.
-func (*ProxmoxCluster) Hub() {}
-
-// Hub marks DOClusterList as a conversion hub.
-func (*ProxmoxClusterList) Hub() {}
 
 func init() {
 	SchemeBuilder.Register(&ProxmoxCluster{}, &ProxmoxClusterList{})

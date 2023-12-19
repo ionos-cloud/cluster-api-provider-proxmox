@@ -22,6 +22,8 @@ import (
 	"net/netip"
 	"testing"
 
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
@@ -36,7 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -66,38 +67,40 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		},
 	}
 
-	infraCluster := &infrav1alpha1.ProxmoxCluster{
+	infraCluster := &infrav1.ProxmoxCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.ClusterFinalizer,
+				infrav1.ClusterFinalizer,
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxClusterSpec{
-			IPv4Config: &ipamicv1.InClusterIPPoolSpec{
-				Addresses: []string{"10.0.0.10-10.0.0.20"},
-				Prefix:    24,
-				Gateway:   "10.0.0.1",
+		Spec: infrav1.ProxmoxClusterSpec{
+			NetworkConfig: infrav1.NetworkConfig{
+				IPv4Config: &infrav1.IPConfig{
+					Addresses: []string{"10.0.0.10-10.0.0.20"},
+					Prefix:    24,
+					Gateway:   "10.0.0.1",
+				},
+				DNSServers: []string{"1.2.3.4"},
 			},
-			DNSServers: []string{"1.2.3.4"},
 		},
-		Status: infrav1alpha1.ProxmoxClusterStatus{
-			NodeLocations: &infrav1alpha1.NodeLocations{},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{},
 		},
 	}
-	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1alpha1.IPV4Format)}}
+	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1.IPV4Format)}}
 
-	infraMachine := &infrav1alpha1.ProxmoxMachine{
+	infraMachine := &infrav1.ProxmoxMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.MachineFinalizer,
+				infrav1.MachineFinalizer,
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxMachineSpec{
-			VirtualMachineCloneSpec: infrav1alpha1.VirtualMachineCloneSpec{
+		Spec: infrav1.ProxmoxMachineSpec{
+			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				SourceNode: "node1",
 				TemplateID: ptr.To[int32](123),
 			},
@@ -109,11 +112,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	require.NoError(t, clusterv1.AddToScheme(scheme))
 	require.NoError(t, ipamv1.AddToScheme(scheme))
 	require.NoError(t, ipamicv1.AddToScheme(scheme))
-	require.NoError(t, infrav1alpha1.AddToScheme(scheme))
+	require.NoError(t, infrav1.AddToScheme(scheme))
 	kubeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(cluster, machine, infraCluster, infraMachine).
-		WithStatusSubresource(&infrav1alpha1.ProxmoxCluster{}, &infrav1alpha1.ProxmoxMachine{}).
+		WithStatusSubresource(&infrav1.ProxmoxCluster{}, &infrav1.ProxmoxMachine{}).
 		Build()
 
 	ipamHelper := ipam.NewHelper(kubeClient, infraCluster)
@@ -148,7 +151,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 }
 
 func getIPSuffix(addr string) string {
-	suffix := infrav1alpha1.DefaultSuffix
+	suffix := infrav1.DefaultSuffix
 	ip := netip.MustParseAddr(addr)
 	if ip.Is6() {
 		suffix += "6"
