@@ -61,6 +61,17 @@ providers:
 Before you can create a cluster, you need to configure your management cluster. 
 This is done by setting up the environment variables for CAPMOX and generating a cluster manifest.
 
+---
+**_NOTE_**: It is strongly recommended to use dedicated Proxmox VE user + API token. It can either be created through the UI, or by executing
+```
+pveum user add capmox@pve
+pveum aclmod / -user capmox@pve -role PVEVMAdmin
+pveum user token add capmox@pve capi -privsep 0
+```
+on your Proxmox VE node.
+
+---
+
 clusterctl requires the following variables, which should be set in `~/.cluster-api/clusterctl.yaml` as the following:
 
 ```env
