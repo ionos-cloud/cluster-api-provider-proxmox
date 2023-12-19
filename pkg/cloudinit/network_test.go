@@ -31,8 +31,8 @@ const (
     eth0:
       match:
         macaddress: 92:60:a0:5b:22:c2
-      dhcp4: 'no'
-      dhcp6: 'no'
+      dhcp4: false
+      dhcp6: false
       addresses:
         - 10.10.10.12/24
       routes:
@@ -50,8 +50,8 @@ const (
     eth0:
       match:
         macaddress: 92:60:a0:5b:22:c2
-      dhcp4: 'no'
-      dhcp6: 'no'
+      dhcp4: false
+      dhcp6: false
       addresses:
         - 10.10.10.12/24
       routes:
@@ -65,8 +65,8 @@ const (
     eth0:
       match:
         macaddress: 92:60:a0:5b:22:c2
-      dhcp4: 'no'
-      dhcp6: 'no'
+      dhcp4: false
+      dhcp6: false
       addresses:
         - 10.10.10.12/24
       routes:
@@ -79,8 +79,8 @@ const (
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
-      dhcp4: 'no'
-      dhcp6: 'no'
+      dhcp4: false
+      dhcp6: false
       addresses:
         - 196.168.100.124/24
       routes:
@@ -98,8 +98,8 @@ const (
     eth0:
       match:
         macaddress: 92:60:a0:5b:22:c2
-      dhcp4: 'no'
-      dhcp6: 'no'
+      dhcp4: false
+      dhcp6: false
       addresses:
         - 10.10.10.12/24
         - 2001:db8::1/64
@@ -120,8 +120,8 @@ const (
     eth0:
       match:
         macaddress: 92:60:a0:5b:22:c2
-      dhcp4: 'no'
-      dhcp6: 'no'
+      dhcp4: false
+      dhcp6: false
       addresses:
         - 2001:db8::1/64
       routes:
@@ -154,7 +154,7 @@ const (
       match:
         macaddress: 92:60:a0:5b:22:c2
       dhcp4: true
-      dhcp6: 'no'
+      dhcp6: false
       nameservers:
         addresses:
           - 8.8.8.8
@@ -167,7 +167,7 @@ const (
     eth0:
       match:
         macaddress: 92:60:a0:5b:22:c2
-      dhcp4: 'no'
+      dhcp4: false
       dhcp6: true
       nameservers:
         addresses:
@@ -181,7 +181,7 @@ const (
     eth0:
       match:
         macaddress: 92:60:a0:5b:22:c2
-      dhcp4: 'no'
+      dhcp4: false
       dhcp6: true
       addresses:
         - 10.10.10.12/24

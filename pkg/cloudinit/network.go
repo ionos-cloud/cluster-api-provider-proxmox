@@ -30,30 +30,22 @@ const (
     eth{{ $index }}:
       match:
         macaddress: {{ $element.MacAddress }}
-      {{- if $element.DHCP4 }}
-      dhcp4: true
-      {{- else }}
-      dhcp4: 'no'
-      {{- end }}
-      {{- if $element.DHCP6 }}
-      dhcp6: true
-      {{- else }}
-      dhcp6: 'no'
-      {{- end }}
+      dhcp4: {{ if $element.DHCP4 }}true{{ else }}false{{ end }}
+      dhcp6: {{ if $element.DHCP6 }}true{{ else }}false{{ end }}
       {{- if or (and (not $element.DHCP4) $element.IPAddress) (and (not $element.DHCP6) $element.IPV6Address) }}
       addresses:
-      {{- if $element.IPAddress }}
+      {{- if and $element.IPAddress (not $element.DHCP4) }}
         - {{ $element.IPAddress }}
       {{- end }}
-      {{- if $element.IPV6Address }}
+      {{- if and $element.IPV6Address (not $element.DHCP6)}}
         - {{ $element.IPV6Address }}
 	  {{- end }}
       routes:
-      {{- if $element.Gateway }}
+      {{- if and $element.Gateway (not $element.DHCP4) }}
         - to: 0.0.0.0/0
           via: {{ $element.Gateway }}
 	  {{- end }}
-      {{- if $element.Gateway6 }}
+      {{- if and $element.Gateway6 (not $element.DHCP6) }}
         - to: '::/0'
           via: {{ $element.Gateway6 }}
 	  {{- end }}
