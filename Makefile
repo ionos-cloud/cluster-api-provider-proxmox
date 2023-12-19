@@ -50,7 +50,7 @@ generate: generate-go manifests ## Generate code containing DeepCopy, DeepCopyIn
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: generate-go
-generate-go: conversion-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate-go: controller-gen conversion-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	$(CONVERSION_GEN) \
 		--input-dirs=./api/v1alpha1 \
@@ -149,7 +149,7 @@ verify-modules: tidy ## Verify go modules are up to date
 	fi
 
 .PHONY: verify-gen
-verify-gen: generate manifests  ## Verify go generated files and CRDs are up to date
+verify-gen: generate  ## Verify go generated files and CRDs are up to date
 	@if !(git diff --quiet HEAD); then \
 		git diff; \
 		echo "generated files are out of date, run make generate"; exit 1; \
@@ -216,7 +216,7 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 .PHONY: conversion-gen
 conversion-gen: $(CONVERSION_GEN) ## conversion conversion-gen locally if necessary. If wrong version is installed, it will be overwritten.
 $(CONVERSION_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/conversion-gen && $(LOCALBIN)/conversion-gen --version | grep -q $(CONVERSION_GEN_VERSION) || \
+	test -s $(LOCALBIN)/conversion-gen || \
 	GOBIN=$(LOCALBIN) go install k8s.io/code-generator/cmd/conversion-gen@$(CONVERSION_GEN_VERSION)
 
 .PHONY: envtest
