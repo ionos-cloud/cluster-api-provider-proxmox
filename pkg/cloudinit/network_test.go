@@ -277,23 +277,6 @@ func TestNetworkConfig_Render(t *testing.T) {
 				err:     ErrMalformedIPAddress,
 			},
 		},
-		"InvalidNetworkConfigMalformedIP": {
-			reason: "ip address malformed",
-			args: args{
-				nics: []NetworkConfigData{
-					{
-						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.115",
-						Gateway:    "10.10.10.1",
-						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-					},
-				},
-			},
-			want: want{
-				network: "",
-				err:     ErrMalformedIPAddress,
-			},
-		},
 		"InvalidNetworkConfigGW": {
 			reason: "gw is not set",
 			args: args{
