@@ -30,23 +30,26 @@ const (
     eth{{ $index }}:
       match:
         macaddress: {{ $element.MacAddress }}
-      dhcp4: 'no'
+      dhcp4: {{ if $element.DHCP4 }}true{{ else }}false{{ end }}
+      dhcp6: {{ if $element.DHCP6 }}true{{ else }}false{{ end }}
+      {{- if or (and (not $element.DHCP4) $element.IPAddress) (and (not $element.DHCP6) $element.IPV6Address) }}
       addresses:
-      {{- if $element.IPAddress }}
+      {{- if and $element.IPAddress (not $element.DHCP4) }}
         - {{ $element.IPAddress }}
       {{- end }}
-      {{- if $element.IPV6Address }}
+      {{- if and $element.IPV6Address (not $element.DHCP6)}}
         - {{ $element.IPV6Address }}
 	  {{- end }}
       routes:
-      {{- if $element.Gateway }}
+      {{- if and $element.Gateway (not $element.DHCP4) }}
         - to: 0.0.0.0/0
           via: {{ $element.Gateway }}
 	  {{- end }}
-      {{- if $element.Gateway6 }}
+      {{- if and $element.Gateway6 (not $element.DHCP6) }}
         - to: '::/0'
           via: {{ $element.Gateway6 }}
 	  {{- end }}
+      {{- end }}
       {{- if $element.DNSServers }}
       nameservers:
         addresses:
@@ -86,17 +89,31 @@ func (r *NetworkConfig) validate() error {
 		return ErrMissingNetworkConfigData
 	}
 	for _, d := range r.data.NetworkConfigData {
-		err := validIPAddress(d.IPAddress)
-		err6 := validIPAddress(d.IPV6Address)
-		if err != nil && err6 != nil {
-			return err
-		}
-
-		if d.Gateway == "" && d.Gateway6 == "" {
-			return ErrMissingGateway
+		if !d.DHCP4 && !d.DHCP6 && len(d.IPAddress) == 0 && len(d.IPV6Address) == 0 {
+			return ErrMissingIPAddress
 		}
 		if d.MacAddress == "" {
 			return ErrMissingMacAddress
+		}
+
+		if !d.DHCP4 && len(d.IPAddress) > 0 {
+			err := validIPAddress(d.IPAddress)
+			if err != nil {
+				return err
+			}
+			if d.Gateway == "" {
+				return ErrMissingGateway
+			}
+		}
+
+		if !d.DHCP6 && len(d.IPV6Address) > 0 {
+			err6 := validIPAddress(d.IPV6Address)
+			if err6 != nil {
+				return err6
+			}
+			if d.Gateway6 == "" {
+				return ErrMissingGateway
+			}
 		}
 	}
 	return nil
