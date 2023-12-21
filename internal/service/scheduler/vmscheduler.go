@@ -47,12 +47,13 @@ func (err InsufficientMemoryError) Error() string {
 func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, error) {
 	client := machineScope.InfraCluster.ProxmoxClient
 	allowedNodes := machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
+	schedulerHints := machineScope.InfraCluster.ProxmoxCluster.Spec.SchedulerHints
 	locations := machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.Workers
 	if util.IsControlPlaneMachine(machineScope.Machine) {
 		locations = machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.ControlPlane
 	}
 
-	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes)
+	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, schedulerHints)
 }
 
 func selectNode(
@@ -61,10 +62,11 @@ func selectNode(
 	machine *infrav1.ProxmoxMachine,
 	locations []infrav1.NodeLocation,
 	allowedNodes []string,
+	schedulerHints *infrav1.SchedulerHints,
 ) (string, error) {
 	byMemory := make(sortByAvailableMemory, len(allowedNodes))
 	for i, nodeName := range allowedNodes {
-		mem, err := client.GetReservableMemoryBytes(ctx, nodeName)
+		mem, err := client.GetReservableMemoryBytes(ctx, nodeName, schedulerHints.GetMemoryAdjustment())
 		if err != nil {
 			return "", err
 		}
@@ -119,7 +121,7 @@ func selectNode(
 }
 
 type resourceClient interface {
-	GetReservableMemoryBytes(context.Context, string) (uint64, error)
+	GetReservableMemoryBytes(context.Context, string, uint64) (uint64, error)
 }
 
 type nodeInfo struct {

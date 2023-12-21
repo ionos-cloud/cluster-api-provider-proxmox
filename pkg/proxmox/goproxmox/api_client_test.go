@@ -48,13 +48,53 @@ func newJSONResponder(status int, data any) httpmock.Responder {
 
 func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 	tests := []struct {
-		name   string
-		maxMem uint64
-		expect uint64
+		name                 string
+		maxMem               uint64 // memory size of already provisioned guest
+		expect               uint64 // expected available memory of the host
+		nodeMemoryAdjustment uint64 // factor like 1.0 to multiply host memory with for overprovisioning
 	}{
-		{name: "under zero", maxMem: 29, expect: 1},
-		{name: "exact zero", maxMem: 30, expect: 0},
-		{name: "over zero", maxMem: 31, expect: 0},
+		{
+			name:                 "under zero - no overprovisioning",
+			maxMem:               29,
+			expect:               1,
+			nodeMemoryAdjustment: 100,
+		},
+		{
+			name:                 "exact zero - no overprovisioning",
+			maxMem:               30,
+			expect:               0,
+			nodeMemoryAdjustment: 100,
+		},
+		{
+			name:                 "over zero - no overprovisioning",
+			maxMem:               31,
+			expect:               0,
+			nodeMemoryAdjustment: 100,
+		},
+		{
+			name:                 "under zero - overprovisioning",
+			maxMem:               58,
+			expect:               2,
+			nodeMemoryAdjustment: 200,
+		},
+		{
+			name:                 "exact zero - overprovisioning",
+			maxMem:               30 * 2,
+			expect:               0,
+			nodeMemoryAdjustment: 200,
+		},
+		{
+			name:                 "over zero - overprovisioning",
+			maxMem:               31 * 2,
+			expect:               0,
+			nodeMemoryAdjustment: 200,
+		},
+		{
+			name:                 "scheduler disabled",
+			maxMem:               100,
+			expect:               30,
+			nodeMemoryAdjustment: 0,
+		},
 	}
 
 	for _, test := range tests {
@@ -104,7 +144,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/lxc`,
 				newJSONResponder(200, proxmox.Containers{}))
 
-			reservable, err := client.GetReservableMemoryBytes(context.Background(), "test")
+			reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", test.nodeMemoryAdjustment)
 			require.NoError(t, err)
 			require.Equal(t, test.expect, reservable)
 		})

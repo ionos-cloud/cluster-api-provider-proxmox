@@ -27,7 +27,7 @@ import (
 
 type fakeResourceClient map[string]uint64
 
-func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string) (uint64, error) {
+func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string, _ uint64) (uint64, error) {
 	return c[nodeName], nil
 }
 
@@ -62,7 +62,7 @@ func TestSelectNode(t *testing.T) {
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes)
+			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
@@ -82,7 +82,7 @@ func TestSelectNode(t *testing.T) {
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes)
+		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 
