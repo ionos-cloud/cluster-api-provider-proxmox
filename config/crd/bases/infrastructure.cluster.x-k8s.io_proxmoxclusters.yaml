@@ -131,6 +131,22 @@ spec:
                 x-kubernetes-validations:
                 - message: IPv6Config addresses must be provided
                   rule: self.addresses.size() > 0
+              schedulerHints:
+                description: SchedulerHints allows to influence the decision on where
+                  a VM will be scheduled. For example by applying a multiplicator
+                  to a node's resources, to allow for overprovisioning or to ensure
+                  a node will always have a safety buffer.
+                properties:
+                  memoryAdjustment:
+                    description: MemoryAdjustment allows to adjust a node's memory
+                      by a given percentage. For example, setting it to 300 allows
+                      to allocate 300% of a host's memory for VMs, and setting it
+                      to 95 limits memory allocation to 95% of a host's memory. Setting
+                      it to 0 entirely disables scheduling memory constraints. By
+                      default 100% of a node's memory will be used for allocation.
+                    format: int64
+                    type: integer
+                type: object
             required:
             - dnsServers
             type: object

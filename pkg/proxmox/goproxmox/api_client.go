@@ -181,13 +181,17 @@ func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, er
 }
 
 // GetReservableMemoryBytes returns the memory that can be reserved by a new VM, in bytes.
-func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string) (uint64, error) {
+func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error) {
 	node, err := c.Client.Node(ctx, nodeName)
 	if err != nil {
 		return 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
-	reservableMemory := node.Memory.Total
+	reservableMemory := uint64(float64(node.Memory.Total) / 100 * float64(nodeMemoryAdjustment))
+
+	if nodeMemoryAdjustment == 0 {
+		return node.Memory.Total, nil
+	}
 
 	vms, err := node.VirtualMachines(ctx)
 	if err != nil {

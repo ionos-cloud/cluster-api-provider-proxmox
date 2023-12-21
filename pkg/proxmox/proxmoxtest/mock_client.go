@@ -18,7 +18,8 @@ limitations under the License.
 package proxmoxtest
 
 import (
-	"context"
+	context "context"
+
 	go_proxmox "github.com/luthermonson/go-proxmox"
 	mock "github.com/stretchr/testify/mock"
 
@@ -38,7 +39,7 @@ func (_m *MockClient) EXPECT() *MockClient_Expecter {
 	return &MockClient_Expecter{mock: &_m.Mock}
 }
 
-// CloneVM provides a mock function with given fields: templateID, clone
+// CloneVM provides a mock function with given fields: ctx, templateID, clone
 func (_m *MockClient) CloneVM(ctx context.Context, templateID int, clone proxmox.VMCloneRequest) (proxmox.VMCloneResponse, error) {
 	ret := _m.Called(ctx, templateID, clone)
 
@@ -53,8 +54,8 @@ func (_m *MockClient) CloneVM(ctx context.Context, templateID int, clone proxmox
 		r0 = ret.Get(0).(proxmox.VMCloneResponse)
 	}
 
-	if rf, ok := ret.Get(1).(func(int, proxmox.VMCloneRequest) error); ok {
-		r1 = rf(templateID, clone)
+	if rf, ok := ret.Get(1).(func(context.Context, int, proxmox.VMCloneRequest) error); ok {
+		r1 = rf(ctx, templateID, clone)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -68,9 +69,10 @@ type MockClient_CloneVM_Call struct {
 }
 
 // CloneVM is a helper method to define mock.On call
+//   - ctx context.Context
 //   - templateID int
 //   - clone proxmox.VMCloneRequest
-func (_e *MockClient_Expecter) CloneVM(ctx context.Context, templateID interface{}, clone interface{}) *MockClient_CloneVM_Call {
+func (_e *MockClient_Expecter) CloneVM(ctx interface{}, templateID interface{}, clone interface{}) *MockClient_CloneVM_Call {
 	return &MockClient_CloneVM_Call{Call: _e.mock.On("CloneVM", ctx, templateID, clone)}
 }
 
@@ -91,15 +93,14 @@ func (_c *MockClient_CloneVM_Call) RunAndReturn(run func(context.Context, int, p
 	return _c
 }
 
-// ConfigureVM provides a mock function with given fields: vm, options
+// ConfigureVM provides a mock function with given fields: ctx, vm, options
 func (_m *MockClient) ConfigureVM(ctx context.Context, vm *go_proxmox.VirtualMachine, options ...go_proxmox.VirtualMachineOption) (*go_proxmox.Task, error) {
 	_va := make([]interface{}, len(options))
 	for _i := range options {
 		_va[_i] = options[_i]
 	}
 	var _ca []interface{}
-	_ca = append(_ca, ctx)
-	_ca = append(_ca, vm)
+	_ca = append(_ca, ctx, vm)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
@@ -131,16 +132,18 @@ type MockClient_ConfigureVM_Call struct {
 }
 
 // ConfigureVM is a helper method to define mock.On call
+//   - ctx context.Context
 //   - vm *go_proxmox.VirtualMachine
 //   - options ...go_proxmox.VirtualMachineOption
-func (_e *MockClient_Expecter) ConfigureVM(ctx context.Context, vm interface{}, options ...interface{}) *MockClient_ConfigureVM_Call {
-	return &MockClient_ConfigureVM_Call{Call: _e.mock.On("ConfigureVM", append([]interface{}{ctx, vm}, options...)...)}
+func (_e *MockClient_Expecter) ConfigureVM(ctx interface{}, vm interface{}, options ...interface{}) *MockClient_ConfigureVM_Call {
+	return &MockClient_ConfigureVM_Call{Call: _e.mock.On("ConfigureVM",
+		append([]interface{}{ctx, vm}, options...)...)}
 }
 
 func (_c *MockClient_ConfigureVM_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine, options ...go_proxmox.VirtualMachineOption)) *MockClient_ConfigureVM_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]go_proxmox.VirtualMachineOption, len(args)-1)
-		for i, a := range args[1:] {
+		variadicArgs := make([]go_proxmox.VirtualMachineOption, len(args)-2)
+		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(go_proxmox.VirtualMachineOption)
 			}
@@ -160,7 +163,7 @@ func (_c *MockClient_ConfigureVM_Call) RunAndReturn(run func(context.Context, *g
 	return _c
 }
 
-// DeleteVM provides a mock function with given fields: nodeName, vmID
+// DeleteVM provides a mock function with given fields: ctx, nodeName, vmID
 func (_m *MockClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, nodeName, vmID)
 
@@ -192,9 +195,10 @@ type MockClient_DeleteVM_Call struct {
 }
 
 // DeleteVM is a helper method to define mock.On call
+//   - ctx context.Context
 //   - nodeName string
 //   - vmID int64
-func (_e *MockClient_Expecter) DeleteVM(ctx context.Context, nodeName interface{}, vmID interface{}) *MockClient_DeleteVM_Call {
+func (_e *MockClient_Expecter) DeleteVM(ctx interface{}, nodeName interface{}, vmID interface{}) *MockClient_DeleteVM_Call {
 	return &MockClient_DeleteVM_Call{Call: _e.mock.On("DeleteVM", ctx, nodeName, vmID)}
 }
 
@@ -215,7 +219,7 @@ func (_c *MockClient_DeleteVM_Call) RunAndReturn(run func(context.Context, strin
 	return _c
 }
 
-// FindVMResource provides a mock function with given fields: vmID
+// FindVMResource provides a mock function with given fields: ctx, vmID
 func (_m *MockClient) FindVMResource(ctx context.Context, vmID uint64) (*go_proxmox.ClusterResource, error) {
 	ret := _m.Called(ctx, vmID)
 
@@ -247,8 +251,9 @@ type MockClient_FindVMResource_Call struct {
 }
 
 // FindVMResource is a helper method to define mock.On call
+//   - ctx context.Context
 //   - vmID uint64
-func (_e *MockClient_Expecter) FindVMResource(ctx context.Context, vmID interface{}) *MockClient_FindVMResource_Call {
+func (_e *MockClient_Expecter) FindVMResource(ctx interface{}, vmID interface{}) *MockClient_FindVMResource_Call {
 	return &MockClient_FindVMResource_Call{Call: _e.mock.On("FindVMResource", ctx, vmID)}
 }
 
@@ -269,23 +274,23 @@ func (_c *MockClient_FindVMResource_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
-// GetReservableMemoryBytes provides a mock function with given fields: nodeName
-func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName string) (uint64, error) {
-	ret := _m.Called(ctx, nodeName)
+// GetReservableMemoryBytes provides a mock function with given fields: ctx, nodeName, nodeMemoryAdjustment
+func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error) {
+	ret := _m.Called(ctx, nodeName, nodeMemoryAdjustment)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (uint64, error)); ok {
-		return rf(ctx, nodeName)
+	if rf, ok := ret.Get(0).(func(context.Context, string, uint64) (uint64, error)); ok {
+		return rf(ctx, nodeName, nodeMemoryAdjustment)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) uint64); ok {
-		r0 = rf(ctx, nodeName)
+	if rf, ok := ret.Get(0).(func(context.Context, string, uint64) uint64); ok {
+		r0 = rf(ctx, nodeName, nodeMemoryAdjustment)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, nodeName)
+	if rf, ok := ret.Get(1).(func(context.Context, string, uint64) error); ok {
+		r1 = rf(ctx, nodeName, nodeMemoryAdjustment)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -299,14 +304,16 @@ type MockClient_GetReservableMemoryBytes_Call struct {
 }
 
 // GetReservableMemoryBytes is a helper method to define mock.On call
+//   - ctx context.Context
 //   - nodeName string
-func (_e *MockClient_Expecter) GetReservableMemoryBytes(ctx context.Context, nodeName interface{}) *MockClient_GetReservableMemoryBytes_Call {
-	return &MockClient_GetReservableMemoryBytes_Call{Call: _e.mock.On("GetReservableMemoryBytes", ctx, nodeName)}
+//   - nodeMemoryAdjustment uint64
+func (_e *MockClient_Expecter) GetReservableMemoryBytes(ctx interface{}, nodeName interface{}, nodeMemoryAdjustment interface{}) *MockClient_GetReservableMemoryBytes_Call {
+	return &MockClient_GetReservableMemoryBytes_Call{Call: _e.mock.On("GetReservableMemoryBytes", ctx, nodeName, nodeMemoryAdjustment)}
 }
 
-func (_c *MockClient_GetReservableMemoryBytes_Call) Run(run func(ctx context.Context, nodeName string)) *MockClient_GetReservableMemoryBytes_Call {
+func (_c *MockClient_GetReservableMemoryBytes_Call) Run(run func(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64)) *MockClient_GetReservableMemoryBytes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(uint64))
 	})
 	return _c
 }
@@ -316,12 +323,12 @@ func (_c *MockClient_GetReservableMemoryBytes_Call) Return(_a0 uint64, _a1 error
 	return _c
 }
 
-func (_c *MockClient_GetReservableMemoryBytes_Call) RunAndReturn(run func(context.Context, string) (uint64, error)) *MockClient_GetReservableMemoryBytes_Call {
+func (_c *MockClient_GetReservableMemoryBytes_Call) RunAndReturn(run func(context.Context, string, uint64) (uint64, error)) *MockClient_GetReservableMemoryBytes_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// GetTask provides a mock function with given fields: upID
+// GetTask provides a mock function with given fields: ctx, upID
 func (_m *MockClient) GetTask(ctx context.Context, upID string) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, upID)
 
@@ -353,8 +360,9 @@ type MockClient_GetTask_Call struct {
 }
 
 // GetTask is a helper method to define mock.On call
+//   - ctx context.Context
 //   - upID string
-func (_e *MockClient_Expecter) GetTask(ctx context.Context, upID interface{}) *MockClient_GetTask_Call {
+func (_e *MockClient_Expecter) GetTask(ctx interface{}, upID interface{}) *MockClient_GetTask_Call {
 	return &MockClient_GetTask_Call{Call: _e.mock.On("GetTask", ctx, upID)}
 }
 
@@ -375,7 +383,7 @@ func (_c *MockClient_GetTask_Call) RunAndReturn(run func(context.Context, string
 	return _c
 }
 
-// GetVM provides a mock function with given fields: nodeName, vmID
+// GetVM provides a mock function with given fields: ctx, nodeName, vmID
 func (_m *MockClient) GetVM(ctx context.Context, nodeName string, vmID int64) (*go_proxmox.VirtualMachine, error) {
 	ret := _m.Called(ctx, nodeName, vmID)
 
@@ -407,9 +415,10 @@ type MockClient_GetVM_Call struct {
 }
 
 // GetVM is a helper method to define mock.On call
+//   - ctx context.Context
 //   - nodeName string
 //   - vmID int64
-func (_e *MockClient_Expecter) GetVM(ctx context.Context, nodeName interface{}, vmID interface{}) *MockClient_GetVM_Call {
+func (_e *MockClient_Expecter) GetVM(ctx interface{}, nodeName interface{}, vmID interface{}) *MockClient_GetVM_Call {
 	return &MockClient_GetVM_Call{Call: _e.mock.On("GetVM", ctx, nodeName, vmID)}
 }
 
@@ -430,7 +439,7 @@ func (_c *MockClient_GetVM_Call) RunAndReturn(run func(context.Context, string, 
 	return _c
 }
 
-// ResizeDisk provides a mock function with given fields: vm, disk, size
+// ResizeDisk provides a mock function with given fields: ctx, vm, disk, size
 func (_m *MockClient) ResizeDisk(ctx context.Context, vm *go_proxmox.VirtualMachine, disk string, size string) error {
 	ret := _m.Called(ctx, vm, disk, size)
 
@@ -450,10 +459,11 @@ type MockClient_ResizeDisk_Call struct {
 }
 
 // ResizeDisk is a helper method to define mock.On call
+//   - ctx context.Context
 //   - vm *go_proxmox.VirtualMachine
 //   - disk string
 //   - size string
-func (_e *MockClient_Expecter) ResizeDisk(ctx context.Context, vm interface{}, disk interface{}, size interface{}) *MockClient_ResizeDisk_Call {
+func (_e *MockClient_Expecter) ResizeDisk(ctx interface{}, vm interface{}, disk interface{}, size interface{}) *MockClient_ResizeDisk_Call {
 	return &MockClient_ResizeDisk_Call{Call: _e.mock.On("ResizeDisk", ctx, vm, disk, size)}
 }
 
@@ -474,7 +484,7 @@ func (_c *MockClient_ResizeDisk_Call) RunAndReturn(run func(context.Context, *go
 	return _c
 }
 
-// ResumeVM provides a mock function with given fields: vm
+// ResumeVM provides a mock function with given fields: ctx, vm
 func (_m *MockClient) ResumeVM(ctx context.Context, vm *go_proxmox.VirtualMachine) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm)
 
@@ -491,8 +501,8 @@ func (_m *MockClient) ResumeVM(ctx context.Context, vm *go_proxmox.VirtualMachin
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*go_proxmox.VirtualMachine) error); ok {
-		r1 = rf(vm)
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
+		r1 = rf(ctx, vm)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -506,8 +516,9 @@ type MockClient_ResumeVM_Call struct {
 }
 
 // ResumeVM is a helper method to define mock.On call
+//   - ctx context.Context
 //   - vm *go_proxmox.VirtualMachine
-func (_e *MockClient_Expecter) ResumeVM(ctx context.Context, vm interface{}) *MockClient_ResumeVM_Call {
+func (_e *MockClient_Expecter) ResumeVM(ctx interface{}, vm interface{}) *MockClient_ResumeVM_Call {
 	return &MockClient_ResumeVM_Call{Call: _e.mock.On("ResumeVM", ctx, vm)}
 }
 
@@ -528,7 +539,7 @@ func (_c *MockClient_ResumeVM_Call) RunAndReturn(run func(context.Context, *go_p
 	return _c
 }
 
-// StartVM provides a mock function with given fields: vm
+// StartVM provides a mock function with given fields: ctx, vm
 func (_m *MockClient) StartVM(ctx context.Context, vm *go_proxmox.VirtualMachine) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm)
 
@@ -545,8 +556,8 @@ func (_m *MockClient) StartVM(ctx context.Context, vm *go_proxmox.VirtualMachine
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*go_proxmox.VirtualMachine) error); ok {
-		r1 = rf(vm)
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
+		r1 = rf(ctx, vm)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -560,8 +571,9 @@ type MockClient_StartVM_Call struct {
 }
 
 // StartVM is a helper method to define mock.On call
+//   - ctx context.Context
 //   - vm *go_proxmox.VirtualMachine
-func (_e *MockClient_Expecter) StartVM(ctx context.Context, vm interface{}) *MockClient_StartVM_Call {
+func (_e *MockClient_Expecter) StartVM(ctx interface{}, vm interface{}) *MockClient_StartVM_Call {
 	return &MockClient_StartVM_Call{Call: _e.mock.On("StartVM", ctx, vm)}
 }
 
@@ -582,7 +594,7 @@ func (_c *MockClient_StartVM_Call) RunAndReturn(run func(context.Context, *go_pr
 	return _c
 }
 
-// TagVM provides a mock function with given fields: vm, tag
+// TagVM provides a mock function with given fields: ctx, vm, tag
 func (_m *MockClient) TagVM(ctx context.Context, vm *go_proxmox.VirtualMachine, tag string) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm, tag)
 
@@ -599,8 +611,8 @@ func (_m *MockClient) TagVM(ctx context.Context, vm *go_proxmox.VirtualMachine, 
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*go_proxmox.VirtualMachine, string) error); ok {
-		r1 = rf(vm, tag)
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine, string) error); ok {
+		r1 = rf(ctx, vm, tag)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -614,15 +626,16 @@ type MockClient_TagVM_Call struct {
 }
 
 // TagVM is a helper method to define mock.On call
+//   - ctx context.Context
 //   - vm *go_proxmox.VirtualMachine
 //   - tag string
-func (_e *MockClient_Expecter) TagVM(ctx context.Context, vm interface{}, tag interface{}) *MockClient_TagVM_Call {
+func (_e *MockClient_Expecter) TagVM(ctx interface{}, vm interface{}, tag interface{}) *MockClient_TagVM_Call {
 	return &MockClient_TagVM_Call{Call: _e.mock.On("TagVM", ctx, vm, tag)}
 }
 
 func (_c *MockClient_TagVM_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine, tag string)) *MockClient_TagVM_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[0].(*go_proxmox.VirtualMachine), args[1].(string))
+		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine), args[2].(string))
 	})
 	return _c
 }
