@@ -19,7 +19,7 @@ The first step to running the e2e tests is setting up the required environment v
 | --------------------------------- |------------------------------------------|
 | `PROXMOX_URL`       | The Proxmox host                         |
 | `PROXMOX_TOKEN`  | The Proxmox token                        |
-| `PROXMOX_SECRET`           | The secret assocaited with the token     |
+| `PROXMOX_SECRET`           | The secret associated with the token     |
 | `PROXMOX_SOURCENODE`           | The Proxmox node that host the temnplate |
 | `TEMPLATE_VMID`           | The VM ID for the temnplate              |
 

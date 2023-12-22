@@ -2,7 +2,7 @@
 // +build e2e
 
 /*
-Copyright 2020 The Kubernetes Authors.
+Copyright 2023 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -101,8 +101,6 @@ var _ = Describe("Conformance Tests", func() {
 		// clusters with CI artifacts or PR artifacts are based on a known CI version
 		// PR artifacts will replace the CI artifacts during kubeadm init
 		if useCIArtifacts {
-			//kubernetesVersion = kubernetesVersion
-			//Expect(err).NotTo(HaveOccurred())
 			Expect(os.Setenv("CI_VERSION", kubernetesVersion)).To(Succeed())
 
 			flavor = "conformance-ci-artifacts"
