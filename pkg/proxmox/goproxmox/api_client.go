@@ -180,22 +180,28 @@ func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, er
 	return task, nil
 }
 
-// GetReservableMemoryBytes returns the memory that can be reserved by a new VM, in bytes.
-func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error) {
+// GetReservableResources returns the memory that can be reserved by a new VM, in bytes.
+func (c *APIClient) GetReservableResources(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64, nodeCPUAdjustment uint64) (uint64, uint64, error) {
 	node, err := c.Client.Node(ctx, nodeName)
 	if err != nil {
-		return 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
+		return 0, 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
 	reservableMemory := uint64(float64(node.Memory.Total) / 100 * float64(nodeMemoryAdjustment))
+	reservableCpus := uint64(float64(node.CPUInfo.CPUs) / 100 * float64(nodeCPUAdjustment))
 
 	if nodeMemoryAdjustment == 0 {
-		return node.Memory.Total, nil
+		// We go by x1000 to actually take the node's resources out of the equation.
+		// Otherwise, simply returning for E.g. 32GB node memory, wouldn't be able to schedule a 64GB guest.
+		reservableMemory = node.Memory.Total
+	}
+	if nodeCPUAdjustment == 0 {
+		reservableCpus = uint64(node.CPUInfo.CPUs)
 	}
 
 	vms, err := node.VirtualMachines(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("cannot list vms for node %s: %w", nodeName, err)
+		return 0, 0, fmt.Errorf("cannot list vms for node %s: %w", nodeName, err)
 	}
 
 	for _, vm := range vms {
@@ -203,27 +209,45 @@ func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName strin
 		if vm.Template {
 			continue
 		}
-		if reservableMemory < vm.MaxMem {
-			reservableMemory = 0
-		} else {
-			reservableMemory -= vm.MaxMem
+		if nodeMemoryAdjustment > 0 {
+			if reservableMemory < vm.MaxMem {
+				reservableMemory = 0
+			} else {
+				reservableMemory -= vm.MaxMem
+			}
+		}
+		if nodeCPUAdjustment > 0 {
+			if reservableCpus < uint64(vm.CPUs) {
+				reservableCpus = 0
+			} else {
+				reservableCpus -= uint64(vm.CPUs)
+			}
 		}
 	}
 
 	containers, err := node.Containers(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("cannot list containers for node %s: %w", nodeName, err)
+		return 0, 0, fmt.Errorf("cannot list containers for node %s: %w", nodeName, err)
 	}
 
 	for _, ct := range containers {
-		if reservableMemory < ct.MaxMem {
-			reservableMemory = 0
-		} else {
-			reservableMemory -= ct.MaxMem
+		if nodeMemoryAdjustment > 0 {
+			if reservableMemory < ct.MaxMem {
+				reservableMemory = 0
+			} else {
+				reservableMemory -= ct.MaxMem
+			}
+		}
+		if nodeCPUAdjustment > 0 {
+			if reservableCpus < uint64(ct.CPUs) {
+				reservableCpus = 0
+			} else {
+				reservableCpus -= uint64(ct.CPUs)
+			}
 		}
 	}
 
-	return reservableMemory, nil
+	return reservableMemory, reservableCpus, nil
 }
 
 // ResizeDisk resizes a VM disk to the specified size.

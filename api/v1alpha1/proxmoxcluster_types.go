@@ -78,6 +78,15 @@ type SchedulerHints struct {
 	// By default 100% of a node's memory will be used for allocation.
 	// +optional
 	MemoryAdjustment *uint64 `json:"memoryAdjustment,omitempty"`
+
+	// Like MemoryAdjustment, but for CPU resources.
+	// Defaults to 0 (disabled), as CPU is a compressible resource.
+	// +optional
+	CPUAdjustment *uint64 `json:"cpuAdjustment,omitempty"`
+
+	// +optional
+	// +kubebuilder:default=true
+	PreferLowerGuestCount bool `json:"preferLowerGuestCount,omitempty"`
 }
 
 // GetMemoryAdjustment returns the memory adjustment percentage to use within the scheduler.
@@ -89,6 +98,17 @@ func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
 	}
 
 	return memoryAdjustment
+}
+
+// GetCPUAdjustment returns the cpu adjustment percentage to use within the scheduler.
+func (sh *SchedulerHints) GetCPUAdjustment() uint64 {
+	cpuAdjustment := uint64(0)
+
+	if sh != nil {
+		cpuAdjustment = ptr.Deref(sh.CPUAdjustment, 0)
+	}
+
+	return cpuAdjustment
 }
 
 // ProxmoxClusterStatus defines the observed state of ProxmoxCluster.

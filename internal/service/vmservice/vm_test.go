@@ -105,7 +105,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1"}
 
 	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
-		return "", fmt.Errorf("error: %w", scheduler.InsufficientMemoryError{})
+		return "", fmt.Errorf("error: %w", scheduler.InsufficientResourcesError{})
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 

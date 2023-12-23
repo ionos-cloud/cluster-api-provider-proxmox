@@ -314,7 +314,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		var err error
 		options.Target, err = selectNextNode(ctx, scope)
 		if err != nil {
-			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
+			if errors.As(err, &scheduler.InsufficientResourcesError{}) {
 				scope.SetFailureMessage(err)
 				scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
 			}
