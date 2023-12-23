@@ -222,7 +222,6 @@ type NetworkDevice struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65520
-	// +kubebuilder:default=1500
 	MTU *uint16 `json:"mtu,omitempty"`
 }
 

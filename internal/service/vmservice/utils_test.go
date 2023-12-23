@@ -118,7 +118,7 @@ func TestExtractNetworkBridge(t *testing.T) {
 
 	for _, s := range badstrings {
 		bridge := extractNetworkBridge(s)
-		require.Empty(t, bridge)
+		require.Equal(t, "unknown", bridge)
 	}
 }
 
@@ -134,7 +134,6 @@ func TestExtractNetworkMTU(t *testing.T) {
 		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", 1500},
 		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,foo", 9000},
 		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,foo=bar", 9000},
-		{"foo=bar,e1000=A6:23:64:4D:84:CB,bridge=vmbr1,foo=bar", 1500},
 	}
 
 	badstrings := []string{
@@ -151,9 +150,7 @@ func TestExtractNetworkMTU(t *testing.T) {
 
 	for _, s := range badstrings {
 		mtu := extractNetworkMTU(s)
-
-		// when mtu is not specified, it should be default 1500
-		require.Equal(t, uint16(1500), mtu)
+		require.Equal(t, uint16(0), mtu)
 	}
 }
 

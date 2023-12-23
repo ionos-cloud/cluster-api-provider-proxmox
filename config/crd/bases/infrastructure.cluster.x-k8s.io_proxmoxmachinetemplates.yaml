@@ -224,7 +224,6 @@ spec:
                                   - vmxnet3
                                   type: string
                                 mtu:
-                                  default: 1500
                                   description: MTU is the network device Maximum Transmission
                                     Unit. Only works with virtio Model.
                                   maximum: 65520
@@ -273,7 +272,6 @@ spec:
                                 - vmxnet3
                                 type: string
                               mtu:
-                                default: 1500
                                 description: MTU is the network device Maximum Transmission
                                   Unit. Only works with virtio Model.
                                 maximum: 65520

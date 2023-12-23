@@ -18,11 +18,13 @@ package vmservice
 
 import (
 	"fmt"
-	"github.com/google/uuid"
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 	"regexp"
 	"strconv"
+
+	"github.com/google/uuid"
+
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
 const (
@@ -108,10 +110,17 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 		model := extractNetworkModel(net0)
 		bridge := extractNetworkBridge(net0)
-		mtu := extractNetworkMTU(net0)
 
-		if model != *desiredDefault.Model || bridge != desiredDefault.Bridge || mtu != *desiredDefault.MTU {
+		if model != *desiredDefault.Model || bridge != desiredDefault.Bridge {
 			return true
+		}
+
+		if desiredDefault.MTU != nil {
+			mtu := extractNetworkMTU(net0)
+
+			if mtu != *desiredDefault.MTU {
+				return true
+			}
 		}
 	}
 
@@ -125,11 +134,18 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 		model := extractNetworkModel(net)
 		bridge := extractNetworkBridge(net)
-		mtu := extractNetworkMTU(net)
 
 		// current is different from the desired spec.
-		if model != *v.Model || bridge != v.Bridge || mtu != *v.MTU {
+		if model != *v.Model || bridge != v.Bridge {
 			return true
+		}
+
+		if v.MTU != nil {
+			mtu := extractNetworkMTU(net)
+
+			if mtu != *v.MTU {
+				return true
+			}
 		}
 	}
 
@@ -138,8 +154,12 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 // formatNetworkDevice formats a network device config
 // example 'virtio,bridge=vmbr0'.
-func formatNetworkDevice(model, bridge string, mtu uint16) string {
-	return fmt.Sprintf("%s,bridge=%s,mtu=%d", model, bridge, mtu)
+func formatNetworkDevice(model, bridge string, mtu *uint16) string {
+	if mtu == nil {
+		return fmt.Sprintf("%s,bridge=%s", model, bridge)
+	}
+
+	return fmt.Sprintf("%s,bridge=%s,mtu=%d", model, bridge, *mtu)
 }
 
 // extractMACAddress returns the macaddress out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1.
