@@ -137,6 +137,11 @@ spec:
                   to a node's resources, to allow for overprovisioning or to ensure
                   a node will always have a safety buffer.
                 properties:
+                  cpuAdjustment:
+                    description: Like MemoryAdjustment, but for CPU resources. Defaults
+                      to 0 (disabled), as CPU is a compressible resource.
+                    format: int64
+                    type: integer
                   memoryAdjustment:
                     description: MemoryAdjustment allows to adjust a node's memory
                       by a given percentage. For example, setting it to 300 allows
@@ -146,6 +151,9 @@ spec:
                       default 100% of a node's memory will be used for allocation.
                     format: int64
                     type: integer
+                  preferLowerGuestCount:
+                    default: true
+                    type: boolean
                 type: object
             required:
             - dnsServers
