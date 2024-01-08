@@ -19,8 +19,10 @@ package vmservice
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 
 	"github.com/google/uuid"
+
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
@@ -55,14 +57,39 @@ func IPAddressWithPrefix(ip string, prefix int) string {
 	return fmt.Sprintf("%s/%d", ip, prefix)
 }
 
-// extractNetworkModelAndBridge returns the model & bridge out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1.
-func extractNetworkModelAndBridge(input string) (string, string) {
-	re := regexp.MustCompile(`([^=,]+)=([^,]+),bridge=([^,]+)`)
+// extractNetworkModel returns the model out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500.
+func extractNetworkModel(input string) string {
+	re := regexp.MustCompile(`([^,=]+)(?:=[^,]*)?,bridge=([^,]+)`)
 	matches := re.FindStringSubmatch(input)
-	if len(matches) == 4 {
-		return matches[1], matches[3]
+	if len(matches) >= 2 {
+		return matches[1]
 	}
-	return "", ""
+	return ""
+}
+
+// extractNetworkBridge returns the bridge out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500.
+func extractNetworkBridge(input string) string {
+	re := regexp.MustCompile(`bridge=(\w+)`)
+	match := re.FindStringSubmatch(input)
+	if len(match) > 1 {
+		return match[1]
+	}
+	return "unknown"
+}
+
+// extractNetworkMTU returns the mtu out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500.
+func extractNetworkMTU(input string) uint16 {
+	re := regexp.MustCompile(`mtu=(\d+)`)
+	match := re.FindStringSubmatch(input)
+	if len(match) > 1 {
+		mtu, err := strconv.ParseUint(match[1], 10, 16)
+		if err != nil {
+			return 0
+		}
+		return uint16(mtu)
+	}
+
+	return 0
 }
 
 func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
@@ -78,9 +105,22 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 		if net0 == "" {
 			return true
 		}
-		model, bridge := extractNetworkModelAndBridge(net0)
-		if model != *machineScope.ProxmoxMachine.Spec.Network.Default.Model || bridge != machineScope.ProxmoxMachine.Spec.Network.Default.Bridge {
+
+		desiredDefault := *machineScope.ProxmoxMachine.Spec.Network.Default
+
+		model := extractNetworkModel(net0)
+		bridge := extractNetworkBridge(net0)
+
+		if model != *desiredDefault.Model || bridge != desiredDefault.Bridge {
 			return true
+		}
+
+		if desiredDefault.MTU != nil {
+			mtu := extractNetworkMTU(net0)
+
+			if mtu != *desiredDefault.MTU {
+				return true
+			}
 		}
 	}
 
@@ -91,10 +131,21 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 		if len(net) == 0 {
 			return true
 		}
-		model, bridge := extractNetworkModelAndBridge(net)
+
+		model := extractNetworkModel(net)
+		bridge := extractNetworkBridge(net)
+
 		// current is different from the desired spec.
 		if model != *v.Model || bridge != v.Bridge {
 			return true
+		}
+
+		if v.MTU != nil {
+			mtu := extractNetworkMTU(net)
+
+			if mtu != *v.MTU {
+				return true
+			}
 		}
 	}
 
@@ -103,8 +154,12 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 // formatNetworkDevice formats a network device config
 // example 'virtio,bridge=vmbr0'.
-func formatNetworkDevice(model, bridge string) string {
-	return fmt.Sprintf("%s,bridge=%s", model, bridge)
+func formatNetworkDevice(model, bridge string, mtu *uint16) string {
+	if mtu == nil {
+		return fmt.Sprintf("%s,bridge=%s", model, bridge)
+	}
+
+	return fmt.Sprintf("%s,bridge=%s,mtu=%d", model, bridge, *mtu)
 }
 
 // extractMACAddress returns the macaddress out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1.
