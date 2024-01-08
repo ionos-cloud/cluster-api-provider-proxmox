@@ -46,54 +46,80 @@ func newJSONResponder(status int, data any) httpmock.Responder {
 	return httpmock.NewJsonResponderOrPanic(status, map[string]any{"data": data}).Once()
 }
 
-func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
+func TestProxmoxAPIClient_GetReservableResources(t *testing.T) {
+	nodeMemory := uint64(30)
+	nodeCPUs := 16
 	tests := []struct {
 		name                 string
-		maxMem               uint64 // memory size of already provisioned guest
-		expect               uint64 // expected available memory of the host
+		guestMaxMemory       uint64 // memory size of already provisioned guest
+		guestCPUs            uint64
+		expectMemory         uint64 // expected available memory of the host
+		expectCPUs           uint64
 		nodeMemoryAdjustment uint64 // factor like 1.0 to multiply host memory with for overprovisioning
+		nodeCPUAdjustment    uint64
 	}{
 		{
 			name:                 "under zero - no overprovisioning",
-			maxMem:               29,
-			expect:               1,
+			guestMaxMemory:       29,
+			guestCPUs:            1,
+			expectMemory:         nodeMemory - 29,
+			expectCPUs:           uint64(nodeCPUs - 1),
 			nodeMemoryAdjustment: 100,
+			nodeCPUAdjustment:    100,
 		},
 		{
 			name:                 "exact zero - no overprovisioning",
-			maxMem:               30,
-			expect:               0,
+			guestMaxMemory:       30,
+			guestCPUs:            1,
+			expectMemory:         0,
+			expectCPUs:           uint64(nodeCPUs - 1),
 			nodeMemoryAdjustment: 100,
+			nodeCPUAdjustment:    100,
 		},
 		{
 			name:                 "over zero - no overprovisioning",
-			maxMem:               31,
-			expect:               0,
+			guestMaxMemory:       31,
+			guestCPUs:            1,
+			expectMemory:         0,
+			expectCPUs:           uint64(nodeCPUs - 1),
 			nodeMemoryAdjustment: 100,
+			nodeCPUAdjustment:    100,
 		},
 		{
 			name:                 "under zero - overprovisioning",
-			maxMem:               58,
-			expect:               2,
+			guestMaxMemory:       58,
+			guestCPUs:            1,
+			expectMemory:         2,
+			expectCPUs:           uint64(nodeCPUs*2 - 1),
 			nodeMemoryAdjustment: 200,
+			nodeCPUAdjustment:    200,
 		},
 		{
 			name:                 "exact zero - overprovisioning",
-			maxMem:               30 * 2,
-			expect:               0,
+			guestMaxMemory:       30,
+			guestCPUs:            1,
+			expectMemory:         nodeMemory*2 - 30,
+			expectCPUs:           uint64(nodeCPUs*2 - 1),
 			nodeMemoryAdjustment: 200,
+			nodeCPUAdjustment:    200,
 		},
 		{
 			name:                 "over zero - overprovisioning",
-			maxMem:               31 * 2,
-			expect:               0,
+			guestMaxMemory:       31,
+			guestCPUs:            1,
+			expectMemory:         nodeMemory*2 - 31,
+			expectCPUs:           uint64(nodeCPUs*2 - 1),
 			nodeMemoryAdjustment: 200,
+			nodeCPUAdjustment:    200,
 		},
 		{
 			name:                 "scheduler disabled",
-			maxMem:               100,
-			expect:               30,
+			guestMaxMemory:       100,
+			guestCPUs:            1,
+			expectMemory:         nodeMemory,
+			expectCPUs:           uint64(nodeCPUs),
 			nodeMemoryAdjustment: 0,
+			nodeCPUAdjustment:    0,
 		},
 	}
 
@@ -101,7 +127,15 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			client := newTestClient(t)
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
-				newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}}))
+				newJSONResponder(200,
+					proxmox.Node{
+						Memory: proxmox.Memory{
+							Total: nodeMemory,
+						},
+						CPUInfo: proxmox.CPUInfo{
+							CPUs: nodeCPUs,
+						},
+					}))
 
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu`,
 				// Somehow, setting proxmox.VirtualMachines{} ALWAYS has `Template: true` when defined this way.
@@ -109,14 +143,14 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 				newJSONResponder(200, []interface{}{
 					map[string]interface{}{
 						"name":      "legit-worker",
-						"maxmem":    test.maxMem,
+						"maxmem":    test.guestMaxMemory,
 						"vmid":      1111,
 						"diskwrite": 0,
 						"mem":       0,
 						"uptime":    0,
 						"disk":      0,
 						"cpu":       0,
-						"cpus":      1,
+						"cpus":      test.guestCPUs,
 						"status":    "stopped",
 						"netout":    0,
 						"maxdisk":   0,
@@ -124,29 +158,30 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 						"diskread":  0,
 					},
 					map[string]interface{}{
-						"name":      "template",
-						"maxmem":    102400,
-						"vmid":      2222,
-						"diskwrite": 0,
-						"mem":       0,
-						"uptime":    0,
-						"disk":      0,
-						"cpu":       0,
-						"template":  1,
-						"cpus":      1,
-						"status":    "stopped",
-						"netout":    0,
-						"maxdisk":   0,
-						"netin":     0,
-						"diskread":  0,
+						"name":           "template",
+						"guestMaxMemory": 102400,
+						"vmid":           2222,
+						"diskwrite":      0,
+						"mem":            0,
+						"uptime":         0,
+						"disk":           0,
+						"cpu":            0,
+						"template":       1,
+						"cpus":           42,
+						"status":         "stopped",
+						"netout":         0,
+						"maxdisk":        0,
+						"netin":          0,
+						"diskread":       0,
 					}}))
 
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/lxc`,
 				newJSONResponder(200, proxmox.Containers{}))
 
-			reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", test.nodeMemoryAdjustment)
+			reservableMem, reservableCPUs, err := client.GetReservableResources(context.Background(), "test", test.nodeMemoryAdjustment, test.nodeCPUAdjustment)
 			require.NoError(t, err)
-			require.Equal(t, test.expect, reservable)
+			require.Equal(t, test.expectMemory, reservableMem)
+			require.Equal(t, test.expectCPUs, reservableCPUs)
 		})
 	}
 }

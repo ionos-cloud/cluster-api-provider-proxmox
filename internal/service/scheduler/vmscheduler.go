@@ -29,17 +29,16 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 )
 
-// InsufficientMemoryError is used when the scheduler cannot assign a VM to a node because it would
-// exceed the node's memory limit.
-type InsufficientMemoryError struct {
-	node      string
-	available uint64
-	requested uint64
+// InsufficientResourcesError is used when the scheduler cannot assign a VM to a node because no node
+// would be able to provide the requested resources.
+type InsufficientResourcesError struct {
+	requestedMemory uint64
+	requestedCores  uint64
 }
 
-func (err InsufficientMemoryError) Error() string {
-	return fmt.Sprintf("cannot reserve %dB of memory on node %s: %dB available memory left",
-		err.requested, err.node, err.available)
+func (err InsufficientResourcesError) Error() string {
+	return fmt.Sprintf("cannot reserve %dB of memory and/or %d vCores in cluster",
+		err.requestedMemory, err.requestedCores)
 }
 
 // ScheduleVM decides which node to a ProxmoxMachine should be scheduled on.
@@ -64,26 +63,47 @@ func selectNode(
 	allowedNodes []string,
 	schedulerHints *infrav1.SchedulerHints,
 ) (string, error) {
-	byMemory := make(sortByAvailableMemory, len(allowedNodes))
-	for i, nodeName := range allowedNodes {
-		mem, err := client.GetReservableMemoryBytes(ctx, nodeName, schedulerHints.GetMemoryAdjustment())
+	var nodes []nodeInfo
+
+	requestedMemory := uint64(machine.Spec.MemoryMiB) * 1024 * 1024 // convert to bytes
+	requestedCores := uint64(machine.Spec.NumCores)
+
+	for _, nodeName := range allowedNodes {
+		mem, cpu, err := client.GetReservableResources(
+			ctx,
+			nodeName,
+			schedulerHints.GetMemoryAdjustment(),
+			schedulerHints.GetCPUAdjustment(),
+		)
 		if err != nil {
 			return "", err
 		}
-		byMemory[i] = nodeInfo{Name: nodeName, AvailableMemory: mem}
-	}
 
-	sort.Sort(byMemory)
+		// if MemoryAdjustment is explicitly set to 0 (zero), pretend we have enough mem for the guest
+		if schedulerHints.GetMemoryAdjustment() == 0 {
+			mem = requestedMemory
+		}
+		// if CPUAdjustment is explicitly set to 0 (zero), pretend we have enough cpu for the guest
+		if schedulerHints.GetCPUAdjustment() == 0 {
+			cpu = requestedCores
+		}
 
-	requestedMemory := uint64(machine.Spec.MemoryMiB) * 1024 * 1024 // convert to bytes
-	if requestedMemory > byMemory[0].AvailableMemory {
-		// no more space on the node with the highest amount of available memory
-		return "", InsufficientMemoryError{
-			node:      byMemory[0].Name,
-			available: byMemory[0].AvailableMemory,
-			requested: requestedMemory,
+		node := nodeInfo{Name: nodeName, AvailableMemory: mem, AvailableCPU: cpu}
+		if node.AvailableMemory >= requestedMemory && node.AvailableCPU >= requestedCores {
+			nodes = append(nodes, node)
 		}
 	}
+
+	if len(nodes) == 0 {
+		return "", InsufficientResourcesError{requestedMemory, requestedCores}
+	}
+
+	// Sort nodes by free memory and then free CPU in descending order
+	byResources := make(sortByResources, len(nodes))
+	copy(byResources, nodes)
+	sort.Sort(byResources)
+
+	decision := byResources[0].Name
 
 	// count the existing vms per node
 	nodeCounter := make(map[string]int)
@@ -91,19 +111,18 @@ func selectNode(
 		nodeCounter[nl.Node]++
 	}
 
-	for i, info := range byMemory {
+	for i, info := range byResources {
 		info.ScheduledVMs = nodeCounter[info.Name]
-		byMemory[i] = info
+		byResources[i] = info
 	}
 
-	byReplicas := make(sortByReplicas, len(byMemory))
-	copy(byReplicas, byMemory)
+	byReplicas := make(sortByReplicas, len(byResources))
+	copy(byReplicas, byResources)
 
 	sort.Sort(byReplicas)
 
-	decision := byMemory[0].Name
-	if requestedMemory < byReplicas[0].AvailableMemory {
-		// distribute round-robin when memory allows it
+	// if memory allocation allows it, pick the node with the least amount of guests
+	if schedulerHints.PreferLowerGuestCount {
 		decision = byReplicas[0].Name
 	}
 
@@ -111,9 +130,11 @@ func selectNode(
 		// only construct values when message should actually be logged
 		logger.Info("Scheduler decision",
 			"byReplicas", byReplicas.String(),
-			"byMemory", byMemory.String(),
+			"byResources", byResources.String(),
 			"requestedMemory", requestedMemory,
+			"requestedCores", requestedCores,
 			"resultNode", decision,
+			"schedulerHints", schedulerHints,
 		)
 	}
 
@@ -121,12 +142,13 @@ func selectNode(
 }
 
 type resourceClient interface {
-	GetReservableMemoryBytes(context.Context, string, uint64) (uint64, error)
+	GetReservableResources(context.Context, string, uint64, uint64) (uint64, uint64, error)
 }
 
 type nodeInfo struct {
 	Name            string `json:"node"`
 	AvailableMemory uint64 `json:"mem"`
+	AvailableCPU    uint64 `json:"cpu"`
 	ScheduledVMs    int    `json:"vms"`
 }
 
@@ -143,16 +165,21 @@ func (a sortByReplicas) String() string {
 	return string(o)
 }
 
-type sortByAvailableMemory []nodeInfo
+type sortByResources []nodeInfo
 
-func (a sortByAvailableMemory) Len() int      { return len(a) }
-func (a sortByAvailableMemory) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a sortByAvailableMemory) Less(i, j int) bool {
-	// more available memory = lower index
-	return a[i].AvailableMemory > a[j].AvailableMemory
+func (a sortByResources) Len() int      { return len(a) }
+func (a sortByResources) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a sortByResources) Less(i, j int) bool {
+	// Compare by free memory and free CPU in descending order
+	if a[i].AvailableMemory != a[j].AvailableMemory {
+		return a[i].AvailableMemory > a[j].AvailableMemory
+	}
+
+	// If free memory is equal, sort by free CPU in descending order
+	return a[i].AvailableCPU > a[j].AvailableCPU || (a[i].AvailableCPU == a[j].AvailableCPU && a[i].ScheduledVMs < a[j].ScheduledVMs)
 }
 
-func (a sortByAvailableMemory) String() string {
+func (a sortByResources) String() string {
 	o, _ := json.Marshal(a)
 	return string(o)
 }
