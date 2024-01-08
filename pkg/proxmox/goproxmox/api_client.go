@@ -245,3 +245,13 @@ func (c *APIClient) StartVM(ctx context.Context, vm *proxmox.VirtualMachine) (*p
 func (c *APIClient) TagVM(ctx context.Context, vm *proxmox.VirtualMachine, tag string) (*proxmox.Task, error) {
 	return vm.AddTag(ctx, tag)
 }
+
+// GetVMNetwork returns a VM network interfaces based on nodeName and vmID.
+func (c *APIClient) GetVMNetwork(ctx context.Context, vm *proxmox.VirtualMachine) (iFaces []*proxmox.AgentNetworkIface, err error) {
+	networkInterfaces, err := vm.AgentGetNetworkIFaces(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get network interfaces for vm with id %d: %w", vm.VMID, err)
+	}
+
+	return networkInterfaces, nil
+}

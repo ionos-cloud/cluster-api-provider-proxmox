@@ -168,13 +168,14 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
 
-	res, err := r.reconcileIPAM(ctx, clusterScope)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if !res.IsZero() {
-		return res, nil
+	if !dhcpEnabled(clusterScope.ProxmoxCluster) {
+		res, err := r.reconcileIPAM(ctx, clusterScope)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if !res.IsZero() {
+			return res, nil
+		}
 	}
 
 	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady)
@@ -193,7 +194,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		return ctrl.Result{}, err
 	}
 
-	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil {
+	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil && !clusterScope.ProxmoxCluster.Spec.IPv4Config.DHCP {
 		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV4Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -204,7 +205,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		}
 		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolV4)
 	}
-	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil {
+	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil && !clusterScope.ProxmoxCluster.Spec.IPv6Config.DHCP {
 		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV6Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -242,4 +243,17 @@ func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctr
 			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
 			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
 		Complete(r)
+}
+
+func dhcpEnabled(cluster *infrav1alpha1.ProxmoxCluster) bool {
+	switch {
+	case (cluster.Spec.IPv6Config != nil && cluster.Spec.IPv6Config.DHCP) && (cluster.Spec.IPv4Config != nil && cluster.Spec.IPv4Config.DHCP):
+		return true
+	case (cluster.Spec.IPv6Config != nil && cluster.Spec.IPv6Config.DHCP) && cluster.Spec.IPv4Config == nil:
+		return true
+	case (cluster.Spec.IPv4Config != nil && cluster.Spec.IPv4Config.DHCP) && cluster.Spec.IPv6Config == nil:
+		return true
+	default:
+		return false
+	}
 }

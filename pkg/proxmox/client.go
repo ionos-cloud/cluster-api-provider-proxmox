@@ -46,4 +46,6 @@ type Client interface {
 	StartVM(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error)
 
 	TagVM(ctx context.Context, vm *proxmox.VirtualMachine, tag string) (*proxmox.Task, error)
+
+	GetVMNetwork(ctx context.Context, vm *proxmox.VirtualMachine) (iFaces []*proxmox.AgentNetworkIface, err error)
 }

@@ -109,7 +109,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 					Bridge: "vmbr0",
 				},
 				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
+					NetworkDevice: &NetworkDevice{},
 					Name:          "net0",
 					IPv4PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -127,7 +127,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
+					NetworkDevice: &NetworkDevice{},
 					Name:          "net1",
 					IPv4PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("apps"),
@@ -143,7 +143,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
+					NetworkDevice: &NetworkDevice{},
 					Name:          "net1",
 					IPv4PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -160,7 +160,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
+					NetworkDevice: &NetworkDevice{},
 					Name:          "net1",
 					IPv6PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("apps"),
@@ -176,7 +176,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
+					NetworkDevice: &NetworkDevice{},
 					Name:          "net1",
 					IPv6PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -193,12 +193,12 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
+					NetworkDevice: &NetworkDevice{},
 					Name:          "net1",
 				},
 				},
 			}
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("at least one pool reference must be set, either ipv4PoolRef or ipv6PoolRef")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("at least dhcp and/or one pool reference must be set, either ipv4PoolRef or ipv6PoolRef")))
 		})
 
 		It("Should not allow machine with network device mtu less than 1", func() {
