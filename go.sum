@@ -402,8 +402,8 @@ mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed/go.mod h1:Xkxe497xwlCKkIa
 mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b/go.mod h1:2odslEg/xrtNQqCYg2/jCoyKnw3vv5biOc3JnIcYfL4=
 sigs.k8s.io/cluster-api v1.5.0 h1:pwXvzScbAwnrB7EWHTApzW+VQfrj2OSrWAQDC9+bcbU=
 sigs.k8s.io/cluster-api v1.5.0/go.mod h1:ZSEP01t8oT6104gB4ljsOwwp5uJcI8SWy8IFp2HUvrc=
-sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0-alpha.3 h1:1RFzQ0zNlpFkhvPs/OPXYEr+qoRa+DlScdf0yzPqdfI=
-sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0-alpha.3/go.mod h1:t8RtDNN+zdhVmRTAyV0GAvUJhRXnv0YofPgu6EVPohE=
+sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0-alpha.4-imgtst h1:H7wpqytg+L5k47IyonG9CYxeeZmo+eEwvQHtq5NgxSM=
+sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0-alpha.4-imgtst/go.mod h1:t8RtDNN+zdhVmRTAyV0GAvUJhRXnv0YofPgu6EVPohE=
 sigs.k8s.io/controller-runtime v0.15.1 h1:9UvgKD4ZJGcj24vefUFgZFP3xej/3igL9BsOUTb/+4c=
 sigs.k8s.io/controller-runtime v0.15.1/go.mod h1:7ngYvp1MLT+9GeZ+6lH3LOlcHkp/+tzA/fmHa4iq9kk=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
