@@ -39,7 +39,7 @@ fi
 # check that required environment variables to start capmox are set
 [[ -n ${PROXMOX_URL-} ]] || { echo "PROXMOX_URL is not set" >&2; exit 1; }
 [[ -n ${PROXMOX_TOKEN-} ]] || { echo "PROXMOX_TOKEN is not set" >&2; exit 1; }
-[[ -n ${PROXMOX_SECRET-} ]] || { echo "PROXMOX_SECRET is not set" >&2; exit 1; }
+[[ -n ${PROXMOX_USERNAME} ]] || { echo "PROXMOX_USERNAME is not set" >&2; exit 1; }
 
 export EXP_CLUSTER_RESOURCE_SET=true
 

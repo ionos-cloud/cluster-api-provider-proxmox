@@ -1,6 +1,6 @@
 export PROXMOX_URL=https://pve.example.com
 export PROXMOX_TOKEN=""
-export PROXMOX_SECRET=""
+export PROXMOX_USERNAME=""
 export PROXMOX_SOURCENODE="pve"
 export TEMPLATE_VMID=100
 export VM_SSH_KEYS="ssh-ed25519 ..., ssh-ed25519 ..."
