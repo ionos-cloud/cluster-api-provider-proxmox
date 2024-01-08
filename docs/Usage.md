@@ -74,11 +74,11 @@ on your Proxmox VE node.
 
 clusterctl requires the following variables, which should be set in `~/.cluster-api/clusterctl.yaml` as the following:
 
-```env
+```env 
 ## -- Controller settings -- ##
 PROXMOX_URL: "https://pve.example:8006"                       # The Proxmox VE host
-PROXMOX_TOKEN: "root@pam!capi"                                # The Proxmox VE TokenID for authentication
-PROXMOX_SECRET: "REDACTED"                                    # The secret associated with the TokenID
+PROXMOX_USERNAME: "root@pam!capi"                             # The Proxmox VE TokenID for authentication
+PROXMOX_TOKEN: "REDACTED"                                     # The secret associated with the TokenID
 
 
 ## -- Required workload cluster default settings -- ##

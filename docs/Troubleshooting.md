@@ -4,7 +4,7 @@
 To check if your api token works, you can use the following curl
 ```
 . envfile
-curl -v -H "Authorization: PVEAPIToken=$PROXMOX_TOKEN=$PROXMOX_SECRET" ${PROXMOX_URL%/}/api2/json/
+curl -v -H "Authorization: PVEAPIToken=$PROXMOX_USERNAME=$PROXMOX_TOKEN" ${PROXMOX_URL%/}/api2/json/
 ```
 ## kind/Docker cgroups v2
 Kind [requires](https://serverfault.com/questions/1053187/systemd-fails-to-run-in-a-docker-container-when-using-cgroupv2-cgroupns-priva/1054414#1054414)

@@ -79,8 +79,8 @@ Prior to executing `clusterctl init`, make sure to export the required environme
 ```
 # required
 export PROXMOX_URL=https://pve.example.com
-export PROXMOX_TOKEN="<TOKEN_ID>"
-export PROXMOX_SECRET="<TOKEN_SECRET>"
+export PROXMOX_USERNAME="<TOKEN_ID>"
+export PROXMOX_TOKEN="<TOKEN_SECRET>"
 
 # optional
 export CAPMOX_LOGLEVEL=4
