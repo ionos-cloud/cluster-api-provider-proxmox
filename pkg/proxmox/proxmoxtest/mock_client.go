@@ -18,7 +18,7 @@ limitations under the License.
 package proxmoxtest
 
 import (
-	context "context"
+	"context"
 
 	go_proxmox "github.com/luthermonson/go-proxmox"
 	mock "github.com/stretchr/testify/mock"
@@ -646,6 +646,62 @@ func (_c *MockClient_TagVM_Call) Return(_a0 *go_proxmox.Task, _a1 error) *MockCl
 }
 
 func (_c *MockClient_TagVM_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine, string) (*go_proxmox.Task, error)) *MockClient_TagVM_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVMNetwork returns a VM network interfaces based on nodeName and vmID.
+func (_m *MockClient) GetVMNetwork(ctx context.Context, vm *go_proxmox.VirtualMachine) ([]*go_proxmox.AgentNetworkIface, error) {
+	ret := _m.Called(ctx, vm)
+
+	var r0 []*go_proxmox.AgentNetworkIface
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) ([]*go_proxmox.AgentNetworkIface, error)); ok {
+		return rf(ctx, vm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) []*go_proxmox.AgentNetworkIface); ok {
+		r0 = rf(ctx, vm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*go_proxmox.AgentNetworkIface)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*go_proxmox.VirtualMachine) error); ok {
+		r1 = rf(vm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_GetVMNetwork_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVMNetwork'
+type MockClient_GetVMNetwork_Call struct {
+	*mock.Call
+}
+
+// GetVMNetwork is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vm *go_proxmox.VirtualMachine
+//   - tag string
+func (_e *MockClient_Expecter) GetVMNetwork(ctx context.Context, vm *go_proxmox.VirtualMachine) *MockClient_GetVMNetwork_Call {
+	return &MockClient_GetVMNetwork_Call{Call: _e.mock.On("GetVMNetwork", ctx, vm)}
+}
+
+func (_c *MockClient_GetVMNetwork_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine)) *MockClient_GetVMNetwork_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[0].(*go_proxmox.VirtualMachine))
+	})
+	return _c
+}
+
+func (_c *MockClient_GetVMNetwork_Call) Return(_a0 []*go_proxmox.AgentNetworkIface, _a1 error) *MockClient_GetVMNetwork_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_GetVMNetwork_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine) ([]*go_proxmox.AgentNetworkIface, error)) *MockClient_GetVMNetwork_Call {
 	_c.Call.Return(run)
 	return _c
 }

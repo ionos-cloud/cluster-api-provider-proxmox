@@ -100,7 +100,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	}
 
 	for i := range machine.Spec.Network.AdditionalDevices {
-		err := validateNetworkDevice(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
+		err := validateNetworkDevice(machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
