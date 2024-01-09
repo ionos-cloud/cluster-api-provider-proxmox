@@ -121,7 +121,6 @@ func handleIPAddressForDevice(ctx context.Context, machineScope *scope.MachineSc
 }
 
 func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1.IPAddress) (bool, error) {
-
 	// check if the default network device is specified.
 	var networkDevice *infrav1.NetworkDevice
 	if machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default != nil {
@@ -167,11 +166,11 @@ func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, 
 			addr.IPV6 = ip
 			addresses[infrav1.DefaultNetworkDevice] = addr
 		}
-
 	}
 	return false, nil
 }
 
+// nolint
 func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1.IPAddress) (bool, error) {
 	// additional network devices.
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
@@ -193,7 +192,6 @@ func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineSco
 					IPV4: ip,
 				}
 			}
-
 		}
 
 		if net.IPv6PoolRef != nil {
@@ -215,7 +213,6 @@ func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineSco
 					IPV6: ip,
 				}
 			}
-
 		}
 	}
 

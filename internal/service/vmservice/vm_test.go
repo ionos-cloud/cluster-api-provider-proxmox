@@ -165,11 +165,11 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.NumCores = 4
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
-		Default: &infrav1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio")},
+		Default: &infrav1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
 			{
 				Name:          "net1",
-				NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
+				NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
 			},
 		},
 	}
