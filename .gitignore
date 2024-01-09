@@ -38,3 +38,8 @@ cluster-**.yaml
 
 # direnv files
 .envrc
+
+# e2e
+_artifacts
+**e2e.test
+test/e2e/config/*-envsubst.yaml
