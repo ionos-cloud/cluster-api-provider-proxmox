@@ -170,7 +170,7 @@ func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, 
 	return false, nil
 }
 
-// nolint
+//nolint
 func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1.IPAddress) (bool, error) {
 	// additional network devices.
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
