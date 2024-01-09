@@ -242,7 +242,7 @@ func reconcileMachineAddresses(ctx context.Context, scope *scope.MachineScope) e
 	return nil
 }
 
-// getMachineAddresses retruns the ip addresses for the machine
+// getMachineAddresses returns the ip addresses for the machine
 // nolint
 func getMachineAddresses(ctx context.Context, scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
 	if !machineHasIPAddress(scope.ProxmoxMachine) {
