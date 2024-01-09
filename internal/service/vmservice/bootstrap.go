@@ -40,12 +40,6 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, nil
 	}
 
-	// TODO check if this needs to be re-enabled
-	//if !machineHasIPAddress(machineScope.ProxmoxMachine) {
-	//	// skip machine doesn't have an IpAddress yet.
-	//	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
-	//	return true, nil
-	//}
 	if machineScope.VirtualMachine == nil {
 		// skip machine is not yet provisioned.
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityWarning, "no ip address")
