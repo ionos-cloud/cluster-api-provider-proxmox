@@ -22,12 +22,13 @@ type BaseCloudInitData struct {
 	Hostname          string
 	InstanceID        string
 	NetworkConfigData []NetworkConfigData
-	IPAddresses       string
 }
 
 // NetworkConfigData is used to render network-config.
 type NetworkConfigData struct {
 	MacAddress  string
+	DHCP4       bool
+	DHCP6       bool
 	IPAddress   string
 	IPV6Address string
 	Gateway     string

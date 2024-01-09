@@ -71,12 +71,20 @@ clusterctl generate cluster test-duacl-stack  \
   --flavor=dual-stack > cluster.yaml
 ```
 
+#### Node over-/ underprovisioning
+
+By default our scheduler only allows to allocate as much memory to guests as the host has. This might not be a desirable behaviour in all cases. For example, one might to explicitly want to overprovision their host's memory, or to reserve bit of the host's memory for itself.
+
+This behaviour can be configured in the `ProxmoxCluster` CR through the field `.spec.schedulerHints.memoryAdjustment`.
+
+For example, setting it to `0` (zero), entirely disables scheduling based on memory. Alternatively, if you set it to any value greater than `0`, the scheduler will treat your host as it would have `${value}%` of memory. In real numbers that would mean, if you have a host with 64GB of memory and set the number to `300`, the scheduler would allow you to provision guests with a total of 192GB memory and therefore overprovision the host. (Use with caution! It's strongly suggested to have memory ballooning configured everywhere.). Or, if you were to set it to `95` for example, it would treat your host as it would only have 60,8GB of memory, and leave the remaining 3,2GB for the host.
+
 
 ## Notes
 
-* Clusters with IPV6 IPs only is supported.
+* Clusters with IPV6 only is supported.
 * Multiple NICs & Dual-stack setups can be mixed together.
-* If you're looking for more customized setups, you can create your own cluster template and use it with `clusterctl generate cluster` command.
+* If you're looking for more customized setups, you can create your own cluster template and use it with the `clusterctl generate cluster` command, by passing it `--from yourtemplate.yaml`.
 
 ## API Reference
 

@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
+	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
@@ -44,6 +45,11 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
+	// SchedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
+	// to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
+	// +optional
+	SchedulerHints *SchedulerHints `json:"schedulerHints,omitempty"`
+
 	// IPv4Config contains information about available IPV4 address pools and the gateway.
 	// this can be combined with ipv6Config in order to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
@@ -61,6 +67,28 @@ type ProxmoxClusterSpec struct {
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
+}
+
+// SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.
+type SchedulerHints struct {
+	// MemoryAdjustment allows to adjust a node's memory by a given percentage.
+	// For example, setting it to 300 allows to allocate 300% of a host's memory for VMs,
+	// and setting it to 95 limits memory allocation to 95% of a host's memory.
+	// Setting it to 0 entirely disables scheduling memory constraints.
+	// By default 100% of a node's memory will be used for allocation.
+	// +optional
+	MemoryAdjustment *uint64 `json:"memoryAdjustment,omitempty"`
+}
+
+// GetMemoryAdjustment returns the memory adjustment percentage to use within the scheduler.
+func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
+	memoryAdjustment := uint64(100)
+
+	if sh != nil {
+		memoryAdjustment = ptr.Deref(sh.MemoryAdjustment, 100)
+	}
+
+	return memoryAdjustment
 }
 
 // ProxmoxClusterStatus defines the observed state of ProxmoxCluster.

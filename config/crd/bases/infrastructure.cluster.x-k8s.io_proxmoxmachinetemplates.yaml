@@ -223,6 +223,12 @@ spec:
                                   - rtl8139
                                   - vmxnet3
                                   type: string
+                                mtu:
+                                  description: MTU is the network device Maximum Transmission
+                                    Unit. Only works with virtio Model.
+                                  maximum: 65520
+                                  minimum: 1
+                                  type: integer
                                 name:
                                   description: Name is the network device name. must
                                     be unique within the virtual machine and different
@@ -265,6 +271,12 @@ spec:
                                 - rtl8139
                                 - vmxnet3
                                 type: string
+                              mtu:
+                                description: MTU is the network device Maximum Transmission
+                                  Unit. Only works with virtio Model.
+                                maximum: 65520
+                                minimum: 1
+                                type: integer
                             required:
                             - bridge
                             type: object
