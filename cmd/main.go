@@ -144,6 +144,10 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxCluster")
 			os.Exit(1)
 		}
+		if err = (&webhook.ProxmoxMachine{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachine")
+			os.Exit(1)
+		}
 	}
 	//+kubebuilder:scaffold:builder
 
