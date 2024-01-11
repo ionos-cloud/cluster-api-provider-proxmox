@@ -1,7 +1,7 @@
 ---
 name: Feature enhancement request
 about: Suggest an idea for this project
-labels: enhancement, feature
+labels: enhancement, kind/feature
 
 ---
 
