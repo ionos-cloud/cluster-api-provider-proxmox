@@ -3,7 +3,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 go 1.20
 
 require (
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.4.1
 	github.com/google/uuid v1.3.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/luthermonson/go-proxmox v0.0.0-beta2
@@ -17,7 +17,7 @@ require (
 	k8s.io/api v0.27.2
 	k8s.io/apimachinery v0.27.2
 	k8s.io/client-go v0.27.2
-	k8s.io/klog/v2 v2.100.1
+	k8s.io/klog/v2 v2.120.0
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	sigs.k8s.io/cluster-api v1.5.0
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0-alpha.3
