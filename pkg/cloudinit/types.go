@@ -26,6 +26,7 @@ type BaseCloudInitData struct {
 
 // NetworkConfigData is used to render network-config.
 type NetworkConfigData struct {
+	ProxName    string // Device name in Proxmox
 	MacAddress  string
 	DHCP4       bool
 	DHCP6       bool
@@ -34,4 +35,26 @@ type NetworkConfigData struct {
 	Gateway     string
 	Gateway6    string
 	DNSServers  []string
+	Type        string
+	Name        string
+	Interfaces  []string // Interfaces controlled by this one.
+	Table       uint32   // linux routing table number for VRF.
+	Routes      []RoutingData
+	FIBRules    []FIBRuleData // Forwarding information block for routing.
+}
+
+// RoutingData stores routing configuration.
+type RoutingData struct {
+	To     string
+	Via    string
+	Metric uint32
+	Table  uint32
+}
+
+// FIBRuleData stores forward information base rules (routing policies).
+type FIBRuleData struct {
+	To       string
+	From     string
+	Priority uint32
+	Table    uint32
 }

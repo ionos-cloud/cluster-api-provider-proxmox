@@ -124,7 +124,7 @@ func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, e
 func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]cloudinit.NetworkConfigData, error) {
 	// provide a default in case network is not defined
 	network := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1alpha1.NetworkSpec{})
-	networkConfigData := make([]cloudinit.NetworkConfigData, 0, 1+len(network.AdditionalDevices))
+	networkConfigData := make([]cloudinit.NetworkConfigData, 0, 1+len(network.AdditionalDevices)+len(network.VRFs))
 
 	defaultConfig, err := getDefaultNetworkDevice(ctx, machineScope)
 	if err != nil {
@@ -138,7 +138,41 @@ func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope)
 	}
 	networkConfigData = append(networkConfigData, additionalConfig...)
 
+	virtualConfig, err := getVirtualNetworkDevices(ctx, machineScope, network, networkConfigData)
+	if err != nil {
+		return nil, err
+	}
+	networkConfigData = append(networkConfigData, virtualConfig...)
+
 	return networkConfigData, nil
+}
+
+func getRoutingData(routes []infrav1alpha1.RouteSpec) *[]cloudinit.RoutingData {
+	routingData := make([]cloudinit.RoutingData, 0, len(routes))
+	for _, route := range routes {
+		routeSpec := cloudinit.RoutingData{}
+		routeSpec.To = route.To
+		routeSpec.Via = route.Via
+		routeSpec.Metric = route.Metric
+		routeSpec.Table = route.Table
+		routingData = append(routingData, routeSpec)
+	}
+
+	return &routingData
+}
+
+func getRoutingPolicyData(rules []infrav1alpha1.RoutingPolicySpec) *[]cloudinit.FIBRuleData {
+	routingPolicyData := make([]cloudinit.FIBRuleData, 0, len(rules))
+	for _, rule := range rules {
+		ruleSpec := cloudinit.FIBRuleData{}
+		ruleSpec.To = rule.To
+		ruleSpec.From = rule.From
+		ruleSpec.Priority = rule.Priority
+		ruleSpec.Table = rule.Table
+		routingPolicyData = append(routingPolicyData, ruleSpec)
+	}
+
+	return &routingPolicyData
 }
 
 func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string) (*cloudinit.NetworkConfigData, error) {
@@ -207,13 +241,45 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 			config.Gateway6 = conf.Gateway6
 		}
 	}
+	config.Name = "eth0"
+	config.Type = "ethernet"
+	config.ProxName = "net0"
 
 	return []cloudinit.NetworkConfigData{config}, nil
+}
+
+func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network infrav1alpha1.NetworkSpec, data []cloudinit.NetworkConfigData) ([]cloudinit.NetworkConfigData, error) {
+	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.VRFs))
+
+	for _, device := range network.VRFs {
+		var config = ptr.To(cloudinit.NetworkConfigData{})
+		config.Type = "vrf"
+		config.Name = device.Name
+		config.Table = device.Table
+
+		// todo: O(n²) complexity
+		for i, child := range device.Interfaces {
+			for _, net := range data {
+				if (net.Name == child) || (net.ProxName == child) {
+					config.Interfaces = append(config.Interfaces, net.Name)
+				}
+			}
+			if len(config.Interfaces)-1 < i {
+				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", device.Name, child)
+			}
+		}
+		config.Routes = *getRoutingData(device.Routes)
+		config.FIBRules = *getRoutingPolicyData(device.RoutingPolicy)
+		networkConfigData = append(networkConfigData, *config)
+	}
+	return networkConfigData, nil
 }
 
 func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha1.NetworkSpec) ([]cloudinit.NetworkConfigData, error) {
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.AdditionalDevices))
 
+	// additional network devices append after the provisioning interface
+	var index = 1
 	// additional network devices.
 	for _, nic := range network.AdditionalDevices {
 		var config = ptr.To(cloudinit.NetworkConfigData{})
@@ -251,6 +317,11 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 				config.Gateway6 = conf.Gateway6
 			}
 		}
+
+		config.Name = fmt.Sprintf("eth%d", index)
+		index++
+		config.Type = "ethernet"
+		config.ProxName = nic.Name
 
 		if len(config.MacAddress) > 0 {
 			networkConfigData = append(networkConfigData, *config)

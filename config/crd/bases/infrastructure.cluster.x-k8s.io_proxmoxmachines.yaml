@@ -262,6 +262,162 @@ spec:
                     required:
                     - bridge
                     type: object
+                  vrfs:
+                    description: Definition of a Vrf Device.
+                    items:
+                      description: VrfDevice defines Virtual Routing Flow devices.
+                      properties:
+                        dnsServers:
+                          description: DNSServers contains information about nameservers
+                            to be used for this interface. If this field is not set,
+                            it will use the default dns servers from the ProxmoxCluster.
+                          items:
+                            type: string
+                          minItems: 1
+                          type: array
+                        interfaces:
+                          description: Interfaces is the list of proxmox network devices
+                            managed by this virtual device.
+                          items:
+                            type: string
+                          type: array
+                        ipv4PoolRef:
+                          description: IPv4PoolRef is a reference to an IPAM Pool
+                            resource, which exposes IPv4 addresses. The network device
+                            will use an available IP address from the referenced pool.
+                            This can be combined with `IPv6PoolRef` in order to enable
+                            dual stack.
+                          properties:
+                            apiGroup:
+                              description: APIGroup is the group for the resource
+                                being referenced. If APIGroup is not specified, the
+                                specified Kind must be in the core API group. For
+                                any other third-party types, APIGroup is required.
+                              type: string
+                            kind:
+                              description: Kind is the type of resource being referenced
+                              type: string
+                            name:
+                              description: Name is the name of resource being referenced
+                              type: string
+                          required:
+                          - kind
+                          - name
+                          type: object
+                          x-kubernetes-map-type: atomic
+                          x-kubernetes-validations:
+                          - message: ipv4PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io
+                            rule: self.apiGroup == 'ipam.cluster.x-k8s.io'
+                          - message: ipv4PoolRef allows either InClusterIPPool or
+                              GlobalInClusterIPPool
+                            rule: self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'
+                        ipv6PoolRef:
+                          description: IPv6PoolRef is a reference to an IPAM pool
+                            resource, which exposes IPv6 addresses. The network device
+                            will use an available IP address from the referenced pool.
+                            this can be combined with `IPv4PoolRef` in order to enable
+                            dual stack.
+                          properties:
+                            apiGroup:
+                              description: APIGroup is the group for the resource
+                                being referenced. If APIGroup is not specified, the
+                                specified Kind must be in the core API group. For
+                                any other third-party types, APIGroup is required.
+                              type: string
+                            kind:
+                              description: Kind is the type of resource being referenced
+                              type: string
+                            name:
+                              description: Name is the name of resource being referenced
+                              type: string
+                          required:
+                          - kind
+                          - name
+                          type: object
+                          x-kubernetes-map-type: atomic
+                          x-kubernetes-validations:
+                          - message: ipv6PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io
+                            rule: self.apiGroup == 'ipam.cluster.x-k8s.io'
+                          - message: ipv6PoolRef allows either InClusterIPPool or
+                              GlobalInClusterIPPool
+                            rule: self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'
+                        name:
+                          description: Name is the virtual network device name. must
+                            be unique within the virtual machine.
+                          minLength: 3
+                          type: string
+                        routes:
+                          description: Routes are the routes associated with the l3mdev
+                            policy.
+                          items:
+                            description: RouteSpec describes an IPv4/IPv6 Route.
+                            properties:
+                              metric:
+                                description: Metric is the priority of the route in
+                                  the routing table.
+                                format: int32
+                                type: integer
+                              table:
+                                description: Table is the routing table used for this
+                                  route.
+                                format: int32
+                                type: integer
+                              to:
+                                description: To is the subnet to be routed.
+                                type: string
+                              via:
+                                description: Via is the gateway to the subnet.
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
+                        routing-policy:
+                          description: RoutingPolicy is the l3mdev policy inserted
+                            into FiB.
+                          items:
+                            description: RoutingPolicySpec is a linux FIB rule.
+                            properties:
+                              from:
+                                description: From is the subnet of the source.
+                                type: string
+                              priority:
+                                description: Priority is the position in the ip rule
+                                  fib table.
+                                format: int32
+                                maximum: 4294967295
+                                type: integer
+                                x-kubernetes-validations:
+                                - message: Cowardly refusing to insert fib rule matching
+                                    kernel rules
+                                  rule: (self > 0 && self < 32765) || (self > 32766)
+                              table:
+                                description: Table is the routing table id.
+                                format: int32
+                                type: integer
+                              to:
+                                description: To is the subnet of the target.
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
+                        table:
+                          description: Table is the ID of the routing table used for
+                            the l3mdev vrf device.
+                          format: int32
+                          maximum: 4294967295
+                          type: integer
+                          x-kubernetes-validations:
+                          - message: Cowardly refusing to insert l3mdev rules into
+                              kernel tables
+                            rule: (self > 0 && self < 254) || (self > 255)
+                      required:
+                      - name
+                      - table
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                 type: object
               numCores:
                 description: NumCores is the number of cores per CPU socket in a virtual
@@ -440,7 +596,7 @@ spec:
                 type: object
               network:
                 description: Network returns the network status for each of the machine's
-                  configured network interfaces.
+                  configured. network interfaces.
                 items:
                   description: NetworkStatus provides information about one of a VM's
                     networks.
@@ -467,14 +623,14 @@ spec:
                 type: array
               proxmoxNode:
                 description: ProxmoxNode is the name of the proxmox node, which was
-                  chosen for this machine to be deployed on
+                  chosen for this machine to be deployed on.
                 type: string
               ready:
                 description: Ready indicates the Docker infrastructure has been provisioned
-                  and is ready
+                  and is ready.
                 type: boolean
               retryAfter:
-                description: RetryAfter tracks the time we can retry queueing a task
+                description: RetryAfter tracks the time we can retry queueing a task.
                 format: date-time
                 type: string
               taskRef:
