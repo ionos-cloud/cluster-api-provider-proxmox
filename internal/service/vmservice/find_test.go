@@ -96,7 +96,7 @@ func TestUpdateVMLocation_MissingName(t *testing.T) {
 	vm := newRunningVM()
 	vmr := newVMResource()
 	vmr.Name = ""
-	vm.Name = ""
+	vm.VirtualMachineConfig.Name = ""
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
@@ -112,7 +112,7 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 	vmr := newVMResource()
 	name := "foo"
 	vmr.Name = name
-	vm.Name = name
+	vm.VirtualMachineConfig.Name = name
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
@@ -159,7 +159,7 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 	vmr := newVMResource()
 	name := "foo"
 	vmr.Name = name
-	vm.Name = name
+	vm.VirtualMachineConfig.Name = name
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.TaskRef = nil
 

@@ -96,14 +96,14 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 	// It might happen that even when a task is already finished,
 	// we still have to wait until we can get the correct
 	// information for a particular resource.
-	if vm.Name == "" {
+	if vm.VirtualMachineConfig.Name == "" {
 		return errors.New("vm exists but does not have a name yet")
 	}
 
 	// If there is a machine with an ID that doesn't match name of the
 	// Proxmox machine, we need to stop right there.
 	machineName := s.ProxmoxMachine.GetName()
-	if vm.Name != machineName {
+	if vm.VirtualMachineConfig.Name != machineName {
 		err := fmt.Errorf("expected VM name to match %q but it was %q", vm.Name, machineName)
 		s.SetFailureMessage(err)
 		s.SetFailureReason(capierrors.MachineStatusError("UnkownMachine"))
