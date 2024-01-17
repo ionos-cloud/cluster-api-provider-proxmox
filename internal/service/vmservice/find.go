@@ -37,7 +37,7 @@ var (
 	ErrVMNotFound = errors.New("vm not found")
 
 	// ErrVMNotInitialized VM is not Initialized in Proxmox.
-	ErrVMNotInitialized = errors.New("vm not Initialized")
+	ErrVMNotInitialized = errors.New("vm not initialized")
 )
 
 // FindVM returns the Proxmox VM if the vmID is set, otherwise
@@ -54,7 +54,7 @@ func FindVM(ctx context.Context, scope *scope.MachineScope) (*proxmox.VirtualMac
 			return nil, ErrVMNotFound
 		}
 		if vm.Name != scope.ProxmoxMachine.GetName() {
-			scope.Error(err, "VM is not initialized yet")
+			scope.Error(err, "vm is not initialized yet")
 			return nil, ErrVMNotInitialized
 		}
 		return vm, nil
