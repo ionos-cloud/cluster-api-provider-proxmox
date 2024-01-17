@@ -76,15 +76,31 @@ func TestFindVM_NotCreated(t *testing.T) {
 	require.ErrorIs(t, err, ErrVMNotCreated)
 }
 
+func TestFindVM_NotInitialized(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	vm.Name = "bar"
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = ptr.To("node2")
+
+	proxmoxClient.EXPECT().GetVM(ctx, "node2", int64(123)).Return(vm, nil).Once()
+
+	_, err := FindVM(ctx, machineScope)
+	require.ErrorIs(t, err, ErrVMNotInitialized)
+}
+
 func TestUpdateVMLocation_MissingName(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	vmr := newVMResource()
 	vmr.Name = ""
+	vm.Name = ""
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 }
@@ -94,10 +110,13 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	vmr := newVMResource()
-	vmr.Name = "foo"
+	name := "foo"
+	vmr.Name = name
+	vm.Name = name
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
@@ -116,6 +135,7 @@ func TestUpdateVMLocation_UpdateNode(t *testing.T) {
 	}, false)
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.NoError(t, updateVMLocation(ctx, machineScope))
 	require.Equal(t, vmr.Node, *machineScope.ProxmoxMachine.Status.ProxmoxNode)
@@ -137,11 +157,14 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	vmr := newVMResource()
-	vmr.Name = "foo"
+	name := "foo"
+	vmr.Name = name
+	vm.Name = name
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.TaskRef = nil
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
