@@ -235,13 +235,15 @@ func newVMResource() *proxmox.ClusterResource {
 
 func newRunningVM() *proxmox.VirtualMachine {
 	return &proxmox.VirtualMachine{
-		VirtualMachineConfig: &proxmox.VirtualMachineConfig{},
-		Name:                 "test",
-		Node:                 "node1",
-		Status:               proxmox.StatusVirtualMachineRunning,
-		VMID:                 123,
-		QMPStatus:            proxmox.StatusVirtualMachineRunning,
-		Template:             false,
+		VirtualMachineConfig: &proxmox.VirtualMachineConfig{
+			Name: "test",
+		},
+		Name:      "test",
+		Node:      "node1",
+		Status:    proxmox.StatusVirtualMachineRunning,
+		VMID:      123,
+		QMPStatus: proxmox.StatusVirtualMachineRunning,
+		Template:  false,
 	}
 }
 

@@ -96,6 +96,10 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 
 // ensureVirtualMachine creates a Proxmox VM if it doesn't exist and updates the given MachineScope.
 func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
+	// if there's an associated task, requeue.
+	if machineScope.ProxmoxMachine.Status.TaskRef != nil {
+		return true, nil
+	}
 	// Before going further, we need the VM's managed object reference.
 	vmRef, err := FindVM(ctx, machineScope)
 	if err != nil {
