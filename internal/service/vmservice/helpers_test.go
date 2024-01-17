@@ -236,7 +236,7 @@ func newVMResource() *proxmox.ClusterResource {
 func newRunningVM() *proxmox.VirtualMachine {
 	return &proxmox.VirtualMachine{
 		VirtualMachineConfig: &proxmox.VirtualMachineConfig{},
-		Name:                 "running",
+		Name:                 "test",
 		Node:                 "node1",
 		Status:               proxmox.StatusVirtualMachineRunning,
 		VMID:                 123,
@@ -258,7 +258,7 @@ func newPausedVM() *proxmox.VirtualMachine {
 func newStoppedVM() *proxmox.VirtualMachine {
 	return &proxmox.VirtualMachine{
 		VirtualMachineConfig: &proxmox.VirtualMachineConfig{},
-		Name:                 "stopped",
+		Name:                 "test",
 		Node:                 "node1",
 		Status:               proxmox.StatusVirtualMachineStopped,
 		QMPStatus:            proxmox.StatusVirtualMachineStopped,
