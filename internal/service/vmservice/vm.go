@@ -107,6 +107,8 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 
 			// we always want to trigger reconciliation at this point.
 			return false, err
+		case errors.Is(err, ErrVMNotInitialized):
+			return true, err
 		case !errors.Is(err, ErrVMNotCreated):
 			return false, err
 		}

@@ -35,6 +35,9 @@ var (
 
 	// ErrVMNotFound VM is not Found in Proxmox.
 	ErrVMNotFound = errors.New("vm not found")
+
+	// ErrVMNotInitialized VM is not Initialized in Proxmox.
+	ErrVMNotInitialized = errors.New("vm not Initialized")
 )
 
 // FindVM returns the Proxmox VM if the vmID is set, otherwise
@@ -49,6 +52,10 @@ func FindVM(ctx context.Context, scope *scope.MachineScope) (*proxmox.VirtualMac
 		if err != nil {
 			scope.Error(err, "unable to find vm")
 			return nil, ErrVMNotFound
+		}
+		if vm.Name != scope.ProxmoxMachine.GetName() {
+			scope.Error(err, "VM is not initialized yet")
+			return nil, ErrVMNotInitialized
 		}
 		return vm, nil
 	}
@@ -72,9 +79,15 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 
 	// We are looking for a machine with the ID and check if the name matches.
 	// Then we have to update the node in the machine and cluster status.
-	vm, err := s.InfraCluster.ProxmoxClient.FindVMResource(ctx, uint64(vmID))
+	rsc, err := s.InfraCluster.ProxmoxClient.FindVMResource(ctx, uint64(vmID))
 	if err != nil {
 		return err
+	}
+
+	// find the VM, to make sure the vm config is up-to-date.
+	vm, err := s.InfraCluster.ProxmoxClient.GetVM(ctx, rsc.Node, vmID)
+	if err != nil {
+		return errors.Wrapf(err, "unable to find vm with id %d", rsc.VMID)
 	}
 
 	// Requeue if machine doesn't have a name yet.
