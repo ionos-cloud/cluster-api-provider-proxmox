@@ -4,6 +4,9 @@ on:
     branches: ["main"]
   pull_request:
     types: ["opened", "synchronize", "reopened"]
+  pull_request_target:
+    types: ["opened", "synchronize", "reopened"]
+    branches: ["main"]
 
 jobs:
   verify:
@@ -18,9 +21,33 @@ jobs:
   go_test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      # If triggered by a push to **our** repository, we can directly checkout the code.
+      - name: Checkout branch ${{ github.ref }}
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/checkout@v4.1.1
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+
+      # If triggered by a PR, we have to check out the PR's source
+      - name: Checkout (preview) merge commit for PR ${{ github.event.pull_request.number }}
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+        uses: actions/checkout@v4.1.1
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
+
       - name: Run tests
         run: "make test"
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
