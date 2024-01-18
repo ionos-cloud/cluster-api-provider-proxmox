@@ -96,6 +96,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 	// It might happen that even when a task is already finished,
 	// we still have to wait until we can get the correct
 	// information for a particular resource.
+	// We use vm.VirtualMachineConfig.Name as that the pending and expected value.
 	if vm.VirtualMachineConfig.Name == "" {
 		return errors.New("vm exists but does not have a name yet")
 	}
