@@ -205,7 +205,7 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
 	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
 
-	fs.StringVar(&metricsAddr, "diagnostics-address", ":8080", "The address the metric endpoint binds to.")
+	fs.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	fs.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
