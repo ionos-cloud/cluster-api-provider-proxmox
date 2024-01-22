@@ -227,6 +227,24 @@ CALICO_VERSION ?= v3.26.3
 crs-calico: ## Generates crs manifests for Calico.
 	curl -o templates/crs/cni/calico.yaml https://raw.githubusercontent.com/projectcalico/calico/$(CALICO_VERSION)/manifests/calico.yaml
 
+METALLB_VERSION ?= main
+FRR_K8S_DIR = metallb/charts/metallb/charts/frr-k8s/templates
+.PHONY: crs-metallb
+crs-metallb: ## Generates crs manifests for MetalLB.
+	#@ TODO: temporarily pull metallb from main, update when release happens
+	@rm -rf metallb
+	@git clone https://github.com/metallb/metallb/ metallb/ -n -q -b main --single-branch --filter=blob:none
+	@cd metallb; git sparse-checkout set charts/metallb
+	@cd metallb; git checkout b42fc17b70323b5fd7d53828e14fcbe29ae5b965 -q &> /dev/null
+	@cd metallb/charts/metallb/charts/; tar xzf frr-k8s-0.0.4.tgz; rm frr-k8s-0.0.4.tgz
+	##@ ClusterResourceSet requires namespacing
+	@cd $(FRR_K8S_DIR); sed -r '/^metadata:/a \ \ namespace: \{\{ .Release.Namespace \}\}' -i webhooks.yaml
+	@cd $(FRR_K8S_DIR); sed -r '/^metadata:/a \ \ namespace: \{\{ .Release.Namespace \}\}' -i controller.yaml
+	@cd $(FRR_K8S_DIR); sed -r '/^metadata:/a \ \ namespace: \{\{ .Release.Namespace \}\}' -i service-accounts.yaml
+	@cd $(FRR_K8S_DIR); sed -r '/^metadata:/a \ \ namespace: \{\{ .Release.Namespace \}\}' -i rbac.yaml
+	@helm template metallb metallb/charts/metallb/ --set frrk8s.enabled=true,speaker.frr.enabled=false --namespace=metallb-system --create-namespace | sed "s/v0.0.0/main/" > templates/crs/metallb.yaml
+
+
 ##@ Release
 ## --------------------------------------
 ## Release
