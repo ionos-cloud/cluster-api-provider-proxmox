@@ -169,7 +169,7 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
 			{
 				Name:          "net1",
-				NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
+				NetworkDevice: infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
 			},
 		},
 	}

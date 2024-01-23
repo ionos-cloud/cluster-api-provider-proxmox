@@ -45,7 +45,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
 			{
 				Name: "net1",
-				NetworkDevice: &infrav1.NetworkDevice{
+				NetworkDevice: infrav1.NetworkDevice{
 					Model:  ptr.To("virtio"),
 					Bridge: "vmbr0",
 				},
@@ -85,7 +85,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
 			{
 				Name: "net1",
-				NetworkDevice: &infrav1.NetworkDevice{
+				NetworkDevice: infrav1.NetworkDevice{
 					Model:  ptr.To("virtio"),
 					Bridge: "vmbr0",
 				},
@@ -109,8 +109,8 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
-			{Name: "net1", NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr0"}, IPv4PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "ipv4pool"}},
-			{Name: "net2", NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr0"}, IPv6PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "ipv6pool"}},
+			{Name: "net1", NetworkDevice: infrav1.NetworkDevice{Bridge: "vmbr0"}, IPv4PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "ipv4pool"}},
+			{Name: "net2", NetworkDevice: infrav1.NetworkDevice{Bridge: "vmbr0"}, IPv6PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "ipv6pool"}},
 		},
 	}
 
@@ -147,7 +147,7 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
-			{Name: "net1", NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr0"}, IPv4PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "custom"}},
+			{Name: "net1", NetworkDevice: infrav1.NetworkDevice{Bridge: "vmbr0"}, IPv4PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "custom"}},
 		},
 	}
 	vm := newStoppedVM()

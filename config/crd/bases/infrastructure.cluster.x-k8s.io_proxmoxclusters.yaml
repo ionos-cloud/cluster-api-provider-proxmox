@@ -86,14 +86,16 @@ spec:
                 properties:
                   addresses:
                     description: Addresses is a list of IP addresses that can be assigned.
-                      This set of addresses can be non-contiguous.
+                      This set of addresses can be non-contiguous. mutually exclusive
+                      with DHCP.
                     items:
                       type: string
                     minItems: 1
                     type: array
                   dhcp:
-                    description: DHCP indicates if DHCP should be used to assign IP
-                      addresses.
+                    default: false
+                    description: DHCP indicates that if DHCP should be used to assign
+                      IP addresses. mutually exclusive with Addresses.
                     type: boolean
                   gateway:
                     description: Gateway
@@ -110,14 +112,16 @@ spec:
                 properties:
                   addresses:
                     description: Addresses is a list of IP addresses that can be assigned.
-                      This set of addresses can be non-contiguous.
+                      This set of addresses can be non-contiguous. mutually exclusive
+                      with DHCP.
                     items:
                       type: string
                     minItems: 1
                     type: array
                   dhcp:
-                    description: DHCP indicates if DHCP should be used to assign IP
-                      addresses.
+                    default: false
+                    description: DHCP indicates that if DHCP should be used to assign
+                      IP addresses. mutually exclusive with Addresses.
                     type: boolean
                   gateway:
                     description: Gateway

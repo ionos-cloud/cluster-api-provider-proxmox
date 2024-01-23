@@ -260,7 +260,7 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 			device := fmt.Sprintf("%s-%s", nic.Name, infrav1alpha1.DefaultSuffix)
 			conf, err := getNetworkConfigDataForDevice(ctx,
 				machineScope,
-				nic.NetworkDevice,
+				&nic.NetworkDevice,
 				device,
 				infrav1alpha1.IPV4Format)
 			if err != nil {
@@ -277,7 +277,7 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 			device := fmt.Sprintf("%s-%s", nic.Name, suffix)
 			conf, err := getNetworkConfigDataForDevice(ctx,
 				machineScope,
-				nic.NetworkDevice,
+				&nic.NetworkDevice,
 				device,
 				infrav1alpha1.IPV6Format)
 			if err != nil {

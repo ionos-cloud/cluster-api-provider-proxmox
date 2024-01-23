@@ -129,14 +129,14 @@ spec:
                           minLength: 1
                           type: string
                         dhcp4:
-                          description: DHCP4 indicates if DHCP should be used to assign
-                            IPv4 addresses. DHCP4 enforces cluster.spec.ipv4Config
-                            to use DHCP.
+                          description: DHCP4 indicates that if DHCP should be used
+                            to assign IPv4 addresses. DHCP4 enforce device to use
+                            DHCP despite the config set in cluster.spec.ipv4Config.
                           type: boolean
                         dhcp6:
-                          description: DHCP6 indicates if DHCP should be used to assign
-                            IPv6 addresses. DHCP6 enforces cluster.spec.ipv6Config
-                            to use DHCP.
+                          description: DHCP6 indicates that if DHCP should be used
+                            to assign IPv6 addresses. DHCP6 enforce device to use
+                            DHCP despite the config set in cluster.spec.ipv6Config.
                           type: boolean
                         dnsServers:
                           description: DNSServers contains information about nameservers
@@ -255,14 +255,14 @@ spec:
                         minLength: 1
                         type: string
                       dhcp4:
-                        description: DHCP4 indicates if DHCP should be used to assign
-                          IPv4 addresses. DHCP4 enforces cluster.spec.ipv4Config to
-                          use DHCP.
+                        description: DHCP4 indicates that if DHCP should be used to
+                          assign IPv4 addresses. DHCP4 enforce device to use DHCP
+                          despite the config set in cluster.spec.ipv4Config.
                         type: boolean
                       dhcp6:
-                        description: DHCP6 indicates if DHCP should be used to assign
-                          IPv6 addresses. DHCP6 enforces cluster.spec.ipv6Config to
-                          use DHCP.
+                        description: DHCP6 indicates that if DHCP should be used to
+                          assign IPv6 addresses. DHCP6 enforce device to use DHCP
+                          despite the config set in cluster.spec.ipv6Config.
                         type: boolean
                       model:
                         default: virtio

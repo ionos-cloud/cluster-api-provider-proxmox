@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 )
 
 // SetInClusterIPPoolRef will set the reference to the provided InClusterIPPool.
-// If nil was provided, the status field will be cleared.
+// If nil was provided or object is empty, the status field will be cleared.
 func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool metav1.Object) {
 	if pool == nil || pool.GetName() == "" {
 		c.Status.InClusterIPPoolRef = nil
@@ -61,10 +61,6 @@ func (c *ProxmoxCluster) AddNodeLocation(loc NodeLocation, isControlPlane bool) 
 // RemoveNodeLocation removes a node location from the status.
 func (c *ProxmoxCluster) RemoveNodeLocation(machineName string, isControlPlane bool) {
 	nodeLocations := c.Status.NodeLocations
-
-	if nodeLocations == nil {
-		return
-	}
 
 	if !c.HasMachine(machineName, isControlPlane) {
 		return
@@ -119,7 +115,7 @@ func (c *ProxmoxCluster) UpdateNodeLocation(machineName, node string, isControlP
 	return false
 }
 
-// HasMachine returns if true if a machine was found on any node.
+// HasMachine returns true if a machine was found on any node.
 func (c *ProxmoxCluster) HasMachine(machineName string, isControlPlane bool) bool {
 	return c.GetNode(machineName, isControlPlane) != ""
 }
@@ -154,4 +150,18 @@ func (c *ProxmoxCluster) addNodeLocation(loc NodeLocation, isControlPlane bool) 
 	}
 
 	c.Status.NodeLocations.Workers = append(c.Status.NodeLocations.Workers, loc)
+}
+
+// DHCPEnabled returns whether DHCP is enabled.
+func (c ClusterNetworkConfig) DHCPEnabled() bool {
+	switch {
+	case (c.IPv6Config != nil && c.IPv6Config.DHCP) && (c.IPv4Config != nil && c.IPv4Config.DHCP):
+		return true
+	case (c.IPv6Config != nil && c.IPv6Config.DHCP) && c.IPv4Config == nil:
+		return true
+	case (c.IPv4Config != nil && c.IPv4Config.DHCP) && c.IPv6Config == nil:
+		return true
+	default:
+		return false
+	}
 }

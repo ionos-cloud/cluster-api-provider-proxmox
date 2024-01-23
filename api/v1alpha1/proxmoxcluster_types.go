@@ -74,6 +74,7 @@ type ClusterNetworkConfig struct {
 type IPConfig struct {
 	// Addresses is a list of IP addresses that can be assigned. This set of
 	// addresses can be non-contiguous.
+	// mutually exclusive with DHCP.
 	// +kubebuilder:validation:MinItems=1
 	Addresses []string `json:"addresses,omitempty"`
 
@@ -86,8 +87,10 @@ type IPConfig struct {
 	// +optional
 	Gateway string `json:"gateway,omitempty"`
 
-	// DHCP indicates if DHCP should be used to assign IP addresses.
+	// DHCP indicates that if DHCP should be used to assign IP addresses.
+	// mutually exclusive with Addresses.
 	// +optional
+	// +kubebuilder:default=false
 	DHCP bool `json:"dhcp,omitempty"`
 }
 

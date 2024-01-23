@@ -212,3 +212,23 @@ func TestSetInClusterIPPoolRef(t *testing.T) {
 	cl.SetInClusterIPPoolRef(pool)
 	require.Equal(t, cl.Status.InClusterIPPoolRef[0].Name, pool.GetName())
 }
+
+func TestClusterNetworkConfig_DHCPEnabled(t *testing.T) {
+	cl := defaultCluster()
+	require.False(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = true
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = true
+	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: true}
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config = nil
+	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: true}
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config = &IPConfig{DHCP: true}
+	cl.Spec.ClusterNetworkConfig.IPv6Config = nil
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+}

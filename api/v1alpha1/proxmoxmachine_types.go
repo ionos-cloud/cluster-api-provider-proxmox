@@ -225,13 +225,13 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Maximum=65520
 	MTU *uint16 `json:"mtu,omitempty"`
 
-	// DHCP4 indicates if DHCP should be used to assign IPv4 addresses.
-	// DHCP4 enforces cluster.spec.ipv4Config to use DHCP.
+	// DHCP4 indicates that if DHCP should be used to assign IPv4 addresses.
+	// DHCP4 enforce device to use DHCP despite the config set in cluster.spec.ipv4Config.
 	// +optional
 	DHCP4 bool `json:"dhcp4,omitempty"`
 
-	// DHCP6 indicates if DHCP should be used to assign IPv6 addresses.
-	// DHCP6 enforces cluster.spec.ipv6Config to use DHCP.
+	// DHCP6 indicates that if DHCP should be used to assign IPv6 addresses.
+	// DHCP6 enforce device to use DHCP despite the config set in cluster.spec.ipv6Config.
 	// +optional
 	DHCP6 bool `json:"dhcp6,omitempty"`
 }
@@ -239,7 +239,7 @@ type NetworkDevice struct {
 // AdditionalNetworkDevice the definition of a Proxmox network device.
 // +kubebuilder:validation:XValidation:rule="(self.ipv4PoolRef != null || self.ipv6PoolRef != null || self.dhcp4 || self.dhcp6)",message="at least dhcp and/or one pool reference must be set, either ipv4PoolRef or ipv6PoolRef"
 type AdditionalNetworkDevice struct {
-	*NetworkDevice `json:",inline"`
+	NetworkDevice `json:",inline"`
 
 	// Name is the network device name.
 	// must be unique within the virtual machine and different from the primary device 'net0'.

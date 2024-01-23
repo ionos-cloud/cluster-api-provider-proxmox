@@ -184,7 +184,7 @@ func TestShouldUpdateNetworkDevices_MissingAdditionalDeviceOnVM(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
-			{Name: "net1", NetworkDevice: &infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")}},
+			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")}},
 		},
 	}
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0"))
@@ -196,7 +196,7 @@ func TestShouldUpdateNetworkDevices_AdditionalDeviceNeedsUpdate(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
-			{Name: "net1", NetworkDevice: &infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")}},
+			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")}},
 		},
 	}
 	machineScope.SetVirtualMachine(newVMWithNets("", "virtio=A6:23:64:4D:84:CB,bridge=vmbr0"))
@@ -209,7 +209,7 @@ func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
-			{Name: "net1", NetworkDevice: &infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))}},
+			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))}},
 		},
 	}
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CD,bridge=vmbr0,mtu=1500", "virtio=A6:23:64:4D:84:CD,bridge=vmbr1,mtu=1500"))

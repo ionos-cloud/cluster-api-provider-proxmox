@@ -82,7 +82,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
+				NetworkDevice: infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
 				Name:          "net1",
 				DNSServers:    []string{"1.2.3.4"},
 			},
@@ -173,7 +173,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		AdditionalDevices: []infrav1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: &infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
+				NetworkDevice: infrav1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
 				Name:          "net1",
 				DNSServers:    []string{"1.2.3.4"},
 				IPv6PoolRef: &corev1.TypedLocalObjectReference{
