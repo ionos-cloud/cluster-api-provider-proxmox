@@ -21,7 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,6 +36,12 @@ var _ = Describe("Controller Test", func() {
 		It("should disallow invalid network mtu", func() {
 			machine := invalidProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
+		})
+
+		It("should disallow invalid network mtu for additional device", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.Network.AdditionalDevices[0].MTU = ptr.To(uint16(50))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1000 or 1, but was 50")))
 		})
 
 		It("should create a valid proxmox machine", func() {
@@ -53,7 +59,7 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&machine), &machine)).To(Succeed())
 			machine.Spec.Network.Default.MTU = ptr.To(uint16(50))
 
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
 
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &machine))).To(Succeed())
@@ -88,6 +94,21 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 					Bridge: "vmbr1",
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(uint16(1500)),
+				},
+				AdditionalDevices: []infrav1.AdditionalNetworkDevice{
+					{
+						Name: "net1",
+						NetworkDevice: infrav1.NetworkDevice{
+							Bridge: "vmbr2",
+							Model:  ptr.To("virtio"),
+							MTU:    ptr.To(uint16(1500)),
+						},
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							Name:     "simple-pool",
+							Kind:     "InClusterIPPool",
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+						},
+					},
 				},
 			},
 		},
