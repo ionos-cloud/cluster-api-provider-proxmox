@@ -55,5 +55,5 @@ type ProxmoxMachineTemplateList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&ProxmoxMachineTemplate{}, &ProxmoxMachineTemplateList{})
+	objectTypes = append(objectTypes, &ProxmoxMachineTemplate{}, &ProxmoxMachineTemplateList{})
 }

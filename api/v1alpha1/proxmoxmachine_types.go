@@ -421,5 +421,5 @@ func (d *DiskSize) FormatSize() string {
 }
 
 func init() {
-	SchemeBuilder.Register(&ProxmoxMachine{}, &ProxmoxMachineList{})
+	objectTypes = append(objectTypes, &ProxmoxMachine{}, &ProxmoxMachineList{})
 }
