@@ -40,8 +40,8 @@ const (
           via: 10.10.10.1
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 
 	expectedValidNetworkConfigWithoutDNS = `network:
   version: 2
@@ -74,8 +74,8 @@ const (
           via: 10.10.10.1
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4
+          - '8.8.8.8'
+          - '8.8.4.4'
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
@@ -88,8 +88,8 @@ const (
           via: 196.168.100.254
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 
 	expectedValidNetworkConfigDualStack = `network:
   version: 2
@@ -102,16 +102,16 @@ const (
       dhcp6: false
       addresses:
         - 10.10.10.12/24
-        - 2001:db8::1/64
+        - '2001:db8::1/64'
       routes:
         - to: 0.0.0.0/0
           via: 10.10.10.1
         - to: '::/0'
-          via: 2001:db8::1
+          via: '2001:db8::1'
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 
 	expectedValidNetworkConfigIPV6 = `network:
   version: 2
@@ -123,14 +123,14 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 2001:db8::1/64
+        - '2001:db8::1/64'
       routes:
         - to: '::/0'
-          via: 2001:db8::1
+          via: '2001:db8::1'
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 
 	expectedValidNetworkConfigDHCP = `network:
   version: 2
@@ -143,8 +143,8 @@ const (
       dhcp6: true
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 
 	expectedValidNetworkConfigDHCP4 = `network:
   version: 2
@@ -157,8 +157,8 @@ const (
       dhcp6: false
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 
 	expectedValidNetworkConfigDHCP6 = `network:
   version: 2
@@ -171,8 +171,8 @@ const (
       dhcp6: true
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 
 	expectedValidNetworkConfigWithDHCP = `network:
   version: 2
@@ -190,8 +190,8 @@ const (
           via: 10.10.10.1
       nameservers:
         addresses:
-          - 8.8.8.8
-          - 8.8.4.4`
+          - '8.8.8.8'
+          - '8.8.4.4'`
 )
 
 func TestNetworkConfig_Render(t *testing.T) {

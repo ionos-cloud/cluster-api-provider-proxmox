@@ -38,7 +38,7 @@ const (
         - {{ $element.IPAddress }}
       {{- end }}
       {{- if and $element.IPV6Address (not $element.DHCP6)}}
-        - {{ $element.IPV6Address }}
+        - '{{ $element.IPV6Address }}'
 	  {{- end }}
       routes:
       {{- if and $element.Gateway (not $element.DHCP4) }}
@@ -47,14 +47,14 @@ const (
 	  {{- end }}
       {{- if and $element.Gateway6 (not $element.DHCP6) }}
         - to: '::/0'
-          via: {{ $element.Gateway6 }}
+          via: '{{ $element.Gateway6 }}'
 	  {{- end }}
       {{- end }}
       {{- if $element.DNSServers }}
       nameservers:
         addresses:
         {{- range $element.DNSServers }}
-          - {{ . }}
+          - '{{ . }}'
         {{- end -}}
       {{- end -}}
   {{- end -}}`
