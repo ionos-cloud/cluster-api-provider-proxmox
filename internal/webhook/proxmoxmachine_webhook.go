@@ -120,6 +120,7 @@ func validateNetworkDevice(device *infrav1.NetworkDevice) error {
 		return nil
 	}
 
+	// special value '1' to inherit the MTU value from the underlying bridge
 	if *device.MTU == 1 {
 		return nil
 	}
