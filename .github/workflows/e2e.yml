@@ -3,9 +3,7 @@ name: e2e tests
 on:
   push:
     branches: ["main"]
-  pull_request_target:
-    types: ["opened", "synchronize", "reopened"]
-    branches: ["main"]
+  pull_request_target: {}
 
 jobs:
   e2e:
