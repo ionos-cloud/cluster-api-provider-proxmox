@@ -13,24 +13,7 @@ jobs:
       PROXMOX_TOKEN: ${{ secrets.PROXMOX_TOKEN }}
       PROXMOX_SECRET: ${{ secrets.PROXMOX_SECRET }}
     steps:
-      # If triggered by a push to **our** repository, we can directly checkout the code.
-      - name: Checkout branch ${{ github.ref }}
-        if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@v4
-        with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
-
-      # If triggered by a PR, we have to check out the PR's source
-      - name: Checkout (preview) merge commit for PR ${{ github.event.pull_request.number }}
-        if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/checkout@v4
-        with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-
+      - uses: actions/checkout@v4.1.1
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
