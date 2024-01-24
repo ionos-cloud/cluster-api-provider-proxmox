@@ -3,7 +3,6 @@ name: e2e tests
 on:
   push:
     branches: ["main"]
-  pull_request_target: {}
   pull_request: {}
 
 jobs:
