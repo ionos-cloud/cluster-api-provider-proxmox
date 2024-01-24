@@ -40,6 +40,18 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2.1.1
+        if: ${{ github.event_name == 'push' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # If triggered by a PR, we have to check out the PR's source
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2.1.1
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PULLREQUEST_KEY: ${{ github.event.pull_request.number }}
+          SONAR_PULLREQUEST_BRANCH: ${{ github.event.pull_request.head.ref }}
+          SONAR_PULLREQUEST_BASE: ${{ github.event.pull_request.base.ref }}
