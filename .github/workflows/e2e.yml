@@ -2,12 +2,14 @@ name: e2e tests
 
 on:
   push:
-    branches: ["main"]
-  pull_request: {}
+    branches: ["main", "release-*"]
+  pull_request:
+    branches: ["main", "release-*"]
 
 jobs:
   e2e:
     runs-on: [capmox,e2e,dcd-playground]
+    environment: e2e
     env:
       PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
       PROXMOX_TOKEN: ${{ secrets.PROXMOX_TOKEN }}
