@@ -112,7 +112,7 @@ the `EXP_CLUSTER_RESOURCE_SET` is required if you want to deploy CNI using clust
 
 Once you have access to a management cluster, you can initialize Cluster API with the following:
 ```
-clusterctl init --infrastructure proxmox --ipam in-cluster --core cluster-api:v1.5.3
+clusterctl init --infrastructure proxmox --ipam in-cluster --core cluster-api:v1.6.1
 ```
 
 ### Create a Workload Cluster
