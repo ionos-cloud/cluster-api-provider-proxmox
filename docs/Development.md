@@ -75,7 +75,6 @@ for more information.
 ```
 
 - Change directory to cluster-api: `cd cluster-api`. This directory is the working directory for Tilt.
-- Reset to tag `v1.5.3`. IPAM is not compatible with Cluster API 1.6.0 yet.
 - Create a file called `tilt-settings.json` with the following contents:
 
 ```json
