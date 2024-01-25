@@ -225,7 +225,9 @@ spec:
                                   type: string
                                 mtu:
                                   description: MTU is the network device Maximum Transmission
-                                    Unit. Only works with virtio Model.
+                                    Unit. Only works with virtio Model. special value
+                                    '1' to inherit the MTU value from the underlying
+                                    bridge
                                   maximum: 65520
                                   minimum: 1
                                   type: integer
@@ -273,7 +275,9 @@ spec:
                                 type: string
                               mtu:
                                 description: MTU is the network device Maximum Transmission
-                                  Unit. Only works with virtio Model.
+                                  Unit. Only works with virtio Model. special value
+                                  '1' to inherit the MTU value from the underlying
+                                  bridge
                                 maximum: 65520
                                 minimum: 1
                                 type: integer
