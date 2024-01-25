@@ -219,6 +219,7 @@ type NetworkDevice struct {
 
 	// MTU is the network device Maximum Transmission Unit.
 	// Only works with virtio Model.
+	// Set to 1 to inherit the MTU value from the underlying bridge.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65520
