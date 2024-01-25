@@ -57,7 +57,7 @@ providers:
         value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v0.1.0-alpha.3/ipam-components.yaml
         type: url
         files:
-          - sourcePath: "${PWD}/metadata.yaml"
+          - sourcePath: "../data/shared/ipam/metadata.yaml"
         replacements:
           - old: "imagePullPolicy: Always"
             new: "imagePullPolicy: IfNotPresent"
