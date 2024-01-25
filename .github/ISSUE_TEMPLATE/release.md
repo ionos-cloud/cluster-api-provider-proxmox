@@ -15,4 +15,3 @@ Release vX.X.X
 - [ ] Create tag.
 - [ ] Update the created draft release to include (BREAKING Changes, Important Notes).
 - [ ] Publish the release.
-- [ ] OPTIONAL: create release branch.
