@@ -25,6 +25,14 @@ This provider's versions are compatible with the following versions of Cluster A
 
 Further documentation is available in the `/docs` directory.
 
+## Community, discussion, contribution, and support
+
+Learn how to engage with the Kubernetes community on the [community page](http://kubernetes.io/community/).
+
+You can reach the maintainers of this project at:
+
+- [Slack channel](https://kubernetes.slack.com/messages/cluster-api-proxmox)
+
 ## Security
 
 We take security seriously.
