@@ -229,14 +229,14 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	return reconcile.Result{}, nil
 }
 
-func (r *ProxmoxMachineReconciler) getInfraCluster(ctx context.Context, logger *logr.Logger, cluster *clusterv1.Cluster, proxmosMachine *infrav1alpha1.ProxmoxMachine) (*scope.ClusterScope, error) {
+func (r *ProxmoxMachineReconciler) getInfraCluster(ctx context.Context, logger *logr.Logger, cluster *clusterv1.Cluster, proxmoxMachine *infrav1alpha1.ProxmoxMachine) (*scope.ClusterScope, error) {
 	var clusterScope *scope.ClusterScope
 	var err error
 
 	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{}
 
 	infraClusterName := client.ObjectKey{
-		Namespace: proxmosMachine.Namespace,
+		Namespace: proxmoxMachine.Namespace,
 		Name:      cluster.Spec.InfrastructureRef.Name,
 	}
 
