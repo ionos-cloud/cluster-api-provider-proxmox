@@ -278,10 +278,9 @@ SKIP_CREATE_MGMT_CLUSTER ?= false
 
 # Install tools
 
-GINKGO_VER := v2.13.2
 GINKGO_BIN := ginkgo
 GINKGO := $(LOCALBIN)/$(GINKGO_BIN)
-GINKGO_PKG := github.com/onsi/ginkgo/v2/ginkgo
+GINKGO_PKG := $(shell sed '/github.com\/onsi\/ginkgo\/v2/!d; s/ /\/ginkgo@/' go.mod)
 
 ENVSUBST_VER := v1.4.2
 ENVSUBST_BIN := envsubst
@@ -291,9 +290,8 @@ $(ENVSUBST): ## Build envsubst.
 	test -s $(LOCALBIN)/$(ENVSUBST_BIN) || \
 	GOBIN=$(LOCALBIN) go install github.com/a8m/envsubst/cmd/envsubst@$(ENVSUBST_VER)
 
-
 $(GINKGO): ## Build ginkgo.
-	GOBIN=$(LOCALBIN) go install $(GINKGO_PKG)@$(GINKGO_VER)
+	GOBIN=$(LOCALBIN) go install $(GINKGO_PKG)
 
 .PHONY: e2e-image
 e2e-image:
