@@ -6,7 +6,6 @@ This document is to help developers understand how to run e2e tests for CAPMOX.
 
 In order to run the e2e tests the following requirements must be met:
 
-* [Ginkgo](https://github.com/onsi/ginkgo)
 * [Docker](https://www.docker.com/)
 * Proxmox VE Cluster
 * A Kubernetes cluster running on Proxmox VE
