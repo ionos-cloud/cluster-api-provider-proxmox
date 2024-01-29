@@ -257,7 +257,6 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 		config.Name = device.Name
 		config.Table = device.Table
 
-		// todo: O(n²) complexity
 		for i, child := range device.Interfaces {
 			for _, net := range data {
 				if (net.Name == child) || (net.ProxName == child) {

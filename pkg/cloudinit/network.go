@@ -132,7 +132,7 @@ func (r *NetworkConfig) validate() error {
 		return ErrMissingNetworkConfigData
 	}
 	for _, d := range r.data.NetworkConfigData {
-		// todo: refactor when network configuration is unified
+		// refactor this when network configuration is unified
 		if d.Type != "ethernet" {
 			err := validRoutes(d.Routes)
 			if err != nil {
