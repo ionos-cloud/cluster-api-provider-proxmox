@@ -94,7 +94,7 @@ spec:
                     type: array
                   dhcp:
                     default: false
-                    description: DHCP indicates that if DHCP should be used to assign
+                    description: DHCP indicates that DHCP should be used to assign
                       IP addresses. mutually exclusive with Addresses.
                     type: boolean
                   gateway:
@@ -120,7 +120,7 @@ spec:
                     type: array
                   dhcp:
                     default: false
-                    description: DHCP indicates that if DHCP should be used to assign
+                    description: DHCP indicates that DHCP should be used to assign
                       IP addresses. mutually exclusive with Addresses.
                     type: boolean
                   gateway:
