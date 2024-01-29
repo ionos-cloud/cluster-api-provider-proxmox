@@ -371,7 +371,7 @@ spec:
                             type: object
                           minItems: 1
                           type: array
-                        routing-policy:
+                        routingPolicy:
                           description: RoutingPolicy is the l3mdev policy inserted
                             into FiB.
                           items:

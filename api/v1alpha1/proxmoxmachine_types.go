@@ -297,7 +297,7 @@ type VrfDevice struct {
 	// RoutingPolicy is the l3mdev policy inserted into FiB.
 	// +optional
 	// +kubebuilder:validation:MinItems=1
-	RoutingPolicy []RoutingPolicySpec `json:"routing-policy,omitempty"`
+	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
 }
 
 // VirtualNetworkDevices defines linux software networking devices.

@@ -317,7 +317,7 @@ spec:
             table: 500
             interfaces:
               - net2
-            routing-policy:
+            routingPolicy:
               - from: "${METALLB_IPV4_RANGE}"
               - from: "${METALLB_IPV6_RANGE}"
 ---
