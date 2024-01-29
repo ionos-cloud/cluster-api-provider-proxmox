@@ -41,7 +41,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	}
 
 	if machineScope.VirtualMachine == nil {
-		// skip machine is not yet provisioned.
+		// skip machine if it is not provisioned yet
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityWarning, "no ip address")
 		return true, nil
 	}

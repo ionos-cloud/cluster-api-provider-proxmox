@@ -87,7 +87,7 @@ type IPConfig struct {
 	// +optional
 	Gateway string `json:"gateway,omitempty"`
 
-	// DHCP indicates that if DHCP should be used to assign IP addresses.
+	// DHCP indicates that DHCP should be used to assign IP addresses.
 	// mutually exclusive with Addresses.
 	// +optional
 	// +kubebuilder:default=false
