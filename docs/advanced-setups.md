@@ -2,6 +2,49 @@
 
 To get started with CAPMOX please refer to the [Getting Started](Usage.md#quick-start) section.
 
+## DHCP
+
+If you want to use DHCP to assign ip addresses for the machines, you can use `flavor=dhcp` when generating a new cluster.
+
+first we need to define variables:  
+```bash
+# The node that hosts the VM template to be used to provision VMs
+export PROXMOX_SOURCENODE="stg-ceph01"
+# The template VM ID used for cloning VMs
+export TEMPLATE_VMID=164
+# The Proxmox VE nodes used for VM deployments
+export ALLOWED_NODES="[stg-ceph01,stg-ceph02,stg-ceph04,stg-ceph04,stg-ceph05]"
+# The ssh authorized keys used to ssh to the machines.
+export VM_SSH_KEYS="ssh-ed25519 ..., ssh-ed25519 ..."
+# The IP that kube-vip is going to use as a control plane endpoint
+export CONTROL_PLANE_ENDPOINT_IP="10.10.10.4"   
+# The dns nameservers for the machines network-config.
+export DNS_SERVERS="[10.4.1.1]"
+# The device used for the boot disk.   
+export BOOT_VOLUME_DEVICE=scsi0
+# The size of the boot disk in GB.
+export BOOT_VOLUME_SIZE=100
+# The number of sockets for the VMs.
+export NUM_SOCKETS=2
+# The number of cores for the VMs.
+export NUM_CORES=4
+# The memory size for the VMs.
+export MEMORY_MIB=16384
+# The network bridge device for Proxmox VE VMs
+export BRIDGE=vmbr0
+```
+
+#### Generate a Cluster
+
+```bash
+clusterctl generate cluster test-dhcp  \
+  --infrastructure proxmox \
+  --kubernetes-version v1.28.5  \
+  --control-plane-machine-count=1 \
+  --worker-machine-count=2 \
+  --flavor=dhcp > cluster.yaml
+```
+
 ## Multiple NICs
 
 If you want to create VMs with multiple network devices,
@@ -71,7 +114,7 @@ clusterctl generate cluster test-duacl-stack  \
   --flavor=dual-stack > cluster.yaml
 ```
 
-#### Node over-/ underprovisioning
+## Node over-/ underprovisioning
 
 By default our scheduler only allows to allocate as much memory to guests as the host has. This might not be a desirable behaviour in all cases. For example, one might to explicitly want to overprovision their host's memory, or to reserve bit of the host's memory for itself.
 
