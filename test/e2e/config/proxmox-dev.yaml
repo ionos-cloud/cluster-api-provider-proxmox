@@ -1,0 +1,124 @@
+---
+# E2E test scenario using local dev images and manifests built from the source tree for following providers:
+# - cluster-api
+# - bootstrap kubeadm
+# - control-plane kubeadm
+# - proxmox
+
+images:
+  # Use local dev images built source tree;
+  - name: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:e2e
+    loadBehavior: mustLoad
+
+providers:
+  - name: cluster-api
+    type: CoreProvider
+    versions:
+      - name: v1.6.1
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.1/core-components.yaml
+        type: url
+        files:
+          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+          - old: "--leader-elect"
+            new: "--leader-elect=false"
+  - name: kubeadm
+    type: BootstrapProvider
+    versions:
+      - name: v1.6.1
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.1/bootstrap-components.yaml
+        type: url
+        files:
+          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+          - old: "--leader-elect"
+            new: "--leader-elect=false"
+  - name: kubeadm
+    type: ControlPlaneProvider
+    versions:
+      - name: v1.6.1
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.1/control-plane-components.yaml
+        type: url
+        files:
+          - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+          - old: "--leader-elect"
+            new: "--leader-elect=false"
+  - name: in-cluster
+    type: IPAMProvider
+    versions:
+      - name: v0.1.0
+        value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v0.1.0-alpha.3/ipam-components.yaml
+        type: url
+        files:
+          - sourcePath: "../data/shared/ipam/metadata.yaml"
+        replacements:
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+          - old: "--leader-elect"
+            new: "--leader-elect=false"
+  - name: proxmox
+    type: InfrastructureProvider
+    versions:
+      - name: v0.2.99
+        value: "${PWD}/config/default"
+        replacements:
+          - old: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev
+            new: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:e2e
+          - old: "imagePullPolicy: Always"
+            new: "imagePullPolicy: IfNotPresent"
+    files:
+      - sourcePath: "${PWD}/metadata.yaml"
+        targetName: "metadata.yaml"
+      - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-ci.yaml"
+        targetName: "cluster-template.yaml"
+      - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-upgrades.yaml"
+
+variables:
+  KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.27.8}"
+  CONTROL_PLANE_MACHINE_COUNT: "${CONTROL_PLANE_MACHINE_COUNT:-1}"
+  WORKER_MACHINE_COUNT: "${WORKER_MACHINE_COUNT:-2}"
+  EXP_CLUSTER_RESOURCE_SET: "true"
+  # Cluster Addons
+  CNI: "${PWD}/test/e2e/data/cni/calico.yaml"
+
+  PROXMOX_SOURCENODE: "${PROXMOX_SOURCENODE:-stg-ceph01}"
+  TEMPLATE_VMID: "${TEMPLATE_VMID:-164}"
+  VM_SSH_KEYS: ""
+  NODE_IP_RANGES: "[10.4.18.104-10.4.18.125]"
+  GATEWAY: "10.4.18.1"
+  IP_PREFIX: "25"
+  DNS_SERVERS: "[10.4.1.1]"
+  ALLOWED_NODES: "[stg-ceph01,stg-ceph02,stg-ceph04,stg-ceph04,stg-ceph05]"
+  BRIDGE: "vmbr128"
+  NUM_SOCKETS: "2"
+  NUM_CORES: "2"
+  MEMORY_MIB: "4096"
+  CAPMOX_LOGLEVEL: "4"
+  BOOT_VOLUME_DEVICE: "scsi0"
+  CONTROL_PLANE_ENDPOINT_IP: "10.4.18.103"
+
+  TEMPLATEID_UPGRADE_TO: "${TEMPLATEID_UPGRADE_TO:-166}"
+  CONFORMANCE_WORKER_MACHINE_COUNT: "2"
+  CONFORMANCE_CONTROL_PLANE_MACHINE_COUNT: "${CONFORMANCE_CONTROL_PLANE_MACHINE_COUNT:-1}"
+  CONFORMANCE_NODES: "${CONFORMANCE_NODES:-4}"
+  KUBETEST_CONFIGURATION: "${PWD}/test/e2e/data/kubetest/conformance.yaml"
+
+intervals:
+  default/wait-controllers: ["3m", "10s"]
+  default/wait-cluster: ["20m", "10s"]
+  default/wait-control-plane: ["50m", "10s"]
+  default/wait-worker-nodes: ["30m", "10s"]
+  default/wait-delete-cluster: ["20m", "10s"]
+  default/wait-machine-upgrade: ["50m", "10s"]
+  default/wait-machine-remediation: ["30m", "10s"]
+  default/wait-deployment: ["5m", "10s"]
+  default/wait-job: ["5m", "10s"]
+  default/wait-service: ["3m", "10s"]
+  node-drain/wait-machine-deleted: ["10m", "10s"]

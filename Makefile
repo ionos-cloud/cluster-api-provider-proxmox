@@ -250,3 +250,65 @@ release-manifests: $(KUSTOMIZE) ## Create kustomized release manifest in $RELEAS
 release-templates: ## Generate release templates
 	@mkdir -p $(RELEASE_DIR)
 	cp templates/cluster-template*.yaml $(RELEASE_DIR)/
+
+
+##@ e2e
+## --------------------------------------
+## E2e tests
+## --------------------------------------
+ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+E2E_CONF_FILE ?= $(ROOT_DIR)/test/e2e/config/proxmox-ci.yaml
+E2E_CONF_FILE_ENVSUBST := $(ROOT_DIR)/test/e2e/config/proxmox-ci-envsubst.yaml
+E2E_DATA_DIR ?= $(ROOT_DIR)/test/e2e/data
+KUBETEST_CONF_PATH ?= $(abspath $(E2E_DATA_DIR)/kubetest/conformance.yaml)
+
+
+# Allow overriding the e2e configurations
+GINKGO_FOCUS ?= Workload cluster creation
+GINKGO_SKIP ?= API Version Upgrade
+GINKGO_NODES ?= 1
+GINKGO_NOCOLOR ?= false
+GINKGO_ARGS ?=
+GINKGO_TIMEOUT ?= 2h
+GINKGO_POLL_PROGRESS_AFTER ?= 10m
+GINKGO_POLL_PROGRESS_INTERVAL ?= 1m
+ARTIFACTS ?= $(ROOT_DIR)/_artifacts
+SKIP_CLEANUP ?= false
+SKIP_CREATE_MGMT_CLUSTER ?= false
+
+# Install tools
+
+GINKGO_BIN := ginkgo
+GINKGO := $(LOCALBIN)/$(GINKGO_BIN)
+
+ENVSUBST_VER := v1.4.2
+ENVSUBST_BIN := envsubst
+ENVSUBST := $(LOCALBIN)/$(ENVSUBST_BIN)
+
+$(ENVSUBST): ## Build envsubst.
+	test -s $(LOCALBIN)/$(ENVSUBST_BIN) || \
+	GOBIN=$(LOCALBIN) go install github.com/a8m/envsubst/cmd/envsubst@$(ENVSUBST_VER)
+
+$(GINKGO): ## Build ginkgo.
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo
+
+.PHONY: e2e-image
+e2e-image:
+	docker build --tag="$(REPOSITORY):e2e" .
+
+.PHONY: test-e2e
+test-e2e: $(ENVSUBST) $(KUBECTL) $(GINKGO) e2e-image ## Run the end-to-end tests
+	$(ENVSUBST) < $(E2E_CONF_FILE) > $(E2E_CONF_FILE_ENVSUBST) && \
+	time $(GINKGO) -v --trace -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
+	--tags=e2e --focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
+	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
+		-e2e.artifacts-folder="$(ARTIFACTS)" \
+		-e2e.config="$(E2E_CONF_FILE_ENVSUBST)" \
+		-e2e.skip-resource-cleanup=$(SKIP_CLEANUP) \
+		-e2e.use-existing-cluster=$(SKIP_CREATE_MGMT_CLUSTER) $(E2E_ARGS)
+
+CONFORMANCE_E2E_ARGS ?= -kubetest.config-file=$(KUBETEST_CONF_PATH)
+CONFORMANCE_E2E_ARGS += $(E2E_ARGS)
+.PHONY: test-conformance
+test-conformance: ## Run conformance test on workload cluster.
+	$(MAKE) test-e2e GINKGO_FOCUS="Conformance Tests" E2E_ARGS='$(CONFORMANCE_E2E_ARGS)' GINKGO_ARGS='$(LOCAL_GINKGO_ARGS)'
