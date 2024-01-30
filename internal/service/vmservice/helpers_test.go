@@ -286,6 +286,7 @@ func newVMWithNets(def string, additional ...string) *proxmox.VirtualMachine {
 			Nets: map[string]string{
 				"net0": def,
 			},
+			Net0: def,
 		},
 		Name:      "test",
 		Node:      "node1",

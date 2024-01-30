@@ -667,8 +667,8 @@ func (_m *MockClient) GetVMNetwork(ctx context.Context, vm *go_proxmox.VirtualMa
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*go_proxmox.VirtualMachine) error); ok {
-		r1 = rf(vm)
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
+		r1 = rf(ctx, vm)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -684,14 +684,13 @@ type MockClient_GetVMNetwork_Call struct {
 // GetVMNetwork is a helper method to define mock.On call
 //   - ctx context.Context
 //   - vm *go_proxmox.VirtualMachine
-//   - tag string
 func (_e *MockClient_Expecter) GetVMNetwork(ctx context.Context, vm *go_proxmox.VirtualMachine) *MockClient_GetVMNetwork_Call {
 	return &MockClient_GetVMNetwork_Call{Call: _e.mock.On("GetVMNetwork", ctx, vm)}
 }
 
 func (_c *MockClient_GetVMNetwork_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine)) *MockClient_GetVMNetwork_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[0].(*go_proxmox.VirtualMachine))
+		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine))
 	})
 	return _c
 }

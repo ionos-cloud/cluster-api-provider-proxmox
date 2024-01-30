@@ -21,13 +21,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
-
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	go_proxmox "github.com/luthermonson/go-proxmox"
+	"github.com/stretchr/testify/require"
+	"k8s.io/utils/ptr"
 )
 
 func TestReconcileVM_EverythingReady(t *testing.T) {
@@ -267,4 +267,41 @@ func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "10.10.10.10")
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[2].Address, "2001:db8::2")
+}
+
+func TestReconcileMachineAddresses_DHCP(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		Default: &infrav1.NetworkDevice{
+			Bridge: "vmbr1",
+			Model:  ptr.To("virtio"),
+			DHCP4:  true,
+		},
+	}
+
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr1")
+	machineScope.SetVirtualMachine(vm)
+	machineScope.SetVirtualMachineID(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1.IPAddress{infrav1.DefaultNetworkDevice: {IPV4: "DHCP"}}
+	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
+
+	iFaces := []*go_proxmox.AgentNetworkIface{
+		&go_proxmox.AgentNetworkIface{
+			Name:            "net0",
+			HardwareAddress: "A6:23:64:4D:84:CB",
+			IPAddresses: []*go_proxmox.AgentNetworkIPAddress{{
+				IPAddressType: "ipv4",
+				IPAddress:     "10.10.10.4",
+				Prefix:        24,
+				MacAddress:    "A6:23:64:4D:84:CB",
+			},
+			},
+		},
+	}
+
+	proxmoxClient.EXPECT().GetVMNetwork(context.Background(), vm).Return(iFaces, nil).Once()
+
+	require.NoError(t, reconcileMachineAddresses(context.Background(), machineScope))
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "10.10.10.4")
 }
