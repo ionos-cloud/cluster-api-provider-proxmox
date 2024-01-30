@@ -252,39 +252,40 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha1.NetworkSpec) ([]cloudinit.NetworkConfigData, error) {
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.AdditionalDevices))
 
+	nics := network.AdditionalDevices
 	// additional network devices.
-	for _, nic := range network.AdditionalDevices {
+	for i := range network.AdditionalDevices {
 		var config = ptr.To(cloudinit.NetworkConfigData{})
 
-		if nic.IPv4PoolRef != nil {
-			device := fmt.Sprintf("%s-%s", nic.Name, infrav1alpha1.DefaultSuffix)
+		if nics[i].IPv4PoolRef != nil {
+			device := fmt.Sprintf("%s-%s", nics[i].Name, infrav1alpha1.DefaultSuffix)
 			conf, err := getNetworkConfigDataForDevice(ctx,
 				machineScope,
-				&nic.NetworkDevice,
+				&nics[i].NetworkDevice,
 				device,
 				infrav1alpha1.IPV4Format)
 			if err != nil {
 				return nil, errors.Wrapf(err, "unable to get network config data for device=%s", device)
 			}
-			if len(nic.DNSServers) != 0 {
-				config.DNSServers = nic.DNSServers
+			if len(nics[i].DNSServers) != 0 {
+				config.DNSServers = nics[i].DNSServers
 			}
 			config = conf
 		}
 
-		if nic.IPv6PoolRef != nil {
+		if nics[i].IPv6PoolRef != nil {
 			suffix := infrav1alpha1.DefaultSuffix + "6"
-			device := fmt.Sprintf("%s-%s", nic.Name, suffix)
+			device := fmt.Sprintf("%s-%s", nics[i].Name, suffix)
 			conf, err := getNetworkConfigDataForDevice(ctx,
 				machineScope,
-				&nic.NetworkDevice,
+				&nics[i].NetworkDevice,
 				device,
 				infrav1alpha1.IPV6Format)
 			if err != nil {
 				return nil, errors.Wrapf(err, "unable to get network config data for device=%s", device)
 			}
-			if len(nic.DNSServers) != 0 {
-				config.DNSServers = nic.DNSServers
+			if len(nics[i].DNSServers) != 0 {
+				config.DNSServers = nics[i].DNSServers
 			}
 
 			switch {
