@@ -285,18 +285,17 @@ func TestReconcileMachineAddresses_DHCP(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1.IPAddress{infrav1.DefaultNetworkDevice: {IPV4: "DHCP"}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 
-	iFaces := []*go_proxmox.AgentNetworkIface{
-		&go_proxmox.AgentNetworkIface{
-			Name:            "net0",
-			HardwareAddress: "A6:23:64:4D:84:CB",
-			IPAddresses: []*go_proxmox.AgentNetworkIPAddress{{
-				IPAddressType: "ipv4",
-				IPAddress:     "10.10.10.4",
-				Prefix:        24,
-				MacAddress:    "A6:23:64:4D:84:CB",
-			},
-			},
+	iFaces := []*go_proxmox.AgentNetworkIface{{
+		Name:            "net0",
+		HardwareAddress: "A6:23:64:4D:84:CB",
+		IPAddresses: []*go_proxmox.AgentNetworkIPAddress{{
+			IPAddressType: "ipv4",
+			IPAddress:     "10.10.10.4",
+			Prefix:        24,
+			MacAddress:    "A6:23:64:4D:84:CB",
 		},
+		},
+	},
 	}
 
 	proxmoxClient.EXPECT().GetVMNetwork(context.Background(), vm).Return(iFaces, nil).Once()
