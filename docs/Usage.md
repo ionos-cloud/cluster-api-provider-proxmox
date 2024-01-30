@@ -95,14 +95,24 @@ IP_PREFIX: "25"                                               # Subnet Mask in C
 DNS_SERVERS: "[8.8.8.8,8.8.4.4]"                              # The dns nameservers for the machines network-config.
 BRIDGE: "vmbr1"                                               # The network bridge device for Proxmox VE VMs
 
-## -- xl nodes-- ## 
-BOOT_VOLUME_DEVICE: "scsi0"                                    # The device used for the boot disk.   
-BOOT_VOLUME_SIZE: "100"                                        # The size of the boot disk in GB.
-NUM_SOCKETS: "2"                                               # The number of sockets for the VMs.
-NUM_CORES: "4"                                                 # The number of cores for the VMs.
-MEMORY_MIB: "8048"                                             # The memory size for the VMs.
+## -- xl nodes -- ##
+BOOT_VOLUME_DEVICE: "scsi0"                                   # The device used for the boot disk.
+BOOT_VOLUME_SIZE: "100"                                       # The size of the boot disk in GB.
+NUM_SOCKETS: "2"                                              # The number of sockets for the VMs.
+NUM_CORES: "4"                                                # The number of cores for the VMs.
+MEMORY_MIB: "8048"                                            # The memory size for the VMs.
 
-EXP_CLUSTER_RESOURCE_SET: "true"                               # This enables the ClusterResourceSet feature that we are using to deploy CNI
+## -- loadbalancer nodes -- #
+EXT_SERVICE_BRIDGE: "vmbr2"                                   # The network bridge device used for load balancing and bgp.
+LB_BGP_IPV4_RANGES: "[172.16.4.10-172.16.4.20]"               # The IP ranges used by the cluster for establishing the bgp session.
+LB_BGP_IPV4_PREFIX: "24"                                      # Subnet Mask in CIDR notation for your bgp IP ranges.
+METALLB_IPV4_ASN: "65400"                                     # The nodes bgp asn.
+METALLB_IPV4_BGP_PEER: "172.16.4.1"                           # The nodes bgp peer IP address.
+METALLB_IPV4_BGP_SECRET: "REDACTED"                           # The secret required to establish a bgp session (if any).
+METALLB_IPV4_BGP_PEER_ASN: "65500"                            # The bgp peer's asn.
+METALLB_IPV4_RANGE: 7.6.5.0/24                                # The IP Range MetalLB uses to announce your services.
+
+EXP_CLUSTER_RESOURCE_SET: "true"                              # This enables the ClusterResourceSet feature that we are using to deploy CNI
 ```
 
 the `CONTROL_PLANE_ENDPOINT_IP` is an IP that must be on the same subnet as the control plane machines
@@ -161,12 +171,13 @@ For templates using `CNI`s you're required to create `ConfigMaps` to make `Clust
 
 We provide the following templates:
 
-| Flavor         | Tepmlate File                                   | CRS File                      |
-|----------------| ----------------------------------------------- |-------------------------------|
-| cilium         | templates/cluster-template-cilium.yaml          | templates/crs/cni/cilium.yaml |
-| calico         | templates/cluster-template-calico.yaml          | templates/crs/cni/calico.yaml |
-| multiple-vlans | templates/cluster-template-multiple-vlans.yaml  | -                             |
-| default        | templates/cluster-template.yaml                 | -                             |
+| Flavor              | Tepmlate File                                        | CRS File                                                  |
+|---------------------| -----------------------------------------------------|-----------------------------------------------------------|
+| cilium              | templates/cluster-template-cilium.yaml               | templates/crs/cni/cilium.yaml                             |
+| calico              | templates/cluster-template-calico.yaml               | templates/crs/cni/calico.yaml                             |
+| multiple-vlans      | templates/cluster-template-multiple-vlans.yaml       | -                                                         |
+| default             | templates/cluster-template.yaml                      | -                                                         |
+| cilium loadbalancer | templates/cluster-template-cilium-load-balancer.yaml | templates/crs/cni/cilium.yaml, templates/crs/metallb.yaml |
 
 For more information about advanced clusters please check our [advanced setups docs](advanced-setups.md).
 
@@ -184,7 +195,7 @@ Now install the ConfigMap into your k8s:
 kubectl create cm cilium  --from-file=data=templates/crs/cni/cilium.yaml
 ```
 
-Now, you can create a cluster using the cilium flavor: 
+Now, you can create a cluster using the cilium flavor:
 
 ```bash
 $ clusterctl generate cluster proxmox-cilium \
@@ -196,6 +207,24 @@ $ clusterctl generate cluster proxmox-cilium \
 
 $ kubectl apply -f cluster.yaml
 ```
+
+#### Loadbalancer flavors
+On top of creating a ConfigMap for Cilium or Calico, you will also require a ConfigMap for MetalLB:
+
+```bash
+make crs-metallb
+kubectl create cm metallb --from-file=data=templates/crs/cni/cilium.yaml
+```
+
+Using the template creates loadbalancer nodes. The idea is that these nodes route
+services marked as load balanced via an additional network card on which a BGP session
+has been established.
+
+For this to work, source ip based routing is required. This neccesitates running kube-proxy
+in ipvs mode. MetalLB also requires setting strict_arp mode.
+
+It is unlikely that your requirements directly match the provided template, it is merely thought
+as an example of all configurables.
 
 #### Additional flavors
 
