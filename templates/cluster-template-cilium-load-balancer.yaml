@@ -139,6 +139,18 @@ spec:
           status: {}
         owner: root:root
         path: /etc/kubernetes/manifests/kube-vip.yaml
+      - content: |
+          #/bin/sh
+          cat >> /run/kubeadm/kubeadm.yaml <<EOF
+          ---
+          apiVersion: kubeproxy.config.k8s.io/v1alpha1
+          kind: KubeProxyConfiguration
+          mode: "ipvs"
+          ipvs:
+            strictARP: true
+        owner: root:root
+        permissions: "0755"
+        path: /tmp/kube-proxy.sh
     initConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
@@ -147,6 +159,8 @@ spec:
       nodeRegistration:
         kubeletExtraArgs:
           provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+    preKubeadmCommands:
+      - /tmp/kube-proxy.sh
   version: "${KUBERNETES_VERSION}"
 ---
 kind: ProxmoxMachineTemplate
