@@ -229,6 +229,7 @@ crs-calico: ## Generates crs manifests for Calico.
 
 METALLB_VERSION ?= main
 FRR_K8S_DIR = metallb/charts/metallb/charts/frr-k8s/templates
+METALLB_TOLERATIONS = [{"key": "node-role.kubernetes.io/load-balancer", "operator": "Exists", "effect": "NoSchedule"}]
 .PHONY: crs-metallb
 crs-metallb: ## Generates crs manifests for MetalLB.
 	#@ TODO: temporarily pull metallb from main, update when release happens
@@ -242,7 +243,7 @@ crs-metallb: ## Generates crs manifests for MetalLB.
 	@cd $(FRR_K8S_DIR); sed -r '/^metadata:/a \ \ namespace: \{\{ .Release.Namespace \}\}' -i controller.yaml
 	@cd $(FRR_K8S_DIR); sed -r '/^metadata:/a \ \ namespace: \{\{ .Release.Namespace \}\}' -i service-accounts.yaml
 	@cd $(FRR_K8S_DIR); sed -r '/^metadata:/a \ \ namespace: \{\{ .Release.Namespace \}\}' -i rbac.yaml
-	@helm template metallb metallb/charts/metallb/ --set frrk8s.enabled=true,speaker.frr.enabled=false --namespace=metallb-system --create-namespace | sed "s/v0.0.0/main/" > templates/crs/metallb.yaml
+	@helm template metallb metallb/charts/metallb/ --set frrk8s.enabled=true,speaker.frr.enabled=false --set-json 'controller.tolerations=$(METALLB_TOLERATIONS)' --set-json 'speaker.tolerations=$(METALLB_TOLERATIONS)' --set-json 'frr-k8s.frrk8s.tolerations=$(METALLB_TOLERATIONS)' --namespace=metallb-system --create-namespace | sed "s/v0.0.0/main/" > templates/crs/metallb.yaml
 
 
 ##@ Release

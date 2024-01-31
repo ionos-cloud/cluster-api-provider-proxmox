@@ -255,7 +255,8 @@ spec:
   template:
     metadata:
       labels:
-        node-role.kubernetes.io/node: "load-balancer"
+        node-role.kubernetes.io/node: ""
+        node-role.kubernetes.io/load-balancer: ""
     spec:
       clusterName: "${CLUSTER_NAME}"
       version: "${KUBERNETES_VERSION}"
@@ -351,6 +352,10 @@ spec:
         nodeRegistration:
           kubeletExtraArgs:
             provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+          taints:
+            - effect: NoSchedule
+              key: node-role.kubernetes.io/load-balancer
+              value: ""
 ---
 apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
@@ -449,7 +454,7 @@ data:
       namespace: metallb-system
     spec:
       myASN: ${METALLB_IPV6_ASN}
-      peerASN: ${METALLB_IPV6_PEER_ASN}
+      peerASN: ${METALLB_IPV6_BGP_PEER_ASN}
       peerAddress: ${METALLB_IPV6_BGP_PEER}
       peerPort: 179
       password: ${METALLB_IPV6_BGP_SECRET}
@@ -489,7 +494,7 @@ data:
     spec:
       nodeSelector:
         matchLabels:
-          node-role.kubernetes.io/node: load-balancer
+          node-role.kubernetes.io/load-balancer: ""
       bgp:
         routers:
           - asn: ${METALLB_IPV4_ASN}
@@ -544,7 +549,7 @@ data:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineHealthCheck
 metadata:
-  name: "${CLUSTER_NAME}-worker-unhealthy-5m"
+  name: "${CLUSTER_NAME}-node-unhealthy-5m"
 spec:
   clusterName: "${CLUSTER_NAME}"
   maxUnhealthy: 40%
@@ -552,25 +557,6 @@ spec:
   selector:
     matchLabels:
       node-role.kubernetes.io/node: ""
-  unhealthyConditions:
-  - type: Ready
-    status: Unknown
-    timeout: 300s
-  - type: Ready
-    status: "False"
-    timeout: 300s
----
-apiVersion: cluster.x-k8s.io/v1beta1
-kind: MachineHealthCheck
-metadata:
-  name: "${CLUSTER_NAME}-load-balancer-unhealthy-5m"
-spec:
-  clusterName: "${CLUSTER_NAME}"
-  maxUnhealthy: 40%
-  nodeStartupTimeout: 15m
-  selector:
-    matchLabels:
-      node-role.kubernetes.io/node: "load-balancer"
   unhealthyConditions:
   - type: Ready
     status: Unknown
