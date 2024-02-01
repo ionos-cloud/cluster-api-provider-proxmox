@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -194,7 +195,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		return ctrl.Result{}, err
 	}
 
-	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil && !clusterScope.ProxmoxCluster.Spec.IPv4Config.DHCP {
+	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil && !ptr.Deref(clusterScope.ProxmoxCluster.Spec.IPv4Config.DHCP, false) {
 		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV4Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -205,7 +206,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		}
 		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolV4)
 	}
-	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil && !clusterScope.ProxmoxCluster.Spec.IPv6Config.DHCP {
+	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil && !ptr.Deref(clusterScope.ProxmoxCluster.Spec.IPv6Config.DHCP, false) {
 		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV6Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {

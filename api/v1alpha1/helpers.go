@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 // SetInClusterIPPoolRef will set the reference to the provided InClusterIPPool.
@@ -155,11 +156,11 @@ func (c *ProxmoxCluster) addNodeLocation(loc NodeLocation, isControlPlane bool) 
 // DHCPEnabled returns whether DHCP is enabled.
 func (c ClusterNetworkConfig) DHCPEnabled() bool {
 	switch {
-	case (c.IPv6Config != nil && c.IPv6Config.DHCP) && (c.IPv4Config != nil && c.IPv4Config.DHCP):
+	case (c.IPv6Config != nil && ptr.Deref(c.IPv6Config.DHCP, false)) && (c.IPv4Config != nil && ptr.Deref(c.IPv4Config.DHCP, false)):
 		return true
-	case (c.IPv6Config != nil && c.IPv6Config.DHCP) && c.IPv4Config == nil:
+	case (c.IPv6Config != nil && ptr.Deref(c.IPv6Config.DHCP, false)) && c.IPv4Config == nil:
 		return true
-	case (c.IPv4Config != nil && c.IPv4Config.DHCP) && c.IPv6Config == nil:
+	case (c.IPv4Config != nil && ptr.Deref(c.IPv4Config.DHCP, false)) && c.IPv6Config == nil:
 		return true
 	default:
 		return false

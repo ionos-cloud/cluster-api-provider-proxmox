@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -114,7 +115,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 
 		It("Should allow DHCP for IPv4 config", func() {
 			dc := defaultCluster()
-			dc.Spec.ClusterNetworkConfig.IPv4Config.DHCP = true
+			dc.Spec.ClusterNetworkConfig.IPv4Config.DHCP = ptr.To(true)
 
 			Expect(k8sClient.Create(context.Background(), dc)).To(Succeed())
 		})
@@ -146,7 +147,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 		It("Should allow DHCP for IPV6 config", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv6Config = &IPConfig{
-				DHCP: true,
+				DHCP: ptr.To(true),
 			}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(Succeed())
 		})
@@ -217,18 +218,18 @@ func TestClusterNetworkConfig_DHCPEnabled(t *testing.T) {
 	cl := defaultCluster()
 	require.False(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
 
-	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = true
+	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = ptr.To(true)
 	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
 
-	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = true
-	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: true}
+	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = ptr.To(true)
+	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: ptr.To(true)}
 	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
 
 	cl.Spec.ClusterNetworkConfig.IPv4Config = nil
-	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: true}
+	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: ptr.To(true)}
 	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
 
-	cl.Spec.ClusterNetworkConfig.IPv4Config = &IPConfig{DHCP: true}
+	cl.Spec.ClusterNetworkConfig.IPv4Config = &IPConfig{DHCP: ptr.To(true)}
 	cl.Spec.ClusterNetworkConfig.IPv6Config = nil
 	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
 }

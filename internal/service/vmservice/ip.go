@@ -170,7 +170,7 @@ func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, 
 	return false, nil
 }
 
-//nolint
+// nolint
 func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1.IPAddress) (bool, error) {
 	// additional network devices.
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
@@ -227,9 +227,9 @@ func hasDHCPEnabled(config *infrav1.IPConfig, device *infrav1.NetworkDevice, dev
 	switch {
 	case deviceName == infrav1.DefaultNetworkDevice:
 		if format == infrav1.IPV4Format {
-			return (config != nil && config.DHCP) || (device != nil && device.DHCP4)
+			return (config != nil && ptr.Deref(config.DHCP, false)) || (device != nil && device.DHCP4)
 		} else if format == infrav1.IPV6Format {
-			return (config != nil && config.DHCP) || (device != nil && device.DHCP6)
+			return (config != nil && ptr.Deref(config.DHCP, false)) || (device != nil && device.DHCP6)
 		}
 	default:
 		// additionalDevices don't rely on the cluster network configuration.

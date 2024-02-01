@@ -67,7 +67,7 @@ var ErrMissingAddresses = errors.New("no valid ip addresses defined for the ip p
 // by Proxmox in order to avoid conflicts.
 func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 	// ipv4
-	if h.cluster.Spec.IPv4Config != nil && !h.cluster.Spec.IPv4Config.DHCP {
+	if h.cluster.Spec.IPv4Config != nil && !ptr.Deref(h.cluster.Spec.IPv4Config.DHCP, false) {
 		ipv4Config := h.cluster.Spec.IPv4Config
 
 		v4Pool := &ipamicv1.InClusterIPPool{
@@ -94,7 +94,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 	}
 
 	// ipv6
-	if h.cluster.Spec.IPv6Config != nil && !h.cluster.Spec.IPv6Config.DHCP {
+	if h.cluster.Spec.IPv6Config != nil && !ptr.Deref(h.cluster.Spec.IPv6Config.DHCP, false) {
 		v6Pool := &ipamicv1.InClusterIPPool{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      InClusterPoolFormat(h.cluster, infrav1.IPV6Format),

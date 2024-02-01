@@ -91,7 +91,7 @@ type IPConfig struct {
 	// mutually exclusive with Addresses.
 	// +optional
 	// +kubebuilder:default=false
-	DHCP bool `json:"dhcp,omitempty"`
+	DHCP *bool `json:"dhcp,omitempty"`
 }
 
 // SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.
