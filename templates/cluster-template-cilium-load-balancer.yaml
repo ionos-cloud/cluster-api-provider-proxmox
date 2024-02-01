@@ -389,7 +389,7 @@ spec:
     - kind: ConfigMap
       name: metallb
     - kind: ConfigMap
-      name: metallb-bgp-import
+      name: "metallb-${CLUSTER_NAME}"
   strategy: Reconcile
 ---
 apiVersion: v1
@@ -412,7 +412,7 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: metallb-bgp-import
+  name: "metallb-${CLUSTER_NAME}"
   namespace: default
 data:
   metallb-config: |
