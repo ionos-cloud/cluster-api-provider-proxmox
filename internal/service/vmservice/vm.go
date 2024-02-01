@@ -242,8 +242,7 @@ func reconcileMachineAddresses(ctx context.Context, scope *scope.MachineScope) e
 	return nil
 }
 
-// getMachineAddresses returns the ip addresses for the machine
-// nolint
+// getMachineAddresses returns the ip addresses for the machine.
 func getMachineAddresses(ctx context.Context, scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
 	if !machineHasIPAddress(scope.ProxmoxMachine) {
 		return nil, errors.New("machine does not yet have an ip address")
@@ -297,14 +296,13 @@ func getMachineAddresses(ctx context.Context, scope *scope.MachineScope) ([]clus
 
 		setMachineAddresses(scope, &addresses, ipv4, ipv6)
 		return addresses, nil
-	} else {
-		if scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
-			ipv4 = scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV4
-		}
+	}
+	if scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
+		ipv4 = scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV4
+	}
 
-		if scope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
-			ipv6 = scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV6
-		}
+	if scope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
+		ipv6 = scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV6
 	}
 
 	setMachineAddresses(scope, &addresses, ipv4, ipv6)

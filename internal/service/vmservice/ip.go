@@ -170,7 +170,6 @@ func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, 
 	return false, nil
 }
 
-// nolint
 func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1.IPAddress) (bool, error) {
 	// additional network devices.
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
@@ -202,7 +201,6 @@ func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineSco
 				addresses[net.Name] = infrav1.IPAddress{
 					IPV6: "DHCP",
 				}
-				return false, nil
 			} else {
 				ip, err := handleIPAddressForDevice(ctx, machineScope, net.Name, infrav1.IPV6Format, net.IPv6PoolRef)
 				if err != nil || ip == "" {
