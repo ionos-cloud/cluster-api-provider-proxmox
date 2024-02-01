@@ -264,7 +264,7 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 				}
 			}
 			if len(config.Interfaces)-1 < i {
-				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", device.Name, child)
+				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
 			}
 		}
 		config.Routes = *getRoutingData(device.Routes)

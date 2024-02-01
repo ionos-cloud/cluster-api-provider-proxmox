@@ -157,13 +157,13 @@ func TestGetRoutingpolicyDataMock(t *testing.T) {
 	require.NoError(t, nil)
 }
 
-func TestGetVirtualNetworkDevices_VrfDevice_MissingInterface(t *testing.T) {
+func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.SetVirtualMachine(newStoppedVM())
 
 	networkSpec := infrav1alpha1.NetworkSpec{
 		VirtualNetworkDevices: infrav1alpha1.VirtualNetworkDevices{
-			VRFs: []infrav1alpha1.VrfDevice{{
+			VRFs: []infrav1alpha1.VRFDevice{{
 				Name:       "vrf-blue",
 				Table:      500,
 				Interfaces: []string{"net1"},
@@ -260,7 +260,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		VirtualNetworkDevices: infrav1alpha1.VirtualNetworkDevices{
-			VRFs: []infrav1alpha1.VrfDevice{{
+			VRFs: []infrav1alpha1.VRFDevice{{
 				Interfaces: []string{"net1"},
 				Name:       "vrf-blue",
 				Table:      500,

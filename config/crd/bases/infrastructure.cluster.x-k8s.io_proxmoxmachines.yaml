@@ -265,7 +265,7 @@ spec:
                   vrfs:
                     description: Definition of a Vrf Device.
                     items:
-                      description: VrfDevice defines Virtual Routing Flow devices.
+                      description: VRFDevice defines Virtual Routing Flow devices.
                       properties:
                         dnsServers:
                           description: DNSServers contains information about nameservers

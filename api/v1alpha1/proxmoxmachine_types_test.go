@@ -229,7 +229,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				VirtualNetworkDevices: VirtualNetworkDevices{
-					VRFs: []VrfDevice{{
+					VRFs: []VRFDevice{{
 						Name:  "vrf-blue",
 						Table: 254,
 					}},
@@ -243,7 +243,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				VirtualNetworkDevices: VirtualNetworkDevices{
-					VRFs: []VrfDevice{{
+					VRFs: []VRFDevice{{
 						Name:  "vrf-blue",
 						Table: 100,
 						RoutingPolicy: []RoutingPolicySpec{{

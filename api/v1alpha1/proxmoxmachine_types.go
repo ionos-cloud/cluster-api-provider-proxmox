@@ -270,8 +270,8 @@ type RoutingPolicySpec struct {
 	Priority uint32 `json:"priority,omitempty"`
 }
 
-// VrfDevice defines Virtual Routing Flow devices.
-type VrfDevice struct {
+// VRFDevice defines Virtual Routing Flow devices.
+type VRFDevice struct {
 	// Interfaces is the list of proxmox network devices managed by this virtual device.
 	Interfaces []string `json:"interfaces,omitempty"`
 
@@ -306,7 +306,7 @@ type VirtualNetworkDevices struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=name
-	VRFs []VrfDevice `json:"vrfs,omitempty"`
+	VRFs []VRFDevice `json:"vrfs,omitempty"`
 }
 
 // NetworkDevice defines the required details of a virtual machine network device.
