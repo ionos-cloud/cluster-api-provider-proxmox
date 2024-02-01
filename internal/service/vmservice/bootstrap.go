@@ -251,15 +251,10 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network infrav1alpha1.NetworkSpec, data []cloudinit.NetworkConfigData) ([]cloudinit.NetworkConfigData, error) {
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.VRFs))
 
-	for i, device := range network.VRFs {
+	for _, device := range network.VRFs {
 		var config = ptr.To(cloudinit.NetworkConfigData{})
 		config.Type = "vrf"
-		if device.Name != "" {
-			config.Name = device.Name
-		} else {
-			config.Name = fmt.Sprintf("vrf%d", i)
-		}
-
+		config.Name = device.Name
 		config.Table = device.Table
 
 		for i, child := range device.Interfaces {

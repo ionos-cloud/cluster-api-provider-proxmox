@@ -411,9 +411,13 @@ spec:
                               kernel tables
                             rule: (self > 0 && self < 254) || (self > 255)
                       required:
+                      - name
                       - table
                       type: object
                     type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
                 type: object
               numCores:
                 description: NumCores is the number of cores per CPU socket in a virtual
