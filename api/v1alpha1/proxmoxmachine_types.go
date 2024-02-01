@@ -277,6 +277,7 @@ type VRFDevice struct {
 
 	// Name is the virtual network device name.
 	// must be unique within the virtual machine.
+	// +optional
 	// +kubebuilder:validation:MinLength=3
 	Name string `json:"name"`
 
@@ -304,8 +305,6 @@ type VRFDevice struct {
 type VirtualNetworkDevices struct {
 	// Definition of a Vrf Device.
 	// +optional
-	// +listType=map
-	// +listMapKey=name
 	VRFs []VRFDevice `json:"vrfs,omitempty"`
 }
 
