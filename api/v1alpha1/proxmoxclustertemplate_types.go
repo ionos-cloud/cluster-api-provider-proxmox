@@ -56,5 +56,5 @@ type ProxmoxClusterTemplateList struct {
 }
 
 func init() {
-    objectTypes = append(objectTypes, &ProxmoxClusterTemplate{}, &ProxmoxClusterTemplateList{})
+	objectTypes = append(objectTypes, &ProxmoxClusterTemplate{}, &ProxmoxClusterTemplateList{})
 }
