@@ -56,5 +56,5 @@ type ProxmoxClusterTemplateList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&ProxmoxClusterTemplate{}, &ProxmoxClusterTemplateList{})
+    objectTypes = append(objectTypes, &ProxmoxClusterTemplate{}, &ProxmoxClusterTemplateList{})
 }
