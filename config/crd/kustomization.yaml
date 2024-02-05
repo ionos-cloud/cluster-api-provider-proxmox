@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/infrastructure.cluster.x-k8s.io_proxmoxclusters.yaml
+- bases/infrastructure.cluster.x-k8s.io_proxmoxclustertemplates.yaml
 - bases/infrastructure.cluster.x-k8s.io_proxmoxmachines.yaml
 - bases/infrastructure.cluster.x-k8s.io_proxmoxmachinetemplates.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
