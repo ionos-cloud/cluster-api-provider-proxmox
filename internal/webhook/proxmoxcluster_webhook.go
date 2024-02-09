@@ -94,64 +94,64 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 func validateIPs(cluster *infrav1.ProxmoxCluster) error {
 	ep := cluster.Spec.ControlPlaneEndpoint
 
-	gk, name := cluster.GroupVersionKind().GroupKind(), cluster.GetName()
+	if ep.Host != "" && ep.Port > 0 {
+		gk, name := cluster.GroupVersionKind().GroupKind(), cluster.GetName()
 
-	ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", ep.Host, ep.Port))
-	if err != nil {
-		return apierrors.NewInvalid(
-			gk,
-			name,
-			field.ErrorList{
-				field.Invalid(
-					field.NewPath("spec", "controlplaneEndpoint"), fmt.Sprintf("%s:%d", ep.Host, ep.Port), "provided endpoint is not in a valid IP and port format"),
-			})
-	}
-
-	// IPv4
-	if cluster.Spec.IPv4Config != nil {
-		set, err := buildSetFromAddresses(cluster.Spec.IPv4Config.Addresses)
+		ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", ep.Host, ep.Port))
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "IPv4Config", "addresses"), cluster.Spec.IPv4Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
+						field.NewPath("spec", "controlplaneEndpoint"), fmt.Sprintf("%s:%d", ep.Host, ep.Port), "provided endpoint is not in a valid IP and port format"),
 				})
 		}
+		// IPv4
+		if cluster.Spec.IPv4Config != nil {
+			set, err := buildSetFromAddresses(cluster.Spec.IPv4Config.Addresses)
+			if err != nil {
+				return apierrors.NewInvalid(
+					gk,
+					name,
+					field.ErrorList{
+						field.Invalid(
+							field.NewPath("spec", "IPv4Config", "addresses"), cluster.Spec.IPv4Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
+					})
+			}
 
-		if set.Contains(ipAddr.Addr()) {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "IPv4Config", "addresses"), cluster.Spec.IPv4Config.Addresses, "addresses may not contain the endpoint IP"),
-				})
+			if set.Contains(ipAddr.Addr()) {
+				return apierrors.NewInvalid(
+					gk,
+					name,
+					field.ErrorList{
+						field.Invalid(
+							field.NewPath("spec", "IPv4Config", "addresses"), cluster.Spec.IPv4Config.Addresses, "addresses may not contain the endpoint IP"),
+					})
+			}
 		}
-	}
+		// IPV6
+		if cluster.Spec.IPv6Config != nil {
+			set6, err := buildSetFromAddresses(cluster.Spec.IPv6Config.Addresses)
+			if err != nil {
+				return apierrors.NewInvalid(
+					gk,
+					name,
+					field.ErrorList{
+						field.Invalid(
+							field.NewPath("spec", "IPv6Config", "addresses"), cluster.Spec.IPv6Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
+					})
+			}
 
-	// IPV6
-	if cluster.Spec.IPv6Config != nil {
-		set6, err := buildSetFromAddresses(cluster.Spec.IPv6Config.Addresses)
-		if err != nil {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "IPv6Config", "addresses"), cluster.Spec.IPv6Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
-				})
-		}
-
-		if set6.Contains(ipAddr.Addr()) {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "IPv6Config", "addresses"), cluster.Spec.IPv6Config.Addresses, "addresses may not contain the endpoint IP"),
-				})
+			if set6.Contains(ipAddr.Addr()) {
+				return apierrors.NewInvalid(
+					gk,
+					name,
+					field.ErrorList{
+						field.Invalid(
+							field.NewPath("spec", "IPv6Config", "addresses"), cluster.Spec.IPv6Config.Addresses, "addresses may not contain the endpoint IP"),
+					})
+			}
 		}
 	}
 

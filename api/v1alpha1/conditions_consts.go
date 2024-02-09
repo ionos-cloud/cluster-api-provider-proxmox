@@ -83,4 +83,7 @@ const (
 const (
 	// ProxmoxClusterReady documents the status of ProxmoxCluster and its underlying resources.
 	ProxmoxClusterReady clusterv1.ConditionType = "ClusterReady"
+	// Status of the ProxmoxCluster control plane endpoint fields.
+	MissingControlPlaneEndpointPortReason = "MissingControlPlaneEndpointPort"
+	MissingControlPlaneEndpointHostReason = "MissingControlPlaneEndpointHost"
 )
