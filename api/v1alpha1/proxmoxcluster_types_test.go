@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -80,11 +81,13 @@ func defaultCluster() *ProxmoxCluster {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ProxmoxClusterSpec{
-			IPv4Config: &ipamicv1.InClusterIPPoolSpec{
-				Addresses: []string{"10.0.0.0/24"},
-				Prefix:    24,
+			ClusterNetworkConfig: ClusterNetworkConfig{
+				IPv4Config: &IPConfig{
+					Addresses: []string{"10.0.0.0/24"},
+					Prefix:    24,
+				},
+				DNSServers: []string{"1.2.3.4"},
 			},
-			DNSServers: []string{"1.2.3.4"},
 		},
 	}
 }
@@ -96,13 +99,6 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	})
 
 	Context("IPv4Config", func() {
-		It("Should not allow empty addresses", func() {
-			dc := defaultCluster()
-			dc.Spec.IPv4Config.Addresses = []string{}
-
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("IPv4Config addresses must be provided")))
-		})
-
 		It("Should not allow prefix higher than 128", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv4Config.Prefix = 129
@@ -115,6 +111,13 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			dc.Spec.IPv6Config = nil
 			dc.Spec.IPv4Config = nil
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("at least one ip config must be set")))
+		})
+
+		It("Should allow DHCP for IPv4 config", func() {
+			dc := defaultCluster()
+			dc.Spec.ClusterNetworkConfig.IPv4Config.DHCP = ptr.To(true)
+
+			Expect(k8sClient.Create(context.Background(), dc)).To(Succeed())
 		})
 	})
 
@@ -130,25 +133,23 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	})
 
 	Context("IPV6Config", func() {
-		It("Should not allow empty addresses", func() {
-			dc := defaultCluster()
-			dc.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
-				Addresses: []string{},
-				Prefix:    0,
-				Gateway:   "",
-			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("IPv6Config addresses must be provided")))
-		})
-
 		It("Should not allow prefix higher than 128", func() {
 			dc := defaultCluster()
-			dc.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+			dc.Spec.IPv6Config = &IPConfig{
 				Addresses: []string{},
 				Prefix:    129,
 				Gateway:   "",
 			}
 
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be less than or equal to 128")))
+		})
+
+		It("Should allow DHCP for IPV6 config", func() {
+			dc := defaultCluster()
+			dc.Spec.IPv6Config = &IPConfig{
+				DHCP: ptr.To(true),
+			}
+			Expect(k8sClient.Create(context.Background(), dc)).Should(Succeed())
 		})
 	})
 })
@@ -211,4 +212,24 @@ func TestSetInClusterIPPoolRef(t *testing.T) {
 
 	cl.SetInClusterIPPoolRef(pool)
 	require.Equal(t, cl.Status.InClusterIPPoolRef[0].Name, pool.GetName())
+}
+
+func TestClusterNetworkConfig_DHCPEnabled(t *testing.T) {
+	cl := defaultCluster()
+	require.False(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = ptr.To(true)
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config.DHCP = ptr.To(true)
+	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: ptr.To(true)}
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config = nil
+	cl.Spec.ClusterNetworkConfig.IPv6Config = &IPConfig{DHCP: ptr.To(true)}
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
+
+	cl.Spec.ClusterNetworkConfig.IPv4Config = &IPConfig{DHCP: ptr.To(true)}
+	cl.Spec.ClusterNetworkConfig.IPv6Config = nil
+	require.True(t, cl.Spec.ClusterNetworkConfig.DHCPEnabled())
 }

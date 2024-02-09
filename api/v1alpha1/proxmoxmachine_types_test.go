@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -198,7 +198,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				},
 				},
 			}
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("at least one pool reference must be set, either ipv4PoolRef or ipv6PoolRef")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("at least dhcp and/or one pool reference must be set, either ipv4PoolRef or ipv6PoolRef")))
 		})
 
 		It("Should not allow machine with network device mtu less than 1", func() {

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -168,13 +169,14 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
 
-	res, err := r.reconcileIPAM(ctx, clusterScope)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if !res.IsZero() {
-		return res, nil
+	if !clusterScope.ProxmoxCluster.Spec.ClusterNetworkConfig.DHCPEnabled() {
+		res, err := r.reconcileIPAM(ctx, clusterScope)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if !res.IsZero() {
+			return res, nil
+		}
 	}
 
 	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady)
@@ -193,7 +195,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		return ctrl.Result{}, err
 	}
 
-	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil {
+	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil && !ptr.Deref(clusterScope.ProxmoxCluster.Spec.IPv4Config.DHCP, false) {
 		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV4Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -204,7 +206,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		}
 		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolV4)
 	}
-	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil {
+	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil && !ptr.Deref(clusterScope.ProxmoxCluster.Spec.IPv6Config.DHCP, false) {
 		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV6Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {

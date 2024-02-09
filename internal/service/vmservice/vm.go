@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package vmservice
 
 import (
 	"context"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -86,7 +87,7 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 		return vm, err
 	}
 
-	if err := reconcileMachineAddresses(scope); err != nil {
+	if err := reconcileMachineAddresses(ctx, scope); err != nil {
 		return vm, err
 	}
 
@@ -230,8 +231,8 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	return true, nil
 }
 
-func reconcileMachineAddresses(scope *scope.MachineScope) error {
-	addr, err := getMachineAddresses(scope)
+func reconcileMachineAddresses(ctx context.Context, scope *scope.MachineScope) error {
+	addr, err := getMachineAddresses(ctx, scope)
 	if err != nil {
 		scope.Error(err, "failed to retrieve machine addresses")
 		return err
@@ -241,7 +242,8 @@ func reconcileMachineAddresses(scope *scope.MachineScope) error {
 	return nil
 }
 
-func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
+// getMachineAddresses returns the ip addresses for the machine.
+func getMachineAddresses(ctx context.Context, scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
 	if !machineHasIPAddress(scope.ProxmoxMachine) {
 		return nil, errors.New("machine does not yet have an ip address")
 	}
@@ -257,21 +259,70 @@ func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress,
 		},
 	}
 
+	networkSpec := scope.ProxmoxMachine.Spec.Network
+	if networkSpec == nil {
+		networkSpec = &infrav1alpha1.NetworkSpec{
+			Default: &infrav1alpha1.NetworkDevice{},
+		}
+	}
+	var ipv4, ipv6 string
+	// get ip addresses from vm if dhcp is enabled
+	if hasDHCPEnabled(scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config,
+		networkSpec.Default,
+		infrav1alpha1.DefaultNetworkDevice,
+		infrav1alpha1.IPV4Format) ||
+		hasDHCPEnabled(scope.InfraCluster.ProxmoxCluster.Spec.IPv6Config,
+			networkSpec.Default,
+			infrav1alpha1.DefaultNetworkDevice,
+			infrav1alpha1.IPV6Format) {
+		nets, err := scope.InfraCluster.ProxmoxClient.GetVMNetwork(ctx, scope.VirtualMachine)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to get network interfaces for vm %s", scope.ProxmoxMachine.GetName())
+		}
+
+		for _, net := range nets {
+			// default device
+			mac := extractMACAddress(scope.VirtualMachine.VirtualMachineConfig.Net0)
+			if strings.EqualFold(mac, net.HardwareAddress) {
+				for _, ip := range net.IPAddresses {
+					if ip.IPAddressType == "ipv4" && ip.IPAddress != scope.InfraCluster.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host {
+						ipv4 = ip.IPAddress
+					} else if ip.IPAddressType == "ipv6" && !strings.Contains(ip.IPAddress, "fe80:") {
+						ipv6 = ip.IPAddress
+					}
+				}
+			}
+		}
+
+		setMachineAddresses(scope, &addresses, ipv4, ipv6)
+		return addresses, nil
+	}
 	if scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
-		addresses = append(addresses, clusterv1.MachineAddress{
-			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV4,
-		})
+		ipv4 = scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV4
 	}
 
 	if scope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
-		addresses = append(addresses, clusterv1.MachineAddress{
+		ipv6 = scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV6
+	}
+
+	setMachineAddresses(scope, &addresses, ipv4, ipv6)
+	return addresses, nil
+}
+
+func setMachineAddresses(machineScope *scope.MachineScope, addresses *[]clusterv1.MachineAddress, ipv4, ipv6 string) {
+	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil && ipv4 != "" {
+		*addresses = append(*addresses, clusterv1.MachineAddress{
 			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV6,
+			Address: ipv4,
 		})
 	}
 
-	return addresses, nil
+	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil && ipv6 != "" {
+		*addresses = append(*addresses, clusterv1.MachineAddress{
+			Type:    clusterv1.MachineInternalIP,
+			Address: ipv6,
+		})
+	}
 }
 
 func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) {

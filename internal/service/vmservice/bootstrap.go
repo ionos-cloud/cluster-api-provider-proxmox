@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,9 +40,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, nil
 	}
 
-	if !machineHasIPAddress(machineScope.ProxmoxMachine) {
-		// skip machine doesn't have an IpAddress yet.
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
+	if machineScope.VirtualMachine == nil {
+		// skip machine if it is not provisioned yet
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityWarning, "no ip address")
 		return true, nil
 	}
 
@@ -141,23 +141,47 @@ func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope)
 	return networkConfigData, nil
 }
 
-func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string) (*cloudinit.NetworkConfigData, error) {
+func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device *infrav1alpha1.NetworkDevice, deviceName, format string) (*cloudinit.NetworkConfigData, error) {
 	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
 	// For nics supporting multiple IP addresses, we need to cut the '-inet' or '-inet6' part,
 	// to retrieve the correct MAC address.
-	formattedDevice, _, _ := strings.Cut(device, "-")
+	formattedDevice, _, _ := strings.Cut(deviceName, "-")
 	macAddress := extractMACAddress(nets[formattedDevice])
 	if len(macAddress) == 0 {
 		machineScope.Logger.Error(errors.New("unable to extract mac address"), "device has no mac address", "device", device)
 		return nil, errors.New("unable to extract mac address")
 	}
-	// retrieve IPAddress.
-	ipAddr, err := findIPAddress(ctx, machineScope, device)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to find IPAddress, device=%s", device)
+	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers
+
+	var ipConfig *infrav1alpha1.IPConfig
+	if format == infrav1alpha1.IPV4Format {
+		ipConfig = machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config
+	} else if format == infrav1alpha1.IPV6Format {
+		ipConfig = machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config
 	}
 
-	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers
+	// check if DHCP is enabled.
+	if hasDHCPEnabled(ipConfig, device, formattedDevice, format) {
+		cloudinitNetworkConfigData := &cloudinit.NetworkConfigData{
+			MacAddress: macAddress,
+			DNSServers: dns,
+		}
+
+		if format == infrav1alpha1.IPV6Format {
+			cloudinitNetworkConfigData.DHCP6 = true
+		} else if format == infrav1alpha1.IPV4Format {
+			cloudinitNetworkConfigData.DHCP4 = true
+		}
+
+		return cloudinitNetworkConfigData, nil
+	}
+
+	// retrieve IPAddress.
+	ipAddr, err := findIPAddress(ctx, machineScope, deviceName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to find IPAddress, device=%s", formattedDevice)
+	}
+
 	ip := IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
 	gw := ipAddr.Spec.Gateway
 
@@ -181,9 +205,18 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineScope) ([]cloudinit.NetworkConfigData, error) {
 	var config cloudinit.NetworkConfigData
 
+	// check if the default network device is specified.
+	var networkDevice *infrav1alpha1.NetworkDevice
+	if machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default != nil {
+		networkDevice = machineScope.ProxmoxMachine.Spec.Network.Default
+	}
 	// default network device ipv4.
 	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPV4)
+		conf, err := getNetworkConfigDataForDevice(ctx,
+			machineScope,
+			networkDevice,
+			DefaultNetworkDeviceIPV4,
+			infrav1alpha1.IPV4Format)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPV4)
 		}
@@ -192,7 +225,11 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 
 	// default network device ipv6.
 	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPV6)
+		conf, err := getNetworkConfigDataForDevice(ctx,
+			machineScope,
+			networkDevice,
+			DefaultNetworkDeviceIPV6,
+			infrav1alpha1.IPV6Format)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPV6)
 		}
@@ -203,6 +240,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 		case config.MacAddress != conf.MacAddress:
 			return nil, errors.New("default network device ipv4 and ipv6 have different mac addresses")
 		default:
+			config.DHCP6 = conf.DHCP6
 			config.IPV6Address = conf.IPV6Address
 			config.Gateway6 = conf.Gateway6
 		}
@@ -214,31 +252,40 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha1.NetworkSpec) ([]cloudinit.NetworkConfigData, error) {
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.AdditionalDevices))
 
+	nics := network.AdditionalDevices
 	// additional network devices.
-	for _, nic := range network.AdditionalDevices {
+	for i := range network.AdditionalDevices {
 		var config = ptr.To(cloudinit.NetworkConfigData{})
 
-		if nic.IPv4PoolRef != nil {
-			device := fmt.Sprintf("%s-%s", nic.Name, infrav1alpha1.DefaultSuffix)
-			conf, err := getNetworkConfigDataForDevice(ctx, machineScope, device)
+		if nics[i].IPv4PoolRef != nil {
+			device := fmt.Sprintf("%s-%s", nics[i].Name, infrav1alpha1.DefaultSuffix)
+			conf, err := getNetworkConfigDataForDevice(ctx,
+				machineScope,
+				&nics[i].NetworkDevice,
+				device,
+				infrav1alpha1.IPV4Format)
 			if err != nil {
 				return nil, errors.Wrapf(err, "unable to get network config data for device=%s", device)
 			}
-			if len(nic.DNSServers) != 0 {
-				config.DNSServers = nic.DNSServers
+			if len(nics[i].DNSServers) != 0 {
+				config.DNSServers = nics[i].DNSServers
 			}
 			config = conf
 		}
 
-		if nic.IPv6PoolRef != nil {
+		if nics[i].IPv6PoolRef != nil {
 			suffix := infrav1alpha1.DefaultSuffix + "6"
-			device := fmt.Sprintf("%s-%s", nic.Name, suffix)
-			conf, err := getNetworkConfigDataForDevice(ctx, machineScope, device)
+			device := fmt.Sprintf("%s-%s", nics[i].Name, suffix)
+			conf, err := getNetworkConfigDataForDevice(ctx,
+				machineScope,
+				&nics[i].NetworkDevice,
+				device,
+				infrav1alpha1.IPV6Format)
 			if err != nil {
 				return nil, errors.Wrapf(err, "unable to get network config data for device=%s", device)
 			}
-			if len(nic.DNSServers) != 0 {
-				config.DNSServers = nic.DNSServers
+			if len(nics[i].DNSServers) != 0 {
+				config.DNSServers = nics[i].DNSServers
 			}
 
 			switch {

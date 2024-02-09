@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -224,10 +224,20 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65520
 	MTU *uint16 `json:"mtu,omitempty"`
+
+	// DHCP4 indicates that if DHCP should be used to assign IPv4 addresses.
+	// DHCP4 enforce device to use DHCP despite the config set in cluster.spec.ipv4Config.
+	// +optional
+	DHCP4 bool `json:"dhcp4,omitempty"`
+
+	// DHCP6 indicates that if DHCP should be used to assign IPv6 addresses.
+	// DHCP6 enforce device to use DHCP despite the config set in cluster.spec.ipv6Config.
+	// +optional
+	DHCP6 bool `json:"dhcp6,omitempty"`
 }
 
 // AdditionalNetworkDevice the definition of a Proxmox network device.
-// +kubebuilder:validation:XValidation:rule="self.ipv4PoolRef != null || self.ipv6PoolRef != null",message="at least one pool reference must be set, either ipv4PoolRef or ipv6PoolRef"
+// +kubebuilder:validation:XValidation:rule="(self.ipv4PoolRef != null || self.ipv6PoolRef != null || self.dhcp4 || self.dhcp6)",message="at least dhcp and/or one pool reference must be set, either ipv4PoolRef or ipv6PoolRef"
 type AdditionalNetworkDevice struct {
 	NetworkDevice `json:",inline"`
 

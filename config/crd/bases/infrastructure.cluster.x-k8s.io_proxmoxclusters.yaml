@@ -82,15 +82,21 @@ spec:
               ipv4Config:
                 description: IPv4Config contains information about available IPV4
                   address pools and the gateway. this can be combined with ipv6Config
-                  in order to enable dual stack. either IPv4Config or IPv6Config must
-                  be provided.
+                  to enable dual stack. either IPv4Config or IPv6Config must be provided.
                 properties:
                   addresses:
                     description: Addresses is a list of IP addresses that can be assigned.
-                      This set of addresses can be non-contiguous.
+                      This set of addresses can be non-contiguous. mutually exclusive
+                      with DHCP.
                     items:
                       type: string
+                    minItems: 1
                     type: array
+                  dhcp:
+                    default: false
+                    description: DHCP indicates that DHCP should be used to assign
+                      IP addresses. mutually exclusive with Addresses.
+                    type: boolean
                   gateway:
                     description: Gateway
                     type: string
@@ -98,25 +104,25 @@ spec:
                     description: Prefix is the network prefix to use.
                     maximum: 128
                     type: integer
-                required:
-                - addresses
-                - prefix
                 type: object
-                x-kubernetes-validations:
-                - message: IPv4Config addresses must be provided
-                  rule: self.addresses.size() > 0
               ipv6Config:
                 description: IPv6Config contains information about available IPV6
                   address pools and the gateway. this can be combined with ipv4Config
-                  in order to enable dual stack. either IPv4Config or IPv6Config must
-                  be provided.
+                  to enable dual stack. either IPv4Config or IPv6Config must be provided.
                 properties:
                   addresses:
                     description: Addresses is a list of IP addresses that can be assigned.
-                      This set of addresses can be non-contiguous.
+                      This set of addresses can be non-contiguous. mutually exclusive
+                      with DHCP.
                     items:
                       type: string
+                    minItems: 1
                     type: array
+                  dhcp:
+                    default: false
+                    description: DHCP indicates that DHCP should be used to assign
+                      IP addresses. mutually exclusive with Addresses.
+                    type: boolean
                   gateway:
                     description: Gateway
                     type: string
@@ -124,13 +130,7 @@ spec:
                     description: Prefix is the network prefix to use.
                     maximum: 128
                     type: integer
-                required:
-                - addresses
-                - prefix
                 type: object
-                x-kubernetes-validations:
-                - message: IPv6Config addresses must be provided
-                  rule: self.addresses.size() > 0
               schedulerHints:
                 description: SchedulerHints allows to influence the decision on where
                   a VM will be scheduled. For example by applying a multiplicator

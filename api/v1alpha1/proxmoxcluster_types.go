@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,8 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-
 	"k8s.io/utils/ptr"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 )
 
 const (
@@ -50,23 +48,50 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	SchedulerHints *SchedulerHints `json:"schedulerHints,omitempty"`
 
+	ClusterNetworkConfig `json:",inline"`
+}
+
+// ClusterNetworkConfig represents information about the cluster network configuration.
+type ClusterNetworkConfig struct {
 	// IPv4Config contains information about available IPV4 address pools and the gateway.
-	// this can be combined with ipv6Config in order to enable dual stack.
+	// this can be combined with ipv6Config to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *ipamicv1.InClusterIPPoolSpec `json:"ipv4Config,omitempty"`
+	IPv4Config *IPConfig `json:"ipv4Config,omitempty"`
 
 	// IPv6Config contains information about available IPV6 address pools and the gateway.
-	// this can be combined with ipv4Config in order to enable dual stack.
+	// this can be combined with ipv4Config to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *ipamicv1.InClusterIPPoolSpec `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfig `json:"ipv6Config,omitempty"`
 
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
+}
+
+// IPConfig contains information about available IP config.
+type IPConfig struct {
+	// Addresses is a list of IP addresses that can be assigned. This set of
+	// addresses can be non-contiguous.
+	// mutually exclusive with DHCP.
+	// +kubebuilder:validation:MinItems=1
+	Addresses []string `json:"addresses,omitempty"`
+
+	// Prefix is the network prefix to use.
+	// +kubebuilder:validation:Maximum=128
+	// +optional
+	Prefix int `json:"prefix,omitempty"`
+
+	// Gateway
+	// +optional
+	Gateway string `json:"gateway,omitempty"`
+
+	// DHCP indicates that DHCP should be used to assign IP addresses.
+	// mutually exclusive with Addresses.
+	// +optional
+	// +kubebuilder:default=false
+	DHCP *bool `json:"dhcp,omitempty"`
 }
 
 // SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.
@@ -168,141 +193,6 @@ func (c *ProxmoxCluster) GetConditions() clusterv1.Conditions {
 // SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed clusterv1.Conditions.
 func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
 	c.Status.Conditions = conditions
-}
-
-// SetInClusterIPPoolRef will set the reference to the provided InClusterIPPool.
-// If nil was provided, the status field will be cleared.
-func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool *ipamicv1.InClusterIPPool) {
-	if pool == nil || pool.GetName() == "" {
-		c.Status.InClusterIPPoolRef = nil
-		return
-	}
-
-	if c.Status.InClusterIPPoolRef == nil {
-		c.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
-			{Name: pool.GetName()},
-		}
-	}
-
-	found := false
-	for _, ref := range c.Status.InClusterIPPoolRef {
-		if ref.Name == pool.GetName() {
-			found = true
-		}
-	}
-	if !found {
-		c.Status.InClusterIPPoolRef = append(c.Status.InClusterIPPoolRef, corev1.LocalObjectReference{Name: pool.GetName()})
-	}
-}
-
-// AddNodeLocation will add a node location to either the control plane or worker
-// node locations based on the `isControlPlane` parameter.
-func (c *ProxmoxCluster) AddNodeLocation(loc NodeLocation, isControlPlane bool) {
-	if c.Status.NodeLocations == nil {
-		c.Status.NodeLocations = new(NodeLocations)
-	}
-
-	if !c.HasMachine(loc.Machine.Name, isControlPlane) {
-		c.addNodeLocation(loc, isControlPlane)
-	}
-}
-
-// RemoveNodeLocation removes a node location from the status.
-func (c *ProxmoxCluster) RemoveNodeLocation(machineName string, isControlPlane bool) {
-	nodeLocations := c.Status.NodeLocations
-
-	if nodeLocations == nil {
-		return
-	}
-
-	if !c.HasMachine(machineName, isControlPlane) {
-		return
-	}
-
-	if isControlPlane {
-		for i, v := range nodeLocations.ControlPlane {
-			if v.Machine.Name == machineName {
-				nodeLocations.ControlPlane = append(nodeLocations.ControlPlane[:i], nodeLocations.ControlPlane[i+1:]...)
-			}
-		}
-		return
-	}
-
-	for i, v := range nodeLocations.Workers {
-		if v.Machine.Name == machineName {
-			nodeLocations.Workers = append(nodeLocations.Workers[:i], nodeLocations.Workers[i+1:]...)
-		}
-	}
-}
-
-// UpdateNodeLocation will update the node location based on the provided machine name.
-// If the node location does not exist, it will be added.
-//
-// The function returns true if the value was added or updated, otherwise false.
-func (c *ProxmoxCluster) UpdateNodeLocation(machineName, node string, isControlPlane bool) bool {
-	if !c.HasMachine(machineName, isControlPlane) {
-		loc := NodeLocation{
-			Node:    node,
-			Machine: corev1.LocalObjectReference{Name: machineName},
-		}
-		c.AddNodeLocation(loc, isControlPlane)
-		return true
-	}
-
-	locations := c.Status.NodeLocations.Workers
-	if isControlPlane {
-		locations = c.Status.NodeLocations.ControlPlane
-	}
-
-	for i, loc := range locations {
-		if loc.Machine.Name == machineName {
-			if loc.Node != node {
-				locations[i].Node = node
-				return true
-			}
-
-			return false
-		}
-	}
-
-	return false
-}
-
-// HasMachine returns if true if a machine was found on any node.
-func (c *ProxmoxCluster) HasMachine(machineName string, isControlPlane bool) bool {
-	return c.GetNode(machineName, isControlPlane) != ""
-}
-
-// GetNode tries to return the Proxmox node for the provided machine name.
-func (c *ProxmoxCluster) GetNode(machineName string, isControlPlane bool) string {
-	if c.Status.NodeLocations == nil {
-		return ""
-	}
-
-	if isControlPlane {
-		for _, cpl := range c.Status.NodeLocations.ControlPlane {
-			if cpl.Machine.Name == machineName {
-				return cpl.Node
-			}
-		}
-	} else {
-		for _, wloc := range c.Status.NodeLocations.Workers {
-			if wloc.Machine.Name == machineName {
-				return wloc.Node
-			}
-		}
-	}
-
-	return ""
-}
-
-func (c *ProxmoxCluster) addNodeLocation(loc NodeLocation, isControlPlane bool) {
-	if isControlPlane {
-		c.Status.NodeLocations.ControlPlane = append(c.Status.NodeLocations.ControlPlane, loc)
-		return
-	}
-
-	c.Status.NodeLocations.Workers = append(c.Status.NodeLocations.Workers, loc)
 }
 
 func init() {

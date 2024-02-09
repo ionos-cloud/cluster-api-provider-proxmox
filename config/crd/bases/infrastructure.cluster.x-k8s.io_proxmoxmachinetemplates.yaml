@@ -135,6 +135,16 @@ spec:
                                     to the machine.
                                   minLength: 1
                                   type: string
+                                dhcp4:
+                                  description: DHCP4 indicates that if DHCP should
+                                    be used to assign IPv4 addresses. DHCP4 enforce
+                                    device to use DHCP despite the config set in cluster.spec.ipv4Config.
+                                  type: boolean
+                                dhcp6:
+                                  description: DHCP6 indicates that if DHCP should
+                                    be used to assign IPv6 addresses. DHCP6 enforce
+                                    device to use DHCP despite the config set in cluster.spec.ipv6Config.
+                                  type: boolean
                                 dnsServers:
                                   description: DNSServers contains information about
                                     nameservers to be used for this interface. If
@@ -245,10 +255,10 @@ spec:
                               - name
                               type: object
                               x-kubernetes-validations:
-                              - message: at least one pool reference must be set,
-                                  either ipv4PoolRef or ipv6PoolRef
-                                rule: self.ipv4PoolRef != null || self.ipv6PoolRef
-                                  != null
+                              - message: at least dhcp and/or one pool reference must
+                                  be set, either ipv4PoolRef or ipv6PoolRef
+                                rule: (self.ipv4PoolRef != null || self.ipv6PoolRef
+                                  != null || self.dhcp4 || self.dhcp6)
                             type: array
                             x-kubernetes-list-map-keys:
                             - name
@@ -263,6 +273,16 @@ spec:
                                   to the machine.
                                 minLength: 1
                                 type: string
+                              dhcp4:
+                                description: DHCP4 indicates that if DHCP should be
+                                  used to assign IPv4 addresses. DHCP4 enforce device
+                                  to use DHCP despite the config set in cluster.spec.ipv4Config.
+                                type: boolean
+                              dhcp6:
+                                description: DHCP6 indicates that if DHCP should be
+                                  used to assign IPv6 addresses. DHCP6 enforce device
+                                  to use DHCP despite the config set in cluster.spec.ipv6Config.
+                                type: boolean
                               model:
                                 default: virtio
                                 description: Model is the network device model.
