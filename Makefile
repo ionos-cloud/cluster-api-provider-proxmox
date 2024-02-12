@@ -232,7 +232,9 @@ FRR_K8S_DIR = metallb/charts/metallb/charts/frr-k8s/templates
 METALLB_TOLERATIONS = [{"key": "node-role.kubernetes.io/load-balancer", "operator": "Exists", "effect": "NoSchedule"}]
 .PHONY: crs-metallb
 crs-metallb: ## Generates crs manifests for MetalLB.
-	$(HELM) template metallb --repo https://metallb.github.io/metallb --version $(METALLB_VERSION) --set frrk8s.enabled=true,speaker.frr.enabled=false --set-json 'controller.tolerations=$(METALLB_TOLERATIONS)' --set-json 'speaker.tolerations=$(METALLB_TOLERATIONS)' --set-json 'frr-k8s.frrk8s.tolerations=$(METALLB_TOLERATIONS)' --namespace=metallb-system --create-namespace > templates/crs/metallb.yaml
+	$(HELM) repo add metallb https://metallb.github.io/metallb
+	$(HELM) template metallb metallb/metallb --version $(METALLB_VERSION) --set frrk8s.enabled=true,speaker.frr.enabled=false --set-json 'controller.tolerations=$(METALLB_TOLERATIONS)' --set-json 'speaker.tolerations=$(METALLB_TOLERATIONS)' --set-json 'frr-k8s.frrk8s.tolerations=$(METALLB_TOLERATIONS)' --namespace=metallb-system > templates/crs/metallb.yaml
+
 	@# fixup namespacing in frr-k8s to work with clusterresourcesets
 	@sed -e '7bp;48bp;69bp;1682bp;1854bp;1887bp;2253bp;bn' -e ':p i\  namespace: "metallb-system"' -e ':n' -i templates/crs/metallb.yaml
 
