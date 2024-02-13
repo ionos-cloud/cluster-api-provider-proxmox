@@ -42,4 +42,10 @@ var (
 
 	// ErrMissingIPAddresses returns an error if required ip addresses is empty.
 	ErrMissingIPAddresses = errors.New("ip addresses is not set")
+
+	// ErrMalformedRoute is returned if a route can not be assembled by netplan.
+	ErrMalformedRoute = errors.New("route is malformed")
+
+	// ErrMalformedFIBRule is returned if a fib rule can not be assembled by netplan.
+	ErrMalformedFIBRule = errors.New("routing policy is malformed")
 )

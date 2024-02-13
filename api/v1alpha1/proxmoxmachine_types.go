@@ -203,6 +203,110 @@ type NetworkSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	AdditionalDevices []AdditionalNetworkDevice `json:"additionalDevices,omitempty"`
+
+	// VirtualNetworkDevices defines virtual network devices (e.g. bridges, vlans ...).
+	VirtualNetworkDevices `json:",inline"`
+}
+
+// InterfaceConfig contains all configurables a network interface can have.
+type InterfaceConfig struct {
+	// IPv4PoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
+	// The network device will use an available IP address from the referenced pool.
+	// This can be combined with `IPv6PoolRef` in order to enable dual stack.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipv4PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
+	// +kubebuilder:validation:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipv4PoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
+	IPv4PoolRef *corev1.TypedLocalObjectReference `json:"ipv4PoolRef,omitempty"`
+
+	// IPv6PoolRef is a reference to an IPAM pool resource, which exposes IPv6 addresses.
+	// The network device will use an available IP address from the referenced pool.
+	// this can be combined with `IPv4PoolRef` in order to enable dual stack.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipv6PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
+	// +kubebuilder:validation:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipv6PoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
+	IPv6PoolRef *corev1.TypedLocalObjectReference `json:"ipv6PoolRef,omitempty"`
+
+	// DNSServers contains information about nameservers to be used for this interface.
+	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	DNSServers []string `json:"dnsServers,omitempty"`
+}
+
+// RouteSpec describes an IPv4/IPv6 Route.
+type RouteSpec struct {
+	// To is the subnet to be routed.
+	// +optional
+	To string `json:"to,omitempty"`
+	// Via is the gateway to the subnet.
+	// +optional
+	Via string `json:"via,omitempty"`
+	// Metric is the priority of the route in the routing table.
+	// +optional
+	Metric uint32 `json:"metric,omitempty"`
+	// Table is the routing table used for this route.
+	// +optional
+	Table uint32 `json:"table,omitempty"`
+}
+
+// RoutingPolicySpec is a linux FIB rule.
+type RoutingPolicySpec struct {
+	// To is the subnet of the target.
+	// +optional
+	To string `json:"to,omitempty"`
+
+	// From is the subnet of the source.
+	// +optional
+	From string `json:"from,omitempty"`
+
+	// Table is the routing table id.
+	// +optional
+	Table uint32 `json:"table,omitempty"`
+
+	// Priority is the position in the ip rule fib table.
+	// +kubebuilder:validation:Maximum=4294967295
+	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert fib rule matching kernel rules",rule="(self > 0 && self < 32765) || (self > 32766)"
+	// +optional
+	Priority uint32 `json:"priority,omitempty"`
+}
+
+// VRFDevice defines Virtual Routing Flow devices.
+type VRFDevice struct {
+	// Interfaces is the list of proxmox network devices managed by this virtual device.
+	Interfaces []string `json:"interfaces,omitempty"`
+
+	// Name is the virtual network device name.
+	// must be unique within the virtual machine.
+	// +kubebuilder:validation:MinLength=3
+	Name string `json:"name"`
+
+	// Table is the ID of the routing table used for the l3mdev vrf device.
+	// +kubebuilder:validation:Maximum=4294967295
+	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert l3mdev rules into kernel tables",rule="(self > 0 && self < 254) || (self > 255)"
+	Table uint32 `json:"table"`
+
+	// InterfaceConfig contains all configurables a network interface can have.
+	// +optional
+	InterfaceConfig `json:",inline"`
+
+	// Routes are the routes associated with the l3mdev policy.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	Routes []RouteSpec `json:"routes,omitempty"`
+
+	// RoutingPolicy is the l3mdev policy inserted into FiB.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
+}
+
+// VirtualNetworkDevices defines linux software networking devices.
+type VirtualNetworkDevices struct {
+	// Definition of a Vrf Device.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	VRFs []VRFDevice `json:"vrfs,omitempty"`
 }
 
 // NetworkDevice defines the required details of a virtual machine network device.
@@ -262,7 +366,7 @@ type AdditionalNetworkDevice struct {
 
 // ProxmoxMachineStatus defines the observed state of ProxmoxMachine.
 type ProxmoxMachineStatus struct {
-	// Ready indicates the Docker infrastructure has been provisioned and is ready
+	// Ready indicates the Docker infrastructure has been provisioned and is ready.
 	// +optional
 	Ready bool `json:"ready"`
 
@@ -282,13 +386,13 @@ type ProxmoxMachineStatus struct {
 	// +optional
 	IPAddresses map[string]IPAddress `json:"ipAddresses,omitempty"`
 
-	// Network returns the network status for each of the machine's configured
+	// Network returns the network status for each of the machine's configured.
 	// network interfaces.
 	// +optional
 	Network []NetworkStatus `json:"network,omitempty"`
 
 	// ProxmoxNode is the name of the proxmox node, which was chosen for this
-	// machine to be deployed on
+	// machine to be deployed on.
 	// +optional
 	ProxmoxNode *string `json:"proxmoxNode,omitempty"`
 
@@ -298,7 +402,7 @@ type ProxmoxMachineStatus struct {
 	// +optional
 	TaskRef *string `json:"taskRef,omitempty"`
 
-	// RetryAfter tracks the time we can retry queueing a task
+	// RetryAfter tracks the time we can retry queueing a task.
 	// +optional
 	RetryAfter metav1.Time `json:"retryAfter,omitempty"`
 

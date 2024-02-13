@@ -224,5 +224,36 @@ var _ = Describe("ProxmoxMachine Test", func() {
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be less than or equal to 65520")))
 		})
+
+		It("Should only allow VRFS with a non kernel routing table ", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				VirtualNetworkDevices: VirtualNetworkDevices{
+					VRFs: []VRFDevice{{
+						Name:  "vrf-blue",
+						Table: 254,
+					}},
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Cowardly refusing to insert l3mdev rules into kernel tables")))
+		})
+
+		It("Should only allow non kernel FIB rule priority", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				VirtualNetworkDevices: VirtualNetworkDevices{
+					VRFs: []VRFDevice{{
+						Name:  "vrf-blue",
+						Table: 100,
+						RoutingPolicy: []RoutingPolicySpec{{
+							Priority: 32766,
+						}},
+					}},
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Cowardly refusing to insert fib rule matching kernel rules")))
+		})
 	})
 })

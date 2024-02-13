@@ -71,6 +71,62 @@ clusterctl generate cluster test-duacl-stack  \
   --flavor=dual-stack > cluster.yaml
 ```
 
+
+## Cluster with LoadBalancer nodes
+
+The template for LoadBalancers is for [dual stack](##dual-stack) with [multiple nics](##multiple-nics). All
+environment variables regarding those need to be set. You may want to reduce the template to your usecase.
+
+The idea is that there are special nodes for load balancing. These have an extra network card which is supposed
+to be connected to the BGP receiving switches. All services exposed with the type "LoadBalancer" will take an
+IP from `METALLB_IPV4_RANGE` or `METALLB_IPV6_RANGE` which will be announced to the BGP peers.
+
+The template presupposes two bgp peers per address family (ipv4,ipv6) because this is a high availability setup.
+
+For the routing to work, we employ source ip based routing. This does not work (reliably) without source IPs.
+For this reason, all nodes are created with `ipvs` in kube-proxy. This neccesitates also setting `strictARP`,
+as otherwise packets may still take wrong paths and cause reverse path filter issues.
+
+If you require changing `METALLB_IPV{4,6}_RANGE` after a cluster has been deployed, you need to redeploy load balancer
+nodes, as these variables are also used in bootstrap to establish source ip based routing.
+
+LoadBalancer nodes are tainted and only run pods required for load balancing.
+
+```
+## -- loadbalancer nodes -- #
+LOAD_BALANCER_MACHINE_COUNT: 2                                # Number of load balancer nodes
+EXT_SERVICE_BRIDGE: "vmbr2"                                   # The network bridge device used for load balancing and bgp.
+LB_BGP_IPV4_RANGES: "[172.16.4.10-172.16.4.20]"               # The IP ranges used by the cluster for establishing the bgp session.
+LB_BGP_IPV6_RANGES:
+LB_BGP_IPV4_PREFIX: "24"                                      # Subnet Mask in CIDR notation for your bgp IP ranges.
+LB_BGP_IPV6_PREFIX:
+METALLB_IPV4_ASN: "65400"                                     # The nodes bgp asn.
+METALLB_IPV6_ASN:
+METALLB_IPV4_BGP_PEER: "172.16.4.1"                           # The nodes bgp peer IP address.
+METALLB_IPV4_BGP_PEER2: "172.16.4.2"                          # Backup bgp peer for H/A
+METALLB_IPV6_BGP_PEER:
+METALLB_IPV6_BGP_PEER2:
+METALLB_IPV4_BGP_SECRET: "REDACTED"                           # The secret required to establish a bgp session (if any).
+METALLB_IPV6_BGP_SECRET:
+METALLB_IPV4_BGP_PEER_ASN: "65500"                            # The bgp peer's asn.
+METALLB_IPV4_BGP_PEER2_ASN:                                   # Backup bgp peer's asn
+METALLB_IPV6_BGP_PEER_ASN:
+METALLB_IPV6_BGP_PEER2_ASN:
+METALLB_IPV4_RANGE: 7.6.5.0/24                                # The IP Range MetalLB uses to announce your services.
+METALLB_IPV6_RANGE:
+```
+
+#### Generate a Cluster
+
+```bash
+clusterctl generate cluster test-bgp-lb  \
+  --infrastructure proxmox \
+  --kubernetes-version v1.28.3  \
+  --control-plane-machine-count=1 \
+  --worker-machine-count=2 \
+  --flavor=cilium-load-balancer > cluster.yaml
+```
+
 #### Node over-/ underprovisioning
 
 By default our scheduler only allows to allocate as much memory to guests as the host has. This might not be a desirable behaviour in all cases. For example, one might to explicitly want to overprovision their host's memory, or to reserve bit of the host's memory for itself.

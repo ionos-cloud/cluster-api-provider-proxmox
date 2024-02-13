@@ -1,0 +1,599 @@
+apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+kind: GlobalInClusterIPPool
+metadata:
+  name: shared-int-service-v4-inclusterippool
+spec:
+  addresses: ${SECONDARY_IP_RANGES}
+  prefix: ${SECONDARY_IP_PREFIX}
+# invalid gateway because IPAM requires a gateway
+  gateway: 169.254.0.254
+---
+apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+kind: GlobalInClusterIPPool
+metadata:
+  name: shared-ext-service-v4-inclusterippool
+spec:
+  addresses: ${LB_BGP_IPV4_RANGES}
+  prefix: ${LB_BGP_IPV4_PREFIX}
+# invalid gateway because IPAM requires a gateway
+  gateway: 169.254.0.254
+---
+apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+kind: GlobalInClusterIPPool
+metadata:
+  name: shared-ext-service-v6-inclusterippool
+spec:
+  addresses: ${LB_BGP_IPV6_RANGE}
+  prefix: ${LB_BGP_IPV6_PREFIX}
+# invalid gateway because IPAM requires a gateway
+  gateway: ::ffff:a9:fe:0:fe
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: '${CLUSTER_NAME}'
+  name: "${CLUSTER_NAME}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: ProxmoxCluster
+    name: "${CLUSTER_NAME}"
+  controlPlaneRef:
+    kind: KubeadmControlPlane
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    name: "${CLUSTER_NAME}-control-plane"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxCluster
+metadata:
+  name: "${CLUSTER_NAME}"
+  labels:
+    cluster.x-k8s.io/cluster-name: "${CLUSTER_NAME}"
+spec:
+  controlPlaneEndpoint:
+    host: ${CONTROL_PLANE_ENDPOINT_IP}
+    port: 6443
+  ipv4Config:
+    addresses: ${NODE_IP_RANGES}
+    prefix: ${IP_PREFIX}
+    gateway: ${GATEWAY}
+  ipv6Config:
+    addresses: ${NODE_IPV6_RANGES}
+    prefix: ${IPV6_PREFIX:=64}
+    gateway: ${IPV6_GATEWAY}
+  dnsServers: ${DNS_SERVERS}
+  allowedNodes: ${ALLOWED_NODES:=[]}
+---
+kind: KubeadmControlPlane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+spec:
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  machineTemplate:
+    infrastructureRef:
+      kind: ProxmoxMachineTemplate
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      name: "${CLUSTER_NAME}-control-plane"
+  kubeadmConfigSpec:
+    users:
+      - name: root
+        sshAuthorizedKeys: [${VM_SSH_KEYS}]
+    files:
+      - content: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            creationTimestamp: null
+            name: kube-vip
+            namespace: kube-system
+          spec:
+            containers:
+            - args:
+              - manager
+              env:
+              - name: cp_enable
+                value: "true"
+              - name: vip_interface
+                value: ${VIP_NETWORK_INTERFACE=""}
+              - name: address
+                value: ${CONTROL_PLANE_ENDPOINT_IP}
+              - name: port
+                value: "6443"
+              - name: vip_arp
+                value: "true"
+              - name: vip_leaderelection
+                value: "true"
+              - name: vip_leaseduration
+                value: "15"
+              - name: vip_renewdeadline
+                value: "10"
+              - name: vip_retryperiod
+                value: "2"
+              image: ghcr.io/kube-vip/kube-vip:v0.5.11
+              imagePullPolicy: IfNotPresent
+              name: kube-vip
+              resources: {}
+              securityContext:
+                capabilities:
+                  add:
+                  - NET_ADMIN
+                  - NET_RAW
+              volumeMounts:
+              - mountPath: /etc/kubernetes/admin.conf
+                name: kubeconfig
+            hostAliases:
+            - hostnames:
+              - kubernetes
+              ip: 127.0.0.1
+            hostNetwork: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/admin.conf
+                type: FileOrCreate
+              name: kubeconfig
+          status: {}
+        owner: root:root
+        path: /etc/kubernetes/manifests/kube-vip.yaml
+      - content: |
+          #/bin/sh
+          cat >> /run/kubeadm/kubeadm.yaml <<EOF
+          ---
+          apiVersion: kubeproxy.config.k8s.io/v1alpha1
+          kind: KubeProxyConfiguration
+          mode: "ipvs"
+          ipvs:
+            strictARP: true
+        owner: root:root
+        permissions: "0755"
+        path: /tmp/kube-proxy.sh
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+    preKubeadmCommands:
+      - /tmp/kube-proxy.sh
+  version: "${KUBERNETES_VERSION}"
+---
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+spec:
+  template:
+    spec:
+      sourceNode: "${PROXMOX_SOURCENODE}"
+      templateID: ${TEMPLATE_VMID}
+      format: "qcow2"
+      full: true
+      numSockets: ${NUM_SOCKETS:=2}
+      numCores: ${NUM_CORES:=4}
+      memoryMiB: ${MEMORY_MIB:=16384}
+      disks:
+        bootVolume:
+          disk: ${BOOT_VOLUME_DEVICE:=scsi0}
+          sizeGb: ${BOOT_VOLUME_SIZE:=100}
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
+        additionalDevices:
+        - name: net1
+          bridge: ${SECONDARY_BRIDGE}
+          model: virtio
+          ipv4PoolRef:
+            apiGroup: ipam.cluster.x-k8s.io
+            kind: GlobalInClusterIPPool
+            name: shared-int-service-v4-inclusterippool
+          dnsServers: ${DNS_SERVERS}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: '${CLUSTER_NAME}'
+  name: "${CLUSTER_NAME}-workers"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: ${WORKER_MACHINE_COUNT}
+  selector:
+    matchLabels:
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: '${CLUSTER_NAME}'
+        node-role.kubernetes.io/node: ""
+    spec:
+      clusterName: "${CLUSTER_NAME}"
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        configRef:
+          name: "${CLUSTER_NAME}-worker"
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+      infrastructureRef:
+        name: "${CLUSTER_NAME}-worker"
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: ProxmoxMachineTemplate
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+spec:
+  template:
+    spec:
+      sourceNode: "${PROXMOX_SOURCENODE}"
+      templateID: ${TEMPLATE_VMID}
+      format: "qcow2"
+      full: true
+      numSockets: ${NUM_SOCKETS:=2}
+      numCores: ${NUM_CORES:=4}
+      memoryMiB: ${MEMORY_MIB:=16384}
+      disks:
+        bootVolume:
+          disk: ${BOOT_VOLUME_DEVICE:=scsi0}
+          sizeGb: ${BOOT_VOLUME_SIZE:=100}
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
+        additionalDevices:
+        - name: net1
+          bridge: ${SECONDARY_BRIDGE}
+          model: virtio
+          ipv4PoolRef:
+            apiGroup: ipam.cluster.x-k8s.io
+            kind: GlobalInClusterIPPool
+            name: shared-int-service-v4-inclusterippool
+          dnsServers: ${DNS_SERVERS}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: "${CLUSTER_NAME}-load-balancers"
+  namespace: default
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: ${LOAD_BALANCER_MACHINE_COUNT}
+  selector:
+    matchLabels:
+  template:
+    metadata:
+      labels:
+        node-role.kubernetes.io/node: ""
+        node-role.kubernetes.io/load-balancer: ""
+    spec:
+      clusterName: "${CLUSTER_NAME}"
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        configRef:
+          name: "${CLUSTER_NAME}-load-balancer"
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+      infrastructureRef:
+        name: "${CLUSTER_NAME}-load-balancer"
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: ProxmoxMachineTemplate
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-load-balancer"
+spec:
+  template:
+    spec:
+      sourceNode: "${PROXMOX_SOURCENODE}"
+      templateID: ${TEMPLATE_VMID}
+      format: "qcow2"
+      full: true
+      numSockets: ${NUM_SOCKETS_LB:=1}
+      numCores: ${NUM_CORES_LB:=4}
+      memoryMiB: ${MEMORY_MIB_LB:=2048}
+      disks:
+        bootVolume:
+          disk: ${BOOT_VOLUME_DEVICE:=scsi0}
+          sizeGb: ${BOOT_VOLUME_SIZE:=100}
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
+        additionalDevices:
+        - name: net1
+          bridge: ${SECONDARY_BRIDGE}
+          model: virtio
+          ipv4PoolRef:
+            apiGroup: ipam.cluster.x-k8s.io
+            kind: GlobalInClusterIPPool
+            name: shared-int-service-v4-inclusterippool
+          dnsServers: ${DNS_SERVERS}
+        - name: net2
+          bridge: ${EXT_SERVICE_BRIDGE}
+          model: virtio
+          ipv4PoolRef:
+            apiGroup: ipam.cluster.x-k8s.io
+            kind: GlobalInClusterIPPool
+            name: shared-ext-service-v4-inclusterippool
+          ipv6PoolRef:
+            apiGroup: ipam.cluster.x-k8s.io
+            kind: GlobalInClusterIPPool
+            name: shared-ext-service-v6-inclusterippool
+          dnsServers: ${DNS_SERVERS}
+        vrfs:
+          - name: vrf-ext
+            table: 500
+            interfaces:
+              - net2
+            routingPolicy:
+              - from: "${METALLB_IPV4_RANGE}"
+              - from: "${METALLB_IPV6_RANGE}"
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+spec:
+  template:
+    spec:
+      users:
+        - name: root
+          sshAuthorizedKeys: [${VM_SSH_KEYS}]
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: "${CLUSTER_NAME}-load-balancer"
+  namespace: default
+spec:
+  template:
+    spec:
+      users:
+        - name: root
+          sshAuthorizedKeys: [${VM_SSH_KEYS}]
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+          taints:
+            - effect: NoSchedule
+              key: node-role.kubernetes.io/load-balancer
+              value: ""
+---
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: '${CLUSTER_NAME}'
+  name: ${CLUSTER_NAME}-crs-0
+spec:
+  clusterSelector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: '${CLUSTER_NAME}'
+  resources:
+    - kind: ConfigMap
+      name: cilium
+    - kind: ConfigMap
+      name: metallb-namespace
+    - kind: ConfigMap
+      name: metallb
+    - kind: ConfigMap
+      name: "metallb-${CLUSTER_NAME}"
+  strategy: Reconcile
+---
+apiVersion: v1
+data:
+  metallb-namespace: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: metallb-system
+      labels:
+        kubernetes.io/metadata.name: default
+    spec:
+      finalizers:
+        - kubernetes
+kind: ConfigMap
+metadata:
+  name: metallb-namespace
+  namespace: default
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "metallb-${CLUSTER_NAME}"
+  namespace: default
+data:
+  metallb-config: |
+    apiVersion: metallb.io/v1beta1
+    kind: BGPAdvertisement
+    metadata:
+      namespace: metallb-system
+      name: ext-service
+    spec:
+      aggregationLength: 32
+      aggregationLengthV6: 128
+      ipAddressPools:
+        - ext-service-v4-pool
+        - ext-service-v6-pool
+    ---
+    apiVersion: metallb.io/v1beta1
+    kind: IPAddressPool
+    metadata:
+      namespace: metallb-system
+      name: ext-service-v4-pool
+    spec:
+      addresses: ["${METALLB_IPV4_RANGE}"]
+      autoAssign: true
+      avoidBuggyIPs: false
+    ---
+    apiVersion: metallb.io/v1beta1
+    kind: IPAddressPool
+    metadata:
+      namespace: metallb-system
+      name: ext-service-v6-pool
+    spec:
+      addresses: ["${METALLB_IPV6_RANGE}"]
+      autoAssign: true
+      avoidBuggyIPs: false
+    ---
+    apiVersion: metallb.io/v1beta2
+    kind: BGPPeer
+    metadata:
+      name: ext-switch1
+      namespace: metallb-system
+    spec:
+      myASN: ${METALLB_IPV4_ASN}
+      peerASN: ${METALLB_IPV4_BGP_PEER_ASN}
+      peerAddress: ${METALLB_IPV4_BGP_PEER}
+      peerPort: 179
+      password: ${METALLB_IPV4_BGP_SECRET}
+      vrf: vrf-ext
+    ---
+    apiVersion: metallb.io/v1beta2
+    kind: BGPPeer
+    metadata:
+      name: ext-switch1-v6
+      namespace: metallb-system
+    spec:
+      myASN: ${METALLB_IPV6_ASN}
+      peerASN: ${METALLB_IPV6_BGP_PEER_ASN}
+      peerAddress: ${METALLB_IPV6_BGP_PEER}
+      peerPort: 179
+      password: ${METALLB_IPV6_BGP_SECRET}
+      vrf: vrf-ext
+    ---
+    apiVersion: metallb.io/v1beta2
+    kind: BGPPeer
+    metadata:
+      name: ext-switch2
+      namespace: metallb-system
+    spec:
+      myASN: ${METALLB_IPV4_ASN}
+      peerASN: ${METALLB_IPV4_BGP_PEER2_ASN}
+      peerAddress: ${METALLB_IPV4_BGP_PEER2}
+      peerPort: 179
+      password: ${METALLB_IPV4_BGP_SECRET}
+      vrf: vrf-ext
+    ---
+    apiVersion: metallb.io/v1beta2
+    kind: BGPPeer
+    metadata:
+      name: ext-switch2-v6
+      namespace: metallb-system
+    spec:
+      myASN: ${METALLB_IPV6_ASN}
+      peerASN: ${METALLB_IPV6_BGP_PEER2_ASN}
+      peerAddress: ${METALLB_IPV6_BGP_PEER2}
+      peerPort: 179
+      password: ${METALLB_IPV6_BGP_SECRET}
+      vrf: vrf-ext
+    ---
+    apiVersion: frrk8s.metallb.io/v1beta1
+    kind: FRRConfiguration
+    metadata:
+      namespace: metallb-system
+      name: frr-route-import
+    spec:
+      nodeSelector:
+        matchLabels:
+          node-role.kubernetes.io/load-balancer: ""
+      bgp:
+        routers:
+          - asn: ${METALLB_IPV4_ASN}
+            vrf: vrf-ext
+            neighbors:
+              - address: ${METALLB_IPV4_BGP_PEER}
+                asn: ${METALLB_IPV4_BGP_PEER_ASN}
+                holdTime: 1m30s
+                keepaliveTime: 30s
+                password: ${METALLB_IPV4_BGP_SECRET}
+                toReceive:
+                  allowed:
+                    prefixes:
+                      - prefix: 0.0.0.0/0
+          - asn: ${METALLB_IPV6_ASN}
+            vrf: vrf-ext
+            neighbors:
+              - address: ${METALLB_IPV6_BGP_PEER}
+                asn: ${METALLB_IPV6_BGP_PEER_ASN}
+                holdTime: 1m30s
+                keepaliveTime: 30s
+                password: ${METALLB_IPV6_BGP_SECRET}
+                toReceive:
+                  allowed:
+                    prefixes:
+                      - prefix: ::0/0
+          - asn: ${METALLB_IPV4_ASN}
+            vrf: vrf-ext
+            neighbors:
+              - address: ${METALLB_IPV4_BGP_PEER2}
+                asn: ${METALLB_IPV4_BGP_PEER2_ASN}
+                holdTime: 1m30s
+                keepaliveTime: 30s
+                password: ${METALLB_IPV4_BGP_SECRET}
+                toReceive:
+                  allowed:
+                    prefixes:
+                      - prefix: 0.0.0.0/0
+          - asn: ${METALLB_IPV6_ASN}
+            vrf: vrf-ext
+            neighbors:
+              - address: ${METALLB_IPV6_BGP_PEER2}
+                asn: ${METALLB_IPV6_BGP_PEER2_ASN}
+                holdTime: 1m30s
+                keepaliveTime: 30s
+                password: ${METALLB_IPV6_BGP_SECRET}
+                toReceive:
+                  allowed:
+                    prefixes:
+                      - prefix: ::0/0
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  name: "${CLUSTER_NAME}-node-unhealthy-5m"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  maxUnhealthy: 40%
+  nodeStartupTimeout: 15m
+  selector:
+    matchLabels:
+      node-role.kubernetes.io/node: ""
+  unhealthyConditions:
+  - type: Ready
+    status: Unknown
+    timeout: 300s
+  - type: Ready
+    status: "False"
+    timeout: 300s
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  name: "${CLUSTER_NAME}-control-plane-unhealthy-5m"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  maxUnhealthy: 100%
+  nodeStartupTimeout: 15m
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/control-plane: ""
+  unhealthyConditions:
+  - type: Ready
+    status: Unknown
+    timeout: 300s
+  - type: Ready
+    status: "False"
+    timeout: 300s

@@ -27,7 +27,9 @@ const (
   renderer: networkd
   ethernets:
   {{- range $index, $element := .NetworkConfigData }}
-    eth{{ $index }}:
+  {{- $type := $element.Type }}
+  {{- if eq $type "ethernet" }}
+    {{ $element.Name }}:
       match:
         macaddress: {{ $element.MacAddress }}
       dhcp4: {{ if $element.DHCP4 }}true{{ else }}false{{ end }}
@@ -57,7 +59,48 @@ const (
           - '{{ . }}'
         {{- end -}}
       {{- end -}}
-  {{- end -}}`
+  {{- end -}}
+  {{- end -}}
+  {{- $vrf := 0 -}}
+  {{- range $index, $element := .NetworkConfigData }}
+  {{- if eq $element.Type "vrf" }}
+  {{- if eq $vrf 0 }}
+  vrfs:
+  {{- $vrf := 1 }}
+  {{- end }}
+    {{$element.Name}}:
+      table: {{ $element.Table }}
+      {{- if $element.Routes }}{{ template "routes" $element }}{{- end -}}
+      {{- if $element.FIBRules }}{{ template "rules" $element }}{{- end -}}
+      {{- if $element.Interfaces }}
+      interfaces:
+      {{- range $element.Interfaces }}
+        - {{ . }}
+      {{- end -}}
+      {{- end -}}
+  {{- end -}}
+  {{- end -}}
+  {{- define "rules" }}
+      routing-policy:
+      {{- range $index, $rule := .FIBRules }}
+        - {
+        {{- if $rule.To }} "to": "{{$rule.To}}", {{ end -}}
+        {{- if $rule.From }} "from": "{{$rule.From}}", {{ end -}}
+        {{- if $rule.Priority }} "priority": {{$rule.Priority}}, {{ end -}}
+        {{- if $rule.Table }} "table": {{$rule.Table}}, {{ end -}} }
+      {{- end }}
+  {{- end -}}
+  {{- define "routes" }}
+      routes:
+      {{- range $index, $route := .Routes }}
+        - {
+        {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
+        {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
+        {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
+        {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
+      {{- end }}
+  {{- end -}}
+`
 )
 
 // NetworkConfig provides functionality to render machine network-config.
@@ -89,9 +132,23 @@ func (r *NetworkConfig) validate() error {
 		return ErrMissingNetworkConfigData
 	}
 	for _, d := range r.data.NetworkConfigData {
+		// TODO: refactor this when network configuration is unified
+		if d.Type != "ethernet" {
+			err := validRoutes(d.Routes)
+			if err != nil {
+				return err
+			}
+			err = validFIBRules(d.FIBRules, true)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		if !d.DHCP4 && !d.DHCP6 && len(d.IPAddress) == 0 && len(d.IPV6Address) == 0 {
 			return ErrMissingIPAddress
 		}
+
 		if d.MacAddress == "" {
 			return ErrMissingMacAddress
 		}
@@ -113,6 +170,58 @@ func (r *NetworkConfig) validate() error {
 			}
 			if d.Gateway6 == "" {
 				return ErrMissingGateway
+			}
+		}
+	}
+	return nil
+}
+
+func validRoutes(input []RoutingData) error {
+	if len(input) == 0 {
+		return nil
+	}
+	// No support for blackhole, etc.pp. Add iff you require this.
+	for _, route := range input {
+		if route.To != "default" {
+			// An IP address is a valid route (implicit smallest subnet)
+			_, errPrefix := netip.ParsePrefix(route.To)
+			_, errAddr := netip.ParseAddr(route.To)
+			if errPrefix != nil && errAddr != nil {
+				return ErrMalformedRoute
+			}
+		}
+		if route.Via != "" {
+			_, err := netip.ParseAddr(route.Via)
+			if err != nil {
+				return ErrMalformedRoute
+			}
+		}
+	}
+	return nil
+}
+
+func validFIBRules(input []FIBRuleData, isVrf bool) error {
+	if len(input) == 0 {
+		return nil
+	}
+
+	for _, rule := range input {
+		// We only support To/From and we require a table if we're not a vrf
+		if (rule.To == "" && rule.From == "") || (rule.Table == 0 && !isVrf) {
+			return ErrMalformedFIBRule
+		}
+		if rule.To != "" {
+			_, errPrefix := netip.ParsePrefix(rule.To)
+			_, errAddr := netip.ParseAddr(rule.To)
+			if errPrefix != nil && errAddr != nil {
+				return ErrMalformedFIBRule
+			}
+		}
+		if rule.From != "" {
+			_, errPrefix := netip.ParsePrefix(rule.From)
+			_, errAddr := netip.ParseAddr(rule.From)
+			if errPrefix != nil && errAddr != nil {
+				return ErrMalformedFIBRule
 			}
 		}
 	}
