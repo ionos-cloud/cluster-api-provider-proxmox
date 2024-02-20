@@ -33,7 +33,7 @@ The following dependencies are required to setup a development environment:
 
 - git
 - make
-- Go >=v1.20
+- Go v1.20 (newer versions break testing)
 - Kubebuilder (only required for making new controllers)
 - Docker (required for Kind)
 - Tilt
@@ -91,6 +91,9 @@ for more information.
 ```
   This file instructs Tilt to use the cluster-api-provider-proxmox and ipam-provider-in-cluster repositories. `allowed_contexts` is used to add
   allowed clusters other than kind (which is always implicitly enabled).
+
+- Change directory to cluster-api-ipam-provider-in-cluster `cd ../cluster-api-ipam-provider-in-cluster`.
+- Reset the git repository to `1d4735`: `git reset --hard 1d4735`. This is the last commit that works with Cluster API v1.6 and Go v1.20.
 
 - If you don't have a cluster, create a new kind cluster:
 ```

@@ -54,7 +54,7 @@ We need to add the IPAM provider to your clusterctl config file `~/.cluster-api/
 ```yaml
 providers:
   - name: in-cluster
-    url: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/v0.1.0-alpha.3/ipam-components.yaml
+    url: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/v0.1.0/ipam-components.yaml
     type: IPAMProvider
 ```
 
