@@ -242,13 +242,6 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 				Prefix:  24,
 			},
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-			NodeCloneSpec: infrav1.ProxmoxClusterNodeCloneSpec{
-				ProxmoxMachineSpec: infrav1.ProxmoxMachineSpec{
-					VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
-						SourceNode: "pve1",
-					},
-				},
-			},
 		},
 	}
 
