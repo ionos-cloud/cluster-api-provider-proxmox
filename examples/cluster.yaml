@@ -16,6 +16,10 @@ spec:
       - class: proxmox-worker
         name: proxmox-worker-pool
         replicas: 3
+      machineDeployments:
+      - class: proxmox-loadbalancer
+        name: proxmox-worker-pool
+        replicas: 0
     variables:
     - name: allowedNodes
       value:

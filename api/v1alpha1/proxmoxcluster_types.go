@@ -67,28 +67,25 @@ type ProxmoxClusterSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
 
-	// ProxmoxVMNodeCloneSpec is the configuration pertaining to all items configurable
-	// in the configuration and cloning of a proxmox VM.
+	// NodeCloneSpec is the configuration pertaining to all items configurable
+	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
 	// +optional
-	NodeCloneSpec ProxmoxClusterNodeCloneSpec `json:"nodeCloneSpec"`
+	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
 }
 
 // ProxmoxClusterNodeCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
-type ProxmoxClusterNodeCloneSpec struct {
-	ProxmoxMachineSpec `json:",inline"`
+type ProxmoxClusterCloneSpec struct {
+	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"
+	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
 
 	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys"`
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
 
 	// VirtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
-	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
-
-	// KubernetesVersion contains the version of kubernetes installed by kubeadm.
-	// +optional
-	KubernetesVersion string `json:"kubernetesVersion"`
+	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface,omitempty"`
 }
 
 // IPConfigSpec contains information about available IP config.

@@ -16,6 +16,9 @@ spec:
       - class: proxmox-worker
         name: proxmox-worker-pool
         replicas: 3
+      - class: proxmox-loadbalancer
+        name: proxmox-loadbalancer-pool
+        replicas: 0
     variables:
     - name: allowedNodes
       value:
@@ -38,26 +41,28 @@ spec:
 #       addresses: [2001:db8:1::10-2001:db8:1::20]
 #       gateway: 2001:db8:1::1
 #       prefix: 64
-    - name: nodeCloneSpec
+    - name: cloneSpecs
       value:
-#       network:
-#         default:
-#           bridge: vmbr0
-#         additionalDevices:
-#           - name: net1
-#             model: virtio
-#             ipv4PoolRef:
-#               name: shared-inclusteripv4pool
-#               apiGroup: ipam.cluster.x-k8s.io
-#               kind: GlobalInClusterIPPool
-#             ipv6PoolRef:
-#               name: shared-inclusteripv6pool
-#               apiGroup: ipam.cluster.x-k8s.io
-#               kind: GlobalInClusterIPPool
-#             bridge: vmbr1
-#       numSockets: 1
-#       numCores: 2
-#       memoryMiB: 2048
+        machineSpec:
+          controlPlane:
+#           network:
+#             default:
+#               bridge: vmbr0
+#             additionalDevices:
+#               - name: net1
+#                 model: virtio
+#                 ipv4PoolRef:
+#                   name: shared-inclusteripv4pool
+#                   apiGroup: ipam.cluster.x-k8s.io
+#                   kind: GlobalInClusterIPPool
+#                 ipv6PoolRef:
+#                   name: shared-inclusteripv6pool
+#                   apiGroup: ipam.cluster.x-k8s.io
+#                   kind: GlobalInClusterIPPool
+#                 bridge: vmbr1
+#           numSockets: 1
+#           numCores: 2
+#           memoryMiB: 2048
         sshAuthorizedKeys:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 capmox@k8s.io
         sourceNode: pve1
