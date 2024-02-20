@@ -40,6 +40,8 @@ In order to deploy a K8s cluster with CAPMOX, you require the following:
 
 * Proxmox VE Bridge e.g. `vmbr0` with an IP Range for VMs.
 
+* [cluster-api provider IPAM `in-cluster`](https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster): we rely on this IPAM provider to efficiently manage IPv4 and / or IPv6 addresses for machines without DHCP. This also makes dual-stack setups possible
+   
 ## Quick start
 
 ### Prerequisites
