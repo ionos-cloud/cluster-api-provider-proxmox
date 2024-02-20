@@ -19,6 +19,7 @@ This provider's versions are compatible with the following versions of Cluster A
 |------------------------|:--------------------------:|:--------------------------:|:--------------------------:|
 | CAPMOX v1alpha1 (v0.1) |             ✓              |             ✓              |             ☓              |
 | CAPMOX v1alpha1 (v0.2) |             ☓              |             ✓              |             ✓              |
+| CAPMOX v1alpha1 (v0.3) |             ☓              |             ✓              |             ✓              |
 
 (See [Kubernetes support matrix](https://cluster-api.sigs.k8s.io/reference/versions.html) of Cluster API versions).
 
