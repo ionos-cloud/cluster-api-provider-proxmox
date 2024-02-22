@@ -3,7 +3,9 @@ name: e2e tests
 on:
   push:
     branches: ["main"]
-  pull_request: {}
+  pull_request_target:
+    types: ["opened", "synchronize", "reopened"]
+    branches: ["main"]
 
 jobs:
   e2e:
@@ -14,9 +16,20 @@ jobs:
       PROXMOX_TOKEN: ${{ secrets.PROXMOX_TOKEN }}
       PROXMOX_SECRET: ${{ secrets.PROXMOX_SECRET }}
     steps:
-      - uses: actions/checkout@v4.1.1
+      - name: Check out branch ${{ github.ref }}
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/checkout@v4.1.1
+
+      - name: Check out PR ${{ github.event.pull_request.number }}
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: actions/checkout@v4.1.1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
+
       - name: Run e2e tests
         run: "make test-e2e"
