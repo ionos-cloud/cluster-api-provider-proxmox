@@ -6,7 +6,7 @@ metadata:
 spec:
   controlPlane:
     namingStrategy:
-      template: "control-plane-{{ .random }}"
+      template: "{{ .cluster.name }}-control-plane-{{ .random }}"
     ref:
       apiVersion: controlplane.cluster.x-k8s.io/v1beta1
       kind: KubeadmControlPlaneTemplate
@@ -56,7 +56,7 @@ spec:
               status: "False"
               timeout: 300s
         namingStrategy:
-           template: "worker-{{ .random }}"
+           template: "{{ .cluster.name }}-worker-{{ .random }}"
       - class: proxmox-loadbalancer
         template:
           bootstrap:
@@ -80,7 +80,7 @@ spec:
               status: "False"
               timeout: 300s
         namingStrategy:
-           template: "loadbalancer-{{ .random }}"
+           template: "{{ .cluster.name }}-loadbalancer-{{ .random }}"
   variables:
     - name: controlPlaneEndpoint
       required: true
@@ -452,7 +452,7 @@ spec:
             valueFrom:
               variable: ipv6Config.gateway
   - name: ClusterDeleteIPv6
-    description: "Delete Cluster IPv6 cofnig if not enabled"
+    description: "Delete Cluster IPv6 config if not enabled"
     enabledIf: "{{ if .ipv6Config }}false{{ end }}"
     definitions:
       - selector:
