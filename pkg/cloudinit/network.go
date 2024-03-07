@@ -93,6 +93,7 @@ const (
       {{- end }}
   {{- end -}}
   {{- define "routes" }}
+      routes:
       {{- range $index, $route := .Routes }}
         - {
         {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
