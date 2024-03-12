@@ -87,27 +87,49 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
 	if machine.Spec.Network.Default != nil {
-		err := validateNetworkDevice(machine.Spec.Network.Default)
+		err := validateNetworkDeviceMTU(machine.Spec.Network.Default)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "default", "mtu", "vlan"), machine.Spec.Network.Default, err.Error()),
+						field.NewPath("spec", "network", "default", "mtu"), machine.Spec.Network.Default, err.Error()),
+				})
+		}
+
+		err = validateNetworkDeviceVLAN(machine.Spec.Network.Default)
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "default", "vlan"), machine.Spec.Network.Default, err.Error()),
 				})
 		}
 	}
 
 	for i := range machine.Spec.Network.AdditionalDevices {
-		err := validateNetworkDevice(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
+		err := validateNetworkDeviceMTU(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu", "vlan"), machine.Spec.Network.Default, err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.Default, err.Error()),
+				})
+		}
+
+		err = validateNetworkDeviceVLAN(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "vlan"), machine.Spec.Network.Default, err.Error()),
 				})
 		}
 	}
@@ -115,7 +137,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	return nil
 }
 
-func validateNetworkDevice(device *infrav1.NetworkDevice) error {
+func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 	if device.MTU != nil {
 		// special value '1' to inherit the MTU value from the underlying bridge
 		if *device.MTU == 1 {
@@ -129,6 +151,10 @@ func validateNetworkDevice(device *infrav1.NetworkDevice) error {
 		return fmt.Errorf("mtu must be at least 1000 or 1, but was %d", *device.MTU)
 	}
 
+	return nil
+}
+
+func validateNetworkDeviceVLAN(device *infrav1.NetworkDevice) error {
 	if device.VLAN != nil {
 		if *device.VLAN > 0 {
 			return nil
