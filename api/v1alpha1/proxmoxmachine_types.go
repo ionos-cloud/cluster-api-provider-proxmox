@@ -328,6 +328,12 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65520
 	MTU *uint16 `json:"mtu,omitempty"`
+
+	// VLAN is the network L2 VLAN.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=4094
+	VLAN *uint16 `json:"vlan,omitempty"`
 }
 
 // AdditionalNetworkDevice the definition of a Proxmox network device.

@@ -34,8 +34,13 @@ var _ = Describe("Controller Test", func() {
 
 	Context("create proxmox machine", func() {
 		It("should disallow invalid network mtu", func() {
-			machine := invalidProxmoxMachine("test-machine")
+			machine := invalidMTUProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
+		})
+
+		It("should disallow invalid network vlan", func() {
+			machine := invalidVLANProxmoxMachine("test-machine")
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
 		})
 
 		It("should disallow invalid network mtu for additional device", func() {
@@ -47,6 +52,12 @@ var _ = Describe("Controller Test", func() {
 		It("should create a valid proxmox machine", func() {
 			machine := validProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+		})
+
+		It("should disallow invalid network vlan for additional device", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.Network.AdditionalDevices[0].VLAN = ptr.To(uint16(0))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
 	})
 
@@ -60,6 +71,9 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.Default.MTU = ptr.To(uint16(50))
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
+			machine.Spec.Network.Default.VLAN = ptr.To(uint16(0))
+
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
 
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &machine))).To(Succeed())
@@ -94,6 +108,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 					Bridge: "vmbr1",
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(uint16(1500)),
+					VLAN:   ptr.To(uint16(100)),
 				},
 				AdditionalDevices: []infrav1.AdditionalNetworkDevice{
 					{
@@ -102,6 +117,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 							Bridge: "vmbr2",
 							Model:  ptr.To("virtio"),
 							MTU:    ptr.To(uint16(1500)),
+							VLAN:   ptr.To(uint16(100)),
 						},
 						IPv4PoolRef: &corev1.TypedLocalObjectReference{
 							Name:     "simple-pool",
@@ -115,12 +131,22 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	}
 }
 
-func invalidProxmoxMachine(name string) infrav1.ProxmoxMachine {
+func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.Default = &infrav1.NetworkDevice{
 		Bridge: "vmbr1",
 		Model:  ptr.To("virtio"),
 		MTU:    ptr.To(uint16(50)),
+	}
+	return machine
+}
+
+func invalidVLANProxmoxMachine(name string) infrav1.ProxmoxMachine {
+	machine := validProxmoxMachine(name)
+	machine.Spec.Network.Default = &infrav1.NetworkDevice{
+		Bridge: "vmbr1",
+		Model:  ptr.To("virtio"),
+		VLAN:   ptr.To(uint16(0)),
 	}
 	return machine
 }

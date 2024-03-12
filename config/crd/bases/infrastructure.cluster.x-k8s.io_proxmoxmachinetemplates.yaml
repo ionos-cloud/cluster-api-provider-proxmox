@@ -240,6 +240,11 @@ spec:
                                   - message: additional network devices doesn't allow
                                       net0
                                     rule: self != 'net0'
+                                vlan:
+                                  description: VLAN is the network L2 VLAN.
+                                  maximum: 4094
+                                  minimum: 1
+                                  type: integer
                               required:
                               - bridge
                               - name
@@ -277,6 +282,11 @@ spec:
                                   Unit. Only works with virtio Model. Set to 1 to
                                   inherit the MTU value from the underlying bridge.
                                 maximum: 65520
+                                minimum: 1
+                                type: integer
+                              vlan:
+                                description: VLAN is the network L2 VLAN.
+                                maximum: 4094
                                 minimum: 1
                                 type: integer
                             required:

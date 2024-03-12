@@ -176,8 +176,8 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
 		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
 		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},
-		proxmox.VirtualMachineOption{Name: "net0", Value: formatNetworkDevice("virtio", "vmbr0", ptr.To(uint16(1500)))},
-		proxmox.VirtualMachineOption{Name: "net1", Value: formatNetworkDevice("virtio", "vmbr1", ptr.To(uint16(1500)))},
+		proxmox.VirtualMachineOption{Name: "net0", Value: formatNetworkDevice("virtio", "vmbr0", ptr.To(uint16(1500)), nil)},
+		proxmox.VirtualMachineOption{Name: "net1", Value: formatNetworkDevice("virtio", "vmbr1", ptr.To(uint16(1500)), nil)},
 	}
 
 	proxmoxClient.EXPECT().ConfigureVM(context.TODO(), vm, expectedOptions...).Return(task, nil).Once()
@@ -262,4 +262,38 @@ func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "10.10.10.10")
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[2].Address, "2001:db8::2")
+}
+
+func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.NumSockets = 4
+	machineScope.ProxmoxMachine.Spec.NumCores = 4
+	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
+		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
+			{
+				Name:          "net1",
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
+			},
+		},
+	}
+
+	vm := newStoppedVM()
+	task := newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions := []interface{}{
+		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
+		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
+		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},
+		proxmox.VirtualMachineOption{Name: "net0", Value: formatNetworkDevice("virtio", "vmbr0", nil, ptr.To(uint16(100)))},
+		proxmox.VirtualMachineOption{Name: "net1", Value: formatNetworkDevice("virtio", "vmbr1", nil, ptr.To(uint16(100)))},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.TODO(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(context.TODO(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
 }

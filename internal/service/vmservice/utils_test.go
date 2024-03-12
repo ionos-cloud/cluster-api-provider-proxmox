@@ -216,3 +216,35 @@ func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 
 	require.False(t, shouldUpdateNetworkDevices(machineScope))
 }
+
+func TestExtractNetworkVLAN(t *testing.T) {
+	type match struct {
+		test     string
+		expected uint16
+	}
+
+	goodstrings := []match{
+		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100", 100},
+		{"foo,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100", 100},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100", 100},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,tag=200,foo", 200},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,tag=200,foo=bar", 200},
+	}
+
+	badstrings := []string{
+		"virtio=",
+		"bridge=",
+		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
+		"",
+	}
+
+	for _, m := range goodstrings {
+		mtu := extractNetworkVLAN(m.test)
+		require.Equal(t, m.expected, mtu)
+	}
+
+	for _, s := range badstrings {
+		mtu := extractNetworkVLAN(s)
+		require.Equal(t, uint16(0), mtu)
+	}
+}

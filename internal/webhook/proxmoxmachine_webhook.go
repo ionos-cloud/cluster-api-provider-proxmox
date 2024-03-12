@@ -116,18 +116,30 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 }
 
 func validateNetworkDevice(device *infrav1.NetworkDevice) error {
-	if device.MTU == nil {
-		return nil
+	if device.MTU != nil {
+		// special value '1' to inherit the MTU value from the underlying bridge
+		if *device.MTU == 1 {
+			return nil
+		}
+
+		if *device.MTU > 999 {
+			return nil
+		}
+
+		return fmt.Errorf("mtu must be at least 1000 or 1, but was %d", *device.MTU)
 	}
 
-	// special value '1' to inherit the MTU value from the underlying bridge
-	if *device.MTU == 1 {
-		return nil
+	if device.VLAN != nil {
+		if *device.VLAN > 0 {
+			return nil
+		}
+
+		if *device.VLAN < 4095 {
+			return nil
+		}
+
+		return fmt.Errorf("vlan must be at less than 4095 and cannot be 0, but was %d", *device.VLAN)
 	}
 
-	if *device.MTU > 999 {
-		return nil
-	}
-
-	return fmt.Errorf("mtu must be at least 1000 or 1, but was %d", *device.MTU)
+	return nil
 }
