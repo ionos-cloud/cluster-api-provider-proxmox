@@ -248,3 +248,13 @@ func TestExtractNetworkVLAN(t *testing.T) {
 		require.Equal(t, uint16(0), mtu)
 	}
 }
+
+func TestShouldUpdateNetworkDevices_VLANChanged(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
+	}
+	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0,tag=101"))
+
+	require.True(t, shouldUpdateNetworkDevices(machineScope))
+}

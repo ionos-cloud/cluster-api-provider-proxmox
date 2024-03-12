@@ -94,7 +94,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "default", "mtu"), machine.Spec.Network.Default, err.Error()),
+						field.NewPath("spec", "network", "default", "mtu", "vlan"), machine.Spec.Network.Default, err.Error()),
 				})
 		}
 	}
@@ -107,7 +107,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.Default, err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu", "vlan"), machine.Spec.Network.Default, err.Error()),
 				})
 		}
 	}
