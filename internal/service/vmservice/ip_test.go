@@ -64,7 +64,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
 
-	proxmoxClient.EXPECT().TagVM(context.TODO(), vm, ipTag).Return(task, nil).Once()
+	proxmoxClient.EXPECT().TagVM(context.Background(), vm, ipTag).Return(task, nil).Once()
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NoError(t, err)
