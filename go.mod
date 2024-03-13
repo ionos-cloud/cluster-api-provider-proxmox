@@ -23,7 +23,7 @@ require (
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	sigs.k8s.io/cluster-api v1.6.1
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0-alpha.3
-	sigs.k8s.io/cluster-api/test v1.6.2
+	sigs.k8s.io/cluster-api/test v1.6.3
 	sigs.k8s.io/controller-runtime v0.16.5
 )
 
@@ -130,7 +130,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230913181813-007df8e322eb // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230920204549-e6e6cdab5c13 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/djherbis/times.v1 v1.2.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
