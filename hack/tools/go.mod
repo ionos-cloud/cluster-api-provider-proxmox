@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
-go 1.20
+go 1.21
 
 require (
 	github.com/golangci/golangci-lint v1.54.1
