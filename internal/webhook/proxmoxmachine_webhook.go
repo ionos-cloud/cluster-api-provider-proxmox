@@ -97,17 +97,6 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 						field.NewPath("spec", "network", "default", "mtu"), machine.Spec.Network.Default, err.Error()),
 				})
 		}
-
-		err = validateNetworkDeviceVLAN(machine.Spec.Network.Default)
-		if err != nil {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "network", "default", "vlan"), machine.Spec.Network.Default, err.Error()),
-				})
-		}
 	}
 
 	for i := range machine.Spec.Network.AdditionalDevices {
@@ -119,17 +108,6 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				field.ErrorList{
 					field.Invalid(
 						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.Default, err.Error()),
-				})
-		}
-
-		err = validateNetworkDeviceVLAN(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
-		if err != nil {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "vlan"), machine.Spec.Network.Default, err.Error()),
 				})
 		}
 	}
@@ -149,22 +127,6 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 		}
 
 		return fmt.Errorf("mtu must be at least 1000 or 1, but was %d", *device.MTU)
-	}
-
-	return nil
-}
-
-func validateNetworkDeviceVLAN(device *infrav1.NetworkDevice) error {
-	if device.VLAN != nil {
-		if *device.VLAN > 0 {
-			return nil
-		}
-
-		if *device.VLAN < 4095 {
-			return nil
-		}
-
-		return fmt.Errorf("vlan must be at less than 4095 and cannot be 0, but was %d", *device.VLAN)
 	}
 
 	return nil

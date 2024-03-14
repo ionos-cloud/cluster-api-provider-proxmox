@@ -239,13 +239,13 @@ func TestExtractNetworkVLAN(t *testing.T) {
 	}
 
 	for _, m := range goodstrings {
-		mtu := extractNetworkVLAN(m.test)
-		require.Equal(t, m.expected, mtu)
+		vlan := extractNetworkVLAN(m.test)
+		require.Equal(t, m.expected, vlan)
 	}
 
 	for _, s := range badstrings {
-		mtu := extractNetworkVLAN(s)
-		require.Equal(t, uint16(0), mtu)
+		mtvlan := extractNetworkVLAN(s)
+		require.Equal(t, uint16(0), mtvlan)
 	}
 }
 
