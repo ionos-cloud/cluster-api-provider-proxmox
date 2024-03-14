@@ -9,9 +9,6 @@ on:
 permissions:
   contents: write # Allow to create a release.
 
-env:
-  go_version: 1.20
-
 jobs:
   build:
     name: create draft release
@@ -26,7 +23,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.go_version }}
+          go-version-file: go.mod
       - name: generate release artifacts
         run: |
           make release-manifests RELEASE_VERSION=${{ env.RELEASE_TAG }}
@@ -34,7 +31,7 @@ jobs:
         run: |
           make release-templates
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: out/*
