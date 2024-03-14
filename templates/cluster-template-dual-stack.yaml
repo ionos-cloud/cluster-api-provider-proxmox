@@ -6,7 +6,13 @@ metadata:
 spec:
   clusterNetwork:
     pods:
-      cidrBlocks: ["192.168.0.0/16"]
+      cidrBlocks:
+        - 172.16.0.0/16
+        - fd00:a1f:ea75:ca75::/64
+    services:
+      cidrBlocks:
+        - 192.168.128.0/17
+        - fd00:feed:a1f:ca75::/108
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
     kind: ProxmoxCluster
