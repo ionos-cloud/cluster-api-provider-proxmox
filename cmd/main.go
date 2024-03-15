@@ -202,8 +202,8 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	klog.InitFlags(nil)
 
 	ProxmoxURL = env.GetString("PROXMOX_URL", "")
-	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
-	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
+	ProxmoxTokenID = env.GetString("PROXMOX_USERNAME", "")
+	ProxmoxSecret = env.GetString("PROXMOX_TOKEN", "")
 
 	fs.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -227,10 +227,10 @@ func validate() error {
 		return errors.New("required variable `PROXMOX_URL` is not set")
 	}
 	if ProxmoxTokenID == "" {
-		return errors.New("required variable `PROXMOX_TOKEN` is not set")
+		return errors.New("required variable `PROXMOX_USERNAME` is not set")
 	}
 	if ProxmoxSecret == "" {
-		return errors.New("required variable `PROXMOX_SECRET` is not set")
+		return errors.New("required variable `PROXMOX_TOKEN` is not set")
 	}
 	return nil
 }
