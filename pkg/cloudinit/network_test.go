@@ -246,6 +246,36 @@ const (
       table: 500
       routing-policy:
         - { "from": "10.10.0.0/16", }`
+
+	expectedValidNetworkNotGateway = `network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - 10.10.10.12/24
+      routes:
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+      nameservers:
+        addresses:
+          - '8.8.8.8'
+          - '8.8.4.4'
+    eth1:
+      match:
+        macaddress: b4:87:18:bf:a3:60
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - 196.168.100.124/24
+      nameservers:
+        addresses:
+          - '8.8.8.8'
+          - '8.8.4.4'`
 )
 
 func TestNetworkConfig_Render(t *testing.T) {
@@ -632,6 +662,32 @@ func TestNetworkConfig_Render(t *testing.T) {
 			want: want{
 				network: "",
 				err:     ErrMalformedRoute,
+			},
+		},
+		"AdditionalNicNoGateway": {
+			reason: "missing route is okay",
+			args: args{
+				nics: []NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						IPAddress:  "10.10.10.12/24",
+						Gateway:    "10.10.10.1",
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+					{
+						Type:       "ethernet",
+						Name:       "eth1",
+						MacAddress: "b4:87:18:bf:a3:60",
+						IPAddress:  "196.168.100.124/24",
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+				},
+			},
+			want: want{
+				network: expectedValidNetworkNotGateway,
+				err:     nil,
 			},
 		},
 	}

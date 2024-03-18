@@ -42,6 +42,7 @@ const (
       {{- if and $element.IPV6Address (not $element.DHCP6)}}
         - '{{ $element.IPV6Address }}'
 	  {{- end }}
+      {{- if or (and $element.Gateway (not $element.DHCP4)) (and $element.Gateway6 (not $element.DHCP6)) }}
       routes:
       {{- if and $element.Gateway (not $element.DHCP4) }}
         - to: 0.0.0.0/0
@@ -51,6 +52,7 @@ const (
         - to: '::/0'
           via: '{{ $element.Gateway6 }}'
 	  {{- end }}
+      {{- end }}
       {{- end }}
       {{- if $element.DNSServers }}
       nameservers:
@@ -131,7 +133,7 @@ func (r *NetworkConfig) validate() error {
 	if len(r.data.NetworkConfigData) == 0 {
 		return ErrMissingNetworkConfigData
 	}
-	for _, d := range r.data.NetworkConfigData {
+	for i, d := range r.data.NetworkConfigData {
 		// TODO: refactor this when network configuration is unified
 		if d.Type != "ethernet" {
 			err := validRoutes(d.Routes)
@@ -158,7 +160,7 @@ func (r *NetworkConfig) validate() error {
 			if err != nil {
 				return err
 			}
-			if d.Gateway == "" {
+			if d.Gateway == "" && i == 0 {
 				return ErrMissingGateway
 			}
 		}
@@ -168,7 +170,7 @@ func (r *NetworkConfig) validate() error {
 			if err6 != nil {
 				return err6
 			}
-			if d.Gateway6 == "" {
+			if d.Gateway6 == "" && i == 0 {
 				return ErrMissingGateway
 			}
 		}
