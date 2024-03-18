@@ -96,14 +96,31 @@ func validateIPs(cluster *infrav1.ProxmoxCluster) error {
 
 	gk, name := cluster.GroupVersionKind().GroupKind(), cluster.GetName()
 
-	ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", ep.Host, ep.Port))
+	endpointHostIP := ep.Host
+
+	addr, err := netip.ParseAddr(endpointHostIP)
 	if err != nil {
 		return apierrors.NewInvalid(
 			gk,
 			name,
 			field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec", "controlplaneEndpoint"), fmt.Sprintf("%s:%d", ep.Host, ep.Port), "provided endpoint is not in a valid IP and port format"),
+					field.NewPath("spec", "controlplaneEndpoint"), endpointHostIP, "provided endpoint address is not a valid IP"),
+			})
+	}
+	// If the passed control-plane endppoint is an IPv6 address, wrap it in [], so it can properly pass ParseAddrPort validation
+	if addr.Is6() {
+		endpointHostIP = fmt.Sprintf("[%s]", ep.Host)
+	}
+
+	ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", endpointHostIP, ep.Port))
+	if err != nil {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec", "controlplaneEndpoint"), fmt.Sprintf("%s:%d", endpointHostIP, ep.Port), "provided endpoint is not in a valid IP and port format"),
 			})
 	}
 
