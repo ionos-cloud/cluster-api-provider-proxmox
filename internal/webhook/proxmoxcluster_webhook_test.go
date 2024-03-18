@@ -47,6 +47,13 @@ var _ = Describe("Controller Test", func() {
 		It("should disallow invalid endpoint IP", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
 			cluster.Spec.ControlPlaneEndpoint.Host = "invalid"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP")))
+		})
+
+		It("should disallow invalid endpoint IP + port combination", func() {
+			cluster := invalidProxmoxCluster("test-cluster")
+			cluster.Spec.ControlPlaneEndpoint.Host = "127.0.0.1"
+			cluster.Spec.ControlPlaneEndpoint.Port = 69000
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint is not in a valid IP and port format")))
 		})
 
@@ -68,7 +75,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow endpoint IP to intersect with node IPs", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
-			cluster.Spec.ControlPlaneEndpoint.Host = "[2001:db8::1]"
+			cluster.Spec.ControlPlaneEndpoint.Host = "2001:db8::1"
 			cluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
 				Addresses: []string{"2001:db8::/64"},
 				Prefix:    64,
