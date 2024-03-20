@@ -4,8 +4,6 @@ go 1.21
 
 replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.6.3
 
-replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
-
 require (
 	github.com/go-logr/logr v1.4.1
 	github.com/google/uuid v1.6.0
@@ -18,9 +16,9 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
 	golang.org/x/tools v0.18.0
-	k8s.io/api v0.29.2
-	k8s.io/apimachinery v0.29.2
-	k8s.io/client-go v0.29.2
+	k8s.io/api v0.29.3
+	k8s.io/apimachinery v0.29.3
+	k8s.io/client-go v0.29.3
 	k8s.io/klog/v2 v2.120.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/cluster-api v1.6.3
@@ -39,7 +37,7 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/adrg/xdg v0.4.0 // indirect
 	github.com/alessio/shellescape v1.4.1 // indirect
-	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
