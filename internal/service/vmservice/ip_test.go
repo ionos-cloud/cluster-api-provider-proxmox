@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
 const ipTag = "ip_net0_10.10.10.10"
@@ -127,7 +126,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 
 func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPPoolSpec{
 		Addresses: []string{"fe80::/64"},
 		Prefix:    64,
 		Gateway:   "fe80::1",

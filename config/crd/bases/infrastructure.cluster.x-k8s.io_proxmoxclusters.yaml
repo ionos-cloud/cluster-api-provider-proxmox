@@ -91,19 +91,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  allocateReservedIPAddresses:
-                    description: AllocateReservedIPAddresses causes the provider to
-                      allocate the network address (the first address in the inferred
-                      subnet) and broadcast address (the last address in the inferred
-                      subnet) when IPv4. The provider will allocate the anycast address
-                      address (the first address in the inferred subnet) when IPv6.
-                    type: boolean
-                  excludedAddresses:
-                    description: ExcludedAddresses is a list of IP addresses, which
-                      will be excluded from the set of assignable IP addresses.
-                    items:
-                      type: string
-                    type: array
                   gateway:
                     description: Gateway
                     type: string
@@ -127,19 +114,6 @@ spec:
                   addresses:
                     description: Addresses is a list of IP addresses that can be assigned.
                       This set of addresses can be non-contiguous.
-                    items:
-                      type: string
-                    type: array
-                  allocateReservedIPAddresses:
-                    description: AllocateReservedIPAddresses causes the provider to
-                      allocate the network address (the first address in the inferred
-                      subnet) and broadcast address (the last address in the inferred
-                      subnet) when IPv4. The provider will allocate the anycast address
-                      address (the first address in the inferred subnet) when IPv6.
-                    type: boolean
-                  excludedAddresses:
-                    description: ExcludedAddresses is a list of IP addresses, which
-                      will be excluded from the set of assignable IP addresses.
                     items:
                       type: string
                     type: array

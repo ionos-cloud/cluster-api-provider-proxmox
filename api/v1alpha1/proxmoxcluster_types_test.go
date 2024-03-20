@@ -80,7 +80,7 @@ func defaultCluster() *ProxmoxCluster {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ProxmoxClusterSpec{
-			IPv4Config: &ipamicv1.InClusterIPPoolSpec{
+			IPv4Config: &IPPoolSpec{
 				Addresses: []string{"10.0.0.0/24"},
 				Prefix:    24,
 			},
@@ -132,7 +132,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	Context("IPV6Config", func() {
 		It("Should not allow empty addresses", func() {
 			dc := defaultCluster()
-			dc.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+			dc.Spec.IPv6Config = &IPPoolSpec{
 				Addresses: []string{},
 				Prefix:    0,
 				Gateway:   "",
@@ -142,7 +142,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 
 		It("Should not allow prefix higher than 128", func() {
 			dc := defaultCluster()
-			dc.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+			dc.Spec.IPv6Config = &IPPoolSpec{
 				Addresses: []string{},
 				Prefix:    129,
 				Gateway:   "",

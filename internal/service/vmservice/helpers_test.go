@@ -75,7 +75,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			},
 		},
 		Spec: infrav1alpha1.ProxmoxClusterSpec{
-			IPv4Config: &ipamicv1.InClusterIPPoolSpec{
+			IPv4Config: &infrav1alpha1.IPPoolSpec{
 				Addresses: []string{"10.0.0.10-10.0.0.20"},
 				Prefix:    24,
 				Gateway:   "10.0.0.1",
