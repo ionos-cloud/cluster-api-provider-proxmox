@@ -35,6 +35,7 @@ cluster.yaml
 cluster-**.yaml
 **.userdata
 **kubeadm-config.yaml
+envfile
 
 # direnv files
 .envrc
@@ -43,3 +44,6 @@ cluster-**.yaml
 _artifacts
 **e2e.test
 test/e2e/config/*-envsubst.yaml
+
+# asdf package manager
+.tool-versions

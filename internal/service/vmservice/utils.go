@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -92,6 +93,21 @@ func extractNetworkMTU(input string) uint16 {
 	return 0
 }
 
+// extractNetworkVLAN returns the vlan out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100.
+func extractNetworkVLAN(input string) uint16 {
+	re := regexp.MustCompile(`tag=(\d+)`)
+	match := re.FindStringSubmatch(input)
+	if len(match) > 1 {
+		vlan, err := strconv.ParseUint(match[1], 10, 16)
+		if err != nil {
+			return 0
+		}
+		return uint16(vlan)
+	}
+
+	return 0
+}
+
 func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 	if machineScope.ProxmoxMachine.Spec.Network == nil {
 		// no network config needed
@@ -122,6 +138,14 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 				return true
 			}
 		}
+
+		if desiredDefault.VLAN != nil {
+			vlan := extractNetworkVLAN(net0)
+
+			if vlan != *desiredDefault.VLAN {
+				return true
+			}
+		}
 	}
 
 	devices := machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices
@@ -147,19 +171,33 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 				return true
 			}
 		}
+
+		if v.VLAN != nil {
+			vlan := extractNetworkVLAN(net)
+
+			if vlan != *v.VLAN {
+				return true
+			}
+		}
 	}
 
 	return false
 }
 
 // formatNetworkDevice formats a network device config
-// example 'virtio,bridge=vmbr0'.
-func formatNetworkDevice(model, bridge string, mtu *uint16) string {
-	if mtu == nil {
-		return fmt.Sprintf("%s,bridge=%s", model, bridge)
+// example 'virtio,bridge=vmbr0,tag=100'.
+func formatNetworkDevice(model, bridge string, mtu *uint16, vlan *uint16) string {
+	var components = []string{model, fmt.Sprintf("bridge=%s", bridge)}
+
+	if mtu != nil {
+		components = append(components, fmt.Sprintf("mtu=%d", *mtu))
 	}
 
-	return fmt.Sprintf("%s,bridge=%s,mtu=%d", model, bridge, *mtu)
+	if vlan != nil {
+		components = append(components, fmt.Sprintf("tag=%d", *vlan))
+	}
+
+	return strings.Join(components, ",")
 }
 
 // extractMACAddress returns the macaddress out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1.

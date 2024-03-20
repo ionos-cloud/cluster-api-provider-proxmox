@@ -216,3 +216,45 @@ func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 
 	require.False(t, shouldUpdateNetworkDevices(machineScope))
 }
+
+func TestExtractNetworkVLAN(t *testing.T) {
+	type match struct {
+		test     string
+		expected uint16
+	}
+
+	goodstrings := []match{
+		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100", 100},
+		{"foo,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100", 100},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100", 100},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,tag=200,foo", 200},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,tag=200,foo=bar", 200},
+	}
+
+	badstrings := []string{
+		"virtio=",
+		"bridge=",
+		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
+		"",
+	}
+
+	for _, m := range goodstrings {
+		vlan := extractNetworkVLAN(m.test)
+		require.Equal(t, m.expected, vlan)
+	}
+
+	for _, s := range badstrings {
+		vlan := extractNetworkVLAN(s)
+		require.Equal(t, uint16(0), vlan)
+	}
+}
+
+func TestShouldUpdateNetworkDevices_VLANChanged(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
+	}
+	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0,tag=101"))
+
+	require.True(t, shouldUpdateNetworkDevices(machineScope))
+}

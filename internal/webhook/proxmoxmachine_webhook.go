@@ -87,7 +87,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
 	if machine.Spec.Network.Default != nil {
-		err := validateNetworkDevice(machine.Spec.Network.Default)
+		err := validateNetworkDeviceMTU(machine.Spec.Network.Default)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
@@ -100,7 +100,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	}
 
 	for i := range machine.Spec.Network.AdditionalDevices {
-		err := validateNetworkDevice(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
+		err := validateNetworkDeviceMTU(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
@@ -115,19 +115,19 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	return nil
 }
 
-func validateNetworkDevice(device *infrav1.NetworkDevice) error {
-	if device.MTU == nil {
-		return nil
+func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
+	if device.MTU != nil {
+		// special value '1' to inherit the MTU value from the underlying bridge
+		if *device.MTU == 1 {
+			return nil
+		}
+
+		if *device.MTU > 999 {
+			return nil
+		}
+
+		return fmt.Errorf("mtu must be at least 1000 or 1, but was %d", *device.MTU)
 	}
 
-	// special value '1' to inherit the MTU value from the underlying bridge
-	if *device.MTU == 1 {
-		return nil
-	}
-
-	if *device.MTU > 999 {
-		return nil
-	}
-
-	return fmt.Errorf("mtu must be at least 1000 or 1, but was %d", *device.MTU)
+	return nil
 }

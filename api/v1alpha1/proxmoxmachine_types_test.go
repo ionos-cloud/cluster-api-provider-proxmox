@@ -255,5 +255,29 @@ var _ = Describe("ProxmoxMachine Test", func() {
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Cowardly refusing to insert fib rule matching kernel rules")))
 		})
+
+		It("Should not allow machine with network device vlan equal to 0", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				Default: &NetworkDevice{
+					Bridge: "vmbr0",
+					VLAN:   ptr.To(uint16(0)),
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
+		})
+
+		It("Should not allow machine with network device vlan greater than 4094", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				Default: &NetworkDevice{
+					Bridge: "vmbr0",
+					VLAN:   ptr.To(uint16(4095)),
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be less than or equal to 4094")))
+		})
 	})
 })
