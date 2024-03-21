@@ -104,7 +104,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	s.Equal(ipamConfig.Gateway, pool.Spec.Gateway)
 
 	// ipv6
-	s.cluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
@@ -141,7 +141,7 @@ func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
 	s.Equal(&pool, found)
 
 	// ipv6
-	s.cluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
@@ -303,7 +303,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 	s.NoError(err)
 
 	// IPV6.
-	s.cluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
@@ -356,7 +356,7 @@ func getCluster() *infrav1.ProxmoxCluster {
 			Namespace: "test",
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			IPv4Config: &ipamicv1.InClusterIPPoolSpec{
+			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{"10.10.0.1/24"},
 				Gateway:   "10.0.0.0",
 				Prefix:    24,

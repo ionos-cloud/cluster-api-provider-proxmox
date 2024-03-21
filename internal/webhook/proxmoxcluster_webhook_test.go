@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -65,7 +64,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow invalid IPV6 IPs", func() {
 			cluster := validProxmoxCluster("test-cluster")
-			cluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+			cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 				Addresses: []string{"invalid"},
 				Prefix:    64,
 				Gateway:   "2001:db8::1",
@@ -76,7 +75,7 @@ var _ = Describe("Controller Test", func() {
 		It("should disallow endpoint IP to intersect with node IPs", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
 			cluster.Spec.ControlPlaneEndpoint.Host = "2001:db8::1"
-			cluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+			cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 				Addresses: []string{"2001:db8::/64"},
 				Prefix:    64,
 				Gateway:   "2001:db8::1",
@@ -116,7 +115,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 				Host: "10.10.10.1",
 				Port: 6443,
 			},
-			IPv4Config: &ipamicv1.InClusterIPPoolSpec{
+			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{
 					"10.10.10.2-10.10.10.10",
 				},

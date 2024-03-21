@@ -19,10 +19,9 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-
 	"k8s.io/utils/ptr"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -55,18 +54,33 @@ type ProxmoxClusterSpec struct {
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *ipamicv1.InClusterIPPoolSpec `json:"ipv4Config,omitempty"`
+	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
 
 	// IPv6Config contains information about available IPV6 address pools and the gateway.
 	// this can be combined with ipv4Config in order to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *ipamicv1.InClusterIPPoolSpec `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
 
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
+}
+
+// IPConfigSpec contains information about available IP config.
+type IPConfigSpec struct {
+	// Addresses is a list of IP addresses that can be assigned. This set of
+	// addresses can be non-contiguous.
+	Addresses []string `json:"addresses"`
+
+	// Prefix is the network prefix to use.
+	// +kubebuilder:validation:Maximum=128
+	Prefix int `json:"prefix"`
+
+	// Gateway
+	// +optional
+	Gateway string `json:"gateway,omitempty"`
 }
 
 // SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.
@@ -172,7 +186,7 @@ func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
 
 // SetInClusterIPPoolRef will set the reference to the provided InClusterIPPool.
 // If nil was provided, the status field will be cleared.
-func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool *ipamicv1.InClusterIPPool) {
+func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool client.Object) {
 	if pool == nil || pool.GetName() == "" {
 		c.Status.InClusterIPPoolRef = nil
 		return
