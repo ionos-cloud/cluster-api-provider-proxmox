@@ -28,7 +28,6 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
 func TestReconcileVM_EverythingReady(t *testing.T) {
@@ -227,7 +226,7 @@ func TestReconcileMachineAddresses_IPV4(t *testing.T) {
 func TestReconcileMachineAddresses_IPV6(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config = nil
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
@@ -246,7 +245,7 @@ func TestReconcileMachineAddresses_IPV6(t *testing.T) {
 
 func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &ipamicv1.InClusterIPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
