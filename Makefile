@@ -58,7 +58,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: ## Run lint.
-	go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint run --timeout 5m -c .golangci.yml
+	go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint run
 
 # Package names to test
 WHAT ?= ./...
@@ -79,7 +79,7 @@ yamlfmt: ## Run yamlfmt against yaml.
 .PHONY: tidy
 tidy: ## Run go mod tidy to ensure modules are up to date
 	go mod tidy
-	cd $(TOOLS_DIR); go mod tidy
+	go -C $(TOOLS_DIR) mod tidy
 
 ##@ Build
 
