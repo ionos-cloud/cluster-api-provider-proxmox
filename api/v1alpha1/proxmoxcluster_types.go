@@ -68,7 +68,7 @@ type ProxmoxClusterSpec struct {
 	DNSServers []string `json:"dnsServers"`
 }
 
-// IPConfigSpec defines the desired state of IP Pool.
+// IPConfigSpec contains information about available IP config.
 type IPConfigSpec struct {
 	// Addresses is a list of IP addresses that can be assigned. This set of
 	// addresses can be non-contiguous.
