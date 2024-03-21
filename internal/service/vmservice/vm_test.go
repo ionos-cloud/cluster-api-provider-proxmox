@@ -226,7 +226,7 @@ func TestReconcileMachineAddresses_IPV4(t *testing.T) {
 func TestReconcileMachineAddresses_IPV6(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config = nil
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
@@ -245,7 +245,7 @@ func TestReconcileMachineAddresses_IPV6(t *testing.T) {
 
 func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",

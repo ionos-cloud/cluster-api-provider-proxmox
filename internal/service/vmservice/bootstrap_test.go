@@ -178,7 +178,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 
 func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
@@ -206,7 +206,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 
 func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",

@@ -126,7 +126,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 
 func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPPoolSpec{
+	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha1.IPConfigSpec{
 		Addresses: []string{"fe80::/64"},
 		Prefix:    64,
 		Gateway:   "fe80::1",

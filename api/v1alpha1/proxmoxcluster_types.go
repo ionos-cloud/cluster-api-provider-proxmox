@@ -54,22 +54,22 @@ type ProxmoxClusterSpec struct {
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *IPPoolSpec `json:"ipv4Config,omitempty"`
+	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
 
 	// IPv6Config contains information about available IPV6 address pools and the gateway.
 	// this can be combined with ipv4Config in order to enable dual stack.
 	// either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *IPPoolSpec `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
 
 	// DNSServers contains information about nameservers used by machines network-config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
 }
 
-// IPPoolSpec defines the desired state of IP Pool.
-type IPPoolSpec struct {
+// IPConfigSpec defines the desired state of IP Pool.
+type IPConfigSpec struct {
 	// Addresses is a list of IP addresses that can be assigned. This set of
 	// addresses can be non-contiguous.
 	Addresses []string `json:"addresses"`
