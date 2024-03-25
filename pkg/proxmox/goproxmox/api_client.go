@@ -245,3 +245,16 @@ func (c *APIClient) StartVM(ctx context.Context, vm *proxmox.VirtualMachine) (*p
 func (c *APIClient) TagVM(ctx context.Context, vm *proxmox.VirtualMachine, tag string) (*proxmox.Task, error) {
 	return vm.AddTag(ctx, tag)
 }
+
+// UnmountCloudInitISO unmounts the cloud-init iso from VM.
+func (c *APIClient) UnmountCloudInitISO(ctx context.Context, vm *proxmox.VirtualMachine, device string) error {
+	err := vm.UnmountCloudInitISO(ctx, device)
+	if err != nil {
+		return fmt.Errorf("unable to unmount cloud-init iso: %w", err)
+	}
+
+	if vm.HasTag(proxmox.MakeTag(proxmox.TagCloudInit)) {
+		_, err = vm.RemoveTag(ctx, proxmox.MakeTag(proxmox.TagCloudInit))
+	}
+	return err
+}

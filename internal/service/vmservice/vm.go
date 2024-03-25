@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
@@ -36,7 +37,7 @@ import (
 )
 
 const (
-	// See following link for a list of available config options:
+	// See the following link for a list of available config options:
 	// https://pve.proxmox.com/pve-docs/api-viewer/index.html#/nodes/{node}/qemu/{vmid}/config
 
 	optionSockets = "sockets"
@@ -88,6 +89,14 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 
 	if err := reconcileMachineAddresses(scope); err != nil {
 		return vm, err
+	}
+
+	// if the root machine is ready, we can assume that the VM is ready as well.
+	// unmount the cloud-init iso if it is still mounted.
+	if scope.Machine.Status.BootstrapReady && scope.Machine.Status.NodeRef != nil {
+		if err := unmountCloudInitISO(ctx, scope); err != nil {
+			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
+		}
 	}
 
 	vm.State = infrav1alpha1.VirtualMachineStateReady
@@ -351,3 +360,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 }
 
 var selectNextNode = scheduler.ScheduleVM
+
+func unmountCloudInitISO(ctx context.Context, machineScope *scope.MachineScope) error {
+	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, machineScope.VirtualMachine, inject.CloudInitISODevice)
+}
