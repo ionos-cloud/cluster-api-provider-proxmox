@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -85,6 +85,15 @@ func defaultCluster() *ProxmoxCluster {
 				Prefix:    24,
 			},
 			DNSServers: []string{"1.2.3.4"},
+			CloneSpec: &ProxmoxClusterCloneSpec{
+				ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
+					"controlPlane": ProxmoxMachineSpec{
+						VirtualMachineCloneSpec: VirtualMachineCloneSpec{
+							SourceNode: "pve1",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -127,6 +136,15 @@ var _ = Describe("ProxmoxCluster Test", func() {
 
 	It("Should allow creating valid clusters", func() {
 		Expect(k8sClient.Create(context.Background(), defaultCluster())).To(Succeed())
+	})
+
+	Context("CloneSpecs", func() {
+		It("Should not allow Cluster without ControlPlane nodes", func() {
+			dc := defaultCluster()
+			dc.Spec.CloneSpec.ProxmoxMachineSpec = map[string]ProxmoxMachineSpec{}
+
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("control plane")))
+		})
 	})
 
 	Context("IPV6Config", func() {
