@@ -296,3 +296,15 @@ func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
 	require.True(t, requeue)
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
 }
+
+func TestReconcileDisks_UnmountCloudInitISO(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newRunningVM()
+	vm.VirtualMachineConfig.IDE0 = "local:iso/cloud-init.iso,media=cdrom"
+	machineScope.SetVirtualMachine(vm)
+
+	proxmoxClient.EXPECT().UnmountCloudInitISO(context.Background(), vm, "ide0").Return(nil)
+
+	require.NoError(t, unmountCloudInitISO(context.Background(), machineScope))
+}
