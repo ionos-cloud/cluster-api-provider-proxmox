@@ -20,6 +20,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/netip"
 	"strings"
 
@@ -98,6 +99,11 @@ func validateIPs(cluster *infrav1.ProxmoxCluster) error {
 
 	endpointHostIP := ep.Host
 
+	if isValidFQDN(endpointHostIP) {
+		ipAddr, _ := net.ResolveIPAddr("ip", endpointHostIP)
+		endpointHostIP = ipAddr.String()
+	}
+
 	addr, err := netip.ParseAddr(endpointHostIP)
 	if err != nil {
 		return apierrors.NewInvalid(
@@ -105,12 +111,12 @@ func validateIPs(cluster *infrav1.ProxmoxCluster) error {
 			name,
 			field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec", "controlplaneEndpoint"), endpointHostIP, "provided endpoint address is not a valid IP"),
+					field.NewPath("spec", "controlplaneEndpoint"), endpointHostIP, "provided endpoint address is not a valid IP or FQDN"),
 			})
 	}
 	// If the passed control-plane endppoint is an IPv6 address, wrap it in [], so it can properly pass ParseAddrPort validation
 	if addr.Is6() {
-		endpointHostIP = fmt.Sprintf("[%s]", ep.Host)
+		endpointHostIP = fmt.Sprintf("[%s]", endpointHostIP)
 	}
 
 	ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", endpointHostIP, ep.Port))
@@ -212,4 +218,9 @@ func buildSetFromAddresses(addresses []string) (*netipx.IPSet, error) {
 
 func hasNoIPPoolConfig(cluster *infrav1.ProxmoxCluster) bool {
 	return cluster.Spec.IPv4Config == nil && cluster.Spec.IPv6Config == nil
+}
+
+func isValidFQDN(fqdn string) bool {
+	_, err := net.ResolveIPAddr("ip", fqdn)
+	return err == nil
 }
