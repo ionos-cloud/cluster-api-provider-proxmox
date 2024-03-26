@@ -43,10 +43,22 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("at least one ip config must be set")))
 		})
 
+		It("should disallow invalid/non-existing endpoint FQDN", func() {
+			cluster := invalidProxmoxCluster("test-cluster")
+			cluster.Spec.ControlPlaneEndpoint.Host = "this.does.not.exist.ionos.com"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP or FQDN")))
+		})
+
 		It("should disallow invalid endpoint IP", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
 			cluster.Spec.ControlPlaneEndpoint.Host = "invalid"
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP")))
+		})
+
+		It("should allow valid endpoint from FQDN", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-fqdn")
+			cluster.Spec.ControlPlaneEndpoint.Host = "ionos.com"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 
 		It("should disallow invalid endpoint IP + port combination", func() {
