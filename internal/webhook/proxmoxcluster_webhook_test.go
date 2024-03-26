@@ -61,6 +61,18 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 
+		It("should allow valid endpoint IP4", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-ip4")
+			cluster.Spec.ControlPlaneEndpoint.Host = "127.0.0.1"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
+
+		It("should allow valid endpoint IP6", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-ip6")
+			cluster.Spec.ControlPlaneEndpoint.Host = "::1"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
+
 		It("should disallow invalid endpoint IP + port combination", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
 			cluster.Spec.ControlPlaneEndpoint.Host = "127.0.0.1"
