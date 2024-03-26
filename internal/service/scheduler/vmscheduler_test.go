@@ -25,10 +25,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fakeResourceClient map[string]uint64
+type fakeResourceClient map[string]nodeInfo
 
-func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string, _ uint64) (uint64, error) {
-	return c[nodeName], nil
+func (c fakeResourceClient) GetReservableResources(_ context.Context, nodeName string, _ uint64, _ uint64) (uint64, uint64, error) {
+	return c[nodeName].AvailableMemory, c[nodeName].AvailableCPU, nil
 }
 
 func miBytes(in uint64) uint64 {
@@ -39,10 +39,18 @@ func TestSelectNode(t *testing.T) {
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
 	var locations []infrav1.NodeLocation
 	const requestMiB = 8
-	availableMem := map[string]uint64{
-		"pve1": miBytes(20),
-		"pve2": miBytes(30),
-		"pve3": miBytes(15),
+	const requestCores = 2
+	cpuAdjustment := uint64(100)
+
+	schedulerHints := &infrav1.SchedulerHints{
+		// This defaults to true in our CRD
+		PreferLowerGuestCount: true,
+		CPUAdjustment:         &cpuAdjustment,
+	}
+	availableResources := map[string]nodeInfo{
+		"pve1": {AvailableMemory: miBytes(20), AvailableCPU: uint64(16)},
+		"pve2": {AvailableMemory: miBytes(30), AvailableCPU: uint64(16)},
+		"pve3": {AvailableMemory: miBytes(15), AvailableCPU: uint64(16)},
 	}
 
 	expectedNodes := []string{
@@ -57,40 +65,47 @@ func TestSelectNode(t *testing.T) {
 			proxmoxMachine := &infrav1.ProxmoxMachine{
 				Spec: infrav1.ProxmoxMachineSpec{
 					MemoryMiB: requestMiB,
+					NumCores:  requestCores,
 				},
 			}
 
-			client := fakeResourceClient(availableMem)
+			client := fakeResourceClient(availableResources)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, schedulerHints)
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
-			require.Greater(t, availableMem[node], miBytes(requestMiB))
-			availableMem[node] -= miBytes(requestMiB)
+			require.Greater(t, availableResources[node].AvailableMemory, miBytes(requestMiB))
+			if entry, ok := availableResources[node]; ok {
+				entry.AvailableMemory -= miBytes(requestMiB)
+				entry.AvailableCPU -= requestCores
+				availableResources[node] = entry
+			}
 
 			locations = append(locations, infrav1.NodeLocation{Node: node})
 		})
 	}
 
-	t.Run("out of memory", func(t *testing.T) {
+	t.Run("out of resources", func(t *testing.T) {
 		proxmoxMachine := &infrav1.ProxmoxMachine{
 			Spec: infrav1.ProxmoxMachineSpec{
 				MemoryMiB: requestMiB,
+				NumCores:  requestCores,
 			},
 		}
 
-		client := fakeResourceClient(availableMem)
+		client := fakeResourceClient(availableResources)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
-		require.ErrorAs(t, err, &InsufficientMemoryError{})
+		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, schedulerHints)
+		require.ErrorAs(t, err, &InsufficientResourcesError{})
 		require.Empty(t, node)
 
-		expectMem := map[string]uint64{
-			"pve1": miBytes(4), // 20 - 8 x 2
-			"pve2": miBytes(6), // 30 - 8 x 3
-			"pve3": miBytes(7), // 15 - 8 x 1
+		expectResources := map[string]nodeInfo{
+			"pve1": {AvailableMemory: miBytes(4), AvailableCPU: uint64(12)}, // 20 - 8 x 2
+			"pve2": {AvailableMemory: miBytes(6), AvailableCPU: uint64(10)}, // 30 - 8 x 3
+			"pve3": {AvailableMemory: miBytes(7), AvailableCPU: uint64(14)}, // 15 - 8 x 1
 		}
-		require.Equal(t, expectMem, availableMem)
+
+		require.Equal(t, expectResources, availableResources)
 	})
 }
