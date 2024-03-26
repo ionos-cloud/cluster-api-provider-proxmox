@@ -46,4 +46,6 @@ type Client interface {
 	StartVM(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error)
 
 	TagVM(ctx context.Context, vm *proxmox.VirtualMachine, tag string) (*proxmox.Task, error)
+
+	UnmountCloudInitISO(ctx context.Context, vm *proxmox.VirtualMachine, device string) error
 }

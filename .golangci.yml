@@ -1,3 +1,7 @@
+run:
+  timeout: 10m
+  allow-parallel-runners: true
+
 linters:
   disable-all: true
   enable:
@@ -34,9 +38,6 @@ linters:
     - whitespace
 
 linters-settings:
-  ifshort:
-    # Maximum length of variable declaration measured in number of characters, after which linter won't suggest using short syntax.
-    max-decl-chars: 50
   importas:
     no-unaliased: true
     alias:
@@ -59,10 +60,6 @@ linters-settings:
   loggercheck:
     require-string-key: true
     no-printf-like: true
-  staticcheck:
-    go: "1.19"
-  stylecheck:
-    go: "1.19"
 
 issues:
   max-same-issues: 0
@@ -123,13 +120,8 @@ issues:
     - linters:
         - gocritic
       text: "appendAssign: append result not assigned to the same slice"
-
-
-run:
-  timeout: 10m
-  skip-files:
+  exclude-files:
     - "zz_generated.*\\.go$"
     - ".*conversion.*\\.go$"
-  skip-dirs:
+  exclude-dirs:
     - mock*
-  allow-parallel-runners: true
