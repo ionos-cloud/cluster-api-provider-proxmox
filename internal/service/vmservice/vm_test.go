@@ -409,9 +409,11 @@ func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
 func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
 	machineScope.SetVirtualMachine(vm)
 
 	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+
 	require.NoError(t, err)
 	require.False(t, requeue)
 }
@@ -435,11 +437,33 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	task := newTask()
 	machineScope.SetVirtualMachine(vm)
 	expectedOptions := []interface{}{
+		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()},
 		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
 		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
 		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},
 		proxmox.VirtualMachineOption{Name: "net0", Value: formatNetworkDevice("virtio", "vmbr0", ptr.To(uint16(1500)), nil)},
 		proxmox.VirtualMachineOption{Name: "net1", Value: formatNetworkDevice("virtio", "vmbr1", ptr.To(uint16(1500)), nil)},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+func TestReconcileVirtualMachineConfigTags(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.Tags = []string{"tag1", "tag2"}
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Tags = "tag0"
+	task := newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions := []interface{}{
+		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()},
+		proxmox.VirtualMachineOption{Name: optionTags, Value: "tag0;tag1;tag2"},
 	}
 
 	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
@@ -545,6 +569,7 @@ func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
 	task := newTask()
 	machineScope.SetVirtualMachine(vm)
 	expectedOptions := []interface{}{
+		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()},
 		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
 		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
 		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},

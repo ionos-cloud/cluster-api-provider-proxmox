@@ -20,6 +20,7 @@ package vmservice
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -228,6 +229,18 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	vmConfig := machineScope.VirtualMachine.VirtualMachineConfig
 
+	//var vmOptions []proxmox.VirtualMachineOption
+	//// Description
+	//if machineScope.ProxmoxMachine.Spec.Description != nil {
+	//	if machineScope.VirtualMachine.VirtualMachineConfig.Description != *machineScope.ProxmoxMachine.Spec.Description {
+	//		vmOptions = append(vmConfig, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description})
+	//	}
+	//} else {
+	//	if machineScope.VirtualMachine.VirtualMachineConfig.Description != machineScope.ProxmoxMachine.GetName() {
+	//		vmConfig = append(vmConfig, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()})
+	//	}
+	//}
+
 	// CPU & Memory
 	var vmOptions []proxmox.VirtualMachineOption
 	if value := machineScope.ProxmoxMachine.Spec.NumSockets; value > 0 && vmConfig.Sockets != int(value) {
@@ -239,6 +252,7 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	if value := machineScope.ProxmoxMachine.Spec.MemoryMiB; value > 0 && int32(vmConfig.Memory) != value {
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: value})
 	}
+
 
 	// Network vmbrs.
 	if machineScope.ProxmoxMachine.Spec.Network != nil && shouldUpdateNetworkDevices(machineScope) {
@@ -260,6 +274,20 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 				Name:  v.Name,
 				Value: formatNetworkDevice(*v.Model, v.Bridge, v.MTU, v.VLAN),
 			})
+		}
+	}
+
+	// custom tags
+	if machineScope.ProxmoxMachine.Spec.Tags != nil {
+		tags := strings.Split(machineScope.VirtualMachine.VirtualMachineConfig.Tags, ";")
+		length := len(tags)
+		for _, tag := range machineScope.ProxmoxMachine.Spec.Tags {
+			if !machineScope.VirtualMachine.HasTag(tag) {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) > length {
+			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionTags, Value: strings.Join(tags, ";")})
 		}
 	}
 

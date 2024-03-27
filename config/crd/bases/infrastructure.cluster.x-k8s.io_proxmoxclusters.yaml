@@ -558,6 +558,12 @@ spec:
                         storage:
                           description: Storage for full clone.
                           type: string
+                        tags:
+                          description: Tags is a list of tags to be applied to the
+                            virtual machine.
+                          items:
+                            type: string
+                          type: array
                         target:
                           description: Target node. Only allowed if the original VM
                             is on shared storage.

@@ -20,6 +20,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,6 +60,12 @@ func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (
 		return warnings, err
 	}
 
+	err = validateTags(machine.Spec.Tags)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox machine %s", machine.GetName()))
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
@@ -70,6 +77,12 @@ func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, _, newObj runtime.Obj
 	}
 
 	err = validateNetworks(newMachine)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot update proxmox machine %s", newMachine.GetName()))
+		return warnings, err
+	}
+
+	err = validateTags(newMachine.Spec.Tags)
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox machine %s", newMachine.GetName()))
 		return warnings, err
@@ -203,5 +216,16 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 		return fmt.Errorf("mtu must be at least 1280 or 1, but was %d", *device.MTU)
 	}
 
+	return nil
+}
+
+func validateTags(tags []string) error {
+	re := regexp.MustCompile(`^[a-zA-Z0-9-_]*$`)
+
+	for _, tag := range tags {
+		if !re.MatchString(tag) {
+			return fmt.Errorf("invalid tag: %s. A tag can only contain alphanumeric characters, hyphens, and underscores", tag)
+		}
+	}
 	return nil
 }
