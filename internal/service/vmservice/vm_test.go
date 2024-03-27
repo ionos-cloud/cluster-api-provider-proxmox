@@ -413,13 +413,13 @@ func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 
 	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
-
 	require.NoError(t, err)
 	require.False(t, requeue)
 }
 
 func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
 	machineScope.ProxmoxMachine.Spec.NumSockets = 4
 	machineScope.ProxmoxMachine.Spec.NumCores = 4
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
@@ -437,7 +437,7 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	task := newTask()
 	machineScope.SetVirtualMachine(vm)
 	expectedOptions := []interface{}{
-		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()},
+		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description},
 		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
 		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
 		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},
