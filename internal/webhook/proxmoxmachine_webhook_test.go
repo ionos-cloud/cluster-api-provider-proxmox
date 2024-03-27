@@ -59,6 +59,12 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.AdditionalDevices[0].VLAN = ptr.To(uint16(0))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
+
+		It("should disallow invalid tags", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.Tags = []string{"foo=bar"}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid tag")))
+		})
 	})
 
 	Context("update proxmox cluster", func() {
@@ -74,6 +80,11 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.Default.VLAN = ptr.To(uint16(0))
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
+
+			machine.Spec.Tags = []string{"foo=bar"}
+			machine.Spec.Network.Default.VLAN = nil
+			machine.Spec.Network.Default.MTU = nil
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid tag")))
 
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &machine))).To(Succeed())

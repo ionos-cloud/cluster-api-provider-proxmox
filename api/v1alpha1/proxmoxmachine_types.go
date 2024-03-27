@@ -90,6 +90,10 @@ type ProxmoxMachineSpec struct {
 	// Network is the network configuration for this machine's VM.
 	// +optional
 	Network *NetworkSpec `json:"network,omitempty"`
+
+	// Tags is a list of tags to be applied to the virtual machine.
+	// +optional
+	Tags []string `json:"tags,omitempty"`
 }
 
 // Storage is the physical storage on the node.
