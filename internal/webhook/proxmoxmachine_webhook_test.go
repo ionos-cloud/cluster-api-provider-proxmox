@@ -99,6 +99,11 @@ var _ = Describe("Controller Test", func() {
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
 
+			machine.Spec.Tags = []string{"foo=bar"}
+			machine.Spec.Network.Default.VLAN = nil
+			machine.Spec.Network.Default.MTU = nil
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid tag")))
+
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &machine))).To(Succeed())
 			}).WithTimeout(time.Second * 10).
