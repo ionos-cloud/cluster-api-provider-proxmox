@@ -77,6 +77,12 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.AdditionalDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
+
+		It("should disallow invalid tags", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.Tags = []string{"foo=bar"}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid tag")))
+		})
 	})
 
 	Context("update proxmox cluster", func() {

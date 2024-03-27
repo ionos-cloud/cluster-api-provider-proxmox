@@ -113,6 +113,10 @@ type ProxmoxMachineSpec struct {
 	// MetadataSettings defines the metadata settings for this machine's VM.
 	// +optional
 	MetadataSettings *MetadataSettings `json:"metadataSettings,omitempty"`
+
+	// Tags is a list of tags to be applied to the virtual machine.
+	// +optional
+	Tags []string `json:"tags,omitempty"`
 }
 
 // Storage is the physical storage on the node.
