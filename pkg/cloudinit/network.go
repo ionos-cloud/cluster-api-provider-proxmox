@@ -41,17 +41,17 @@ const (
       {{- end }}
       {{- if and $element.IPV6Address (not $element.DHCP6)}}
         - '{{ $element.IPV6Address }}'
-	  {{- end }}
+      {{- end }}
       {{- if or (and $element.Gateway (not $element.DHCP4)) (and $element.Gateway6 (not $element.DHCP6)) }}
       routes:
       {{- if and $element.Gateway (not $element.DHCP4) }}
         - to: 0.0.0.0/0
           via: {{ $element.Gateway }}
-	  {{- end }}
+      {{- end }}
       {{- if and $element.Gateway6 (not $element.DHCP6) }}
         - to: '::/0'
           via: '{{ $element.Gateway6 }}'
-	  {{- end }}
+      {{- end }}
       {{- end }}
       {{- end }}
       {{- if $element.DNSServers }}
@@ -68,7 +68,7 @@ const (
   {{- if eq $element.Type "vrf" }}
   {{- if eq $vrf 0 }}
   vrfs:
-  {{- $vrf := 1 }}
+  {{- $vrf = 1 }}
   {{- end }}
     {{$element.Name}}:
       table: {{ $element.Table }}
