@@ -33,7 +33,7 @@ The following dependencies are required to setup a development environment:
 
 - git
 - make
-- Go v1.20 (newer versions break testing)
+- Go v1.21 (newer versions break testing)
 - Kubebuilder (only required for making new controllers)
 - Docker (required for Kind)
 - Tilt
