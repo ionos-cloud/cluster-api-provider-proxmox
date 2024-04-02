@@ -41,6 +41,9 @@ spec:
 #       addresses: [2001:db8:1::10-2001:db8:1::20]
 #       gateway: 2001:db8:1::1
 #       prefix: 64
+    - name: kubeProxy
+      value:
+        mode: iptables
     - name: cloneSpec
       value:
         machineSpec:
