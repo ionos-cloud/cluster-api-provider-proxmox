@@ -3,9 +3,8 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 go 1.21
 
 require (
-	github.com/braydonk/yaml v0.7.0
 	github.com/golangci/golangci-lint v1.57.1
-	github.com/google/yamlfmt v0.11.0
+	github.com/google/yamlfmt v0.10.0
 	github.com/vektra/mockery/v2 v2.34.2
 )
 
@@ -134,7 +133,6 @@ require (
 	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/ryancurrah/gomodguard v1.3.1 // indirect
 	github.com/ryanrolds/sqlclosecheck v0.5.1 // indirect
-	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
 	github.com/sanposhiho/wastedassign/v2 v2.0.7 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/sashamelentyev/interfacebloat v1.1.0 // indirect

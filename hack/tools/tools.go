@@ -23,5 +23,4 @@ import (
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/vektra/mockery/v2"
 	_ "github.com/google/yamlfmt"
-	_ "github.com/braydonk/yaml"
 )
