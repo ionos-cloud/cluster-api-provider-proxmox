@@ -33,3 +33,10 @@ jobs:
 
       - name: Run e2e tests
         run: "make test-e2e"
+        
+      - name: Post Run (Cleanup kind clusters)
+        id: post-run
+        uses: srz-zumix/post-run-action@v1
+        with:
+          post-run: |
+             kind get clusters | xargs -I% kind delete cluster --name %
