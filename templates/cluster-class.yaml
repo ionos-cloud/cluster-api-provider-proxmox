@@ -127,6 +127,15 @@ spec:
           items:
             type: string
           example: ["pve1", "pve2", "pve3"]
+    - name: kubeProxy
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: ["ipvs","iptables"]
     - name: cloneSpec
       required: true
       schema:
@@ -398,6 +407,8 @@ spec:
         jsonPatches:
           - op: add
             path: /spec/template/spec/ipv6Config
+            valueFrom:
+              variable: ipv6Config
   - name: ControlPlaneSetup
     description: "How to bind the Control Plane and what K8S version"
     definitions:
@@ -414,63 +425,63 @@ spec:
                 - name: root
                   sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
           - op: add
-            path: /spec/template/spec/kubeadmConfigSpec/files
+            path: /spec/template/spec/kubeadmConfigSpec/files/-
             valueFrom:
               template: |
-                - owner: root:root
-                  path: /etc/kubernetes/manifests/kube-vip.yaml
-                  content: |
-                    apiVersion: v1
-                    kind: Pod
-                    metadata:
-                      creationTimestamp: null
+                owner: root:root
+                path: /etc/kubernetes/manifests/kube-vip.yaml
+                content: |
+                  apiVersion: v1
+                  kind: Pod
+                  metadata:
+                    creationTimestamp: null
+                    name: kube-vip
+                    namespace: kube-system
+                  spec:
+                    containers:
+                    - args:
+                      - manager
+                      env:
+                      - name: cp_enable
+                        value: "true"
+                      - name: vip_interface
+                        value: "{{ .cloneSpec.virtualIPNetworkInterface }}"
+                      - name: address
+                        value: "{{ .controlPlaneEndpoint.host }}"
+                      - name: port
+                        value: "6443"
+                      - name: vip_arp
+                        value: "true"
+                      - name: vip_leaderelection
+                        value: "true"
+                      - name: vip_leaseduration
+                        value: "15"
+                      - name: vip_renewdeadline
+                        value: "10"
+                      - name: vip_retryperiod
+                        value: "2"
+                      image: ghcr.io/kube-vip/kube-vip:v0.5.11
+                      imagePullPolicy: IfNotPresent
                       name: kube-vip
-                      namespace: kube-system
-                    spec:
-                      containers:
-                      - args:
-                        - manager
-                        env:
-                        - name: cp_enable
-                          value: "true"
-                        - name: vip_interface
-                          value: "{{ .cloneSpec.virtualIPNetworkInterface }}"
-                        - name: address
-                          value: "{{ .controlPlaneEndpoint.host }}"
-                        - name: port
-                          value: "6443"
-                        - name: vip_arp
-                          value: "true"
-                        - name: vip_leaderelection
-                          value: "true"
-                        - name: vip_leaseduration
-                          value: "15"
-                        - name: vip_renewdeadline
-                          value: "10"
-                        - name: vip_retryperiod
-                          value: "2"
-                        image: ghcr.io/kube-vip/kube-vip:v0.5.11
-                        imagePullPolicy: IfNotPresent
-                        name: kube-vip
-                        resources: {}
-                        securityContext:
-                          capabilities:
-                            add:
-                            - NET_ADMIN
-                            - NET_RAW
-                        volumeMounts:
-                        - mountPath: /etc/kubernetes/admin.conf
-                          name: kubeconfig
-                      hostAliases:
-                      - hostnames:
-                        - kubernetes
-                        ip: 127.0.0.1
-                      hostNetwork: true
-                      volumes:
-                      - hostPath:
-                          path: /etc/kubernetes/admin.conf
-                          type: FileOrCreate
+                      resources: {}
+                      securityContext:
+                        capabilities:
+                          add:
+                          - NET_ADMIN
+                          - NET_RAW
+                      volumeMounts:
+                      - mountPath: /etc/kubernetes/admin.conf
                         name: kubeconfig
+                    hostAliases:
+                    - hostnames:
+                      - kubernetes
+                      ip: 127.0.0.1
+                    hostNetwork: true
+                    volumes:
+                    - hostPath:
+                        path: /etc/kubernetes/admin.conf
+                        type: FileOrCreate
+                      name: kubeconfig
       - selector:
           apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
           kind: ProxmoxMachineTemplate
@@ -485,6 +496,37 @@ spec:
             path: /spec/template/spec/templateID
             valueFrom:
               variable: cloneSpec.machineSpec.controlPlane.templateID
+  - name: kube-proxy-setup
+    description: "kube-proxy configuration"
+    enabledIf: "{{ if eq .kubeProxy.mode \"ipvs\" }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+          kind: KubeadmControlPlaneTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/kubeadmConfigSpec/files/-
+            valueFrom:
+              template: |
+                content: |
+                  #/bin/sh
+                  cat >> /run/kubeadm/kubeadm.yaml <<EOF
+                  ---
+                  apiVersion: kubeproxy.config.k8s.io/v1alpha1
+                  kind: KubeProxyConfiguration
+                  mode: "ipvs"
+                  ipvs:
+                    strictARP: true
+                  EOF
+                owner: root:root
+                permissions: "0755"
+                path: /tmp/kube-proxy.sh
+          - op: add
+            path: /spec/template/spec/kubeadmConfigSpec/preKubeadmCommands
+            value:
+                - /tmp/kube-proxy.sh
   - name: WorkerNodeSetup
     description: "Configure Worker Node Initialisation"
     definitions:
