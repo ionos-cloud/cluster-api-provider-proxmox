@@ -227,16 +227,21 @@ CALICO_VERSION ?= v3.26.3
 crs-calico: ## Generates crs manifests for Calico.
 	curl -o templates/crs/cni/calico.yaml https://raw.githubusercontent.com/projectcalico/calico/$(CALICO_VERSION)/manifests/calico.yaml
 
-METALLB_VERSION ?= 0.14.3
+METALLB_VERSION ?= 0.14.4
 FRR_K8S_DIR = metallb/charts/metallb/charts/frr-k8s/templates
-METALLB_TOLERATIONS = [{"key": "node-role.kubernetes.io/load-balancer", "operator": "Exists", "effect": "NoSchedule"}]
+LB_TOLERATIONS = [{"key": "node-role.kubernetes.io/load-balancer", "operator": "Exists", "effect": "NoSchedule"}]
+CP_TOLERATIONS = [{"key": "node-role.kubernetes.io/control-plane", "operator": "Exists", "effect": "NoSchedule"}]
+FRR_NODESELECTOR = {"node-role.kubernetes.io/load-balancer": ""}
 .PHONY: crs-metallb
 crs-metallb: ## Generates crs manifests for MetalLB.
 	$(HELM) repo add metallb https://metallb.github.io/metallb
-	$(HELM) template metallb metallb/metallb --version $(METALLB_VERSION) --set frrk8s.enabled=true,speaker.frr.enabled=false --set-json 'controller.tolerations=$(METALLB_TOLERATIONS)' --set-json 'speaker.tolerations=$(METALLB_TOLERATIONS)' --set-json 'frr-k8s.frrk8s.tolerations=$(METALLB_TOLERATIONS)' --namespace=metallb-system > templates/crs/metallb.yaml
-
-	@# fixup namespacing in frr-k8s to work with clusterresourcesets
-	@sed -e '7bp;48bp;69bp;1682bp;1854bp;1887bp;2253bp;bn' -e ':p i\  namespace: "metallb-system"' -e ':n' -i templates/crs/metallb.yaml
+	$(HELM) template metallb metallb/metallb --version $(METALLB_VERSION) \
+			--set frrk8s.enabled=true,speaker.frr.enabled=false \
+			--set-json 'controller.tolerations=$(CP_TOLERATIONS)' \
+			--set-json 'speaker.tolerations=$(LB_TOLERATIONS)' \
+			--set-json 'frr-k8s.frrk8s.tolerations=$(LB_TOLERATIONS)' \
+			--set-json 'frr-k8s.frrk8s.nodeSelector=$(FRR_NODESELECTOR)' \
+			--namespace=metallb-system > templates/crs/metallb.yaml
 
 
 ##@ Release
