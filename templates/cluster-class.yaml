@@ -382,30 +382,10 @@ spec:
           matchResources:
             infrastructureCluster: true
         jsonPatches:
-          - op: replace
-            path: /spec/template/spec/ipv4Config/addresses
+          - op: add
+            path: /spec/template/spec/ipv4Config
             valueFrom:
               variable: ipv4Config.addresses
-          - op: replace
-            path: /spec/template/spec/ipv4Config/prefix
-            valueFrom:
-              variable: ipv4Config.prefix
-          - op: replace
-            path: /spec/template/spec/ipv4Config/gateway
-            valueFrom:
-              variable: ipv4Config.gateway
-  - name: ClusterDeleteIPv4
-    description: "Delete Cluster IPv4 config if not enabled"
-    enabledIf: "{{ if .ipv4Config }}false{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxClusterTemplate
-          matchResources:
-            infrastructureCluster: true
-        jsonPatches:
-          - op: remove
-            path: /spec/template/spec/ipv4Config
   - name: ClusterIPv6Config
     description: "Configure Cluster IPv6 config"
     enabledIf: "{{ if .ipv6Config }}true{{ end }}"
@@ -416,29 +396,7 @@ spec:
           matchResources:
             infrastructureCluster: true
         jsonPatches:
-          - op: replace
-            path: /spec/template/spec/ipv6Config/addresses
-            valueFrom:
-              variable: ipv6Config.addresses
-          - op: replace
-            path: /spec/template/spec/ipv6Config/prefix
-            valueFrom:
-              variable: ipv6Config.prefix
-          - op: replace
-            path: /spec/template/spec/ipv6Config/gateway
-            valueFrom:
-              variable: ipv6Config.gateway
-  - name: ClusterDeleteIPv6
-    description: "Delete Cluster IPv6 config if not enabled"
-    enabledIf: "{{ if .ipv6Config }}false{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxClusterTemplate
-          matchResources:
-            infrastructureCluster: true
-        jsonPatches:
-          - op: remove
+          - op: add
             path: /spec/template/spec/ipv6Config
   - name: ControlPlaneSetup
     description: "How to bind the Control Plane and what K8S version"
@@ -864,14 +822,6 @@ spec:
         host: 10.10.10.9
         port: 6443
       dnsServers: [8.8.8.8, 8.8.4.4]
-      ipv4Config:
-        addresses: ["10.10.10.2-10.10.10.10"]
-        prefix: 24
-        gateway: 10.10.10.1
-      ipv6Config:
-        addresses: ["2001:db8::2-2001:db8::ffff"]
-        prefix: 64
-        gateway: 2001:db8::1
       cloneSpec:
         virtualIPNetworkInterface: ""
         sshAuthorizedKeys: []
@@ -938,3 +888,7 @@ spec:
         nodeRegistration:
           kubeletExtraArgs:
             provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+          taints:
+          - effect: NoSchedule
+            key: node-role.kubernetes.io/load-balancer
+            value: ""
