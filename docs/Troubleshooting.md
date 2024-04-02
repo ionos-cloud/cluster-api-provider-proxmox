@@ -63,3 +63,7 @@ or others, please check the image tag of the `capi-controller-manager` Deploymen
 kubectl get deployment/capi-controller-manager -o yaml | yq '.spec.template.spec.containers[].image'
 ```
 If your capi-controller is too new, you can pass a `--core cluster-api:v1.6.1` during `clusterctl init`, to force an older version. By default it installs the latest version from the [kubernetes-sigs/cluster-api](https://github.com/kubernetes-sigs/cluster-api) project.
+
+## Calico fails in IPVS mode with loadBalancers to expose services
+Calico unfortunately does not test connectivity when it choses a node ip to use for IPVS communication.
+This can be altered manually. More on this topic in [Calicos documentation](https://docs.tigera.io/calico/latest/networking/ipam/ip-autodetection#autodetection-methods).
