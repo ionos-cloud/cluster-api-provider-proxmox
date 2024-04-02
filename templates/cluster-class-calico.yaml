@@ -45,6 +45,9 @@ spec:
               apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
               kind: ProxmoxMachineTemplate
               name: proxmox-clusterclass-v0.1.0-workertemplate
+          metadata:
+            labels:
+              node-role.kubernetes.io/node: ""
         machineHealthCheck:
           maxUnhealthy: 33%
           nodeStartupTimeout: 15m
@@ -69,6 +72,10 @@ spec:
               apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
               kind: ProxmoxMachineTemplate
               name: proxmox-clusterclass-v0.1.0-loadbalancer-template
+          metadata:
+            labels:
+              node-role.kubernetes.io/load-balancer: ""
+              node-role.kubernetes.io/node: ""
         machineHealthCheck:
           maxUnhealthy: 33%
           nodeStartupTimeout: 15m
@@ -961,6 +968,10 @@ spec:
         nodeRegistration:
           kubeletExtraArgs:
             provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+          taints:
+          - effect: NoSchedule
+            key: node-role.kubernetes.io/load-balancer
+            value: ""
 ---
 apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet

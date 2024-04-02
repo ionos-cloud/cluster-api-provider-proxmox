@@ -45,9 +45,9 @@ spec:
       value:
         machineSpec:
           controlPlane:
-           network:
-             default:
-               bridge: vmbr0
+            network:
+              default:
+                bridge: vmbr0
 #             additionalDevices:
 #               - name: net1
 #                 model: virtio
@@ -90,28 +90,28 @@ spec:
             network:
               default:
                 bridge: vmbr0
-#              additionalDevices:
-#                - name: net1
-#                  model: virtio
-#                  ipv4PoolRef:
-#                    name: shared-inclusteripv4pool
-#                    apiGroup: ipam.cluster.x-k8s.io
-#                    kind: GlobalInClusterIPPool
-#                  ipv6PoolRef:
-#                    name: shared-inclusteripv6pool
-#                    apiGroup: ipam.cluster.x-k8s.io
-#                    kind: GlobalInClusterIPPool
-#                  bridge: vmbr1
-#              vrfs:
-#                - name: vrf-ext
-#                  interfaces:
-#                    - net1
-#                  table: 500
-#                  routingPolicy:
-#                    - from: 192.0.2.0/24
-#            numSockets: 1
-#            numCores: 2
-#            memoryMiB: 2048
+#             additionalDevices:
+#               - name: net1
+#                 model: virtio
+#                 ipv4PoolRef:
+#                   name: shared-inclusteripv4pool
+#                   apiGroup: ipam.cluster.x-k8s.io
+#                   kind: GlobalInClusterIPPool
+#                 ipv6PoolRef:
+#                   name: shared-inclusteripv6pool
+#                   apiGroup: ipam.cluster.x-k8s.io
+#                   kind: GlobalInClusterIPPool
+#                 bridge: vmbr1
+#             vrfs:
+#               - name: vrf-ext
+#                 interfaces:
+#                   - net1
+#                 table: 500
+#                 routingPolicy:
+#                   - from: 192.0.2.0/24
+#           numSockets: 1
+#           numCores: 2
+#           memoryMiB: 2048
             sourceNode: pve1
             templateID: 100
         sshAuthorizedKeys:
