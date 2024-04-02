@@ -73,7 +73,7 @@ type ProxmoxClusterSpec struct {
 	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
 }
 
-// ProxmoxClusterNodeCloneSpec is the configuration pertaining to all items configurable
+// ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
 type ProxmoxClusterCloneSpec struct {
 	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"

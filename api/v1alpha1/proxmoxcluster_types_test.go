@@ -87,7 +87,7 @@ func defaultCluster() *ProxmoxCluster {
 			DNSServers: []string{"1.2.3.4"},
 			CloneSpec: &ProxmoxClusterCloneSpec{
 				ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
-					"controlPlane": ProxmoxMachineSpec{
+					"controlPlane": {
 						VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 							SourceNode: "pve1",
 						},
