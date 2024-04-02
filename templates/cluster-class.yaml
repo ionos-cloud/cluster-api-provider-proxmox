@@ -35,6 +35,9 @@ spec:
               apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
               kind: ProxmoxMachineTemplate
               name: proxmox-clusterclass-v0.1.0-workertemplate
+          metadata:
+            labels:
+              node-role.kubernetes.io/node: ""
         namingStrategy:
            template: "{{ .cluster.name }}-worker-{{ .random }}"
       - class: proxmox-loadbalancer
@@ -49,6 +52,10 @@ spec:
               apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
               kind: ProxmoxMachineTemplate
               name: proxmox-clusterclass-v0.1.0-loadbalancer-template
+          metadata:
+            labels:
+              node-role.kubernetes.io/load-balancer: ""
+              node-role.kubernetes.io/node: ""
         namingStrategy:
            template: "{{ .cluster.name }}-loadbalancer-{{ .random }}"
   variables:
