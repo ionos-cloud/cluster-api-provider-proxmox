@@ -31,7 +31,7 @@ jobs:
         name: Cleanup kind clusters
         id: post-run
         with:
-          run: "kind get clusters | xargs -I% kind delete cluster --name %"
+          run: "sh -c 'kind get clusters | xargs -I % kind delete cluster --name %'"
 
       - uses: actions/setup-go@v5
         with:
