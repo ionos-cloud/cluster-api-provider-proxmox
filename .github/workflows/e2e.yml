@@ -27,15 +27,14 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
 
-      - uses: webiny/action-post-run@3.1.0
-        name: Cleanup kind clusters
-        id: post-run
-        with:
-          run: "kind get clusters | xargs -I% kind delete cluster --name %"
-
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
       - name: Run e2e tests
         run: "make test-e2e"
+
+      - name: Cleanup kind clusters
+        uses: gacts/run-and-post-run@v1
+        with:
+          post: "kind get clusters | xargs -I% kind delete cluster --name %"
