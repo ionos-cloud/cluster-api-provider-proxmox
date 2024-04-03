@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
+	"github.com/pkg/errors"
 
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 )
@@ -257,4 +258,26 @@ func (c *APIClient) UnmountCloudInitISO(ctx context.Context, vm *proxmox.Virtual
 		_, err = vm.RemoveTag(ctx, proxmox.MakeTag(proxmox.TagCloudInit))
 	}
 	return err
+}
+
+func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) error {
+	if err := vm.WaitForAgent(ctx, 5); err != nil {
+		return errors.Wrap(err, "error waiting for agent")
+	}
+
+	pid, err := vm.AgentExec(ctx, []string{"cloud-init", "status"}, "")
+	if err != nil {
+		return errors.Wrap(err, "unable to get cloud-init status")
+	}
+
+	status, err := vm.WaitForAgentExecExit(ctx, pid, 2)
+	if err != nil {
+		return errors.Wrap(err, "unable to wait for agent exec")
+	}
+
+	if status.Exited == 1 && status.ExitCode != 0 {
+		return CloudInitFailedErr
+	}
+
+	return nil
 }
