@@ -49,5 +49,5 @@ type Client interface {
 
 	UnmountCloudInitISO(ctx context.Context, vm *proxmox.VirtualMachine, device string) error
 
-	CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) error
+	CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) (bool, error)
 }

@@ -39,7 +39,7 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.Ready = true
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
-	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(nil).Once()
+	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
 
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)

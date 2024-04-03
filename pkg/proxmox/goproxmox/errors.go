@@ -3,5 +3,6 @@ package goproxmox
 import "github.com/pkg/errors"
 
 var (
-	CloudInitFailedErr = errors.New("cloud-init failed execution")
+	// ErrCloudInitFailed is returned when cloud-init failed execution.
+	ErrCloudInitFailed = errors.New("cloud-init failed execution")
 )

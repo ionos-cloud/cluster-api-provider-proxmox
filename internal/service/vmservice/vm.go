@@ -109,13 +109,16 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 }
 
 func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if !machineScope.ProxmoxMachine.Status.Ready || !machineScope.VirtualMachine.IsRunning() {
-		// skip if the machine is not ready or the vm is not running.
+	if !machineScope.VirtualMachine.IsRunning() {
+		// skip if the vm is not running.
 		return true, nil
 	}
 
-	if err = machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil {
-		if errors.Is(goproxmox.CloudInitFailedErr, err) {
+	if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
+		if running {
+			return true, nil
+		}
+		if errors.Is(goproxmox.ErrCloudInitFailed, err) {
 			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
 			machineScope.SetFailureMessage(err)
 			machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
