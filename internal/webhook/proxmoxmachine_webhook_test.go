@@ -119,10 +119,12 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 							MTU:    ptr.To(uint16(1500)),
 							VLAN:   ptr.To(uint16(100)),
 						},
-						IPv4PoolRef: &corev1.TypedLocalObjectReference{
-							Name:     "simple-pool",
-							Kind:     "InClusterIPPool",
-							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+						InterfaceConfig: infrav1.InterfaceConfig{
+							IPv4PoolRef: &corev1.TypedLocalObjectReference{
+								Name:     "simple-pool",
+								Kind:     "InClusterIPPool",
+								APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							},
 						},
 					},
 				},

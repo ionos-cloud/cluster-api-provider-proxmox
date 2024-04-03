@@ -347,27 +347,9 @@ type AdditionalNetworkDevice struct {
 	// +kubebuilder:validation:XValidation:rule="self != 'net0'",message="additional network devices doesn't allow net0"
 	Name string `json:"name"`
 
-	// IPv4PoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
-	// The network device will use an available IP address from the referenced pool.
-	// This can be combined with `IPv6PoolRef` in order to enable dual stack.
+	// InterfaceConfig contains all configurables a network interface can have.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipv4PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
-	// +kubebuilder:validation:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipv4PoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
-	IPv4PoolRef *corev1.TypedLocalObjectReference `json:"ipv4PoolRef,omitempty"`
-
-	// IPv6PoolRef is a reference to an IPAM pool resource, which exposes IPv6 addresses.
-	// The network device will use an available IP address from the referenced pool.
-	// this can be combined with `IPv4PoolRef` in order to enable dual stack.
-	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipv6PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
-	// +kubebuilder:validation:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipv6PoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
-	IPv6PoolRef *corev1.TypedLocalObjectReference `json:"ipv6PoolRef,omitempty"`
-
-	// DNSServers contains information about nameservers to be used for this interface.
-	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
-	// +optional
-	// +kubebuilder:validation:MinItems=1
-	DNSServers []string `json:"dnsServers,omitempty"`
+	InterfaceConfig `json:",inline"`
 }
 
 // ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
