@@ -111,11 +111,12 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				AdditionalDevices: []AdditionalNetworkDevice{{
 					NetworkDevice: NetworkDevice{},
 					Name:          "net0",
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "some-pool",
-					},
+					InterfaceConfig: InterfaceConfig{
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "InClusterIPPool",
+							Name:     "some-pool",
+						}},
 				},
 				},
 			}
@@ -129,10 +130,11 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				AdditionalDevices: []AdditionalNetworkDevice{{
 					NetworkDevice: NetworkDevice{},
 					Name:          "net1",
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("apps"),
-						Name:     "some-app",
-					},
+					InterfaceConfig: InterfaceConfig{
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("apps"),
+							Name:     "some-app",
+						}},
 				},
 				},
 			}
@@ -145,11 +147,11 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				AdditionalDevices: []AdditionalNetworkDevice{{
 					NetworkDevice: NetworkDevice{},
 					Name:          "net1",
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
+					InterfaceConfig: InterfaceConfig{IPv4PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 						Kind:     "ConfigMap",
 						Name:     "some-app",
-					},
+					}},
 				},
 				},
 			}
@@ -162,10 +164,11 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				AdditionalDevices: []AdditionalNetworkDevice{{
 					NetworkDevice: NetworkDevice{},
 					Name:          "net1",
-					IPv6PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("apps"),
-						Name:     "some-app",
-					},
+					InterfaceConfig: InterfaceConfig{
+						IPv6PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("apps"),
+							Name:     "some-app",
+						}},
 				},
 				},
 			}
@@ -178,11 +181,12 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				AdditionalDevices: []AdditionalNetworkDevice{{
 					NetworkDevice: NetworkDevice{},
 					Name:          "net1",
-					IPv6PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "ConfigMap",
-						Name:     "some-app",
-					},
+					InterfaceConfig: InterfaceConfig{
+						IPv6PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "ConfigMap",
+							Name:     "some-app",
+						}},
 				},
 				},
 			}
