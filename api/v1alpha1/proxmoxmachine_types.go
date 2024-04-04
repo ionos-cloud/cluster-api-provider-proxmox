@@ -241,6 +241,10 @@ type InterfaceConfig struct {
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
+
+	// LinkMTU is the network device Maximum Transmission Unit.
+	// +optional
+	LinkMTU MTU `json:"linkMtu,omitempty"`
 }
 
 // RouteSpec describes an IPv4/IPv6 Route.
@@ -332,12 +336,9 @@ type NetworkDevice struct {
 	Model *string `json:"model,omitempty"`
 
 	// MTU is the network device Maximum Transmission Unit.
-	// Only works with virtio Model.
-	// Set to 1 to inherit the MTU value from the underlying bridge.
+	// When set to 1, virtio devices inherit the MTU value from the underlying bridge.
 	// +optional
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=65520
-	MTU *uint16 `json:"mtu,omitempty"`
+	MTU MTU `json:"mtu,omitempty"`
 
 	// VLAN is the network L2 VLAN.
 	// +optional
@@ -345,6 +346,11 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Maximum=4094
 	VLAN *uint16 `json:"vlan,omitempty"`
 }
+
+// MTU is the network device Maximum Transmission Unit. MTUs below 1280 break IPv6.
+// +optional
+// +kubebuilder:validation:XValidation:rule="self == 1 || ( self >= 576 && self <= 65520)",message="invalid MTU value"
+type MTU *uint16
 
 // AdditionalNetworkDevice the definition of a Proxmox network device.
 // +kubebuilder:validation:XValidation:rule="self.ipv4PoolRef != null || self.ipv6PoolRef != null",message="at least one pool reference must be set, either ipv4PoolRef or ipv6PoolRef"

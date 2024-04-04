@@ -121,12 +121,19 @@ const (
     {{- end }}
 {{- end -}}
 
+{{- define "mtu" }}
+    {{- if .LinkMTU }}
+      mtu: {{ .LinkMTU }}
+    {{- end -}}
+{{- end -}}
+
 {{- define "commonSettings" }}
     {{- template "dhcp" . }}
     {{- template "ipAddresses" . }}
     {{- template "routes" . }}
     {{- template "rules" . }}
     {{- template "dns" . }}
+    {{- template "mtu" . }}
 {{- end -}}
 `
 )

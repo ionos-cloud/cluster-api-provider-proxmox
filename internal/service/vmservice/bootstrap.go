@@ -241,6 +241,19 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 			config.Gateway6 = conf.Gateway6
 		}
 	}
+
+	// Default Network Device lacks a datastructure to transport MTU.
+	// We can use the Proxmox Device MTU instead to enable non virtio devices
+	// to enable jumbo frames. This has the minor drawback of coalescing proxmox
+	// MTU with interface MTU, which shouldn't matter in almost all cases.
+	if network := machineScope.ProxmoxMachine.Spec.Network; network != nil {
+		if network.Default != nil {
+			if network.Default.MTU != nil && *network.Default.MTU >= 576 {
+				config.LinkMTU = network.Default.MTU
+			}
+		}
+	}
+
 	config.Name = "eth0"
 	config.Type = "ethernet"
 	config.ProxName = "net0"
@@ -254,6 +267,7 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 	}
 	ciconfig.Routes = *getRoutingData(ifconfig.Routes)
 	ciconfig.FIBRules = *getRoutingPolicyData(ifconfig.RoutingPolicy)
+	ciconfig.LinkMTU = ifconfig.LinkMTU
 
 	// Only set IPAddresses when they haven't been set yet
 	if ippool := ifconfig.IPv4PoolRef; ippool != nil && ciconfig.IPAddress == "" {
@@ -346,7 +360,9 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 				config.Gateway6 = conf.Gateway6
 			}
 		}
+
 		getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
+
 		config.Name = fmt.Sprintf("eth%d", index)
 		index++
 		config.Type = "ethernet"

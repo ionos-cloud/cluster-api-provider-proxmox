@@ -214,7 +214,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("invalid MTU value")))
 		})
 
 		It("Should not allow machine with network device mtu greater than 65520", func() {
@@ -226,7 +226,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be less than or equal to 65520")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("invalid MTU value")))
 		})
 
 		It("Should only allow VRFS with a non kernel routing table ", func() {
