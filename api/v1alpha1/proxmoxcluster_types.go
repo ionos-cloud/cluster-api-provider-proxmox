@@ -25,14 +25,14 @@ import (
 )
 
 const (
-	// ProxmoxClusterKind the ProxmoxCluster kind.
+	// ProxmoxClusterKind is the ProxmoxCluster kind.
 	ProxmoxClusterKind = "ProxmoxCluster"
-	// ClusterFinalizer allows cleaning up resources associated with
+	// ClusterFinalizer allows cleaning up resources associated with a
 	// ProxmoxCluster before removing it from the apiserver.
 	ClusterFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io"
 )
 
-// ProxmoxClusterSpec defines the desired state of ProxmoxCluster.
+// ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.
 type ProxmoxClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
@@ -50,20 +50,20 @@ type ProxmoxClusterSpec struct {
 	SchedulerHints *SchedulerHints `json:"schedulerHints,omitempty"`
 
 	// IPv4Config contains information about available IPV4 address pools and the gateway.
-	// this can be combined with ipv6Config in order to enable dual stack.
-	// either IPv4Config or IPv6Config must be provided.
+	// This can be combined with ipv6Config in order to enable dual stack.
+	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
 	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
 
 	// IPv6Config contains information about available IPV6 address pools and the gateway.
-	// this can be combined with ipv4Config in order to enable dual stack.
-	// either IPv4Config or IPv6Config must be provided.
+	// This can be combined with ipv4Config in order to enable dual stack.
+	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
 	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
 
-	// DNSServers contains information about nameservers used by machines network-config.
+	// DNSServers contains information about nameservers used by machines' network config.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
 }
@@ -105,14 +105,14 @@ func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
 	return memoryAdjustment
 }
 
-// ProxmoxClusterStatus defines the observed state of ProxmoxCluster.
+// ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
 type ProxmoxClusterStatus struct {
 	// Ready indicates that the cluster is ready.
 	// +optional
 	// +kubebuilder:default=false
 	Ready bool `json:"ready"`
 
-	// InClusterIPPoolRef is the reference to the created in cluster ip pool
+	// InClusterIPPoolRef is the reference to the created in-cluster IP pool.
 	// +optional
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
 
@@ -129,11 +129,11 @@ type ProxmoxClusterStatus struct {
 // NodeLocations holds information about the deployment state of
 // control plane and worker nodes in Proxmox.
 type NodeLocations struct {
-	// ControlPlane contains all deployed control plane nodes
+	// ControlPlane contains all deployed control plane nodes.
 	// +optional
 	ControlPlane []NodeLocation `json:"controlPlane,omitempty"`
 
-	// Workers contains all deployed worker nodes
+	// Workers contains all deployed worker nodes.
 	// +optional
 	Workers []NodeLocation `json:"workers,omitempty"`
 }
@@ -141,10 +141,10 @@ type NodeLocations struct {
 // NodeLocation holds information about a single VM
 // in Proxmox.
 type NodeLocation struct {
-	// Machine is the reference of the proxmoxmachine
+	// Machine is the reference to the ProxmoxMachine.
 	Machine corev1.LocalObjectReference `json:"machine"`
 
-	// Node is the Proxmox node
+	// Node is the Proxmox node.
 	Node string `json:"node"`
 }
 
@@ -210,7 +210,7 @@ func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool client.Object) {
 }
 
 // AddNodeLocation will add a node location to either the control plane or worker
-// node locations based on the `isControlPlane` parameter.
+// node locations based on the isControlPlane parameter.
 func (c *ProxmoxCluster) AddNodeLocation(loc NodeLocation, isControlPlane bool) {
 	if c.Status.NodeLocations == nil {
 		c.Status.NodeLocations = new(NodeLocations)

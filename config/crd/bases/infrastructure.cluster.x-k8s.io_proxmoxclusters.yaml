@@ -48,7 +48,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxmoxClusterSpec defines the desired state of ProxmoxCluster.
+            description: ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.
             properties:
               allowedNodes:
                 description: AllowedNodes specifies all Proxmox nodes which will be
@@ -74,15 +74,15 @@ spec:
                 type: object
               dnsServers:
                 description: DNSServers contains information about nameservers used
-                  by machines network-config.
+                  by machines' network config.
                 items:
                   type: string
                 minItems: 1
                 type: array
               ipv4Config:
                 description: IPv4Config contains information about available IPV4
-                  address pools and the gateway. this can be combined with ipv6Config
-                  in order to enable dual stack. either IPv4Config or IPv6Config must
+                  address pools and the gateway. This can be combined with ipv6Config
+                  in order to enable dual stack. Either IPv4Config or IPv6Config must
                   be provided.
                 properties:
                   addresses:
@@ -107,8 +107,8 @@ spec:
                   rule: self.addresses.size() > 0
               ipv6Config:
                 description: IPv6Config contains information about available IPV6
-                  address pools and the gateway. this can be combined with ipv4Config
-                  in order to enable dual stack. either IPv4Config or IPv6Config must
+                  address pools and the gateway. This can be combined with ipv4Config
+                  in order to enable dual stack. Either IPv4Config or IPv6Config must
                   be provided.
                 properties:
                   addresses:
@@ -154,7 +154,7 @@ spec:
             - message: at least one ip config must be set, either ipv4Config or ipv6Config
               rule: self.ipv4Config != null || self.ipv6Config != null
           status:
-            description: ProxmoxClusterStatus defines the observed state of ProxmoxCluster.
+            description: ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
             properties:
               conditions:
                 description: Conditions defines current service state of the ProxmoxCluster.
@@ -202,8 +202,8 @@ spec:
                   type: object
                 type: array
               inClusterIpPoolRef:
-                description: InClusterIPPoolRef is the reference to the created in
-                  cluster ip pool
+                description: InClusterIPPoolRef is the reference to the created in-cluster
+                  IP pool.
                 items:
                   description: LocalObjectReference contains enough information to
                     let you locate the referenced object inside the same namespace.
@@ -221,13 +221,13 @@ spec:
                 properties:
                   controlPlane:
                     description: ControlPlane contains all deployed control plane
-                      nodes
+                      nodes.
                     items:
                       description: NodeLocation holds information about a single VM
                         in Proxmox.
                       properties:
                         machine:
-                          description: Machine is the reference of the proxmoxmachine
+                          description: Machine is the reference to the ProxmoxMachine.
                           properties:
                             name:
                               description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -236,7 +236,7 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         node:
-                          description: Node is the Proxmox node
+                          description: Node is the Proxmox node.
                           type: string
                       required:
                       - machine
@@ -244,13 +244,13 @@ spec:
                       type: object
                     type: array
                   workers:
-                    description: Workers contains all deployed worker nodes
+                    description: Workers contains all deployed worker nodes.
                     items:
                       description: NodeLocation holds information about a single VM
                         in Proxmox.
                       properties:
                         machine:
-                          description: Machine is the reference of the proxmoxmachine
+                          description: Machine is the reference to the ProxmoxMachine.
                           properties:
                             name:
                               description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -259,7 +259,7 @@ spec:
                           type: object
                           x-kubernetes-map-type: atomic
                         node:
-                          description: Node is the Proxmox node
+                          description: Node is the Proxmox node.
                           type: string
                       required:
                       - machine
