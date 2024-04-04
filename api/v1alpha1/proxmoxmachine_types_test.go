@@ -250,9 +250,11 @@ var _ = Describe("ProxmoxMachine Test", func() {
 					VRFs: []VRFDevice{{
 						Name:  "vrf-blue",
 						Table: 100,
-						RoutingPolicy: []RoutingPolicySpec{{
-							Priority: 32766,
-						}},
+						InterfaceConfig: InterfaceConfig{
+							RoutingPolicy: []RoutingPolicySpec{{
+								Priority: 32766,
+							}},
+						},
 					}},
 				},
 			}
