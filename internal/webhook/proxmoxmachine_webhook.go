@@ -107,11 +107,47 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.Default, err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+				})
+		}
+		err = validateInterfaceConfigMTU(&machine.Spec.Network.AdditionalDevices[i].InterfaceConfig)
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
 				})
 		}
 	}
 
+	for i := range machine.Spec.Network.VRFs {
+		err := validateInterfaceConfigMTU(&machine.Spec.Network.VRFs[i].InterfaceConfig)
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.VRFs[i], err.Error()),
+				})
+		}
+	}
+
+	return nil
+}
+
+func validateInterfaceConfigMTU(ifconfig *infrav1.InterfaceConfig) error {
+	if ifconfig.LinkMTU != nil {
+		// We allow MTUs down to 576, but since everything below 1280 breaks IPv6, you
+		// should disable the webhook if you really mean it.
+		if *ifconfig.LinkMTU > 1279 {
+			return nil
+		}
+
+		return fmt.Errorf("mtu must be at least 1280, but was %d", *ifconfig.LinkMTU)
+	}
 	return nil
 }
 
@@ -122,11 +158,13 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 			return nil
 		}
 
-		if *device.MTU > 999 {
+		// We allow MTUs down to 576, but since everything below 1280 breaks IPv6, you
+		// should disable the webhook if you really mean it.
+		if *device.MTU > 1279 {
 			return nil
 		}
 
-		return fmt.Errorf("mtu must be at least 1000 or 1, but was %d", *device.MTU)
+		return fmt.Errorf("mtu must be at least 1280 or 1, but was %d", *device.MTU)
 	}
 
 	return nil
