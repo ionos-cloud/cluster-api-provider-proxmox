@@ -26,45 +26,17 @@ const (
   version: 2
   renderer: networkd
   ethernets:
-  {{- range $index, $element := .NetworkConfigData }}
+{{- range $index, $element := .NetworkConfigData }}
   {{- $type := $element.Type }}
   {{- if eq $type "ethernet" }}
     {{ $element.Name }}:
       match:
         macaddress: {{ $element.MacAddress }}
-      dhcp4: {{ if $element.DHCP4 }}true{{ else }}false{{ end }}
-      dhcp6: {{ if $element.DHCP6 }}true{{ else }}false{{ end }}
-      {{- if or (and (not $element.DHCP4) $element.IPAddress) (and (not $element.DHCP6) $element.IPV6Address) }}
-      addresses:
-      {{- if and $element.IPAddress (not $element.DHCP4) }}
-        - {{ $element.IPAddress }}
-      {{- end }}
-      {{- if and $element.IPV6Address (not $element.DHCP6)}}
-        - '{{ $element.IPV6Address }}'
-      {{- end }}
-      {{- if or (and $element.Gateway (not $element.DHCP4)) (and $element.Gateway6 (not $element.DHCP6)) }}
-      routes:
-      {{- if and $element.Gateway (not $element.DHCP4) }}
-        - to: 0.0.0.0/0
-          via: {{ $element.Gateway }}
-      {{- end }}
-      {{- if and $element.Gateway6 (not $element.DHCP6) }}
-        - to: '::/0'
-          via: '{{ $element.Gateway6 }}'
-      {{- end }}
-      {{- end }}
-      {{- end }}
-      {{- if $element.DNSServers }}
-      nameservers:
-        addresses:
-        {{- range $element.DNSServers }}
-          - '{{ . }}'
-        {{- end -}}
-      {{- end -}}
+      {{- template "commonSettings" $element }}
   {{- end -}}
-  {{- end -}}
-  {{- $vrf := 0 -}}
-  {{- range $index, $element := .NetworkConfigData }}
+{{- end -}}
+{{- $vrf := 0 -}}
+{{- range $index, $element := .NetworkConfigData }}
   {{- if eq $element.Type "vrf" }}
   {{- if eq $vrf 0 }}
   vrfs:
@@ -72,17 +44,33 @@ const (
   {{- end }}
     {{$element.Name}}:
       table: {{ $element.Table }}
-      {{- if $element.Routes }}{{ template "routes" $element }}{{- end -}}
-      {{- if $element.FIBRules }}{{ template "rules" $element }}{{- end -}}
-      {{- if $element.Interfaces }}
+      {{- template "commonSettings" $element }}
+    {{- if $element.Interfaces }}
       interfaces:
       {{- range $element.Interfaces }}
         - {{ . }}
       {{- end -}}
-      {{- end -}}
+    {{- end -}}
+  {{- end }}
+{{- end -}}
+
+  {{- define "dns" }}
+    {{- if .DNSServers }}
+      nameservers:
+        addresses:
+        {{- range .DNSServers }}
+          - '{{ . }}'
+        {{- end -}}
+    {{- end -}}
   {{- end -}}
-  {{- end -}}
-  {{- define "rules" }}
+
+{{- define "dhcp" }}
+      dhcp4: {{ if .DHCP4 }}true{{ else }}false{{ end }}
+      dhcp6: {{ if .DHCP6 }}true{{ else }}false{{ end }}
+{{- end -}}
+
+{{- define "rules" }}
+    {{- if .FIBRules }}
       routing-policy:
       {{- range $index, $rule := .FIBRules }}
         - {
@@ -91,17 +79,55 @@ const (
         {{- if $rule.Priority }} "priority": {{$rule.Priority}}, {{ end -}}
         {{- if $rule.Table }} "table": {{$rule.Table}}, {{ end -}} }
       {{- end }}
-  {{- end -}}
-  {{- define "routes" }}
+    {{- end }}
+{{- end -}}
+
+{{- define "routes" }}
+    {{- if or .Gateway .Gateway6 }}
       routes:
-      {{- range $index, $route := .Routes }}
+       {{- if .Gateway }}
+        - to: 0.0.0.0/0
+          metric: {{ if eq .Name "eth0" }}100{{ else }}200{{ end }}
+          via: {{ .Gateway }}
+       {{- end }}
+       {{- if .Gateway6 }}
+        - to: '::/0'
+          metric: {{ if eq .Name "eth0" }}100{{ else }}200{{ end }}
+          via: '{{ .Gateway6 }}'
+       {{- end }}
+    {{- else }}
+      {{- if .Routes }}
+      routes:
+      {{- end -}}
+    {{- end -}}
+    {{- range $index, $route := .Routes }}
         - {
         {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
         {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
         {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
         {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
+    {{- end -}}
+{{- end -}}
+
+{{- define "ipAddresses" }}
+    {{- if or .IPAddress .IPV6Address }}
+      addresses:
+      {{- if .IPAddress }}
+        - {{ .IPAddress }}
       {{- end }}
-  {{- end -}}
+      {{- if .IPV6Address }}
+        - '{{ .IPV6Address }}'
+      {{- end }}
+    {{- end }}
+{{- end -}}
+
+{{- define "commonSettings" }}
+    {{- template "dhcp" . }}
+    {{- template "ipAddresses" . }}
+    {{- template "routes" . }}
+    {{- template "rules" . }}
+    {{- template "dns" . }}
+{{- end -}}
 `
 )
 

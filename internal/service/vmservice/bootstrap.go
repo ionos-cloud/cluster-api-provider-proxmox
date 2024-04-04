@@ -248,7 +248,37 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 	return []cloudinit.NetworkConfigData{config}, nil
 }
 
-func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network infrav1alpha1.NetworkSpec, data []cloudinit.NetworkConfigData) ([]cloudinit.NetworkConfigData, error) {
+func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineScope, ciconfig *cloudinit.NetworkConfigData, ifconfig infrav1alpha1.InterfaceConfig) error {
+	if len(ifconfig.DNSServers) != 0 {
+		ciconfig.DNSServers = ifconfig.DNSServers
+	}
+	ciconfig.Routes = *getRoutingData(ifconfig.Routes)
+	ciconfig.FIBRules = *getRoutingPolicyData(ifconfig.RoutingPolicy)
+
+	// Only set IPAddresses when they haven't been set yet
+	if ippool := ifconfig.IPv4PoolRef; ippool != nil && ciconfig.IPAddress == "" {
+		// retrieve IPAddress.
+		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix)
+		ipAddr, err := findIPAddress(ctx, machineScope, ciconfig.Name)
+		if err != nil {
+			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
+		}
+		ciconfig.IPAddress = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
+		ciconfig.Gateway = ipAddr.Spec.Gateway
+	}
+	if ifconfig.IPv6PoolRef != nil && ciconfig.IPV6Address == "" {
+		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix+"6")
+		ipAddr, err := findIPAddress(ctx, machineScope, ciconfig.Name)
+		if err != nil {
+			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
+		}
+		ciconfig.IPV6Address = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
+		ciconfig.Gateway6 = ipAddr.Spec.Gateway
+	}
+	return nil
+}
+
+func getVirtualNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha1.NetworkSpec, data []cloudinit.NetworkConfigData) ([]cloudinit.NetworkConfigData, error) {
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.VRFs))
 
 	for _, device := range network.VRFs {
@@ -267,8 +297,8 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
 			}
 		}
-		config.Routes = *getRoutingData(device.Routes)
-		config.FIBRules = *getRoutingPolicyData(device.RoutingPolicy)
+
+		getCommonInterfaceConfig(ctx, machineScope, config, device.InterfaceConfig)
 		networkConfigData = append(networkConfigData, *config)
 	}
 	return networkConfigData, nil
@@ -316,7 +346,7 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 				config.Gateway6 = conf.Gateway6
 			}
 		}
-
+		getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
 		config.Name = fmt.Sprintf("eth%d", index)
 		index++
 		config.Type = "ethernet"

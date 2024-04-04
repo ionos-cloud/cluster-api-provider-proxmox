@@ -221,6 +221,60 @@ spec:
                           x-kubernetes-validations:
                           - message: additional network devices doesn't allow net0
                             rule: self != 'net0'
+                        routes:
+                          description: Routes are the routes associated with this
+                            interface.
+                          items:
+                            description: RouteSpec describes an IPv4/IPv6 Route.
+                            properties:
+                              metric:
+                                description: Metric is the priority of the route in
+                                  the routing table.
+                                format: int32
+                                type: integer
+                              table:
+                                description: Table is the routing table used for this
+                                  route.
+                                format: int32
+                                type: integer
+                              to:
+                                description: To is the subnet to be routed.
+                                type: string
+                              via:
+                                description: Via is the gateway to the subnet.
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
+                        routingPolicy:
+                          description: RoutingPolicy is interface specific policy
+                            inserted into FiB (forwarding information base).
+                          items:
+                            description: RoutingPolicySpec is a linux FIB rule.
+                            properties:
+                              from:
+                                description: From is the subnet of the source.
+                                type: string
+                              priority:
+                                description: Priority is the position in the ip rule
+                                  fib table.
+                                format: int32
+                                maximum: 4294967295
+                                type: integer
+                                x-kubernetes-validations:
+                                - message: Cowardly refusing to insert fib rule matching
+                                    kernel rules
+                                  rule: (self > 0 && self < 32765) || (self > 32766)
+                              table:
+                                description: Table is the routing table id.
+                                format: int32
+                                type: integer
+                              to:
+                                description: To is the subnet of the target.
+                                type: string
+                            type: object
+                          minItems: 1
+                          type: array
                         vlan:
                           description: VLAN is the network L2 VLAN.
                           maximum: 4094
@@ -357,8 +411,8 @@ spec:
                           minLength: 3
                           type: string
                         routes:
-                          description: Routes are the routes associated with the l3mdev
-                            policy.
+                          description: Routes are the routes associated with this
+                            interface.
                           items:
                             description: RouteSpec describes an IPv4/IPv6 Route.
                             properties:

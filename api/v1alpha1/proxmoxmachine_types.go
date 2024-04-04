@@ -231,6 +231,16 @@ type InterfaceConfig struct {
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers,omitempty"`
+
+	// Routes are the routes associated with this interface.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	Routes []RouteSpec `json:"routes,omitempty"`
+
+	// RoutingPolicy is interface specific policy inserted into FiB (forwarding information base).
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
 }
 
 // RouteSpec describes an IPv4/IPv6 Route.

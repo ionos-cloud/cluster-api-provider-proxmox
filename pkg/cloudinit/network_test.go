@@ -37,6 +37,7 @@ const (
         - 10.10.10.12/24
       routes:
         - to: 0.0.0.0/0
+          metric: 100
           via: 10.10.10.1
       nameservers:
         addresses:
@@ -56,6 +57,7 @@ const (
         - 10.10.10.12/24
       routes:
         - to: 0.0.0.0/0
+          metric: 100
           via: 10.10.10.1`
 
 	expectedValidNetworkConfigMultipleNics = `network:
@@ -71,6 +73,7 @@ const (
         - 10.10.10.12/24
       routes:
         - to: 0.0.0.0/0
+          metric: 100
           via: 10.10.10.1
       nameservers:
         addresses:
@@ -85,6 +88,7 @@ const (
         - 196.168.100.124/24
       routes:
         - to: 0.0.0.0/0
+          metric: 200
           via: 196.168.100.254
       nameservers:
         addresses:
@@ -105,8 +109,10 @@ const (
         - '2001:db8::1/64'
       routes:
         - to: 0.0.0.0/0
+          metric: 100
           via: 10.10.10.1
         - to: '::/0'
+          metric: 100
           via: '2001:db8::1'
       nameservers:
         addresses:
@@ -126,6 +132,7 @@ const (
         - '2001:db8::1/64'
       routes:
         - to: '::/0'
+          metric: 100
           via: '2001:db8::1'
       nameservers:
         addresses:
@@ -187,6 +194,7 @@ const (
         - 10.10.10.12/24
       routes:
         - to: 0.0.0.0/0
+          metric: 100
           via: 10.10.10.1
       nameservers:
         addresses:
@@ -206,6 +214,7 @@ const (
         - 10.10.10.12/24
       routes:
         - to: 0.0.0.0/0
+          metric: 100
           via: 10.10.10.1
       nameservers:
         addresses:
@@ -220,6 +229,7 @@ const (
         - 196.168.100.124/24
       routes:
         - to: 0.0.0.0/0
+          metric: 200
           via: 196.168.100.254
       nameservers:
         addresses:
@@ -228,6 +238,8 @@ const (
   vrfs:
     vrf-blue:
       table: 500
+      dhcp4: false
+      dhcp6: false
       routes:
         - { "to": "default",  "via": "192.168.178.1",  "metric": 100,  "table": 100, }
         - { "to": "10.10.10.0/24",  "via": "192.168.178.254",  "metric": 100, }
@@ -250,6 +262,7 @@ const (
         - 10.10.10.12/24
       routes:
         - to: 0.0.0.0/0
+          metric: 100
           via: 10.10.10.1
       nameservers:
         addresses:
@@ -264,6 +277,7 @@ const (
         - 196.168.100.124/24
       routes:
         - to: 0.0.0.0/0
+          metric: 200
           via: 196.168.100.254
       nameservers:
         addresses:
@@ -272,6 +286,8 @@ const (
   vrfs:
     vrf-blue:
       table: 500
+      dhcp4: false
+      dhcp6: false
       routes:
         - { "to": "default",  "via": "192.168.178.1",  "metric": 100,  "table": 100, }
         - { "to": "10.10.10.0/24",  "via": "192.168.178.254",  "metric": 100, }
@@ -281,6 +297,8 @@ const (
         - eth0
     vrf-red:
       table: 501
+      dhcp4: false
+      dhcp6: false
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "192.168.100.0/24",  "priority": 999,  "table": 101, }
       interfaces:
@@ -293,6 +311,8 @@ const (
   vrfs:
     vrf-blue:
       table: 500
+      dhcp4: false
+      dhcp6: false
       routing-policy:
         - { "from": "10.10.0.0/16", }`
 )
