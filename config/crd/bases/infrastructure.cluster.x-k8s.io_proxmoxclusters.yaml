@@ -74,7 +74,7 @@ spec:
                 type: object
               dnsServers:
                 description: DNSServers contains information about nameservers used
-                  by machines' network config.
+                  by the machines.
                 items:
                   type: string
                 minItems: 1

@@ -63,7 +63,7 @@ type ProxmoxClusterSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
 	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
 
-	// DNSServers contains information about nameservers used by machines' network config.
+	// DNSServers contains information about nameservers used by the machines.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
 }
