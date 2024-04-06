@@ -44,7 +44,8 @@ const (
   {{- end }}
     {{$element.Name}}:
       table: {{ $element.Table }}
-      {{- template "commonSettings" $element }}
+    {{- template "routes" . }}
+    {{- template "rules" . }}
     {{- if $element.Interfaces }}
       interfaces:
       {{- range $element.Interfaces }}

@@ -232,6 +232,16 @@ type InterfaceConfig struct {
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers,omitempty"`
 
+	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
+	Routing `json:",inline"`
+
+	// LinkMTU is the network device Maximum Transmission Unit.
+	// +optional
+	LinkMTU MTU `json:"linkMtu,omitempty"`
+}
+
+// Routing is shared fields across devices and VRFs
+type Routing struct {
 	// Routes are the routes associated with this interface.
 	// +optional
 	// +kubebuilder:validation:MinItems=1
@@ -241,10 +251,6 @@ type InterfaceConfig struct {
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
-
-	// LinkMTU is the network device Maximum Transmission Unit.
-	// +optional
-	LinkMTU MTU `json:"linkMtu,omitempty"`
 }
 
 // RouteSpec describes an IPv4/IPv6 Route.
@@ -299,19 +305,8 @@ type VRFDevice struct {
 	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert l3mdev rules into kernel tables",rule="(self > 0 && self < 254) || (self > 255)"
 	Table uint32 `json:"table"`
 
-	// InterfaceConfig contains all configurables a network interface can have.
-	// +optional
-	InterfaceConfig `json:",inline"`
-
-	// Routes are the routes associated with the l3mdev policy.
-	// +optional
-	// +kubebuilder:validation:MinItems=1
-	Routes []RouteSpec `json:"routes,omitempty"`
-
-	// RoutingPolicy is the l3mdev policy inserted into FIB.
-	// +optional
-	// +kubebuilder:validation:MinItems=1
-	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
+	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
+	Routing `json:",inline"`
 }
 
 // VirtualNetworkDevices defines Linux software networking devices.
