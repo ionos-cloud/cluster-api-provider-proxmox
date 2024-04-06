@@ -244,7 +244,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 
 	// Default Network Device lacks a datastructure to transport MTU.
 	// We can use the Proxmox Device MTU instead to enable non virtio devices
-	// to enable jumbo frames. This has the minor drawback of coalescing proxmox
+	// the usage of jumbo frames. This has the minor drawback of coalescing proxmox
 	// MTU with interface MTU, which shouldn't matter in almost all cases.
 	if network := machineScope.ProxmoxMachine.Spec.Network; network != nil {
 		if network.Default != nil {
@@ -265,8 +265,8 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
-	ciconfig.Routes = *getRoutingData(ifconfig.Routes)
-	ciconfig.FIBRules = *getRoutingPolicyData(ifconfig.RoutingPolicy)
+	ciconfig.Routes = *getRoutingData(ifconfig.Routing.Routes)
+	ciconfig.FIBRules = *getRoutingPolicyData(ifconfig.Routing.RoutingPolicy)
 	ciconfig.LinkMTU = ifconfig.LinkMTU
 
 	// Only set IPAddresses when they haven't been set yet
@@ -312,7 +312,8 @@ func getVirtualNetworkDevices(ctx context.Context, machineScope *scope.MachineSc
 			}
 		}
 
-		getCommonInterfaceConfig(ctx, machineScope, config, device.InterfaceConfig)
+		config.Routes = *getRoutingData(device.Routing.Routes)
+		config.FIBRules = *getRoutingPolicyData(device.Routing.RoutingPolicy)
 		networkConfigData = append(networkConfigData, *config)
 	}
 	return networkConfigData, nil

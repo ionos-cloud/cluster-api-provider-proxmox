@@ -122,19 +122,6 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 		}
 	}
 
-	for i := range machine.Spec.Network.VRFs {
-		err := validateInterfaceConfigMTU(&machine.Spec.Network.VRFs[i].InterfaceConfig)
-		if err != nil {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.VRFs[i], err.Error()),
-				})
-		}
-	}
-
 	return nil
 }
 

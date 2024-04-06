@@ -238,8 +238,6 @@ const (
   vrfs:
     vrf-blue:
       table: 500
-      dhcp4: false
-      dhcp6: false
       routes:
         - { "to": "default",  "via": "192.168.178.1",  "metric": 100,  "table": 100, }
         - { "to": "10.10.10.0/24",  "via": "192.168.178.254",  "metric": 100, }
@@ -286,8 +284,6 @@ const (
   vrfs:
     vrf-blue:
       table: 500
-      dhcp4: false
-      dhcp6: false
       routes:
         - { "to": "default",  "via": "192.168.178.1",  "metric": 100,  "table": 100, }
         - { "to": "10.10.10.0/24",  "via": "192.168.178.254",  "metric": 100, }
@@ -297,8 +293,6 @@ const (
         - eth0
     vrf-red:
       table: 501
-      dhcp4: false
-      dhcp6: false
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "192.168.100.0/24",  "priority": 999,  "table": 101, }
       interfaces:
@@ -311,8 +305,6 @@ const (
   vrfs:
     vrf-blue:
       table: 500
-      dhcp4: false
-      dhcp6: false
       routing-policy:
         - { "from": "10.10.0.0/16", }`
 )
