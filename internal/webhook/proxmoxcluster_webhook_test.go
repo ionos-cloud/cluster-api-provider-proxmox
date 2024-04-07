@@ -43,21 +43,27 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("at least one ip config must be set")))
 		})
 
-		It("should disallow invalid/non-existing endpoint FQDN", func() {
+		It("should disallow invalid endpoint FQDN", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
-			cluster.Spec.ControlPlaneEndpoint.Host = "this.does.not.exist"
+			cluster.Spec.ControlPlaneEndpoint.Host = "_this.is.a.txt.record"
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP or FQDN")))
 		})
 
-		It("should disallow invalid endpoint IP", func() {
+		It("should disallow invalid endpoint short hostname", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
-			cluster.Spec.ControlPlaneEndpoint.Host = "invalid"
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP")))
+			cluster.Spec.ControlPlaneEndpoint.Host = "invalid-"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP or FQDN")))
 		})
 
-		It("should allow valid endpoint from FQDN", func() {
+		It("should allow valid endpoint FQDN", func() {
 			cluster := validProxmoxCluster("succeed-test-cluster-with-fqdn")
-			cluster.Spec.ControlPlaneEndpoint.Host = "example.com"
+			cluster.Spec.ControlPlaneEndpoint.Host = "host.example.com"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
+
+		It("should allow valid upper case endpoint FQDN", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-uppercase-fqdn")
+			cluster.Spec.ControlPlaneEndpoint.Host = "HOST.EXAMPLE.COM"
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 

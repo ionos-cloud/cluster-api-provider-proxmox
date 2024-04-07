@@ -20,8 +20,8 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/netip"
+	"regexp"
 	"strings"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
@@ -64,7 +64,7 @@ func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (wa
 		return warnings, err
 	}
 
-	if err := validateIPs(cluster); err != nil {
+	if err := validateControlPlaneEndpoint(cluster); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
 		return warnings, err
 	}
@@ -84,7 +84,7 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
 	}
 
-	if err := validateIPs(newCluster); err != nil {
+	if err := validateControlPlaneEndpoint(newCluster); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
@@ -92,41 +92,54 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 	return warnings, nil
 }
 
-func validateIPs(cluster *infrav1.ProxmoxCluster) error {
+func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 	ep := cluster.Spec.ControlPlaneEndpoint
 
 	gk, name := cluster.GroupVersionKind().GroupKind(), cluster.GetName()
 
-	endpointHostIP := ep.Host
+	endpoint := ep.Host
 
-	if isValidFQDN(endpointHostIP) {
-		ipAddr, _ := net.ResolveIPAddr("ip", endpointHostIP)
-		endpointHostIP = ipAddr.String()
+	addr, err := netip.ParseAddr(endpoint)
+
+	/*
+	   No further validation is done on hostnames. Checking DNS records
+	   incures a lot of complexity. To list a few of the problems:
+	    - DNS TTL will lead to incorrect results
+	    - IP addresses can be PTR records
+	    - Both A and AAAA records would need checking
+	    - A record can have multiple entries, each of which need to be checked
+	    - A valid record can start with _, but that is not a valid hostname
+	    - ...
+	   Most importantly, cluster-api does not validate controlPlaneEndpoint
+	   at all.
+	*/
+	match := isHostname(endpoint)
+	if match {
+		return nil
 	}
 
-	addr, err := netip.ParseAddr(endpointHostIP)
 	if err != nil {
 		return apierrors.NewInvalid(
 			gk,
 			name,
 			field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec", "controlplaneEndpoint"), endpointHostIP, "provided endpoint address is not a valid IP or FQDN"),
+					field.NewPath("spec", "controlplaneEndpoint"), endpoint, "provided endpoint address is not a valid IP or FQDN"),
 			})
 	}
 	// If the passed control-plane endppoint is an IPv6 address, wrap it in [], so it can properly pass ParseAddrPort validation
 	if addr.Is6() {
-		endpointHostIP = fmt.Sprintf("[%s]", endpointHostIP)
+		endpoint = fmt.Sprintf("[%s]", endpoint)
 	}
 
-	ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", endpointHostIP, ep.Port))
+	ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", endpoint, ep.Port))
 	if err != nil {
 		return apierrors.NewInvalid(
 			gk,
 			name,
 			field.ErrorList{
 				field.Invalid(
-					field.NewPath("spec", "controlplaneEndpoint"), fmt.Sprintf("%s:%d", endpointHostIP, ep.Port), "provided endpoint is not in a valid IP and port format"),
+					field.NewPath("spec", "controlplaneEndpoint"), fmt.Sprintf("%s:%d", endpoint, ep.Port), "provided endpoint is not in a valid IP and port format"),
 			})
 	}
 
@@ -220,7 +233,16 @@ func hasNoIPPoolConfig(cluster *infrav1.ProxmoxCluster) bool {
 	return cluster.Spec.IPv4Config == nil && cluster.Spec.IPv6Config == nil
 }
 
-func isValidFQDN(fqdn string) bool {
-	_, err := net.ResolveIPAddr("ip", fqdn)
-	return err == nil
+func isHostname(h string) bool {
+	// shortname is up to 253 bytes long
+	shortname := `([a-z0-9]{1,253}|[a-z0-9][a-z0-9-]{1,251}[a-z0-9])`
+	// hostname is optional in a domain
+	hostname := `([a-z0-9]{1,63}|[a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.)?`
+	domain := `((([a-z0-9]{1,63}|[a-z0-9][a-z0-9-]{1,61}[a-z0-9])\.)+?[a-z]{2,63})`
+
+	// make hostname match case insensitive, match complete string
+	hostmatch := `(?i)^(` + shortname + `|` + hostname + domain + `)$`
+
+	match, _ := regexp.Match(hostmatch, []byte(h))
+	return match
 }
