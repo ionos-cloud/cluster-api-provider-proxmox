@@ -59,6 +59,12 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.AdditionalDevices[0].VLAN = ptr.To(uint16(0))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
+
+		It("should disallow invalid link mtu for additional device", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.Network.AdditionalDevices[0].LinkMTU = ptr.To(uint16(1000))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1280, but was 1000")))
+		})
 	})
 
 	Context("update proxmox cluster", func() {
