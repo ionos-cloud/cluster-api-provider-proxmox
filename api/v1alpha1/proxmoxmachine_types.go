@@ -247,7 +247,7 @@ type Routing struct {
 	// +kubebuilder:validation:MinItems=1
 	Routes []RouteSpec `json:"routes,omitempty"`
 
-	// RoutingPolicy is interface specific policy inserted into FiB (forwarding information base).
+	// RoutingPolicy is interface specific policy inserted into FIB (forwarding information base).
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
@@ -285,7 +285,7 @@ type RoutingPolicySpec struct {
 
 	// Priority is the position in the ip rule FIB table.
 	// +kubebuilder:validation:Maximum=4294967295
-	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert fib rule matching kernel rules",rule="(self > 0 && self < 32765) || (self > 32766)"
+	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert FIB rule matching kernel rules",rule="(self > 0 && self < 32765) || (self > 32766)"
 	// +optional
 	Priority uint32 `json:"priority,omitempty"`
 }

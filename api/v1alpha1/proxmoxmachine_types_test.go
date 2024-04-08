@@ -259,7 +259,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Cowardly refusing to insert fib rule matching kernel rules")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Cowardly refusing to insert FIB rule matching kernel rules")))
 		})
 
 		It("Should not allow machine with network device vlan equal to 0", func() {

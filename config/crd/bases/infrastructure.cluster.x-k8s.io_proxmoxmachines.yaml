@@ -260,7 +260,7 @@ spec:
                           type: array
                         routingPolicy:
                           description: RoutingPolicy is interface specific policy
-                            inserted into FiB (forwarding information base).
+                            inserted into FIB (forwarding information base).
                           items:
                             description: RoutingPolicySpec is a linux FIB rule.
                             properties:
@@ -269,12 +269,12 @@ spec:
                                 type: string
                               priority:
                                 description: Priority is the position in the ip rule
-                                  fib table.
+                                  FIB table.
                                 format: int32
                                 maximum: 4294967295
                                 type: integer
                                 x-kubernetes-validations:
-                                - message: Cowardly refusing to insert fib rule matching
+                                - message: Cowardly refusing to insert FIB rule matching
                                     kernel rules
                                   rule: (self > 0 && self < 32765) || (self > 32766)
                               table:
@@ -385,6 +385,8 @@ spec:
                         routingPolicy:
                           description: RoutingPolicy is the l3mdev policy inserted
                             into FIB.
+                          description: RoutingPolicy is interface specific policy
+                            inserted into FIB (forwarding information base).
                           items:
                             description: RoutingPolicySpec is a Linux FIB rule.
                             properties:
@@ -398,7 +400,7 @@ spec:
                                 maximum: 4294967295
                                 type: integer
                                 x-kubernetes-validations:
-                                - message: Cowardly refusing to insert fib rule matching
+                                - message: Cowardly refusing to insert FIB rule matching
                                     kernel rules
                                   rule: (self > 0 && self < 32765) || (self > 32766)
                               table:
