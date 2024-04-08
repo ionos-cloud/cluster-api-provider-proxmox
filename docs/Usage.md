@@ -105,7 +105,6 @@ NUM_SOCKETS: "2"                                              # The number of so
 NUM_CORES: "4"                                                # The number of cores for the VMs.
 MEMORY_MIB: "8048"                                            # The memory size for the VMs.
 
-<<<<<<< HEAD
 EXP_CLUSTER_RESOURCE_SET: "true"                              # This enables the ClusterResourceSet feature that we are using to deploy CNI
 CLUSTER_TOPOLOGY: "true"                                      # This enables experimental ClusterClass templating
 ```
