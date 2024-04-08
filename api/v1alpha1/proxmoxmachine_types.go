@@ -30,7 +30,7 @@ const (
 	// ProxmoxMachineKind is the ProxmoxMachine kind.
 	ProxmoxMachineKind = "ProxmoxMachine"
 
-	// MachineFinalizer allows cleaning up resources associated with
+	// MachineFinalizer allows cleaning up resources associated with a
 	// ProxmoxMachine before removing it from the API Server.
 	MachineFinalizer = "proxmoxmachine.infrastructure.cluster.x-k8s.io"
 
@@ -50,7 +50,7 @@ const (
 	IPV6Format = "v6"
 )
 
-// ProxmoxMachineSpec defines the desired state of ProxmoxMachine.
+// ProxmoxMachineSpec defines the desired state of a ProxmoxMachine.
 type ProxmoxMachineSpec struct {
 	VirtualMachineCloneSpec `json:",inline"`
 
@@ -59,7 +59,7 @@ type ProxmoxMachineSpec struct {
 	// +optional
 	ProviderID *string `json:"providerID,omitempty"`
 
-	// VirtualMachineID is the Proxmox identifier for the ProxmoxMachine vm.
+	// VirtualMachineID is the Proxmox identifier for the ProxmoxMachine VM.
 	// +optional
 	VirtualMachineID *int64 `json:"virtualMachineID,omitempty"`
 
@@ -249,7 +249,7 @@ type RouteSpec struct {
 	Table uint32 `json:"table,omitempty"`
 }
 
-// RoutingPolicySpec is a linux FIB rule.
+// RoutingPolicySpec is a Linux FIB rule.
 type RoutingPolicySpec struct {
 	// To is the subnet of the target.
 	// +optional
@@ -259,11 +259,11 @@ type RoutingPolicySpec struct {
 	// +optional
 	From string `json:"from,omitempty"`
 
-	// Table is the routing table id.
+	// Table is the routing table ID.
 	// +optional
 	Table uint32 `json:"table,omitempty"`
 
-	// Priority is the position in the ip rule fib table.
+	// Priority is the position in the ip rule FIB table.
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert fib rule matching kernel rules",rule="(self > 0 && self < 32765) || (self > 32766)"
 	// +optional
@@ -276,7 +276,7 @@ type VRFDevice struct {
 	Interfaces []string `json:"interfaces,omitempty"`
 
 	// Name is the virtual network device name.
-	// must be unique within the virtual machine.
+	// Must be unique within the virtual machine.
 	// +kubebuilder:validation:MinLength=3
 	Name string `json:"name"`
 
@@ -294,15 +294,15 @@ type VRFDevice struct {
 	// +kubebuilder:validation:MinItems=1
 	Routes []RouteSpec `json:"routes,omitempty"`
 
-	// RoutingPolicy is the l3mdev policy inserted into FiB.
+	// RoutingPolicy is the l3mdev policy inserted into FIB.
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
 }
 
-// VirtualNetworkDevices defines linux software networking devices.
+// VirtualNetworkDevices defines Linux software networking devices.
 type VirtualNetworkDevices struct {
-	// Definition of a Vrf Device.
+	// Definition of a VRF Device.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
@@ -342,7 +342,7 @@ type AdditionalNetworkDevice struct {
 	NetworkDevice `json:",inline"`
 
 	// Name is the network device name.
-	// must be unique within the virtual machine and different from the primary device 'net0'.
+	// Must be unique within the virtual machine and different from the primary device 'net0'.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:XValidation:rule="self != 'net0'",message="additional network devices doesn't allow net0"
 	Name string `json:"name"`
@@ -370,7 +370,7 @@ type AdditionalNetworkDevice struct {
 	DNSServers []string `json:"dnsServers,omitempty"`
 }
 
-// ProxmoxMachineStatus defines the observed state of ProxmoxMachine.
+// ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
 type ProxmoxMachineStatus struct {
 	// Ready indicates the Docker infrastructure has been provisioned and is ready.
 	// +optional
@@ -457,11 +457,11 @@ type ProxmoxMachineStatus struct {
 
 // IPAddress defines the IP addresses of a network interface.
 type IPAddress struct {
-	// IPV4 is the IP v4 address.
+	// IPV4 is the IPv4 address.
 	// +optional
 	IPV4 string `json:"ipv4,omitempty"`
 
-	// IPV6 is the IP v6 address.
+	// IPV6 is the IPv6 address.
 	// +optional
 	IPV6 string `json:"ipv6,omitempty"`
 }
