@@ -259,7 +259,7 @@ spec:
                           minItems: 1
                           type: array
                         routingPolicy:
-                          description: RoutingPolicy is interface specific policy
+                          description: RoutingPolicy is an interface-specific policy
                             inserted into FIB (forwarding information base).
                           items:
                             description: RoutingPolicySpec is a linux FIB rule.
@@ -383,9 +383,7 @@ spec:
                           minItems: 1
                           type: array
                         routingPolicy:
-                          description: RoutingPolicy is the l3mdev policy inserted
-                            into FIB.
-                          description: RoutingPolicy is interface specific policy
+                          description: RoutingPolicy is an interface-specific policy
                             inserted into FIB (forwarding information base).
                           items:
                             description: RoutingPolicySpec is a Linux FIB rule.

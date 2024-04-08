@@ -240,7 +240,7 @@ type InterfaceConfig struct {
 	LinkMTU MTU `json:"linkMtu,omitempty"`
 }
 
-// Routing is shared fields across devices and VRFs
+// Routing is shared fields across devices and VRFs.
 type Routing struct {
 	// Routes are the routes associated with this interface.
 	// +optional
