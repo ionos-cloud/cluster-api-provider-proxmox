@@ -262,7 +262,7 @@ spec:
                           description: RoutingPolicy is an interface-specific policy
                             inserted into FIB (forwarding information base).
                           items:
-                            description: RoutingPolicySpec is a linux FIB rule.
+                            description: RoutingPolicySpec is a Linux FIB rule.
                             properties:
                               from:
                                 description: From is the subnet of the source.
@@ -278,7 +278,7 @@ spec:
                                     kernel rules
                                   rule: (self > 0 && self < 32765) || (self > 32766)
                               table:
-                                description: Table is the routing table id.
+                                description: Table is the routing table ID.
                                 format: int32
                                 type: integer
                               to:

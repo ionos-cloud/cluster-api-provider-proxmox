@@ -284,7 +284,7 @@ spec:
                                     policy inserted into FIB (forwarding information
                                     base).
                                   items:
-                                    description: RoutingPolicySpec is a linux FIB
+                                    description: RoutingPolicySpec is a Linux FIB
                                       rule.
                                     properties:
                                       from:
@@ -302,7 +302,7 @@ spec:
                                           rule: (self > 0 && self < 32765) || (self
                                             > 32766)
                                       table:
-                                        description: Table is the routing table id.
+                                        description: Table is the routing table ID.
                                         format: int32
                                         type: integer
                                       to:
