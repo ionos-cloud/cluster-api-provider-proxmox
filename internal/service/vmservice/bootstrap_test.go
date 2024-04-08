@@ -136,26 +136,102 @@ func TestGetNetworkConfigDataForDevice_MissingMACAddress(t *testing.T) {
 	require.Nil(t, cfg)
 }
 
-func TestGetRoutingDataMock(t *testing.T) {
-	// The underlying copy code can not fail. This test only exists for coverage
-	routes := *getRoutingData([]infrav1alpha1.RouteSpec{
-		{To: "default", Via: "192.168.178.1"},
-		{To: "172.24.16.0/24", Via: "192.168.178.1", Table: 100},
-	})
+func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTest(t)
 
-	require.Equal(t, "default", routes[0].To)
-	require.NoError(t, nil)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
+			{
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
+				Name:          "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{
+					IPv4PoolRef: &corev1.TypedLocalObjectReference{
+						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+						Kind:     "GlobalInClusterIPPool",
+						Name:     "net1-inet",
+					},
+				},
+			},
+		},
+	}
+
+	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	require.Error(t, err)
 }
 
-func TestGetRoutingpolicyDataMock(t *testing.T) {
-	// The underlying copy code can not fail. This test only exists for coverage
-	rules := *getRoutingPolicyData([]infrav1alpha1.RoutingPolicySpec{
-		{To: "10.10.10.0/24", Table: 100},
-		{From: "172.24.16.0/24", Table: 100},
-	})
+func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTest(t)
 
-	require.Equal(t, "10.10.10.0/24", rules[0].To)
-	require.NoError(t, nil)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
+			{
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
+				Name:          "net1",
+			},
+		},
+	}
+
+	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	require.NoError(t, err)
+}
+
+func TestGetCommonInterfaceConfig(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTest(t)
+
+	var MTU uint16 = 9000
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
+			{
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
+				Name:          "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{
+					DNSServers: []string{"1.2.3.4"},
+					IPv6PoolRef: &corev1.TypedLocalObjectReference{
+						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+						Kind:     "GlobalInClusterIPPool",
+						Name:     "net1-inet6",
+					},
+					IPv4PoolRef: &corev1.TypedLocalObjectReference{
+						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+						Kind:     "GlobalInClusterIPPool",
+						Name:     "net1-inet",
+					},
+					LinkMTU: &MTU,
+					Routing: infrav1alpha1.Routing{
+						Routes: []infrav1alpha1.RouteSpec{
+							{To: "default", Via: "192.168.178.1"},
+							{To: "172.24.16.0/24", Via: "192.168.178.1", Table: 100},
+						},
+						RoutingPolicy: []infrav1alpha1.RoutingPolicySpec{
+							{To: "10.10.10.0/24", Table: 100},
+							{From: "172.24.16.0/24", Table: 100},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	vm.VirtualMachineConfig.SMBios1 = biosUUID
+	machineScope.SetVirtualMachine(vm)
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10", IPV6: "2001:db8::2"}, "net1": {IPV4: "10.0.0.10", IPV6: "2001:db8::9"}}
+	createIPPools(t, kubeClient, machineScope)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10")
+	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
+
+	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	require.Equal(t, "10.0.0.10/24", cfg.IPAddress)
+	require.Equal(t, "2001:db8::9/64", cfg.IPV6Address)
+	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
+	require.Equal(t, "default", cfg.Routes[0].To)
+	require.Equal(t, "172.24.16.0/24", cfg.Routes[1].To)
+	require.Equal(t, "10.10.10.0/24", cfg.FIBRules[0].To)
+	require.Equal(t, "172.24.16.0/24", cfg.FIBRules[1].From)
+	require.NoError(t, err)
 }
 
 func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {

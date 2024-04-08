@@ -269,11 +269,11 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 	ciconfig.FIBRules = *getRoutingPolicyData(ifconfig.Routing.RoutingPolicy)
 	ciconfig.LinkMTU = ifconfig.LinkMTU
 
-	// Only set IPAddresses when they haven't been set yet
+	// Only set IPAddresses if they haven't been set yet
 	if ippool := ifconfig.IPv4PoolRef; ippool != nil && ciconfig.IPAddress == "" {
 		// retrieve IPAddress.
 		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix)
-		ipAddr, err := findIPAddress(ctx, machineScope, ciconfig.Name)
+		ipAddr, err := findIPAddress(ctx, machineScope, ifname)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
 		}
@@ -282,17 +282,18 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 	}
 	if ifconfig.IPv6PoolRef != nil && ciconfig.IPV6Address == "" {
 		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix+"6")
-		ipAddr, err := findIPAddress(ctx, machineScope, ciconfig.Name)
+		ipAddr, err := findIPAddress(ctx, machineScope, ifname)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
 		}
 		ciconfig.IPV6Address = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
 		ciconfig.Gateway6 = ipAddr.Spec.Gateway
 	}
+
 	return nil
 }
 
-func getVirtualNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha1.NetworkSpec, data []cloudinit.NetworkConfigData) ([]cloudinit.NetworkConfigData, error) {
+func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network infrav1alpha1.NetworkSpec, data []cloudinit.NetworkConfigData) ([]cloudinit.NetworkConfigData, error) {
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.VRFs))
 
 	for _, device := range network.VRFs {
@@ -351,18 +352,14 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 				config.DNSServers = nic.DNSServers
 			}
 
-			switch {
-			case len(config.MacAddress) == 0:
-				config = conf
-			case config.MacAddress != conf.MacAddress:
-				return nil, errors.New("additional network device ipv4 and ipv6 have different mac addresses")
-			default:
-				config.IPV6Address = conf.IPV6Address
-				config.Gateway6 = conf.Gateway6
-			}
+			config.IPV6Address = conf.IPV6Address
+			config.Gateway6 = conf.Gateway6
 		}
 
-		getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
+		err := getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
+		}
 
 		config.Name = fmt.Sprintf("eth%d", index)
 		index++
