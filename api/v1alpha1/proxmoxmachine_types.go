@@ -247,7 +247,7 @@ type Routing struct {
 	// +kubebuilder:validation:MinItems=1
 	Routes []RouteSpec `json:"routes,omitempty"`
 
-	// RoutingPolicy is interface specific policy inserted into FIB (forwarding information base).
+	// RoutingPolicy is an interface-specific policy inserted into FIB (forwarding information base).
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
