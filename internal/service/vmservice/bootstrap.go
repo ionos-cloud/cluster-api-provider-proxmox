@@ -168,7 +168,9 @@ func getRoutingPolicyData(rules []infrav1alpha1.RoutingPolicySpec) *[]cloudinit.
 		ruleSpec.To = rule.To
 		ruleSpec.From = rule.From
 		ruleSpec.Priority = rule.Priority
-		ruleSpec.Table = rule.Table
+		if rule.Table != nil {
+			ruleSpec.Table = *rule.Table
+		}
 		routingPolicyData = append(routingPolicyData, ruleSpec)
 	}
 

@@ -120,8 +120,53 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
 				})
 		}
+		err = validateRoutingPolicy(&machine.Spec.Network.AdditionalDevices[i].InterfaceConfig.RoutingPolicy)
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+				})
+		}
 	}
 
+	for i := range machine.Spec.Network.VirtualNetworkDevices.VRFs {
+		err := validateVRFConfigRoutingPolicy(&machine.Spec.Network.VirtualNetworkDevices.VRFs[i])
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "VirtualNetworkDevices", "VRFs", fmt.Sprint(i), "Table"), machine.Spec.Network.VirtualNetworkDevices.VRFs[i], err.Error()),
+				})
+		}
+	}
+
+	return nil
+}
+
+func validateRoutingPolicy(policies *[]infrav1.RoutingPolicySpec) error {
+	for i, policy := range *policies {
+		if policy.Table == nil {
+			return fmt.Errorf("routing policy [%d] requires a table", i)
+		}
+	}
+	return nil
+}
+
+func validateVRFConfigRoutingPolicy(vrf *infrav1.VRFDevice) error {
+	for _, policy := range vrf.Routing.RoutingPolicy {
+		// Netplan will not accept rules not matching the l3mdev table, although
+		// there is no technical reason for this limitation.
+		if policy.Table != nil {
+			if *policy.Table != vrf.Table {
+				return fmt.Errorf("VRF %s: device/rule routing table mismatch %d != %d", vrf.Name, vrf.Table, *policy.Table)
+			}
+		}
+	}
 	return nil
 }
 

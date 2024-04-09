@@ -205,8 +205,8 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 							{To: "172.24.16.0/24", Via: "192.168.178.1", Table: 100},
 						},
 						RoutingPolicy: []infrav1alpha1.RoutingPolicySpec{
-							{To: "10.10.10.0/24", Table: 100},
-							{From: "172.24.16.0/24", Table: 100},
+							{To: "10.10.10.0/24", Table: ptr.To(uint32(100))},
+							{From: "172.24.16.0/24", Table: ptr.To(uint32(100))},
 						},
 					},
 				},
