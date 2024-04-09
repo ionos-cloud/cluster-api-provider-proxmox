@@ -281,7 +281,7 @@ type RoutingPolicySpec struct {
 
 	// Table is the routing table ID.
 	// +optional
-	Table uint32 `json:"table,omitempty"`
+	Table *uint32 `json:"table,omitempty"`
 
 	// Priority is the position in the ip rule FIB table.
 	// +kubebuilder:validation:Maximum=4294967295

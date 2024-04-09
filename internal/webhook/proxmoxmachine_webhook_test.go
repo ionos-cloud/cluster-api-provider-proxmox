@@ -65,6 +65,18 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.AdditionalDevices[0].LinkMTU = ptr.To(uint16(1000))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1280, but was 1000")))
 		})
+
+		It("should disallow conflicting l3mdev/routing policy table", func() {
+			machine := validProxmoxMachine("test-machine")
+			*machine.Spec.Network.VirtualNetworkDevices.VRFs[0].Routing.RoutingPolicy[0].Table = 667
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("VRF vrf-green: device/rule routing table mismatch 665 != 667")))
+		})
+
+		It("should disallow routing policy without table", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.Network.AdditionalDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
+		})
 	})
 
 	Context("update proxmox cluster", func() {
@@ -131,7 +143,23 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 								Kind:     "InClusterIPPool",
 								APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 							},
+							Routing: infrav1.Routing{
+								RoutingPolicy: []infrav1.RoutingPolicySpec{{
+									Table: ptr.To(uint32(665)),
+								}},
+							},
 						},
+					},
+				},
+				VirtualNetworkDevices: infrav1.VirtualNetworkDevices{
+					VRFs: []infrav1.VRFDevice{{
+						Table: 665,
+						Name:  "vrf-green",
+						Routing: infrav1.Routing{
+							RoutingPolicy: []infrav1.RoutingPolicySpec{{
+								Table: ptr.To(uint32(665)),
+							}},
+						}},
 					},
 				},
 			},
