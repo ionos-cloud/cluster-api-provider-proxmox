@@ -67,3 +67,15 @@ If your capi-controller is too new, you can pass a `--core cluster-api:v1.6.1` d
 ## Calico fails in IPVS mode with loadBalancers to expose services
 Calico unfortunately does not test connectivity when it choses a node ip to use for IPVS communication.
 This can be altered manually. More on this topic in [Calicos documentation](https://docs.tigera.io/calico/latest/networking/ipam/ip-autodetection#autodetection-methods).
+
+## Machine deletion deadlock
+Sometimes machines do not delete because some resource needs to be reconciled before
+deletion can happen, but these resources can not reconcile (for example nodes may not drain).
+To fix deletion deadlocks in such cases:
+ - Remove `ipaddresses` and `ipaddressclaims` for the relevant machines
+ - Remove the `proxmoxmachine` finalizer by editing `proxmoxmachines <machine>`
+ - Delete the `proxmoxmachine`
+ - Remove the `machine` finalizer by editing `machines <machine>`
+ - Delete the `machine`
+
+After these steps, VMs may linger in proxmox. Carefully remove those.
