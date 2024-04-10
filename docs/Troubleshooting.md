@@ -68,7 +68,6 @@ If your capi-controller is too new, you can pass a `--core cluster-api:v1.6.1` d
 Calico unfortunately does not test connectivity when it choses a node ip to use for IPVS communication.
 This can be altered manually. More on this topic in [Calicos documentation](https://docs.tigera.io/calico/latest/networking/ipam/ip-autodetection#autodetection-methods).
 
-
 ## Machine deletion deadlock
 Sometimes machines do not delete because some resource needs to be reconciled before
 deletion can happen, but these resources can not reconcile (for example nodes may not drain).
@@ -88,3 +87,16 @@ The image builder uses `PROXMOX_USERNAME` as the token name and `PROXMOX_TOKEN` 
 the token name and `PROXMOX_SECRET` as the token's secret UUID.
 The CAPMOX way of implementing authentication is closer to the [Proxmox API Token Documentation](https://pve.proxmox.com/wiki/Proxmox_VE_API#api_tokens),
 therefore this pitfall will likely keep on existing.
+
+## IPv6 only cluster, kube-vip fails with "unable to detect default interface"
+Older versions of `kube-vip` do not consider the IPv6 routing table and therefore IPv6 interface detection fails.
+Update `kube-vip` to version `0.7.2`.
+
+Example log:
+```
+time="2024-03-14T11:48:58Z" level=info msg="Starting kube-vip.io [v0.5.10]"
+time="2024-03-14T11:48:58Z" level=info msg="namespace [kube-system], Mode: [ARP], Features(s): Control Plane:[true], Services:[false]"
+time="2024-03-14T11:48:58Z" level=info msg="No interface is specified for VIP in config, auto-detecting default Interface"
+....
+time="2024-03-14T11:52:30Z" level=fatal msg="unable to detect default interface -> [Unable to find default route]"
+```
