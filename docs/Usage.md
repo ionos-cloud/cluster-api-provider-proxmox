@@ -32,7 +32,8 @@ In order to deploy a K8s cluster with CAPMOX, you require the following:
 * Proxmox VE template in order to be able to create a cluster.
 
   * You can build VM template using [image-builder](https://github.com/kubernetes-sigs/image-builder)
-    * **we recommend using** [the Proxmox VE builder](https://image-builder.sigs.k8s.io/capi/providers/proxmox)
+    * **we recommend using** [the Proxmox VE builder](https://image-builder.sigs.k8s.io/capi/providers/proxmox).
+      See our [troubleshooting docs](Troubleshooting.md#imagebuilder-environment-variables) for more information.
     * OR by [Building Raw Images](https://image-builder.sigs.k8s.io/capi/providers/proxmox)
 
 * clusterctl, which you can download it from Cluster API (CAPI) [releases](https://github.com/kubernetes-sigs/cluster-api/releases) on GitHub.

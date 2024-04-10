@@ -68,6 +68,7 @@ If your capi-controller is too new, you can pass a `--core cluster-api:v1.6.1` d
 Calico unfortunately does not test connectivity when it choses a node ip to use for IPVS communication.
 This can be altered manually. More on this topic in [Calicos documentation](https://docs.tigera.io/calico/latest/networking/ipam/ip-autodetection#autodetection-methods).
 
+
 ## Machine deletion deadlock
 Sometimes machines do not delete because some resource needs to be reconciled before
 deletion can happen, but these resources can not reconcile (for example nodes may not drain).
@@ -79,3 +80,11 @@ To fix deletion deadlocks in such cases:
  - Delete the `machine`
 
 After these steps, VMs may linger in proxmox. Carefully remove those.
+
+## Imagebuilder Environment Variables
+[Proxmox VE Image Builder](https://image-builder.sigs.k8s.io/capi/providers/proxmox) and CAPMOX differ in their use of environment variables.
+Trying to use CAPMOX's variables will lead to [image building failure](https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/52).
+The image builder uses `PROXMOX_USERNAME` as the token name and `PROXMOX_TOKEN` as the token's secret, whereas CAPMOX uses `PROXMOX_TOKEN` as
+the token name and `PROXMOX_SECRET` as the token's secret UUID.
+The CAPMOX way of implementing authentication is closer to the [Proxmox API Token Documentation](https://pve.proxmox.com/wiki/Proxmox_VE_API#api_tokens),
+therefore this pitfall will likely keep on existing.
