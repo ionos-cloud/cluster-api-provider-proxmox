@@ -100,3 +100,40 @@ time="2024-03-14T11:48:58Z" level=info msg="No interface is specified for VIP in
 ....
 time="2024-03-14T11:52:30Z" level=fatal msg="unable to detect default interface -> [Unable to find default route]"
 ```
+
+## Nodes fail to deploy/have wrong node-ip with mixed interface models
+Kubelet chooses the first interface to acquire a node-ip for kubeadm. The first
+interface is defined by the in-kernel order, which is defined by the order the
+pci bus is scanned and drivers are loaded.
+
+As an example:
+```
+kubectl get nodes -o wide
+NAME                               STATUS     ROLES                AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+test-cluster-control-plane-gcgc6   Ready      control-plane        11h   v1.26.7   10.0.1.69    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-load-balancer-c8rd2   Ready      load-balancer,node   11h   v1.26.7   10.0.2.155   <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-load-balancer-wqbcg   Ready      load-balancer,node   11h   v1.26.7   10.0.2.152   <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-worker-hbm8s          Ready      node                 11h   v1.26.7   10.0.1.71    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-worker-n2vbc          NotReady   node                 17m   v1.26.7   10.0.1.73    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+```
+
+The load-balancers have an `e1000` interface as their default network, whereas `ens19` and `ens20` are `virtio`
+```
+root@test-cluster-load-balancer-zrjx8:~# ip -o l sh
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: ens19: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc prio state UP mode DEFAULT group default qlen 1000\    link/ether 0a:97:89:e5:7f:1d brd ff:ff:ff:ff:ff:ff\    altname enp0s19
+3: ens20: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc prio master vrf-ext state UP mode DEFAULT group default qlen 1000\    link/ether 9a:58:08:40:a2:70 brd ff:ff:ff:ff:ff:ff\    altname enp0s20
+4: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc prio state UP mode DEFAULT group default qlen 1000\    link/ether 16:7a:ee:74:23:0d brd ff:ff:ff:ff:ff:ff\    altname enp0s18
+```
+
+This is the order the interfaces are created in:
+```
+root@test-cluster-load-balancer-zrjx8:~# dmesg -t | grep eth
+virtio_net virtio2 ens19: renamed from eth0
+virtio_net virtio3 ens20: renamed from eth1
+e1000 0000:00:12.0 eth0: (PCI:33MHz:32-bit) 16:7a:ee:74:23:0d
+e1000 0000:00:12.0 eth0: Intel(R) PRO/1000 Network Connection
+e1000 0000:00:12.0 ens18: renamed from eth0
+```
+
+If you absolutely must mix interface types, make sure that the default network interface is the one that comes up first.
