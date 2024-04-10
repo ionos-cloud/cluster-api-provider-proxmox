@@ -60,6 +60,15 @@ export IPV6_PREFIX=64
 export IPV6_GATEWAY="2001:db8:1::1"
 ```
 
+If you're using cilium, be aware that cilium's helm chart requires `ipv6.enabled=true` to actually support IPv6 pod- and service networks.
+
+## IPv6 only cluster
+
+Clusters without IPv4 are possible, but require kube-vip to be newer than 0.7.1 (version 0.7.0 probably works, but we did not test it).
+
+If you're using cilium, be aware that Cilium's helm chart requires `ipv6.enabled=true` to actually support IPv6 pod- and service networks.
+
+
 #### Generate a Cluster
 
 ```bash
