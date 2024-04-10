@@ -137,3 +137,15 @@ e1000 0000:00:12.0 ens18: renamed from eth0
 ```
 
 If you absolutely must mix interface types, make sure that the default network interface is the one that comes up first.
+
+## Machine deletion deadlock
+Sometimes machines do not delete because some resource needs to be reconciled before
+deletion can happen, but these resources can not reconcile (for example nodes may not drain).
+To fix deletion deadlocks in such cases:
+ - Remove `ipaddresses` and `ipaddressclaims` for the relevant machines
+ - Remove the `proxmoxmachine` finalizer by editing `proxmoxmachines <machine>`
+ - Delete the `proxmoxmachine`
+ - Remove the `machine` finalizer by editing `machines <machine>`
+ - Delete the `machine`
+
+After these steps, VMs may linger in proxmox. Carefully remove those.
