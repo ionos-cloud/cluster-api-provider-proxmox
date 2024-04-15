@@ -62,7 +62,8 @@ spec:
                         type: object
                     type: object
                   spec:
-                    description: ProxmoxClusterSpec defines the desired state of ProxmoxCluster.
+                    description: ProxmoxClusterSpec defines the desired state of a
+                      ProxmoxCluster.
                     properties:
                       allowedNodes:
                         description: AllowedNodes specifies all Proxmox nodes which
@@ -80,7 +81,7 @@ spec:
                           machineSpec:
                             additionalProperties:
                               description: ProxmoxMachineSpec defines the desired
-                                state of ProxmoxMachine.
+                                state of a ProxmoxMachine.
                               properties:
                                 description:
                                   description: Description for the new VM.
@@ -262,7 +263,7 @@ spec:
                                             type: integer
                                           name:
                                             description: Name is the network device
-                                              name. must be unique within the virtual
+                                              name. Must be unique within the virtual
                                               machine and different from the primary
                                               device 'net0'.
                                             minLength: 1
@@ -327,7 +328,7 @@ spec:
                                       - bridge
                                       type: object
                                     vrfs:
-                                      description: Definition of a Vrf Device.
+                                      description: Definition of a VRF Device.
                                       items:
                                         description: VRFDevice defines Virtual Routing
                                           Flow devices.
@@ -427,7 +428,7 @@ spec:
                                                 || self.kind == 'GlobalInClusterIPPool'
                                           name:
                                             description: Name is the virtual network
-                                              device name. must be unique within the
+                                              device name. Must be unique within the
                                               virtual machine.
                                             minLength: 3
                                             type: string
@@ -461,10 +462,10 @@ spec:
                                             type: array
                                           routingPolicy:
                                             description: RoutingPolicy is the l3mdev
-                                              policy inserted into FiB.
+                                              policy inserted into FIB.
                                             items:
                                               description: RoutingPolicySpec is a
-                                                linux FIB rule.
+                                                Linux FIB rule.
                                               properties:
                                                 from:
                                                   description: From is the subnet
@@ -472,7 +473,7 @@ spec:
                                                   type: string
                                                 priority:
                                                   description: Priority is the position
-                                                    in the ip rule fib table.
+                                                    in the ip rule FIB table.
                                                   format: int32
                                                   maximum: 4294967295
                                                   type: integer
@@ -484,7 +485,7 @@ spec:
                                                       || (self > 32766)
                                                 table:
                                                   description: Table is the routing
-                                                    table id.
+                                                    table ID.
                                                   format: int32
                                                   type: integer
                                                 to:
@@ -570,7 +571,7 @@ spec:
                                   type: integer
                                 virtualMachineID:
                                   description: VirtualMachineID is the Proxmox identifier
-                                    for the ProxmoxMachine vm.
+                                    for the ProxmoxMachine VM.
                                   format: int64
                                   type: integer
                               required:
@@ -611,15 +612,15 @@ spec:
                         type: object
                       dnsServers:
                         description: DNSServers contains information about nameservers
-                          used by machines network-config.
+                          used by the machines.
                         items:
                           type: string
                         minItems: 1
                         type: array
                       ipv4Config:
                         description: IPv4Config contains information about available
-                          IPV4 address pools and the gateway. this can be combined
-                          with ipv6Config in order to enable dual stack. either IPv4Config
+                          IPV4 address pools and the gateway. This can be combined
+                          with ipv6Config in order to enable dual stack. Either IPv4Config
                           or IPv6Config must be provided.
                         properties:
                           addresses:
@@ -644,8 +645,8 @@ spec:
                           rule: self.addresses.size() > 0
                       ipv6Config:
                         description: IPv6Config contains information about available
-                          IPV6 address pools and the gateway. this can be combined
-                          with ipv4Config in order to enable dual stack. either IPv4Config
+                          IPV6 address pools and the gateway. This can be combined
+                          with ipv4Config in order to enable dual stack. Either IPv4Config
                           or IPv6Config must be provided.
                         properties:
                           addresses:
