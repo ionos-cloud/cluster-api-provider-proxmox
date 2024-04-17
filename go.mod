@@ -26,7 +26,7 @@ require (
 	sigs.k8s.io/cluster-api v1.6.3
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0
 	sigs.k8s.io/cluster-api/test v1.6.3
-	sigs.k8s.io/controller-runtime v0.17.2
+	sigs.k8s.io/controller-runtime v0.17.3
 )
 
 require (
@@ -137,8 +137,8 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.29.0 // indirect
-	k8s.io/apiserver v0.29.0 // indirect
+	k8s.io/apiextensions-apiserver v0.29.2 // indirect
+	k8s.io/apiserver v0.29.2 // indirect
 	k8s.io/cluster-bootstrap v0.29.2 // indirect
 	k8s.io/component-base v0.29.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
