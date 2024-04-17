@@ -43,10 +43,40 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("at least one ip config must be set")))
 		})
 
-		It("should disallow invalid endpoint IP", func() {
+		It("should disallow invalid endpoint FQDN", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
-			cluster.Spec.ControlPlaneEndpoint.Host = "invalid"
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP")))
+			cluster.Spec.ControlPlaneEndpoint.Host = "_this.is.a.txt.record"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP or FQDN")))
+		})
+
+		It("should disallow invalid endpoint short hostname", func() {
+			cluster := invalidProxmoxCluster("test-cluster")
+			cluster.Spec.ControlPlaneEndpoint.Host = "invalid-"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint address is not a valid IP or FQDN")))
+		})
+
+		It("should allow valid endpoint FQDN", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-fqdn")
+			cluster.Spec.ControlPlaneEndpoint.Host = "host.example.com"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
+
+		It("should allow valid upper case endpoint FQDN", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-uppercase-fqdn")
+			cluster.Spec.ControlPlaneEndpoint.Host = "HOST.EXAMPLE.COM"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
+
+		It("should allow valid endpoint IP4", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-ip4")
+			cluster.Spec.ControlPlaneEndpoint.Host = "127.0.0.1"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
+
+		It("should allow valid endpoint IP6", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-ip6")
+			cluster.Spec.ControlPlaneEndpoint.Host = "::1"
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 
 		It("should disallow invalid endpoint IP + port combination", func() {
