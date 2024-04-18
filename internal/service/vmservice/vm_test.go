@@ -325,8 +325,23 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, goproxmox.ErrCloudInitFailed).Once()
 
 	_, err := ReconcileVM(context.Background(), machineScope)
-	fmt.Println(err)
 	require.Error(t, err, "unknown error")
 	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureReason, ptr.To(capierrors.MachineStatusError("BootstrapFailed")))
 	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureMessage, ptr.To("cloud-init failed execution"))
+}
+
+func TestReconcileVM_CloudInitRunning(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	machineScope.SetVirtualMachineID(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.Ready = true
+
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(true, nil).Once()
+
+	result, err := ReconcileVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, infrav1alpha1.VirtualMachineStatePending, result.State)
 }
