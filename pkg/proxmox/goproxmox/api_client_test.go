@@ -18,6 +18,7 @@ package goproxmox
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -147,6 +148,118 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 			reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", test.nodeMemoryAdjustment)
 			require.NoError(t, err)
 			require.Equal(t, test.expect, reservable)
+		})
+	}
+}
+
+func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		node     string  // node name
+		vmid     int64   // vmid
+		pid      float64 // pid of agent
+		exited   int     // exited state
+		exitcode int     // exitcode
+		outData  string  // out-data
+		running  bool    // expected running state
+		err      error   // expected error
+	}{
+		{
+			name:     "cloud-init success",
+			node:     "pve",
+			vmid:     1111,
+			pid:      12234,
+			exited:   1,
+			exitcode: 0,
+			outData:  "status: done\n",
+			running:  false,
+			err:      nil,
+		},
+		{
+			name:     "cloud-init running",
+			node:     "pve",
+			vmid:     1111,
+			pid:      12234,
+			exited:   1,
+			exitcode: 0,
+			outData:  "status: running\n",
+			running:  true,
+			err:      nil,
+		},
+		{
+			name:     "cloud-init failed",
+			node:     "pve",
+			vmid:     1111,
+			pid:      12234,
+			exited:   1,
+			exitcode: 1,
+			outData:  "status: error\n",
+			running:  false,
+			err:      ErrCloudInitFailed,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+
+			httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/status`, test.node),
+				newJSONResponder(200, proxmox.Node{Name: "pve"}))
+
+			httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/status/current`, test.node, test.vmid),
+				newJSONResponder(200, proxmox.VirtualMachine{
+					VMID: proxmox.StringOrUint64(test.vmid),
+					Name: "legit-worker",
+					Node: test.node,
+				}))
+
+			httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/config`, test.node, test.vmid),
+				newJSONResponder(200, proxmox.VirtualMachineConfig{
+					Name: "legit-worker",
+				}))
+
+			vm, err := client.GetVM(context.Background(), test.node, test.vmid)
+			require.NoError(t, err)
+			require.NotNil(t, vm)
+
+			// WaitForAgent mock
+			httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/agent/get-osinfo`, vm.Node, vm.VMID),
+				newJSONResponder(200,
+					map[string]*proxmox.AgentOsInfo{
+						"result": {
+							ID:            "ubuntu",
+							VersionID:     "22.04",
+							Machine:       "x86_64",
+							KernelRelease: "5.15.0-89-generic",
+							KernelVersion: "#99-Ubuntu SMP Mon Oct 30 20:42:41 UTC 2023",
+							Name:          "Ubuntu",
+							Version:       "22.04.3 LTS (Jammy Jellyfish)",
+							PrettyName:    "Ubuntu 22.04.3 LTS",
+						},
+					},
+				))
+
+			// AgentExec mock
+			httpmock.RegisterResponder(http.MethodPost, fmt.Sprintf(`=~/nodes/%s/qemu/%d/agent/exec\z`, vm.Node, vm.VMID),
+				newJSONResponder(200,
+					map[string]interface{}{
+						"pid": test.pid,
+					},
+				))
+
+			// AgentExecStatus mock
+			httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/agent/exec-status\?pid=%v`, vm.Node, vm.VMID, test.pid),
+				newJSONResponder(200,
+					&proxmox.AgentExecStatus{
+						Exited:   test.exited,
+						ExitCode: test.exitcode,
+						OutData:  test.outData,
+					},
+				))
+
+			running, err := client.CloudInitStatus(context.Background(), vm)
+			require.Equal(t, err, test.err)
+			require.Equal(t, test.running, running)
 		})
 	}
 }
