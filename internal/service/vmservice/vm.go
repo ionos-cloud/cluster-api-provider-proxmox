@@ -33,6 +33,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -91,6 +92,10 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 		return vm, err
 	}
 
+	if requeue, err := checkCloudInitStatus(ctx, scope); err != nil || requeue {
+		return vm, err
+	}
+
 	// if the root machine is ready, we can assume that the VM is ready as well.
 	// unmount the cloud-init iso if it is still mounted.
 	if scope.Machine.Status.BootstrapReady && scope.Machine.Status.NodeRef != nil {
@@ -101,6 +106,27 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 
 	vm.State = infrav1alpha1.VirtualMachineStateReady
 	return vm, nil
+}
+
+func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
+	if !machineScope.VirtualMachine.IsRunning() {
+		// skip if the vm is not running.
+		return true, nil
+	}
+
+	if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
+		if running {
+			return true, nil
+		}
+		if errors.Is(goproxmox.ErrCloudInitFailed, err) {
+			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
+			machineScope.SetFailureMessage(err)
+			machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
+		}
+		return false, err
+	}
+
+	return false, nil
 }
 
 // ensureVirtualMachine creates a Proxmox VM if it doesn't exist and updates the given MachineScope.
