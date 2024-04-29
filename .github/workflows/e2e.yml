@@ -38,5 +38,5 @@ jobs:
         uses: gacts/run-and-post-run@v1
         with:
           post: |
-            "kind get clusters | xargs -I% kind delete cluster --name %"
-            "docker system prune -a -f"
+            kind get clusters | xargs -I% kind delete cluster --name %
+            docker system prune -a -f
