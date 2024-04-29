@@ -59,8 +59,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/diskfs/go-diskfs v1.2.0 h1:Ow4xorEDw1VNYKbC+SA/qQNwi5gWIwdKUxmUcLFST24=
 github.com/diskfs/go-diskfs v1.2.0/go.mod h1:ZTeTbzixuyfnZW5y5qKMtjV2o+GLLHo1KfMhotJI4Rk=
-github.com/distribution/reference v0.5.0 h1:/FUIFXtfc/x2gpa5/VGfiGLuOIdYa1t65IKK2OFGvA0=
-github.com/distribution/reference v0.5.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
+github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
+github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
 github.com/docker/docker v25.0.5+incompatible h1:UmQydMduGkrD5nQde1mecF/YnSbTOaPeFIeP5C4W+DE=
 github.com/docker/docker v25.0.5+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj1Br63c=
@@ -462,8 +462,8 @@ mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed/go.mod h1:Xkxe497xwlCKkIa
 mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b/go.mod h1:2odslEg/xrtNQqCYg2/jCoyKnw3vv5biOc3JnIcYfL4=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.30.2 h1:N2wvoG4CkNqORML7GHY9xkGKxswDhpAD46poBd/hHHg=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.30.2/go.mod h1:Ve9uj1L+deCXFrPOk1LpFXqTg7LCFzFso6PA48q/XZw=
-sigs.k8s.io/cluster-api v1.7.1 h1:JkMAbAMzBM+WBHxXLTJXTiCisv1PAaHRzld/3qrmLYY=
-sigs.k8s.io/cluster-api v1.7.1/go.mod h1:V9ZhKLvQtsDODwjXOKgbitjyCmC71yMBwDcMyNNIov0=
+sigs.k8s.io/cluster-api v1.7.0-rc.0.0.20240424194424-783624c51bee h1:tm8u/PK+OyeoDF/bGzwQh0rJuEgEvyoDOiY8xYxG3Cc=
+sigs.k8s.io/cluster-api v1.7.0-rc.0.0.20240424194424-783624c51bee/go.mod h1:18NjrAPuGIKkBUZ0WWZy/FzuMiVhuxshSnA1f3DHRxY=
 sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0 h1:k93V8X7ihC9CJff4AP7csyRIMO28cqp0pRMkvcChpis=
 sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0/go.mod h1:C+C1Xos6z9H9ymJSJsjI2qfqo/EnsugS7WHCYh3O+Nc=
 sigs.k8s.io/cluster-api/test v1.7.1 h1:QDru2586ZjIFBTW1Z7VVXVtauzR/yANm4tglUNLm9iE=

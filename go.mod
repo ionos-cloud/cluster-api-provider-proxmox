@@ -2,7 +2,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 
 go 1.22.2
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.7.1
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.7.0-rc.0.0.20240424194424-783624c51bee
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
 
@@ -23,7 +23,7 @@ require (
 	k8s.io/client-go v0.30.0
 	k8s.io/klog/v2 v2.120.1
 	k8s.io/utils v0.0.0-20240423183400-0849a56e8f22
-	sigs.k8s.io/cluster-api v1.7.1
+	sigs.k8s.io/cluster-api v1.7.0-rc.0.0.20240424194424-783624c51bee
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0
 	sigs.k8s.io/cluster-api/test v1.7.1
 	sigs.k8s.io/controller-runtime v0.18.0
@@ -50,7 +50,7 @@ require (
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/diskfs/go-diskfs v1.2.0 // indirect
-	github.com/distribution/reference v0.5.0 // indirect
+	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker v25.0.5+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
