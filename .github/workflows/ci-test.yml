@@ -1,9 +1,8 @@
-name: Test
+name: CI Test
 on:
   push:
     branches: ["main"]
-  pull_request_target:
-    types: ["opened", "synchronize", "reopened"]
+  pull_request:
     branches: ["main"]
 
 jobs:
