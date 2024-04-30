@@ -462,6 +462,7 @@ mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed/go.mod h1:Xkxe497xwlCKkIa
 mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b/go.mod h1:2odslEg/xrtNQqCYg2/jCoyKnw3vv5biOc3JnIcYfL4=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.30.2 h1:N2wvoG4CkNqORML7GHY9xkGKxswDhpAD46poBd/hHHg=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.30.2/go.mod h1:Ve9uj1L+deCXFrPOk1LpFXqTg7LCFzFso6PA48q/XZw=
+sigs.k8s.io/cluster-api v1.7.0-rc.0.0.20240424194424-783624c51bee/go.mod h1:18NjrAPuGIKkBUZ0WWZy/FzuMiVhuxshSnA1f3DHRxY=
 sigs.k8s.io/cluster-api v1.7.1 h1:JkMAbAMzBM+WBHxXLTJXTiCisv1PAaHRzld/3qrmLYY=
 sigs.k8s.io/cluster-api v1.7.1/go.mod h1:V9ZhKLvQtsDODwjXOKgbitjyCmC71yMBwDcMyNNIov0=
 sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0 h1:k93V8X7ihC9CJff4AP7csyRIMO28cqp0pRMkvcChpis=

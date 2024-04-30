@@ -2,7 +2,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 
 go 1.22.2
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.7.1
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.7.0-rc.0.0.20240424194424-783624c51bee
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
 
