@@ -15,8 +15,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: golangci-lint
+      - name: generate
         run: |
           make generate
+
+      - name: manifest
+        run: |
           make manifests
+
+      - name: build
+        run: |
           make build
