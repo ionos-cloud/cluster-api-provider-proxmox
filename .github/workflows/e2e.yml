@@ -4,11 +4,12 @@ on:
   push:
     branches: ["main"]
   pull_request_target:
-    types: ["opened", "synchronize", "reopened"]
+    types: ["opened", "synchronize", "reopened", "labeled", "unlabeled"]
     branches: ["main"]
 
 jobs:
   e2e:
+    if: ${{ ! contains( github.event.pull_request.labels.*.name, 'skip e2e') }}
     runs-on: [capmox,e2e,dcd-playground]
     environment: e2e
     env:
