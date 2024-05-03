@@ -24,7 +24,6 @@ rules:
 ignore:
 # generated files
 - config/crd
-- config/crd
 - config/certmanager
 - config/prometheus
 - config/rbac
