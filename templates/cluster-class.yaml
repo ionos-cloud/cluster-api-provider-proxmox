@@ -394,7 +394,7 @@ spec:
           - op: add
             path: /spec/template/spec/ipv4Config
             valueFrom:
-              variable: ipv4Config.addresses
+              variable: ipv4Config
   - name: ClusterIPv6Config
     description: "Configure Cluster IPv6 config"
     enabledIf: "{{ if .ipv6Config }}true{{ end }}"
