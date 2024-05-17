@@ -71,6 +71,11 @@ type ProxmoxClusterSpec struct {
 	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
 	// +optional
 	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
+
+	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
+	// supplied then the credentials of the controller will be used.
+	// +optional
+	CredentialsRef *corev1.ObjectReference `json:"credentialsRef,omitempty"`
 }
 
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
