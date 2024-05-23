@@ -22,6 +22,8 @@ import (
 	"crypto/tls"
 	"net/http"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
@@ -133,6 +135,11 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 		Name:      s.ProxmoxCluster.Spec.CredentialsRef.Name,
 	}, &secret)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// set failure reason
+			s.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
+			s.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
 
