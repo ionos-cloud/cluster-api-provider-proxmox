@@ -93,11 +93,15 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 }
 
 func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
-	ep := cluster.Spec.ControlPlaneEndpoint
+	// Skipping the validation of the Control Plane endpoint in case of externally managed Control Plane:
+	// the Cluster API Control Plane provider will eventually provide the LB.
+	if cluster.Spec.ExternalManagedControlPlane {
+		return nil
+	}
 
 	gk, name := cluster.GroupVersionKind().GroupKind(), cluster.GetName()
 
-	endpoint := ep.Host
+	endpoint := cluster.Spec.ControlPlaneEndpoint.Host
 
 	addr, err := netip.ParseAddr(endpoint)
 
