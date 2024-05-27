@@ -40,6 +40,10 @@ type ProxmoxClusterSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self.port > 0 && self.port < 65536",message="port must be within 1-65535"
 	ControlPlaneEndpoint *clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
 
+	// ExternalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
+	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
+	ExternalManagedControlPlane bool `json:"externalManagedControlPlane,omitempty"`
+
 	// AllowedNodes specifies all Proxmox nodes which will be considered
 	// for operations. This implies that VMs can be cloned on different nodes from
 	// the node which holds the VM template.
