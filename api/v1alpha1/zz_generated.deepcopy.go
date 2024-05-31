@@ -356,7 +356,7 @@ func (in *ProxmoxClusterSpec) DeepCopyInto(out *ProxmoxClusterSpec) {
 	}
 	if in.CredentialsRef != nil {
 		in, out := &in.CredentialsRef, &out.CredentialsRef
-		*out = new(v1.ObjectReference)
+		*out = new(v1.SecretReference)
 		**out = **in
 	}
 }
