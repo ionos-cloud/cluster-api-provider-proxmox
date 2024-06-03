@@ -610,6 +610,22 @@ spec:
                         - host
                         - port
                         type: object
+                      credentialsRef:
+                        description: CredentialsRef is a reference to a Secret that
+                          contains the credentials to use for provisioning this cluster.
+                          If not supplied then the credentials of the controller will
+                          be used.
+                        properties:
+                          name:
+                            description: name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
                       dnsServers:
                         description: DNSServers contains information about nameservers
                           used by the machines.

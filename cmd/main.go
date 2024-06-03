@@ -27,7 +27,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -185,8 +184,13 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager, client capmox.Clien
 }
 
 func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client, error) {
+	// we return nil if the env variables are not set
+	// so the proxmoxcontroller can create the client later from spec.credentialsRef
+	// or fail the cluster if no credentials found
+	if ProxmoxURL == "" || ProxmoxTokenID == "" || ProxmoxSecret == "" {
+		return nil, nil
+	}
 	// TODO, check if we need to delete tls config
-	// You can disable security check for a client:
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 	}
@@ -214,23 +218,4 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 		"If true, run webhook server alongside manager")
 
 	feature.MutableGates.AddFlag(fs)
-
-	err := validate()
-	if err != nil {
-		setupLog.Error(err, "validate fails")
-		os.Exit(1)
-	}
-}
-
-func validate() error {
-	if ProxmoxURL == "" {
-		return errors.New("required variable `PROXMOX_URL` is not set")
-	}
-	if ProxmoxTokenID == "" {
-		return errors.New("required variable `PROXMOX_TOKEN` is not set")
-	}
-	if ProxmoxSecret == "" {
-		return errors.New("required variable `PROXMOX_SECRET` is not set")
-	}
-	return nil
 }
