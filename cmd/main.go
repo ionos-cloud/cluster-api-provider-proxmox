@@ -184,7 +184,9 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager, client capmox.Clien
 }
 
 func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client, error) {
-	// You can disable security check for a client:
+	// we return nil if the env variables are not set
+	// so the proxmoxcontroller can create the client later from spec.credentialsRef
+	// or fail the cluster if no credentials found
 	if ProxmoxURL == "" || ProxmoxTokenID == "" || ProxmoxSecret == "" {
 		return nil, nil
 	}
