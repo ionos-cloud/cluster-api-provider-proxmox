@@ -107,6 +107,10 @@ type IPConfigSpec struct {
 	// Gateway
 	// +optional
 	Gateway string `json:"gateway,omitempty"`
+
+	// Metric is the route priority applied to the default gateway
+	// +kubebuilder:default=100
+	Metric *uint32 `json:"metric"`
 }
 
 // SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.

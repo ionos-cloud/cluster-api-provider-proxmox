@@ -83,6 +83,8 @@ func defaultCluster() *ProxmoxCluster {
 			IPv4Config: &IPConfigSpec{
 				Addresses: []string{"10.0.0.0/24"},
 				Prefix:    24,
+				Gateway:   "10.0.0.254",
+				Metric:    func() *uint32 { var a uint32 = 123; return &a }(),
 			},
 			DNSServers: []string{"1.2.3.4"},
 			CloneSpec: &ProxmoxClusterCloneSpec{

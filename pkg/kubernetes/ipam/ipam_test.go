@@ -91,6 +91,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	s.Equal(pool.Spec.Prefix, 24)
 
 	s.cluster.Spec.IPv4Config.Gateway = "10.11.0.0"
+	s.cluster.Spec.IPv4Config.Metric = ptr.To(uint32(123))
 
 	ipamConfig = s.cluster.Spec.IPv4Config
 
@@ -102,12 +103,24 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	}, &pool))
 
 	s.Equal(ipamConfig.Gateway, pool.Spec.Gateway)
+	s.Equal(pool.ObjectMeta.Annotations["metric"], fmt.Sprint(*ipamConfig.Metric))
+
+	// test deletion
+	s.cluster.Spec.IPv4Config.Metric = nil
+	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
+	s.NoError(s.cl.Get(s.ctx, types.NamespacedName{
+		Namespace: "test",
+		Name:      "test-cluster-v4-icip",
+	}, &pool))
+	_, exists := pool.ObjectMeta.Annotations["metric"]
+	s.Equal(exists, false)
 
 	// ipv6
 	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
+		Metric:    ptr.To(uint32(123)),
 	}
 
 	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
@@ -119,6 +132,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	}, &poolV6))
 
 	s.Len(poolV6.Spec.Addresses, 1)
+	s.Equal(poolV6.ObjectMeta.Annotations["metric"], "123")
 }
 
 func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
@@ -221,6 +235,92 @@ func (s *IPAMTestSuite) Test_GetGlobalInClusterIPPool() {
 
 	s.NoError(err)
 	s.Equal(&pool, found)
+}
+
+func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
+	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
+
+	var pool ipamicv1.InClusterIPPool
+	s.NoError(s.cl.Get(s.ctx, types.NamespacedName{
+		Namespace: "test",
+		Name:      "test-cluster-v4-icip",
+	}, &pool))
+
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+		Name: "test-cluster-icip",
+	})
+	s.NoError(err)
+
+	// create a dummy IPAddress.
+	err = s.cl.Create(s.ctx, s.dummyIPAddress(getCluster(), pool.GetName()))
+	s.NoError(err)
+
+	ip, err := s.helper.GetIPAddress(s.ctx, client.ObjectKeyFromObject(s.cluster))
+	s.NoError(err)
+	s.NotNil(ip)
+	s.NotEmpty(ip.Spec.Address)
+	s.Equal(ip.Spec.Address, "10.10.10.11")
+
+	annotations, err := s.helper.GetIPPoolAnnotations(s.ctx, ip)
+	s.Nil(annotations)
+	s.Nil(err)
+
+	s.NoError(s.helper.ctrlClient.Create(s.ctx, &ipamicv1.GlobalInClusterIPPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-ippool-annotations",
+			Annotations: map[string]string{
+				"metric": "100",
+			},
+		},
+		Spec: ipamicv1.InClusterIPPoolSpec{
+			Addresses: []string{"10.10.11.1-10.10.11.100"},
+			Prefix:    24,
+			Gateway:   "10.10.11.254",
+		},
+	}))
+
+	var globalPool ipamicv1.GlobalInClusterIPPool
+	s.NoError(s.cl.Get(s.ctx, types.NamespacedName{
+		Name: "test-ippool-annotations",
+	}, &globalPool))
+
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+		Name:     "test-ippool-anontations",
+		Kind:     "GlobalInClusterIPPool",
+		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	})
+	s.NoError(err)
+
+	gvk, err := apiutil.GVKForObject(&globalPool, s.cl.Scheme())
+	if err != nil {
+		panic(err)
+	}
+
+	ip = &ipamv1.IPAddress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      getCluster().GetName(),
+			Namespace: getCluster().GetNamespace(),
+		},
+		Spec: ipamv1.IPAddressSpec{
+			ClaimRef: corev1.LocalObjectReference{
+				Name: getCluster().GetName(),
+			},
+			PoolRef: corev1.TypedLocalObjectReference{
+				APIGroup: ptr.To(gvk.GroupVersion().String()),
+				Kind:     gvk.Kind,
+				Name:     "test-ippool-annotations",
+			},
+			Address: "10.10.11.11",
+			Prefix:  24,
+			Gateway: "10.10.11.254",
+		},
+	}
+
+	annotations, err = s.helper.GetIPPoolAnnotations(s.ctx, ip)
+	s.NotNil(annotations)
+	s.Nil(err)
+
+	s.Equal(annotations["metric"], "100")
 }
 
 func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {

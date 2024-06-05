@@ -196,6 +196,10 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers
 	ip := IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
 	gw := ipAddr.Spec.Gateway
+	metric, err := findIPAddressGatewayMetric(ctx, machineScope, ipAddr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
+	}
 
 	cloudinitNetworkConfigData := &cloudinit.NetworkConfigData{
 		MacAddress: macAddress,
@@ -205,9 +209,11 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	// If it's an IPv6 address, we must set Gateway6 and IPV6Address instead
 	if strings.Contains(ip, ":") {
 		cloudinitNetworkConfigData.Gateway6 = gw
+		cloudinitNetworkConfigData.Metric6 = metric
 		cloudinitNetworkConfigData.IPV6Address = ip
 	} else {
 		cloudinitNetworkConfigData.Gateway = gw
+		cloudinitNetworkConfigData.Metric = metric
 		cloudinitNetworkConfigData.IPAddress = ip
 	}
 
@@ -241,6 +247,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 		default:
 			config.IPV6Address = conf.IPV6Address
 			config.Gateway6 = conf.Gateway6
+			config.Metric6 = conf.Metric6
 		}
 	}
 
@@ -279,8 +286,14 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 		if err != nil {
 			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
 		}
+		metric, err := findIPAddressGatewayMetric(ctx, machineScope, ipAddr)
+		if err != nil {
+			return errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
+		}
+
 		ciconfig.IPAddress = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
 		ciconfig.Gateway = ipAddr.Spec.Gateway
+		ciconfig.Metric = metric
 	}
 	if ifconfig.IPv6PoolRef != nil && ciconfig.IPV6Address == "" {
 		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix+"6")
@@ -288,8 +301,13 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 		if err != nil {
 			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
 		}
+		metric, err := findIPAddressGatewayMetric(ctx, machineScope, ipAddr)
+		if err != nil {
+			return errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
+		}
 		ciconfig.IPV6Address = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
 		ciconfig.Gateway6 = ipAddr.Spec.Gateway
+		ciconfig.Metric6 = metric
 	}
 
 	return nil
