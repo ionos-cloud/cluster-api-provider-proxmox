@@ -33,7 +33,9 @@ type NetworkConfigData struct {
 	IPAddress   string
 	IPV6Address string
 	Gateway     string
+	Metric      *uint32
 	Gateway6    string
+	Metric6     *uint32
 	DNSServers  []string
 	Type        string
 	Name        string

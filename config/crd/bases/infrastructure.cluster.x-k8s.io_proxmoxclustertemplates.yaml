@@ -648,12 +648,19 @@ spec:
                           gateway:
                             description: Gateway
                             type: string
+                          metric:
+                            default: 100
+                            description: Metric is the route priority applied to the
+                              default gateway
+                            format: int32
+                            type: integer
                           prefix:
                             description: Prefix is the network prefix to use.
                             maximum: 128
                             type: integer
                         required:
                         - addresses
+                        - metric
                         - prefix
                         type: object
                         x-kubernetes-validations:
@@ -674,12 +681,19 @@ spec:
                           gateway:
                             description: Gateway
                             type: string
+                          metric:
+                            default: 100
+                            description: Metric is the route priority applied to the
+                              default gateway
+                            format: int32
+                            type: integer
                           prefix:
                             description: Prefix is the network prefix to use.
                             maximum: 128
                             type: integer
                         required:
                         - addresses
+                        - metric
                         - prefix
                         type: object
                         x-kubernetes-validations:

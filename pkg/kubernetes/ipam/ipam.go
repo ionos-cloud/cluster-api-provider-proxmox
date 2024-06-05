@@ -74,6 +74,12 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      InClusterPoolFormat(h.cluster, infrav1.IPV4Format),
 				Namespace: h.cluster.GetNamespace(),
+				Annotations: func() map[string]string {
+					if ipv4Config.Metric != nil {
+						return map[string]string{"metric": fmt.Sprint(*ipv4Config.Metric)}
+					}
+					return nil
+				}(),
 			},
 			Spec: ipamicv1.InClusterIPPoolSpec{
 				Addresses: ipv4Config.Addresses,
@@ -85,6 +91,17 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 		desired := v4Pool.DeepCopy()
 		_, err := controllerutil.CreateOrUpdate(ctx, h.ctrlClient, v4Pool, func() error {
 			v4Pool.Spec = desired.Spec
+
+			if v4Pool.ObjectMeta.Annotations == nil && desired.ObjectMeta.Annotations != nil {
+				v4Pool.ObjectMeta.Annotations = make(map[string]string)
+			}
+			if desired.ObjectMeta.Annotations != nil {
+				v4Pool.ObjectMeta.Annotations["metric"] = desired.ObjectMeta.Annotations["metric"]
+			}
+			if v4Pool.ObjectMeta.Annotations != nil && desired.ObjectMeta.Annotations == nil {
+				delete(v4Pool.ObjectMeta.Annotations, "metric")
+			}
+
 			// set the owner reference to the cluster
 			return controllerutil.SetControllerReference(h.cluster, v4Pool, h.ctrlClient.Scheme())
 		})
@@ -99,6 +116,12 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      InClusterPoolFormat(h.cluster, infrav1.IPV6Format),
 				Namespace: h.cluster.GetNamespace(),
+				Annotations: func() map[string]string {
+					if h.cluster.Spec.IPv6Config.Metric != nil {
+						return map[string]string{"metric": fmt.Sprint(*h.cluster.Spec.IPv6Config.Metric)}
+					}
+					return nil
+				}(),
 			},
 			Spec: ipamicv1.InClusterIPPoolSpec{
 				Addresses: h.cluster.Spec.IPv6Config.Addresses,
@@ -110,6 +133,17 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 		desired := v6Pool.DeepCopy()
 		_, err := controllerutil.CreateOrUpdate(ctx, h.ctrlClient, v6Pool, func() error {
 			v6Pool.Spec = desired.Spec
+
+			if v6Pool.ObjectMeta.Annotations == nil && desired.ObjectMeta.Annotations != nil {
+				v6Pool.ObjectMeta.Annotations = make(map[string]string)
+			}
+			if desired.ObjectMeta.Annotations != nil {
+				v6Pool.ObjectMeta.Annotations["metric"] = desired.ObjectMeta.Annotations["metric"]
+			}
+			if v6Pool.ObjectMeta.Annotations != nil && desired.ObjectMeta.Annotations == nil {
+				delete(v6Pool.ObjectMeta.Annotations, "metric")
+			}
+
 			// set the owner reference to the cluster
 			return controllerutil.SetControllerReference(h.cluster, v6Pool, h.ctrlClient.Scheme())
 		})
@@ -149,6 +183,39 @@ func (h *Helper) GetGlobalInClusterIPPool(ctx context.Context, ref *corev1.Typed
 	}
 
 	return out, nil
+}
+
+// GetIPPoolAnnotations attempts to retrieve the annotations of an ippool from an ipaddress object.
+func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPAddress) (map[string]string, error) {
+	if ipAddress == nil {
+		return nil, errors.New("no IPAddress object provided")
+	}
+
+	poolRef := ipAddress.Spec.PoolRef
+	var annotations map[string]string
+	var err error
+
+	key := &corev1.TypedLocalObjectReference{
+		Name: poolRef.Name,
+	}
+
+	if poolRef.Kind == "InClusterIPPool" {
+		ipPool, err := h.GetInClusterIPPool(ctx, key)
+		annotations = ipPool.ObjectMeta.Annotations
+		if err != nil {
+			return nil, err
+		}
+	} else if poolRef.Kind == "GlobalInClusterIPPool" {
+		ipPool, err := h.GetGlobalInClusterIPPool(ctx, key)
+		annotations = ipPool.ObjectMeta.Annotations
+		if err != nil {
+			return nil, err
+		}
+	}
+	// If neither of these kinds are matched, this is a test case,
+	// therefore no action is to be taken.
+
+	return annotations, err
 }
 
 // CreateIPAddressClaim creates an IPAddressClaim for a given object.

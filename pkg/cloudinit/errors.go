@@ -34,6 +34,9 @@ var (
 	// ErrMissingGateway returns an error if required gateway is empty.
 	ErrMissingGateway = errors.New("gateway is not set")
 
+	// ErrConflictingMetrics returns an error if a metric for a route already exists.
+	ErrConflictingMetrics = errors.New("metric already exists for default gateway")
+
 	// ErrMissingMacAddress returns an error if required mac address is empty.
 	ErrMissingMacAddress = errors.New("mac address is not set")
 

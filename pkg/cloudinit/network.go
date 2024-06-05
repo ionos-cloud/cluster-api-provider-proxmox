@@ -88,12 +88,16 @@ const (
       routes:
        {{- if .Gateway }}
         - to: 0.0.0.0/0
-          metric: {{ if eq .Name "eth0" }}100{{ else }}200{{ end }}
+          {{- if .Metric }}
+          metric: {{ .Metric }}
+          {{- end }}
           via: {{ .Gateway }}
        {{- end }}
        {{- if .Gateway6 }}
         - to: '::/0'
-          metric: {{ if eq .Name "eth0" }}100{{ else }}200{{ end }}
+          {{- if .Metric6 }}
+          metric: {{ .Metric6 }}
+          {{- end }}
           via: '{{ .Gateway6 }}'
        {{- end }}
     {{- else }}
@@ -167,6 +171,11 @@ func (r *NetworkConfig) validate() error {
 	if len(r.data.NetworkConfigData) == 0 {
 		return ErrMissingNetworkConfigData
 	}
+	metrics := make(map[uint32]*struct {
+		ipv4 bool
+		ipv6 bool
+	})
+
 	for i, d := range r.data.NetworkConfigData {
 		// TODO: refactor this when network configuration is unified
 		if d.Type != "ethernet" {
@@ -207,6 +216,31 @@ func (r *NetworkConfig) validate() error {
 			if d.Gateway6 == "" && i == 0 {
 				return ErrMissingGateway
 			}
+		}
+		if d.Metric != nil {
+			if _, exists := metrics[*d.Metric]; !exists {
+				metrics[*d.Metric] = new(struct {
+					ipv4 bool
+					ipv6 bool
+				})
+			}
+			if metrics[*d.Metric].ipv4 {
+				return ErrConflictingMetrics
+			}
+			metrics[*d.Metric].ipv4 = true
+		}
+		if d.Metric6 != nil {
+			if _, exists := metrics[*d.Metric6]; !exists {
+				metrics[*d.Metric6] = new(struct {
+					ipv4 bool
+					ipv6 bool
+				})
+			}
+
+			if metrics[*d.Metric6].ipv6 {
+				return ErrConflictingMetrics
+			}
+			metrics[*d.Metric6].ipv6 = true
 		}
 	}
 	return nil

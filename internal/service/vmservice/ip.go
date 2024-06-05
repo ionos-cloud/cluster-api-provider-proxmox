@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"strconv"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -68,6 +69,23 @@ func findIPAddress(ctx context.Context, machineScope *scope.MachineScope, device
 		Name:      formatIPAddressName(machineScope.Name(), device),
 	}
 	return machineScope.IPAMHelper.GetIPAddress(ctx, key)
+}
+
+func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.MachineScope, ipAddress *ipamv1.IPAddress) (*uint32, error) {
+	annotations, err := machineScope.IPAMHelper.GetIPPoolAnnotations(ctx, ipAddress)
+	if err != nil {
+		return nil, err
+	}
+	var rv *uint32
+
+	if s, exists := annotations["metric"]; exists {
+		metric, err := strconv.ParseUint(s, 0, 32)
+		if err != nil {
+			return nil, err
+		}
+		rv = ptr.To(uint32(metric))
+	}
+	return rv, nil
 }
 
 func formatIPAddressName(name, device string) string {
