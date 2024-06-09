@@ -40,7 +40,7 @@ stringData:
   url: ${PROXMOX_URL}
 kind: Secret
 metadata:
-  name: "${CLUSTER_NAME}"-proxmox-credentials
+  name: "${CLUSTER_NAME}-proxmox-credentials"
   labels:
     platform.ionos.com/secret-type: "proxmox-credentials"
 ---
