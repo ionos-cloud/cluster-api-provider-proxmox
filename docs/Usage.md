@@ -120,8 +120,11 @@ Once you have access to a management cluster, you can initialize Cluster API wit
 clusterctl init --infrastructure proxmox --ipam in-cluster --core cluster-api:v1.6.1
 ```
 
+**Note:** The Proxmox credentials are optional when installing the provider,
+but they are required when creating a cluster.
+
 ### Create a Workload Cluster
-In order to create a new cluster, you need to generate a cluster manifest.
+To create a new cluster, you need to generate a cluster manifest.
 
 ```bash
 $ clusterctl generate cluster proxmox-quickstart \
@@ -167,14 +170,56 @@ For templates using `CNI`s you're required to create `ConfigMaps` to make `Clust
 We provide the following templates:
 
 | Flavor              | Tepmlate File                                        | CRS File                                                  |
-|---------------------| -----------------------------------------------------|-----------------------------------------------------------|
+|---------------------|------------------------------------------------------|-----------------------------------------------------------|
 | cilium              | templates/cluster-template-cilium.yaml               | templates/crs/cni/cilium.yaml                             |
 | calico              | templates/cluster-template-calico.yaml               | templates/crs/cni/calico.yaml                             |
 | multiple-vlans      | templates/cluster-template-multiple-vlans.yaml       | -                                                         |
 | default             | templates/cluster-template.yaml                      | -                                                         |
 | cilium loadbalancer | templates/cluster-template-cilium-load-balancer.yaml | templates/crs/cni/cilium.yaml, templates/crs/metallb.yaml |
+| external-creds      | templates/cluster-template-external-creds.yaml       |                                                           |
 
 For more information about advanced clusters please check our [advanced setups docs](advanced-setups.md).
+
+#### External Credentials
+
+The `external-creds` flavor is used to create a cluster with external credentials.
+This is useful when you want to use different Proxmox Datacenters.
+
+you will need these environment variables to generate a cluster with external credentials:
+
+```env
+PROXMOX_URL: "https://pve.example:8006"                       # The Proxmox VE host
+PROXMOX_TOKEN: "root@pam!capi"                                # The Proxmox VE TokenID for authentication
+PROXMOX_SECRET: "REDACTED"                                    # The secret associated with the TokenID
+```
+
+However, to use external-credentials in your own Cluster manifests, you need to create a secret
+and reference it in the cluster manifest.
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxCluster
+metadata:
+  name: "my-cluster"
+spec:
+  controlPlaneEndpoint:
+    host: ${CONTROL_PLANE_ENDPOINT_IP}
+    port: 6443
+  # ...  
+  credentialsRef:
+    name: "my-cluster-proxmox-credentials"
+---
+apiVersion: v1
+stringData:
+  secret: ${PROXMOX_SECRET}
+  token: ${PROXMOX_TOKEN}
+  url: ${PROXMOX_URL}
+kind: Secret
+metadata:
+  name: my-cluster-proxmox-credentials
+  labels:
+    # Custom IONOS Label
+    platform.ionos.com/secret-type: "proxmox-credentials"
+```
 
 #### Flavor with Cilium CNI
 Before this cluster can be deployed, `cilium` needs to be configured. As a first step we

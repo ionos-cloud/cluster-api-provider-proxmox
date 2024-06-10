@@ -36,6 +36,38 @@ export SECONDARY_DNS_SERVERS="[8.8.8.8, 8.8.4.4]"
 export SECONDARY_BRIDGE=vmbr2
 ```
 
+### Multiple gateways
+If you have multiple gateways (especially without VRF devices), you may
+want to control gateway selection by inserting metrics.
+For this purpose, you can add a metric annotation to your pools:
+
+```yaml
+apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+kind: GlobalInClusterIPPool
+metadata:
+  annotations:
+    metric: "200"
+  name: shared-inclusterippool
+spec:
+  addresses: ${NODE_SECONDARY_IP_RANGES}
+  prefix: ${SECONDARY_IP_PREFIX}
+  gateway: ${SECONDARY_GATEWAY}
+```
+This annotation will be used when creating a netplan definition for a VM.
+
+The metric of the default gateway can be controlled with the proxmoxcluster definition:
+```yaml
+[...]
+    ipv4Config:
+      addresses:
+      - 10.10.0.70-10.10.0.79
+      gateway: 10.10.0.1
+      metric: 100
+      prefix: 24
+```
+
+Metrics are, like all network configuration, part of bootstrap, and will not reconcile.
+
 #### Generate a Cluster
 
 ```bash

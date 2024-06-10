@@ -14,8 +14,8 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: v1.6.3
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/core-components.yaml
+      - name: v1.7.2
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/core-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -27,8 +27,8 @@ providers:
   - name: kubeadm
     type: BootstrapProvider
     versions:
-      - name: v1.6.3
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/bootstrap-components.yaml
+      - name: v1.7.2
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/bootstrap-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -40,8 +40,8 @@ providers:
   - name: kubeadm
     type: ControlPlaneProvider
     versions:
-      - name: v1.6.3
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/control-plane-components.yaml
+      - name: v1.7.2
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/control-plane-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -66,7 +66,7 @@ providers:
   - name: proxmox
     type: InfrastructureProvider
     versions:
-      - name: v0.4.99
+      - name: v0.5.99
         value: "${PWD}/config/default"
         replacements:
           - old: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev

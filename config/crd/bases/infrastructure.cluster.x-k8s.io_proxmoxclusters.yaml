@@ -561,6 +561,21 @@ spec:
                 - host
                 - port
                 type: object
+              credentialsRef:
+                description: CredentialsRef is a reference to a Secret that contains
+                  the credentials to use for provisioning this cluster. If not supplied
+                  then the credentials of the controller will be used.
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               dnsServers:
                 description: DNSServers contains information about nameservers used
                   by the machines.
@@ -583,12 +598,19 @@ spec:
                   gateway:
                     description: Gateway
                     type: string
+                  metric:
+                    default: 100
+                    description: Metric is the route priority applied to the default
+                      gateway
+                    format: int32
+                    type: integer
                   prefix:
                     description: Prefix is the network prefix to use.
                     maximum: 128
                     type: integer
                 required:
                 - addresses
+                - metric
                 - prefix
                 type: object
                 x-kubernetes-validations:
@@ -609,12 +631,19 @@ spec:
                   gateway:
                     description: Gateway
                     type: string
+                  metric:
+                    default: 100
+                    description: Metric is the route priority applied to the default
+                      gateway
+                    format: int32
+                    type: integer
                   prefix:
                     description: Prefix is the network prefix to use.
                     maximum: 128
                     type: integer
                 required:
                 - addresses
+                - metric
                 - prefix
                 type: object
                 x-kubernetes-validations:
@@ -690,6 +719,37 @@ spec:
                   - type
                   type: object
                 type: array
+              failureMessage:
+                description: "FailureMessage will be set in the event that there is
+                  a terminal problem reconciling the Machine and will contain a more
+                  verbose string suitable for logging and human consumption. \n This
+                  field should not be set for transitive errors that a controller
+                  faces that are expected to be fixed automatically over time (like
+                  service outages), but instead indicate that something is fundamentally
+                  wrong with the Machine's spec or the configuration of the controller,
+                  and that manual intervention is required. Examples of terminal errors
+                  would be invalid combinations of settings in the spec, values that
+                  are unsupported by the controller, or the responsible controller
+                  itself being critically misconfigured. \n Any transient errors that
+                  occur during the reconciliation of ProxmoxMachines can be added
+                  as events to the ProxmoxCluster object and/or logged in the controller's
+                  output."
+                type: string
+              failureReason:
+                description: "FailureReason will be set in the event that there is
+                  a terminal problem reconciling the Machine and will contain a succinct
+                  value suitable for machine interpretation. \n This field should
+                  not be set for transitive errors that a controller faces that are
+                  expected to be fixed automatically over time (like service outages),
+                  but instead indicate that something is fundamentally wrong with
+                  the Machine's spec or the configuration of the controller, and that
+                  manual intervention is required. Examples of terminal errors would
+                  be invalid combinations of settings in the spec, values that are
+                  unsupported by the controller, or the responsible controller itself
+                  being critically misconfigured. \n Any transient errors that occur
+                  during the reconciliation of ProxmoxCluster can be added as events
+                  to the ProxmoxCluster object and/or logged in the controller's output."
+                type: string
               inClusterIpPoolRef:
                 description: InClusterIPPoolRef is the reference to the created in-cluster
                   IP pool.

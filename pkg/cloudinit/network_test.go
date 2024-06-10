@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -441,6 +442,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -460,8 +462,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-						LinkMTU:    func(i uint16) *uint16 { return &i }(9001),
+						LinkMTU:    ptr.To(uint16(9001)),
 					},
 				},
 			},
@@ -481,6 +484,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP6:      true,
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -501,6 +505,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP4:      true,
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -521,6 +526,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP6:      true,
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					}, {
 						Type:       "ethernet",
@@ -528,6 +534,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c3",
 						IPAddress:  "10.10.11.12/24",
 						Gateway:    "10.10.11.1",
+						Metric:     ptr.To(uint32(200)),
 						Routes: []RoutingData{{
 							To:     "172.16.24.1/24",
 							Metric: 50,
@@ -556,12 +563,14 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP6:      true,
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					}, {
 						Type:       "ethernet",
 						Name:       "eth1",
 						IPAddress:  "10.10.11.12/24",
 						Gateway:    "10.10.11.1",
+						Metric:     ptr.To(uint32(200)),
 						MacAddress: "92:60:a0:5b:22:c3",
 						FIBRules: []FIBRuleData{{
 							To:       "0.0.0.0/0",
@@ -587,6 +596,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -606,6 +616,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -625,6 +636,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.115",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -643,6 +655,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12/24",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -661,6 +674,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						IPAddress:  "10.10.10.11/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -668,6 +682,34 @@ func TestNetworkConfig_Render(t *testing.T) {
 			want: want{
 				network: "",
 				err:     ErrMissingMacAddress,
+			},
+		},
+		"InvalidNetworkConfigConflictingMetrics": {
+			reason: "metric already exists for default gateway",
+			args: args{
+				nics: []NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						IPAddress:  "10.10.10.11/24",
+						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					}, {
+						Type:       "ethernet",
+						Name:       "eth1",
+						MacAddress: "92:60:a0:5b:22:c5",
+						IPAddress:  "10.10.11.11/24",
+						Gateway:    "10.10.11.254",
+						Metric:     ptr.To(uint32(100)),
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+				},
+			},
+			want: want{
+				network: "",
+				err:     ErrConflictingMetrics,
 			},
 		},
 		"ValidNetworkConfigWithoutDNS": {
@@ -680,6 +722,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 					},
 				},
 			},
@@ -698,6 +741,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
@@ -706,6 +750,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPAddress:  "196.168.100.124/24",
 						Gateway:    "196.168.100.254",
+						Metric:     ptr.To(uint32(200)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -736,7 +781,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						IPAddress:   "10.10.10.12/24",
 						IPV6Address: "2001:db8::1/64",
 						Gateway6:    "2001:db8::1",
+						Metric6:     ptr.To(uint32(100)),
 						Gateway:     "10.10.10.1",
+						Metric:      ptr.To(uint32(100)),
 						DNSServers:  []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -756,6 +803,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress:  "92:60:a0:5b:22:c2",
 						IPV6Address: "2001:db8::1/64",
 						Gateway6:    "2001:db8::1",
+						Metric6:     ptr.To(uint32(100)),
 						DNSServers:  []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -832,6 +880,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
@@ -840,6 +889,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPAddress:  "196.168.100.124/24",
 						Gateway:    "196.168.100.254",
+						Metric:     ptr.To(uint32(200)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
@@ -881,6 +931,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPAddress:  "10.10.10.12/24",
 						Gateway:    "10.10.10.1",
+						Metric:     ptr.To(uint32(100)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
@@ -889,6 +940,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPAddress:  "196.168.100.124/24",
 						Gateway:    "196.168.100.254",
+						Metric:     ptr.To(uint32(200)),
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
