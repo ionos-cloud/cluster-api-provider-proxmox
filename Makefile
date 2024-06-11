@@ -122,9 +122,7 @@ docker-buildx: test ## Build and push Docker image for the manager for cross-pla
 ##@ verify
 
 .PHONY: verify
-verify: verify ## verify the manifests and the code.
-	$(MAKE) verify-modules
-	$(MAKE) verify-gen
+verify: verify-modules verify-gen ## verify the manifests and the code.
 
 .PHONY: verify-modules
 verify-modules: tidy ## Verify go modules are up to date
@@ -138,10 +136,10 @@ verify-modules: tidy ## Verify go modules are up to date
 	fi
 
 .PHONY: verify-gen
-verify-gen: generate manifests  ## Verify go generated files and CRDs are up to date
+verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are up to date
 	@if !(git diff --quiet HEAD); then \
 		git diff; \
-		echo "generated files are out of date, run make generate"; exit 1; \
+		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
 	fi
 
 
