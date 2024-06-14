@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -104,6 +105,16 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	AfterEach(func() {
 		err := k8sClient.Delete(context.Background(), defaultCluster())
 		Expect(client.IgnoreNotFound(err)).To(Succeed())
+	})
+
+	Context("ClusterPort", func() {
+		It("Should not allow invalid ports", func() {
+			dc := defaultCluster()
+			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+				Port: 65536,
+			}
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
+		})
 	})
 
 	Context("IPv4Config", func() {

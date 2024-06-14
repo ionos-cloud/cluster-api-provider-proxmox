@@ -127,21 +127,6 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 					field.NewPath("spec", "controlplaneEndpoint"), endpoint, "provided endpoint address is not a valid IP or FQDN"),
 			})
 	}
-	// If the passed control-plane endppoint is an IPv6 address, wrap it in [], so it can properly pass ParseAddrPort validation
-	if addr.Is6() {
-		endpoint = fmt.Sprintf("[%s]", endpoint)
-	}
-
-	ipAddr, err := netip.ParseAddrPort(fmt.Sprintf("%s:%d", endpoint, ep.Port))
-	if err != nil {
-		return apierrors.NewInvalid(
-			gk,
-			name,
-			field.ErrorList{
-				field.Invalid(
-					field.NewPath("spec", "controlplaneEndpoint"), fmt.Sprintf("%s:%d", endpoint, ep.Port), "provided endpoint is not in a valid IP and port format"),
-			})
-	}
 
 	// IPv4
 	if cluster.Spec.IPv4Config != nil {
@@ -156,7 +141,7 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 				})
 		}
 
-		if set.Contains(ipAddr.Addr()) {
+		if set.Contains(addr) {
 			return apierrors.NewInvalid(
 				gk,
 				name,
@@ -180,7 +165,7 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 				})
 		}
 
-		if set6.Contains(ipAddr.Addr()) {
+		if set6.Contains(addr) {
 			return apierrors.NewInvalid(
 				gk,
 				name,

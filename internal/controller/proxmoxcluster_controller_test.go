@@ -228,7 +228,7 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			},
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			ControlPlaneEndpoint: clusterv1.APIEndpoint{
+			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
 				Host: "10.10.10.11",
 				Port: 6443,
 			},

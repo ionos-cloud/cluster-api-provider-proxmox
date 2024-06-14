@@ -561,6 +561,9 @@ spec:
                 - host
                 - port
                 type: object
+                x-kubernetes-validations:
+                - message: port must be within 1-65535
+                  rule: self.port > 0 && self.port < 65536
               credentialsRef:
                 description: CredentialsRef is a reference to a Secret that contains
                   the credentials to use for provisioning this cluster. If not supplied

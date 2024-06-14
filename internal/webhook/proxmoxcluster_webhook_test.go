@@ -79,13 +79,6 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 
-		It("should disallow invalid endpoint IP + port combination", func() {
-			cluster := invalidProxmoxCluster("test-cluster")
-			cluster.Spec.ControlPlaneEndpoint.Host = "127.0.0.1"
-			cluster.Spec.ControlPlaneEndpoint.Port = 69000
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided endpoint is not in a valid IP and port format")))
-		})
-
 		It("should disallow invalid IPV4 IPs", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
 			cluster.Spec.IPv4Config.Addresses = []string{"invalid"}
@@ -141,7 +134,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			ControlPlaneEndpoint: clusterv1.APIEndpoint{
+			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
 				Host: "10.10.10.1",
 				Port: 6443,
 			},
@@ -159,7 +152,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 
 func invalidProxmoxCluster(name string) infrav1.ProxmoxCluster {
 	cl := validProxmoxCluster(name)
-	cl.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
+	cl.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
 		Host: "10.10.10.2",
 		Port: 6443,
 	}

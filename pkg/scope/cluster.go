@@ -181,7 +181,7 @@ func (s *ClusterScope) KubernetesClusterName() string {
 
 // ControlPlaneEndpoint returns the ControlPlaneEndpoint for the associated ProxmoxCluster.
 func (s *ClusterScope) ControlPlaneEndpoint() clusterv1.APIEndpoint {
-	return s.ProxmoxCluster.Spec.ControlPlaneEndpoint
+	return *s.ProxmoxCluster.Spec.ControlPlaneEndpoint
 }
 
 // PatchObject persists the cluster configuration and status.
