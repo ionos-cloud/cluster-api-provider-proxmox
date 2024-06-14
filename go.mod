@@ -25,7 +25,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/cluster-api v1.7.2
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0
-	sigs.k8s.io/cluster-api/test v1.7.2
+	sigs.k8s.io/cluster-api/test v1.7.3
 	sigs.k8s.io/controller-runtime v0.17.3
 )
 
@@ -148,7 +148,7 @@ require (
 	k8s.io/component-base v0.29.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/kind v0.22.0 // indirect
+	sigs.k8s.io/kind v0.23.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
