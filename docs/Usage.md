@@ -50,16 +50,6 @@ In order to deploy a K8s cluster with CAPMOX, you require the following:
 
 In order to install Cluster API Provider for Proxmox VE, you need to have a Kubernetes cluster up and running, and `clusterctl` installed.
 
-
-We need to add the IPAM provider to your clusterctl config file `~/.cluster-api/clusterctl.yaml`:
-
-```yaml
-providers:
-  - name: in-cluster
-    url: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/v0.1.0/ipam-components.yaml
-    type: IPAMProvider
-```
-
 ### Configuring and installing Cluster API Provider for Proxmox VE in a management cluster
 
 Before you can create a cluster, you need to configure your management cluster. 
