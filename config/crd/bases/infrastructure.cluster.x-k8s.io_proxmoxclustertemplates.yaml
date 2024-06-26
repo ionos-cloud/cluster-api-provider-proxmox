@@ -617,7 +617,8 @@ spec:
                         description: CredentialsRef is a reference to a Secret that
                           contains the credentials to use for provisioning this cluster.
                           If not supplied then the credentials of the controller will
-                          be used.
+                          be used. if no namespace is provided, the namespace of the
+                          ProxmoxCluster will be used.
                         properties:
                           name:
                             description: name is unique within a namespace to reference
