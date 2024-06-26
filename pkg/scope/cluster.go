@@ -129,8 +129,12 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, error) {
 	// get the credentials secret
 	secret := corev1.Secret{}
+	namespace := s.ProxmoxCluster.Spec.CredentialsRef.Namespace
+	if len(namespace) == 0 {
+		namespace = s.ProxmoxCluster.GetNamespace()
+	}
 	err := s.client.Get(ctx, client.ObjectKey{
-		Namespace: s.ProxmoxCluster.Spec.CredentialsRef.Namespace,
+		Namespace: namespace,
 		Name:      s.ProxmoxCluster.Spec.CredentialsRef.Name,
 	}, &secret)
 	if err != nil {
