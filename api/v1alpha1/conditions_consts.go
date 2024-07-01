@@ -78,6 +78,9 @@ const (
 
 	// UnknownReason (Severity=Warning) documents the ProxmoxVM Unknown.
 	UnknownReason = "Unknown"
+
+	// MissingControlPlaneEndpointReason (Severity=Warning) documents the missing Control Plane endpoint when Cluster is backed by an externally managed Control Plane.
+	MissingControlPlaneEndpointReason = "MissingControlPlaneEndpoint"
 )
 
 const (
