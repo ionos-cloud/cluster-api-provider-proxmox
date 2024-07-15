@@ -1,6 +1,7 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
 go 1.21
+toolchain go1.22.5
 
 replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.7.2
 
@@ -18,9 +19,9 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
 	golang.org/x/tools v0.22.0
-	k8s.io/api v0.29.3
-	k8s.io/apimachinery v0.29.3
-	k8s.io/client-go v0.29.3
+	k8s.io/api v0.30.2
+	k8s.io/apimachinery v0.30.2
+	k8s.io/client-go v0.30.2
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/cluster-api v1.7.2
