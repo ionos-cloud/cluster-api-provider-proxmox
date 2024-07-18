@@ -97,8 +97,8 @@ for more information.
   This file instructs Tilt to use the cluster-api-provider-proxmox and ipam-provider-in-cluster repositories. `allowed_contexts` is used to add
   allowed clusters other than kind (which is always implicitly enabled).
 
-  `debug` section will make sure that `cluster-api-provider-proxmox` starts with [delve remote debuger](https://github.com/go-delve/delve/tree/master) on port `30000`, so that you could attach to it. To do so, you need first to create a port-forward on `cluster-api-provider-proxmox` to expose `tcp/30000` port on your localhost - this could be achieved by running `kubectl port-forward deployments/capmox-controller-manager 30000:30000 -n c
-apmox-system` command.
+The optional `debug` section will start CAPMOX with a [delve remote debugger](https://github.com/go-delve/delve/tree/master) listening on port `30000`.
+You will need to forward the port to localhost, e.g. by running `kubectl port-forward deployments/capmox-controller-manager 30000:30000 -n capmox-system`.
 
 - Change directory to cluster-api-ipam-provider-in-cluster `cd ../cluster-api-ipam-provider-in-cluster`.
 - Reset the git repository to `1d4735`: `git reset --hard 1d4735`. This is the last commit that works with Cluster API v1.6 and Go v1.20.
