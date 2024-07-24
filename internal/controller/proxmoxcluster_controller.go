@@ -168,6 +168,22 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
 
+	if clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane {
+		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host == "" {
+			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
+
+			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host")
+
+			return ctrl.Result{Requeue: true}, nil
+		} else if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Port == 0 {
+			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint port")
+
+			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port")
+
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
+
 	res, err := r.reconcileIPAM(ctx, clusterScope)
 	if err != nil {
 		return ctrl.Result{}, err
