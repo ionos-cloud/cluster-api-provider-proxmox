@@ -175,6 +175,10 @@ spec:
       templateID: ${TEMPLATE_VMID}
       format: "qcow2"
       full: true
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -216,6 +220,10 @@ spec:
       templateID: ${TEMPLATE_VMID}
       format: "qcow2"
       full: true
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
