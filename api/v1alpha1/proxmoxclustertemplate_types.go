@@ -35,8 +35,8 @@ type ProxmoxClusterTemplateResource struct {
 	Spec       ProxmoxClusterSpec   `json:"spec"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // ProxmoxClusterTemplate is the Schema for the proxmoxclustertemplates API.
 type ProxmoxClusterTemplate struct {
@@ -46,7 +46,7 @@ type ProxmoxClusterTemplate struct {
 	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxClusterTemplateList contains a list of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateList struct {
