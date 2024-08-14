@@ -33,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -41,6 +42,7 @@ import (
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
+	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -55,6 +57,24 @@ type ProxmoxClusterReconciler struct {
 	Scheme        *runtime.Scheme
 	Recorder      record.EventRecorder
 	ProxmoxClient proxmox.Client
+}
+
+// AddProxmoxClusterReconciler adds the cluster controller to the provided manager.
+func AddProxmoxClusterReconciler(ctx context.Context, mgr ctrl.Manager, client capmox.Client, options controller.Options) error {
+	reconciler := &ProxmoxClusterReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
+		ProxmoxClient: client,
+	}
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&infrav1alpha1.ProxmoxCluster{}).
+		WithOptions(options).
+		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
+		Watches(&clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
+			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
+		Complete(reconciler)
 }
 
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,verbs=get;list;watch;create;update;patch;delete
@@ -231,15 +251,4 @@ func (r *ProxmoxClusterReconciler) listProxmoxMachinesForCluster(ctx context.Con
 	}
 
 	return machineList.Items, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrav1alpha1.ProxmoxCluster{}).
-		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
-		Watches(&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
-			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
-		Complete(r)
 }

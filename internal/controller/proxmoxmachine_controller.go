@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -41,6 +42,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/vmservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
+	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -52,15 +54,22 @@ type ProxmoxMachineReconciler struct {
 	ProxmoxClient proxmox.Client
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *ProxmoxMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// AddProxmoxMachineReconciler adds the cluster controller to the provided manager.\
+func AddProxmoxMachineReconciler(ctx context.Context, mgr ctrl.Manager, client capmox.Client, options controller.Options) error {
+	reconciler := &ProxmoxMachineReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"),
+		ProxmoxClient: client,
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1alpha1.ProxmoxMachine{}).
+		WithOptions(options).
 		Watches(
 			&clusterv1.Machine{},
 			handler.EnqueueRequestsFromMapFunc(util.MachineToInfrastructureMapFunc(infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxMachineKind))),
 		).
-		Complete(r)
+		Complete(reconciler)
 }
 
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,verbs=get;list;watch;create;update;patch;delete

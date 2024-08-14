@@ -22,9 +22,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -67,14 +67,7 @@ var _ = BeforeSuite(func() {
 
 	k8sClient = cachingClient
 
-	reconciler := ProxmoxClusterReconciler{
-		Client:        k8sClient,
-		Scheme:        testEnv.GetScheme(),
-		Recorder:      &record.FakeRecorder{},
-		ProxmoxClient: testEnv.ProxmoxClient,
-	}
-
-	Expect(reconciler.SetupWithManager(testEnv.GetContext(), testEnv.Manager)).To(Succeed())
+	Expect(AddProxmoxClusterReconciler(testEnv.GetContext(), testEnv.Manager, proxmoxClient, controller.Options{MaxConcurrentReconciles: 1})).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()

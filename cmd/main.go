@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -47,7 +48,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
+	proxmoxctrl "github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -62,6 +63,9 @@ var (
 	enableLeaderElection bool
 	enableWebhooks       bool
 	probeAddr            string
+
+	proxmoxClusterConcurrency int
+	proxmoxMachineConcurrency int
 
 	// ProxmoxURL env variable that defines the Proxmox host.
 	ProxmoxURL string
@@ -163,23 +167,12 @@ func main() {
 }
 
 func setupReconcilers(ctx context.Context, mgr ctrl.Manager, client capmox.Client) error {
-	if err := (&controller.ProxmoxClusterReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
-		ProxmoxClient: client,
-	}).SetupWithManager(ctx, mgr); err != nil {
+	if err := proxmoxctrl.AddProxmoxClusterReconciler(ctx, mgr, client, concurrency(proxmoxClusterConcurrency)); err != nil {
 		return fmt.Errorf("setting up ProxmoxCluster controller: %w", err)
 	}
-	if err := (&controller.ProxmoxMachineReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"),
-		ProxmoxClient: client,
-	}).SetupWithManager(mgr); err != nil {
+	if err := proxmoxctrl.AddProxmoxMachineReconciler(ctx, mgr, client, concurrency(proxmoxMachineConcurrency)); err != nil {
 		return fmt.Errorf("setting up ProxmoxMachine controller: %w", err)
 	}
-
 	return nil
 }
 
@@ -217,5 +210,15 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	fs.BoolVar(&enableWebhooks, "enable-webhooks", true,
 		"If true, run webhook server alongside manager")
 
+	fs.IntVar(&proxmoxClusterConcurrency, "proxmoxcluster-concurrency", 10,
+		"Number of Proxmox clusters to process simultaneously")
+
+	fs.IntVar(&proxmoxMachineConcurrency, "proxmoxmachine-concurrency", 10,
+		"Number of Proxmox machines to process simultaneously")
+
 	feature.MutableGates.AddFlag(fs)
+}
+
+func concurrency(c int) controller.Options {
+	return controller.Options{MaxConcurrentReconciles: c}
 }
