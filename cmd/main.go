@@ -36,11 +36,11 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
 	"sigs.k8s.io/cluster-api/feature"
+	capiflags "sigs.k8s.io/cluster-api/util/flags"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -59,13 +59,14 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 
-	metricsAddr          string
 	enableLeaderElection bool
 	enableWebhooks       bool
 	probeAddr            string
 
 	proxmoxClusterConcurrency int
 	proxmoxMachineConcurrency int
+
+	managerOptions = capiflags.ManagerOptions{}
 
 	// ProxmoxURL env variable that defines the Proxmox host.
 	ProxmoxURL string
@@ -93,11 +94,18 @@ func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
+	tlsOptions, metricsOptions, err := capiflags.GetManagerOptions(managerOptions)
+	if err != nil {
+		setupLog.Error(err, "Unable to start manager: invalid flags")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:  scheme,
-		Metrics: metricsserver.Options{BindAddress: metricsAddr},
+		Metrics: *metricsOptions,
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
-			Port: 9443,
+			Port:    9443,
+			TLSOpts: tlsOptions,
 		}),
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
@@ -202,7 +210,6 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
 	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
 
-	fs.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	fs.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -217,6 +224,7 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 		"Number of Proxmox machines to process simultaneously")
 
 	feature.MutableGates.AddFlag(fs)
+	capiflags.AddManagerOptions(fs, &managerOptions)
 }
 
 func concurrency(c int) controller.Options {
