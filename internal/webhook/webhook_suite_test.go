@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,7 +55,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 
 	var err error
 	k8sClient, err = client.New(testEnv.GetConfig(), client.Options{Scheme: testEnv.GetScheme()})
@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 	err = (&ProxmoxMachine{}).SetupWebhookWithManager(testEnv.Manager)
 	Expect(err).NotTo(HaveOccurred())
 
-	//+kubebuilder:scaffold:webhook
+	// +kubebuilder:scaffold:webhook
 
 	go func() {
 		defer GinkgoRecover()
