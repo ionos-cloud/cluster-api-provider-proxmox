@@ -84,6 +84,10 @@ func (p *ProxmoxMachine) ValidateDelete(_ context.Context, _ runtime.Object) (wa
 }
 
 func validateNetworks(machine *infrav1.ProxmoxMachine) error {
+	if machine.Spec.Network == nil {
+		return nil
+	}
+
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
 	if machine.Spec.Network.Default != nil {
