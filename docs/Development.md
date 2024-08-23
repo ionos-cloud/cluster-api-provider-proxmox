@@ -101,7 +101,6 @@ The optional `debug` section will start CAPMOX with a [delve remote debugger](ht
 You will need to forward the port to localhost, e.g. by running `kubectl port-forward deployments/capmox-controller-manager 30000:30000 -n capmox-system`.
 
 - Change directory to cluster-api-ipam-provider-in-cluster `cd ../cluster-api-ipam-provider-in-cluster`.
-- Reset the git repository to `1d4735`: `git reset --hard 1d4735`. This is the last commit that works with Cluster API v1.6 and Go v1.20.
 
 - If you don't have a cluster, create a new kind cluster:
 ```
