@@ -151,6 +151,17 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get cluster")
+	}
+
+	if vmidFree, err := cluster.CheckID(ctx, int(vmID)); vmidFree {
+		return nil, fmt.Errorf("vm with id %d does not exist", vmID)
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot check if vmid %d is taken: %w", vmID, err)
+	}
+
 	vm, err := node.VirtualMachine(ctx, int(vmID))
 	if err != nil {
 		return nil, fmt.Errorf("cannot find vm with id %d: %w", vmID, err)
