@@ -24,7 +24,6 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -67,7 +66,8 @@ var _ = BeforeSuite(func() {
 
 	k8sClient = cachingClient
 
-	Expect(AddProxmoxClusterReconciler(testEnv.GetContext(), testEnv.Manager, proxmoxClient, controller.Options{MaxConcurrentReconciles: 1})).To(Succeed())
+	Expect(AddProxmoxClusterReconciler(testEnv.GetContext(), testEnv.Manager, testEnv.ProxmoxClient)).To(Succeed())
+	Expect(AddProxmoxMachineReconciler(testEnv.GetContext(), testEnv.Manager, testEnv.ProxmoxClient)).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()

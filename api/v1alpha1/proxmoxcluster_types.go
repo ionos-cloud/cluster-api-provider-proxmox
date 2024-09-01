@@ -31,6 +31,8 @@ const (
 	// ClusterFinalizer allows cleaning up resources associated with a
 	// ProxmoxCluster before removing it from the apiserver.
 	ClusterFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io"
+	// SecretFinalizer is the finalizer for ProxmoxCluster credentials secrets .
+	SecretFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io/secret"
 )
 
 // ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.

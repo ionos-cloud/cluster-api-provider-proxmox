@@ -19,21 +19,29 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"strings"
+
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/cluster-api/util/patch"
 
 	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -41,8 +49,6 @@ import (
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
-	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -60,23 +66,25 @@ type ProxmoxClusterReconciler struct {
 }
 
 // AddProxmoxClusterReconciler adds the cluster controller to the provided manager.
-func AddProxmoxClusterReconciler(ctx context.Context, mgr ctrl.Manager, client capmox.Client, options controller.Options) error {
+func AddProxmoxClusterReconciler(ctx context.Context, mgr ctrl.Manager, proxmoxClient proxmox.Client) error {
 	reconciler := &ProxmoxClusterReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
-		ProxmoxClient: client,
+		ProxmoxClient: proxmoxClient,
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1alpha1.ProxmoxCluster{}).
-		WithOptions(options).
 		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
 		Watches(&clusterv1.Cluster{},
 			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
 			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
+		WithEventFilter(predicates.ResourceIsNotExternallyManaged(ctrl.LoggerFrom(ctx))).
 		Complete(reconciler)
 }
 
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;patch;update;delete
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/finalizers,verbs=update
@@ -155,6 +163,8 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
+
 	// We want to prevent deletion unless the owning cluster was flagged for deletion.
 	if clusterScope.Cluster.DeletionTimestamp.IsZero() {
 		clusterScope.Error(errors.New("deletion was requested but owning cluster wasn't deleted"), "Unable to delete ProxmoxCluster")
@@ -177,6 +187,36 @@ func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterS
 		return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
 	}
 
+	// Remove finalizer on Identity Secret
+	if hasCredentialsRef(clusterScope.ProxmoxCluster) {
+		secret := &corev1.Secret{}
+		secretKey := client.ObjectKey{
+			Namespace: clusterScope.ProxmoxCluster.Namespace,
+			Name:      clusterScope.ProxmoxCluster.Spec.CredentialsRef.Name,
+		}
+		if err := r.Client.Get(ctx, secretKey, secret); err != nil {
+			if apierrors.IsNotFound(err) {
+				ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
+				return reconcile.Result{}, nil
+			}
+			return reconcile.Result{}, err
+		}
+
+		if ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+			logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha1.SecretFinalizer), "Secret", klog.KObj(secret))
+			if err := r.Client.Update(ctx, secret); err != nil {
+				return reconcile.Result{}, pkgerrors.Wrapf(err, fmt.Sprintf("failed to update Secret %s", klog.KObj(secret)))
+			}
+		}
+
+		if secret.DeletionTimestamp.IsZero() {
+			logger.Info("Deleting Secret", "Secret", klog.KObj(secret))
+			if err := r.Client.Delete(ctx, secret); err != nil {
+				return reconcile.Result{}, pkgerrors.Wrapf(err, fmt.Sprintf("failed to delete Secret %s", klog.KObj(secret)))
+			}
+		}
+	}
+
 	clusterScope.Info("cluster deleted successfully")
 	ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
 	return ctrl.Result{}, nil
@@ -192,9 +232,13 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
 	if !res.IsZero() {
 		return res, nil
+	}
+
+	if err := r.reconcileIdentitySecret(ctx, clusterScope); err != nil {
+		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, err.Error())
+		return reconcile.Result{}, err
 	}
 
 	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady)
@@ -251,4 +295,66 @@ func (r *ProxmoxClusterReconciler) listProxmoxMachinesForCluster(ctx context.Con
 	}
 
 	return machineList.Items, nil
+}
+
+func (r *ProxmoxClusterReconciler) reconcileIdentitySecret(ctx context.Context, clusterScope *scope.ClusterScope) error {
+	proxmoxCluster := clusterScope.ProxmoxCluster
+	if !hasCredentialsRef(proxmoxCluster) {
+		return nil
+	}
+
+	secret := &corev1.Secret{}
+	secretKey := client.ObjectKey{
+		Namespace: proxmoxCluster.Namespace,
+		Name:      proxmoxCluster.Spec.CredentialsRef.Name,
+	}
+	err := r.Client.Get(ctx, secretKey, secret)
+	if err != nil {
+		return err
+	}
+
+	// Return an error if the secret is owned by a different ProxmoxCluster.
+	if !clusterutil.IsOwnedByObject(secret, proxmoxCluster) && isOwnedByIdentityOrCluster(secret.GetOwnerReferences()) {
+		return fmt.Errorf("another cluster has set the OwnerRef for Secret %s/%s", secret.Namespace, secret.Name)
+	}
+
+	helper, err := patch.NewHelper(secret, r.Client)
+	if err != nil {
+		return err
+	}
+
+	// Ensure the ProxmoxCluster is an owner and that the APIVersion is up-to-date.
+	secret.SetOwnerReferences(clusterutil.EnsureOwnerRef(secret.GetOwnerReferences(),
+		metav1.OwnerReference{
+			APIVersion: infrav1alpha1.GroupVersion.String(),
+			Kind:       "ProxmoxCluster",
+			Name:       proxmoxCluster.Name,
+			UID:        proxmoxCluster.UID,
+		},
+	))
+
+	// Ensure the finalizer is added.
+	if !ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+		ctrlutil.AddFinalizer(secret, infrav1alpha1.SecretFinalizer)
+	}
+
+	return helper.Patch(ctx, secret)
+}
+
+// HasCredentialsRef returns true if the ProxmoxCluster has a CredentialsRef.
+func hasCredentialsRef(proxmoxCluster *infrav1alpha1.ProxmoxCluster) bool {
+	return proxmoxCluster != nil && proxmoxCluster.Spec.CredentialsRef != nil
+}
+
+// IsOwnedByIdentityOrCluster discovers if a secret is owned by a ProxmoxCluster.
+func isOwnedByIdentityOrCluster(ownerReferences []metav1.OwnerReference) bool {
+	if len(ownerReferences) > 0 {
+		for _, ownerReference := range ownerReferences {
+			if strings.Contains(ownerReference.APIVersion, infrav1alpha1.GroupVersion.Group+"/") &&
+				ownerReference.Kind == "ProxmoxCluster" {
+				return true
+			}
+		}
+	}
+	return false
 }

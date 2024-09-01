@@ -22,16 +22,19 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"path"
 	"path/filepath"
 	goruntime "runtime"
 
 	"golang.org/x/tools/go/packages"
 	admissionv1 "k8s.io/api/admission/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
@@ -82,11 +85,15 @@ type TestEnvironment struct {
 // NewTestEnvironment creates a new testing environment with a
 // pre-configured manager, that can be used to register reconcilers.
 func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnvironment {
-	_, filename, _, _ := goruntime.Caller(0) //nolint:dogsled
-	root := filepath.Dir(filename)
+	_, filename, _, ok := goruntime.Caller(0) //nolint:dogsled
+	if !ok {
+		klog.Fatalf("Failed to get information for current file from runtime")
+	}
+
+	root := path.Join(path.Dir(filename), "..", "..")
 
 	crdsPaths := []string{
-		filepath.Join(root, "..", "..", "config", "crd", "bases"),
+		filepath.Join(root, "config", "crd", "bases"),
 	}
 
 	if capiPaths := loadCRDsFromDependentModules(); capiPaths != nil {
@@ -97,12 +104,13 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     crdsPaths,
 	}
+
 	apiServer := env.ControlPlane.GetAPIServer()
 	apiServer.Configure().Set("disable-admission-plugins", "NamespaceLifecycle")
 
 	if setupWebhook {
 		env.WebhookInstallOptions = envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join(root, "..", "..", "config", "webhook")},
+			Paths: []string{filepath.Join(root, "config", "webhook")},
 		}
 	}
 
@@ -154,6 +162,22 @@ func (t *TestEnvironment) GetContext() context.Context {
 func (t *TestEnvironment) StartManager(ctx context.Context) error {
 	t.ctx, t.cancel = context.WithCancel(ctx)
 	return t.Manager.Start(t.ctx)
+}
+
+// Cleanup removes objects from the TestEnvironment.
+func (t *TestEnvironment) Cleanup(ctx context.Context, objs ...client.Object) error {
+	errs := make([]error, 0, len(objs))
+	for _, o := range objs {
+		err := t.Client.Delete(ctx, o)
+		if apierrors.IsNotFound(err) {
+			// If the object is not found, it must've been garbage collected
+			// already. For example, if we delete namespace first and then
+			// objects within it.
+			continue
+		}
+		errs = append(errs, err)
+	}
+	return kerrors.NewAggregate(errs)
 }
 
 // Stop shuts down the test environment and stops the manager.

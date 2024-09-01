@@ -19,6 +19,8 @@ package controller
 import (
 	"context"
 	"reflect"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"time"
 
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
@@ -40,10 +42,297 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
+const (
+	timeout = time.Second * 30
+)
+
 var (
 	clusterName   = "test-cluster"
 	testFinalizer = "cluster-test.cluster.x-k8s.io"
 )
+
+var _ = Describe("Proxmox ClusterReconciler", func() {
+	BeforeEach(func() {})
+	AfterEach(func() {})
+
+	Context("Reconcile an ProxmoxCluster", func() {
+		It("should create a cluster", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "secret-",
+					Namespace:    "default",
+				},
+				Data: map[string][]byte{
+					"url":    []byte("url"),
+					"token":  []byte("token"),
+					"secret": []byte("secret"),
+				},
+			}
+			Expect(testEnv.Create(testEnv.GetContext(), secret)).To(Succeed())
+
+			proxmoxCluster := &infrav1.ProxmoxCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "proxmox-test1",
+					Namespace:    "default",
+				},
+				Spec: infrav1.ProxmoxClusterSpec{
+					IPv4Config: &infrav1.IPConfigSpec{
+						Addresses: []string{
+							"10.10.10.2-10.10.10.10",
+							"10.10.10.100-10.10.10.125",
+							"10.10.10.192/64",
+						},
+						Gateway: "10.10.10.1",
+						Prefix:  24,
+					},
+					DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					CredentialsRef: &corev1.SecretReference{
+						Name:      secret.Name,
+						Namespace: secret.Namespace,
+					},
+				},
+			}
+			Expect(testEnv.Create(testEnv.GetContext(), proxmoxCluster)).To(Succeed())
+			defer func() {
+				Expect(testEnv.Cleanup(testEnv.GetContext(), proxmoxCluster)).To(Succeed())
+			}()
+
+			capiCluster := &clusterv1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "test1-",
+					Namespace:    "default",
+				},
+				Spec: clusterv1.ClusterSpec{
+					InfrastructureRef: &corev1.ObjectReference{
+						APIVersion: infrav1.GroupVersion.String(),
+						Kind:       "ProxmoxCluster",
+						Name:       proxmoxCluster.Name,
+					},
+				},
+			}
+			// Create the CAPI cluster (owner) object
+			Expect(testEnv.Create(testEnv.GetContext(), capiCluster)).To(Succeed())
+			defer func() {
+				Expect(testEnv.Cleanup(testEnv.GetContext(), capiCluster)).To(Succeed())
+			}()
+
+			key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+			Eventually(func() error {
+				return testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)
+			}, timeout).Should(BeNil())
+
+			By("setting the OwnerRef on the ProxmoxCluster")
+			Eventually(func() error {
+				ph, err := patch.NewHelper(proxmoxCluster, testEnv)
+				Expect(err).ShouldNot(HaveOccurred())
+				proxmoxCluster.OwnerReferences = append(proxmoxCluster.OwnerReferences, metav1.OwnerReference{
+					Kind:       "Cluster",
+					APIVersion: clusterv1.GroupVersion.String(),
+					Name:       capiCluster.Name,
+					UID:        "1234",
+				})
+				return ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})
+			}, timeout).Should(BeNil())
+
+			Eventually(func() bool {
+				if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
+					return false
+				}
+				return len(proxmoxCluster.Finalizers) > 0
+			}, timeout).Should(BeTrue())
+
+			// checking cluster is setting the ownerRef on the secret
+			secretKey := client.ObjectKey{Namespace: secret.Namespace, Name: secret.Name}
+			Eventually(func() bool {
+				if err := testEnv.Get(testEnv.GetContext(), secretKey, secret); err != nil {
+					return false
+				}
+				return len(secret.OwnerReferences) > 0
+			}, timeout).Should(BeTrue())
+
+			By("setting the Proxmox ProxmoxClusterReady condition to true")
+			Eventually(func() bool {
+				if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
+					return false
+				}
+				return conditions.IsTrue(proxmoxCluster, infrav1.ProxmoxClusterReady)
+			}, timeout).Should(BeTrue())
+		})
+
+		It("should error if secret is already owned by a different cluster", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "secret-",
+					Namespace:    "default",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion: infrav1.GroupVersion.String(),
+							Kind:       "ProxmoxCluster",
+							Name:       "another-cluster",
+							UID:        "some-uid",
+						},
+					},
+				},
+				Data: map[string][]byte{
+					"url":    []byte("url"),
+					"token":  []byte("token"),
+					"secret": []byte("secret"),
+				},
+			}
+			Expect(testEnv.Create(testEnv.GetContext(), secret)).To(Succeed())
+
+			proxmoxCluster := &infrav1.ProxmoxCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "proxmox-test2",
+					Namespace:    "default",
+				},
+				Spec: infrav1.ProxmoxClusterSpec{
+					IPv4Config: &infrav1.IPConfigSpec{
+						Addresses: []string{
+							"10.10.10.2-10.10.10.10",
+							"10.10.10.100-10.10.10.125",
+							"10.10.10.192/64",
+						},
+						Gateway: "10.10.10.1",
+						Prefix:  24,
+					},
+					DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					CredentialsRef: &corev1.SecretReference{
+						Name:      secret.Name,
+						Namespace: secret.Namespace,
+					},
+				},
+			}
+			Expect(testEnv.Create(testEnv.GetContext(), proxmoxCluster)).To(Succeed())
+			defer func() {
+				Expect(testEnv.Cleanup(testEnv.GetContext(), proxmoxCluster)).To(Succeed())
+			}()
+
+			capiCluster := &clusterv1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "test2-",
+					Namespace:    "default",
+				},
+				Spec: clusterv1.ClusterSpec{
+					InfrastructureRef: &corev1.ObjectReference{
+						APIVersion: infrav1.GroupVersion.String(),
+						Kind:       "ProxmoxCluster",
+						Name:       proxmoxCluster.Name,
+					},
+				},
+			}
+			// Create the CAPI cluster (owner) object
+			Expect(testEnv.Create(testEnv.GetContext(), capiCluster)).To(Succeed())
+			defer func() {
+				Expect(testEnv.Cleanup(testEnv.GetContext(), capiCluster)).To(Succeed())
+			}()
+
+			key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+			Eventually(func() error {
+				return testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)
+			}, timeout).Should(BeNil())
+
+			By("setting the OwnerRef on the ProxmoxCluster")
+			Eventually(func() bool {
+				ph, err := patch.NewHelper(proxmoxCluster, testEnv)
+				Expect(err).ShouldNot(HaveOccurred())
+				proxmoxCluster.OwnerReferences = append(
+					proxmoxCluster.OwnerReferences,
+					metav1.OwnerReference{
+						Kind:       "Cluster",
+						APIVersion: clusterv1.GroupVersion.String(),
+						Name:       capiCluster.Name,
+						UID:        "1234",
+					})
+				Expect(ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})).ShouldNot(HaveOccurred())
+				return true
+			}, timeout).Should(BeTrue())
+
+			Eventually(func() bool {
+				if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
+					return false
+				}
+
+				actual := conditions.Get(proxmoxCluster, infrav1.ProxmoxClusterReady)
+				if actual == nil {
+					return false
+				}
+				actual.Message = ""
+				return Expect(actual).Should(conditions.HaveSameStateOf(&clusterv1.Condition{
+					Type:     infrav1.ProxmoxClusterReady,
+					Status:   corev1.ConditionFalse,
+					Severity: clusterv1.ConditionSeverityError,
+					Reason:   infrav1.ProxmoxUnreachableReason,
+				}))
+			}, timeout).Should(BeTrue())
+		})
+	})
+
+	It("should remove ProxmoxCluster finalizer if the secret does not exist", func() {
+		proxmoxCluster := &infrav1.ProxmoxCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "proxmox-test3",
+				Namespace:    "default",
+			},
+			Spec: infrav1.ProxmoxClusterSpec{
+				IPv4Config: &infrav1.IPConfigSpec{
+					Addresses: []string{
+						"10.10.10.2-10.10.10.10",
+						"10.10.10.100-10.10.10.125",
+						"10.10.10.192/64",
+					},
+					Gateway: "10.10.10.1",
+					Prefix:  24,
+				},
+				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+				CredentialsRef: &corev1.SecretReference{
+					Name:      "bla",
+					Namespace: "bla",
+				},
+			},
+		}
+		Expect(testEnv.Create(testEnv.GetContext(), proxmoxCluster)).To(Succeed())
+
+		capiCluster := &clusterv1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "test3-",
+				Namespace:    "default",
+			},
+			Spec: clusterv1.ClusterSpec{
+				InfrastructureRef: &corev1.ObjectReference{
+					APIVersion: infrav1.GroupVersion.String(),
+					Kind:       "ProxmoxCluster",
+					Name:       proxmoxCluster.Name,
+				},
+			},
+		}
+		// Create the CAPI cluster (owner) object
+		Expect(testEnv.Create(testEnv.GetContext(), capiCluster)).To(Succeed())
+
+		key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+		Eventually(func() error {
+			return testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)
+		}, timeout).Should(BeNil())
+
+		Eventually(func() bool {
+			if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
+				return false
+			}
+			return len(proxmoxCluster.Finalizers) == 0
+		}, timeout).Should(BeTrue())
+
+		By("deleting the vspherecluster while the secret is gone")
+		Eventually(func() bool {
+			err := testEnv.Delete(testEnv.GetContext(), proxmoxCluster)
+			return err == nil
+		}, timeout).Should(BeTrue())
+
+		Eventually(func() bool {
+			err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)
+			return apierrors.IsNotFound(err)
+		}, timeout).Should(BeTrue())
+	})
+})
 
 var _ = Describe("Controller Test", func() {
 	g := NewWithT(GinkgoT())

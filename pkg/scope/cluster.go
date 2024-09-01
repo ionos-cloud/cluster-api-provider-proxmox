@@ -104,25 +104,26 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 
 	clusterScope.patchHelper = helper
 
-	if clusterScope.ProxmoxClient == nil && clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
-		// Fail the cluster if no credentials found.
-		// set failure reason
-		clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-		clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+	if clusterScope.ProxmoxClient == nil {
+		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
+			// Fail the cluster if no credentials found.
+			// set failure reason
+			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
+			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
 
-		if err = clusterScope.Close(); err != nil {
-			return nil, err
+			if err = clusterScope.Close(); err != nil {
+				return nil, err
+			}
+			return nil, errors.New("No credentials found, ProxmoxCluster missing credentialsRef")
+		} else {
+			// using proxmoxcluster.spec.credentialsRef
+			pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO())
+			if err != nil {
+				return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
+			}
+			clusterScope.ProxmoxClient = pmoxClient
 		}
-		return nil, errors.New("No credentials found, ProxmoxCluster missing credentialsRef")
-	} else if clusterScope.ProxmoxCluster.Spec.CredentialsRef != nil {
-		// using proxmoxcluster.spec.credentialsRef
-		pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO())
-		if err != nil {
-			return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
-		}
-		clusterScope.ProxmoxClient = pmoxClient
 	}
-
 	return clusterScope, nil
 }
 

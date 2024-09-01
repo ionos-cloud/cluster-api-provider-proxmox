@@ -2,9 +2,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 
 go 1.22.0
 
-toolchain go1.22.6
-
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.8.1
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.8.0
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
 
@@ -23,12 +21,13 @@ require (
 	k8s.io/api v0.30.3
 	k8s.io/apimachinery v0.30.3
 	k8s.io/client-go v0.30.3
+	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
-	sigs.k8s.io/cluster-api v1.8.1
+	sigs.k8s.io/cluster-api v1.8.0
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0
 	sigs.k8s.io/cluster-api/test v1.8.0
-	sigs.k8s.io/controller-runtime v0.18.5
+	sigs.k8s.io/controller-runtime v0.18.4
 )
 
 require (
@@ -38,7 +37,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
-	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/adrg/xdg v0.5.0 // indirect
 	github.com/alessio/shellescape v1.4.1 // indirect
