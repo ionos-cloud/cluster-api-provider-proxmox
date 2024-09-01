@@ -47,7 +47,7 @@ type ProxmoxMachineTemplateResource struct {
 	Spec       ProxmoxMachineSpec   `json:"spec"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // ProxmoxMachineTemplateList contains a list of ProxmoxMachineTemplate.
 type ProxmoxMachineTemplateList struct {

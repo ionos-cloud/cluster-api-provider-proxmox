@@ -22,7 +22,6 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"path"
 	"path/filepath"
 	goruntime "runtime"
 
@@ -90,10 +89,10 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 		klog.Fatalf("Failed to get information for current file from runtime")
 	}
 
-	root := path.Join(path.Dir(filename), "..", "..")
+	root := filepath.Dir(filename)
 
 	crdsPaths := []string{
-		filepath.Join(root, "config", "crd", "bases"),
+		filepath.Join(root, "..", "..", "config", "crd", "bases"),
 	}
 
 	if capiPaths := loadCRDsFromDependentModules(); capiPaths != nil {
@@ -104,13 +103,12 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     crdsPaths,
 	}
-
 	apiServer := env.ControlPlane.GetAPIServer()
 	apiServer.Configure().Set("disable-admission-plugins", "NamespaceLifecycle")
 
 	if setupWebhook {
 		env.WebhookInstallOptions = envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join(root, "config", "webhook")},
+			Paths: []string{filepath.Join(root, "..", "..", "config", "webhook")},
 		}
 	}
 

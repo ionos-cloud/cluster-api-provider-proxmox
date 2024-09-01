@@ -48,7 +48,7 @@ type ProxmoxClusterTemplate struct {
 	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // ProxmoxClusterTemplateList contains a list of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateList struct {

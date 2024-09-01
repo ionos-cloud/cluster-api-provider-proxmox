@@ -479,7 +479,7 @@ type ProxmoxMachine struct {
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // ProxmoxMachineList contains a list of ProxmoxMachine.
 type ProxmoxMachineList struct {

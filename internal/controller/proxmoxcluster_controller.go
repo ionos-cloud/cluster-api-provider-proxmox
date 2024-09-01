@@ -232,6 +232,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	if !res.IsZero() {
 		return res, nil
 	}

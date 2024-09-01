@@ -47,7 +47,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
-	proxmoxctrl "github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -163,10 +163,10 @@ func main() {
 }
 
 func setupReconcilers(ctx context.Context, mgr ctrl.Manager, proxmoxClient capmox.Client) error {
-	if err := proxmoxctrl.AddProxmoxClusterReconciler(ctx, mgr, proxmoxClient); err != nil {
+	if err := controller.AddProxmoxClusterReconciler(ctx, mgr, proxmoxClient); err != nil {
 		return fmt.Errorf("setting up ProxmoxCluster controller: %w", err)
 	}
-	if err := proxmoxctrl.AddProxmoxMachineReconciler(ctx, mgr, proxmoxClient); err != nil {
+	if err := controller.AddProxmoxMachineReconciler(ctx, mgr, proxmoxClient); err != nil {
 		return fmt.Errorf("setting up ProxmoxMachine controller: %w", err)
 	}
 	return nil

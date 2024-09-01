@@ -10,4 +10,3 @@ metadata:
     app.kubernetes.io/created-by: cluster-api-provider-proxmox
   name: proxmoxclustertemplate-sample
 spec:
-  # TODO(user): Add fields here
