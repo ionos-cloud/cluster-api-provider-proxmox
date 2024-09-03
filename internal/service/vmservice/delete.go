@@ -26,7 +26,9 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	"github.com/pkg/errors"
 )
 
 // DeleteVM implements the logic of destroying a VM.
@@ -35,7 +37,7 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 	node := machineScope.LocateProxmoxNode()
 
 	if _, err := machineScope.InfraCluster.ProxmoxClient.DeleteVM(ctx, node, vmID); err != nil {
-		if VMNotFound(err) {
+		if VMNotFound(err) || errors.Is(err, goproxmox.ErrVMIDFree) {
 			// remove machine from cluster status
 			machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), util.IsControlPlaneMachine(machineScope.Machine))
 			// The VM is deleted so remove the finalizer.
