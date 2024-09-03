@@ -14,7 +14,7 @@ spec:
     listKind: ProxmoxMachineTemplateList
     plural: proxmoxmachinetemplates
     shortNames:
-    - imt
+    - pmt
     singular: proxmoxmachinetemplate
   scope: Namespaced
   versions:

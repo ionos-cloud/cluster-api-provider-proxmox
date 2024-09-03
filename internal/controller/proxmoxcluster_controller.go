@@ -20,15 +20,12 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cluster-api/util/patch"
 
 	"github.com/pkg/errors"
-	pkgerrors "github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -83,8 +80,7 @@ func AddProxmoxClusterReconciler(ctx context.Context, mgr ctrl.Manager, proxmoxC
 		Complete(reconciler)
 }
 
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;patch;update;delete
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/finalizers,verbs=update
@@ -163,15 +159,6 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx)
-
-	// We want to prevent deletion unless the owning cluster was flagged for deletion.
-	if clusterScope.Cluster.DeletionTimestamp.IsZero() {
-		clusterScope.Error(errors.New("deletion was requested but owning cluster wasn't deleted"), "Unable to delete ProxmoxCluster")
-		// We stop reconciling here. It will be triggered again once the owning cluster was deleted.
-		return reconcile.Result{}, nil
-	}
-
 	clusterScope.Logger.V(4).Info("Reconciling ProxmoxCluster delete")
 	// Deletion usually should be triggered through the deletion of the owning cluster.
 	// If the ProxmoxCluster was also flagged for deletion (e.g. deletion using the manifest file)
@@ -187,34 +174,8 @@ func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterS
 		return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
 	}
 
-	// Remove finalizer on Identity Secret
-	if hasCredentialsRef(clusterScope.ProxmoxCluster) {
-		secret := &corev1.Secret{}
-		secretKey := client.ObjectKey{
-			Namespace: clusterScope.ProxmoxCluster.Namespace,
-			Name:      clusterScope.ProxmoxCluster.Spec.CredentialsRef.Name,
-		}
-		if err := r.Client.Get(ctx, secretKey, secret); err != nil {
-			if apierrors.IsNotFound(err) {
-				ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
-				return reconcile.Result{}, nil
-			}
-			return reconcile.Result{}, err
-		}
-
-		if ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer) {
-			logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha1.SecretFinalizer), "Secret", klog.KObj(secret))
-			if err := r.Client.Update(ctx, secret); err != nil {
-				return reconcile.Result{}, pkgerrors.Wrapf(err, fmt.Sprintf("failed to update Secret %s", klog.KObj(secret)))
-			}
-		}
-
-		if secret.DeletionTimestamp.IsZero() {
-			logger.Info("Deleting Secret", "Secret", klog.KObj(secret))
-			if err := r.Client.Delete(ctx, secret); err != nil {
-				return reconcile.Result{}, pkgerrors.Wrapf(err, fmt.Sprintf("failed to delete Secret %s", klog.KObj(secret)))
-			}
-		}
+	if err := r.reconcileDeleteCredentialsSecret(ctx, clusterScope); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	clusterScope.Info("cluster deleted successfully")
@@ -237,7 +198,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		return res, nil
 	}
 
-	if err := r.reconcileIdentitySecret(ctx, clusterScope); err != nil {
+	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
 		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, err.Error())
 		return reconcile.Result{}, err
 	}
@@ -298,7 +259,7 @@ func (r *ProxmoxClusterReconciler) listProxmoxMachinesForCluster(ctx context.Con
 	return machineList.Items, nil
 }
 
-func (r *ProxmoxClusterReconciler) reconcileIdentitySecret(ctx context.Context, clusterScope *scope.ClusterScope) error {
+func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.Context, clusterScope *scope.ClusterScope) error {
 	proxmoxCluster := clusterScope.ProxmoxCluster
 	if !hasCredentialsRef(proxmoxCluster) {
 		return nil
@@ -312,11 +273,6 @@ func (r *ProxmoxClusterReconciler) reconcileIdentitySecret(ctx context.Context, 
 	err := r.Client.Get(ctx, secretKey, secret)
 	if err != nil {
 		return err
-	}
-
-	// Return an error if the secret is owned by a different ProxmoxCluster.
-	if !clusterutil.IsOwnedByObject(secret, proxmoxCluster) && isOwnedByIdentityOrCluster(secret.GetOwnerReferences()) {
-		return fmt.Errorf("another cluster has set the OwnerRef for Secret %s/%s", secret.Namespace, secret.Name)
 	}
 
 	helper, err := patch.NewHelper(secret, r.Client)
@@ -342,20 +298,52 @@ func (r *ProxmoxClusterReconciler) reconcileIdentitySecret(ctx context.Context, 
 	return helper.Patch(ctx, secret)
 }
 
+func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.Context, xclusterScope *scope.ClusterScope) error {
+	proxmoxCluster := xclusterScope.ProxmoxCluster
+	if !hasCredentialsRef(proxmoxCluster) {
+		return nil
+	}
+
+	logger := ctrl.LoggerFrom(ctx)
+
+	// Remove finalizer on Identity Secret
+	secret := &corev1.Secret{}
+	secretKey := client.ObjectKey{
+		Namespace: proxmoxCluster.Namespace,
+		Name:      proxmoxCluster.Spec.CredentialsRef.Name,
+	}
+	if err := r.Client.Get(ctx, secretKey, secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			ctrlutil.RemoveFinalizer(proxmoxCluster, infrav1alpha1.ClusterFinalizer)
+			return nil
+		}
+		return err
+	}
+
+	helper, err := patch.NewHelper(secret, r.Client)
+	if err != nil {
+		return err
+	}
+
+	// Remove the ProxmoxCluster from the OwnerRef.
+	secret.SetOwnerReferences(clusterutil.RemoveOwnerRef(secret.GetOwnerReferences(),
+		metav1.OwnerReference{
+			APIVersion: infrav1alpha1.GroupVersion.String(),
+			Kind:       "ProxmoxCluster",
+			Name:       proxmoxCluster.Name,
+			UID:        proxmoxCluster.UID,
+		},
+	))
+
+	if len(secret.GetOwnerReferences()) == 0 && ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+		logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha1.SecretFinalizer), "Secret", klog.KObj(secret))
+		ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer)
+	}
+
+	return helper.Patch(ctx, secret)
+}
+
 // HasCredentialsRef returns true if the ProxmoxCluster has a CredentialsRef.
 func hasCredentialsRef(proxmoxCluster *infrav1alpha1.ProxmoxCluster) bool {
 	return proxmoxCluster != nil && proxmoxCluster.Spec.CredentialsRef != nil
-}
-
-// IsOwnedByIdentityOrCluster discovers if a secret is owned by a ProxmoxCluster.
-func isOwnedByIdentityOrCluster(ownerReferences []metav1.OwnerReference) bool {
-	if len(ownerReferences) > 0 {
-		for _, ownerReference := range ownerReferences {
-			if strings.Contains(ownerReference.APIVersion, infrav1alpha1.GroupVersion.Group+"/") &&
-				ownerReference.Kind == "ProxmoxCluster" {
-				return true
-			}
-		}
-	}
-	return false
 }
