@@ -32,8 +32,8 @@ import (
 
 var _ capmox.Client = &APIClient{}
 
-// VMIDFreeErr is returned if the VMID is free
-var VMIDFreeErr = errors.New("VMID is free")
+// ErrVMIDFree is returned if the VMID is free.
+var ErrVMIDFree = errors.New("VMID is free")
 
 // APIClient Proxmox API client object.
 type APIClient struct {
@@ -160,7 +160,7 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 	}
 
 	if vmidFree, err := cluster.CheckID(ctx, int(vmID)); vmidFree {
-		return nil, VMIDFreeErr
+		return nil, ErrVMIDFree
 	} else if err != nil {
 		return nil, err
 	}
