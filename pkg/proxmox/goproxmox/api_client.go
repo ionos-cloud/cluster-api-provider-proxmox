@@ -32,8 +32,13 @@ import (
 
 var _ capmox.Client = &APIClient{}
 
+<<<<<<< HEAD
 // ErrVMIDFree is returned if the VMID is free.
 var ErrVMIDFree = errors.New("VMID is free")
+=======
+// VMIDFreeErr is returned if the VMID is free
+var VMIDFreeErr = errors.New("VMID is free")
+>>>>>>> f382124 (Return VMIDFreeErr or the error object itself if CheckID returns true/an error)
 
 // APIClient Proxmox API client object.
 type APIClient struct {
