@@ -28,7 +28,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clustererrors "sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/cluster-api/util"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -193,6 +195,10 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
 		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, err.Error())
+		if apierrors.IsNotFound(err) {
+			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
+			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+		}
 		return reconcile.Result{}, err
 	}
 
@@ -260,7 +266,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.
 
 	secret := &corev1.Secret{}
 	secretKey := client.ObjectKey{
-		Namespace: proxmoxCluster.Namespace,
+		Namespace: getNamespaceFromProxmoxCluster(proxmoxCluster),
 		Name:      proxmoxCluster.Spec.CredentialsRef.Name,
 	}
 	err := r.Client.Get(ctx, secretKey, secret)
@@ -277,7 +283,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.
 	secret.SetOwnerReferences(clusterutil.EnsureOwnerRef(secret.GetOwnerReferences(),
 		metav1.OwnerReference{
 			APIVersion: infrav1alpha1.GroupVersion.String(),
-			Kind:       "ProxmoxCluster",
+			Kind:       proxmoxCluster.Kind,
 			Name:       proxmoxCluster.Name,
 			UID:        proxmoxCluster.UID,
 		},
@@ -302,12 +308,11 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 	// Remove finalizer on Identity Secret
 	secret := &corev1.Secret{}
 	secretKey := client.ObjectKey{
-		Namespace: proxmoxCluster.Namespace,
+		Namespace: getNamespaceFromProxmoxCluster(proxmoxCluster),
 		Name:      proxmoxCluster.Spec.CredentialsRef.Name,
 	}
 	if err := r.Client.Get(ctx, secretKey, secret); err != nil {
 		if apierrors.IsNotFound(err) {
-			ctrlutil.RemoveFinalizer(proxmoxCluster, infrav1alpha1.ClusterFinalizer)
 			return nil
 		}
 		return err
@@ -322,13 +327,13 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 	secret.SetOwnerReferences(clusterutil.RemoveOwnerRef(secret.GetOwnerReferences(),
 		metav1.OwnerReference{
 			APIVersion: infrav1alpha1.GroupVersion.String(),
-			Kind:       "ProxmoxCluster",
+			Kind:       proxmoxCluster.Kind,
 			Name:       proxmoxCluster.Name,
 			UID:        proxmoxCluster.UID,
 		},
 	))
 
-	if len(secret.GetOwnerReferences()) == 0 && ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+	if len(secret.GetOwnerReferences()) == 0 && ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
 		logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha1.SecretFinalizer), "Secret", klog.KObj(secret))
 		ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer)
 	}
@@ -339,4 +344,12 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 // HasCredentialsRef returns true if the ProxmoxCluster has a CredentialsRef.
 func hasCredentialsRef(proxmoxCluster *infrav1alpha1.ProxmoxCluster) bool {
 	return proxmoxCluster != nil && proxmoxCluster.Spec.CredentialsRef != nil
+}
+
+func getNamespaceFromProxmoxCluster(proxmoxCluster *infrav1alpha1.ProxmoxCluster) string {
+	namespace := proxmoxCluster.Spec.CredentialsRef.Namespace
+	if len(namespace) == 0 {
+		namespace = proxmoxCluster.GetNamespace()
+	}
+	return namespace
 }
