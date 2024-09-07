@@ -18,7 +18,6 @@ package controller
 
 import (
 	"k8s.io/client-go/tools/record"
-	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -60,7 +59,7 @@ var _ = BeforeSuite(func() {
 
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 
 	cachingClient, err := client.New(testEnv.GetConfig(), client.Options{Scheme: testEnv.Scheme()})
 	Expect(err).NotTo(HaveOccurred())
