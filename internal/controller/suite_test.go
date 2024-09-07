@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"k8s.io/client-go/tools/record"
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -29,7 +31,7 @@ import (
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -66,8 +68,21 @@ var _ = BeforeSuite(func() {
 
 	k8sClient = cachingClient
 
-	Expect(AddProxmoxClusterReconciler(testEnv.GetContext(), testEnv.Manager, testEnv.ProxmoxClient)).To(Succeed())
-	Expect(AddProxmoxMachineReconciler(testEnv.GetContext(), testEnv.Manager, testEnv.ProxmoxClient)).To(Succeed())
+	proxmoxClusterReconciler := ProxmoxClusterReconciler{
+		Client:        k8sClient,
+		Scheme:        testEnv.GetScheme(),
+		Recorder:      &record.FakeRecorder{},
+		ProxmoxClient: testEnv.ProxmoxClient,
+	}
+	Expect(proxmoxClusterReconciler.SetupWithManager(testEnv.GetContext(), testEnv.Manager)).To(Succeed())
+
+	proxmoxMachineReconciler := ProxmoxMachineReconciler{
+		Client:        k8sClient,
+		Scheme:        testEnv.GetScheme(),
+		Recorder:      &record.FakeRecorder{},
+		ProxmoxClient: testEnv.ProxmoxClient,
+	}
+	Expect(proxmoxMachineReconciler.SetupWithManager(testEnv.Manager)).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()

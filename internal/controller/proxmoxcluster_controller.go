@@ -21,12 +21,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/cluster-api/util/patch"
-
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -35,6 +33,7 @@ import (
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -62,14 +61,8 @@ type ProxmoxClusterReconciler struct {
 	ProxmoxClient proxmox.Client
 }
 
-// AddProxmoxClusterReconciler adds the cluster controller to the provided manager.
-func AddProxmoxClusterReconciler(ctx context.Context, mgr ctrl.Manager, proxmoxClient proxmox.Client) error {
-	reconciler := &ProxmoxClusterReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
-		ProxmoxClient: proxmoxClient,
-	}
+// SetupWithManager sets up the controller with the Manager.
+func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1alpha1.ProxmoxCluster{}).
 		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
@@ -77,7 +70,7 @@ func AddProxmoxClusterReconciler(ctx context.Context, mgr ctrl.Manager, proxmoxC
 			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
 			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
 		WithEventFilter(predicates.ResourceIsNotExternallyManaged(ctrl.LoggerFrom(ctx))).
-		Complete(reconciler)
+		Complete(r)
 }
 
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;patch
@@ -298,8 +291,8 @@ func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.
 	return helper.Patch(ctx, secret)
 }
 
-func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.Context, xclusterScope *scope.ClusterScope) error {
-	proxmoxCluster := xclusterScope.ProxmoxCluster
+func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.Context, clusterScope *scope.ClusterScope) error {
+	proxmoxCluster := clusterScope.ProxmoxCluster
 	if !hasCredentialsRef(proxmoxCluster) {
 		return nil
 	}

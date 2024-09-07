@@ -51,7 +51,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -163,12 +163,23 @@ func main() {
 }
 
 func setupReconcilers(ctx context.Context, mgr ctrl.Manager, proxmoxClient capmox.Client) error {
-	if err := controller.AddProxmoxClusterReconciler(ctx, mgr, proxmoxClient); err != nil {
+	if err := (&controller.ProxmoxClusterReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
+		ProxmoxClient: proxmoxClient,
+	}).SetupWithManager(ctx, mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxCluster controller: %w", err)
 	}
-	if err := controller.AddProxmoxMachineReconciler(ctx, mgr, proxmoxClient); err != nil {
+	if err := (&controller.ProxmoxMachineReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"),
+		ProxmoxClient: proxmoxClient,
+	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxMachine controller: %w", err)
 	}
+
 	return nil
 }
 
