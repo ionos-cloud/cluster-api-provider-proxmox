@@ -283,7 +283,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.
 	secret.SetOwnerReferences(clusterutil.EnsureOwnerRef(secret.GetOwnerReferences(),
 		metav1.OwnerReference{
 			APIVersion: infrav1alpha1.GroupVersion.String(),
-			Kind:       proxmoxCluster.Kind,
+			Kind:       "ProxmoxCluster",
 			Name:       proxmoxCluster.Name,
 			UID:        proxmoxCluster.UID,
 		},
@@ -327,7 +327,7 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 	secret.SetOwnerReferences(clusterutil.RemoveOwnerRef(secret.GetOwnerReferences(),
 		metav1.OwnerReference{
 			APIVersion: infrav1alpha1.GroupVersion.String(),
-			Kind:       proxmoxCluster.Kind,
+			Kind:       "ProxmoxCluster",
 			Name:       proxmoxCluster.Name,
 			UID:        proxmoxCluster.UID,
 		},
@@ -341,7 +341,6 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 	return helper.Patch(ctx, secret)
 }
 
-// HasCredentialsRef returns true if the ProxmoxCluster has a CredentialsRef.
 func hasCredentialsRef(proxmoxCluster *infrav1alpha1.ProxmoxCluster) bool {
 	return proxmoxCluster != nil && proxmoxCluster.Spec.CredentialsRef != nil
 }

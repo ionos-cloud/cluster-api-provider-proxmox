@@ -61,16 +61,10 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 		It("should create a cluster", func() {
 			secret := createSecret()
 
-			proxmoxCluster := createProxmoxClusterWithSecret(secret)
-			defer func() {
-				Expect(testEnv.Cleanup(testEnv.GetContext(), proxmoxCluster)).To(Succeed())
-			}()
+			proxmoxCluster := createProxmoxClusterWithCredentialsRef(secret)
 
 			// Create the CAPI cluster (owner) object
 			capiCluster := createOwnerCluster(proxmoxCluster)
-			defer func() {
-				Expect(testEnv.Cleanup(testEnv.GetContext(), capiCluster)).To(Succeed())
-			}()
 
 			key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
 			Eventually(func() error {
@@ -118,6 +112,8 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 				}
 				return conditions.IsTrue(proxmoxCluster, infrav1.ProxmoxClusterReady)
 			}, timeout).Should(BeTrue())
+
+			Expect(testEnv.Cleanup(testEnv.GetContext(), proxmoxCluster, capiCluster, secret)).To(Succeed())
 		})
 
 		It("multiple clusters can set ownerRef on secret", func() {
@@ -167,9 +163,6 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 				},
 			}
 			Expect(testEnv.Create(testEnv.GetContext(), proxmoxCluster1)).To(Succeed())
-			defer func() {
-				Expect(testEnv.Cleanup(testEnv.GetContext(), proxmoxCluster1)).To(Succeed())
-			}()
 
 			key1 := client.ObjectKey{Namespace: proxmoxCluster1.Namespace, Name: proxmoxCluster1.Name}
 			Eventually(func() error {
@@ -191,9 +184,6 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 			}
 			// Create the CAPI cluster (owner) object
 			Expect(testEnv.Create(testEnv.GetContext(), capiCluster1)).To(Succeed())
-			defer func() {
-				Expect(testEnv.Cleanup(testEnv.GetContext(), capiCluster1)).To(Succeed())
-			}()
 
 			//  Second cluster
 
@@ -220,9 +210,6 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 				},
 			}
 			Expect(testEnv.Create(testEnv.GetContext(), proxmoxCluster2)).To(Succeed())
-			defer func() {
-				Expect(testEnv.Cleanup(testEnv.GetContext(), proxmoxCluster2)).To(Succeed())
-			}()
 
 			key2 := client.ObjectKey{Namespace: proxmoxCluster2.Namespace, Name: proxmoxCluster2.Name}
 			Eventually(func() error {
@@ -244,9 +231,6 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 			}
 			// Create the CAPI cluster (owner) object
 			Expect(testEnv.Create(testEnv.GetContext(), capiCluster2)).To(Succeed())
-			defer func() {
-				Expect(testEnv.Cleanup(testEnv.GetContext(), capiCluster2)).To(Succeed())
-			}()
 
 			By("setting the OwnerRef on the ProxmoxCluster")
 			Eventually(func() bool {
@@ -368,6 +352,8 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 				}
 				return ctrlutil.ContainsFinalizer(secret, infrav1.SecretFinalizer)
 			}, timeout).Should(BeTrue())
+
+			Expect(testEnv.Cleanup(testEnv.GetContext(), proxmoxCluster1, capiCluster1, proxmoxCluster2, capiCluster2, secret)).To(Succeed())
 		})
 	})
 
@@ -696,7 +682,7 @@ func createSecret() *corev1.Secret {
 	return secret
 }
 
-func createProxmoxClusterWithSecret(secret *corev1.Secret) *infrav1.ProxmoxCluster {
+func createProxmoxClusterWithCredentialsRef(secret *corev1.Secret) *infrav1.ProxmoxCluster {
 	proxmoxCluster := &infrav1.ProxmoxCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "proxmox-test1",
