@@ -120,6 +120,45 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 	require.True(t, machineScope.HasFailed())
 }
 
+func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+		Start: 1000,
+		End:   1002,
+	}
+
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1001, Name: "test"}
+	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(1001)}
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1000)).Return(false, nil)
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(true, nil)
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.Equal(t, int64(1001), machineScope.ProxmoxMachine.GetVirtualMachineID())
+	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
+}
+
+func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+		Start: 1000,
+		End:   1002,
+	}
+
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1000)).Return(false, nil)
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(false, nil)
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1002)).Return(false, nil)
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.Error(t, err, ErrNoVMIDInRangeFree)
+	require.False(t, requeue)
+	require.Equal(t, int64(-1), machineScope.ProxmoxMachine.GetVirtualMachineID())
+}
+
 func TestEnsureVirtualMachine_FindVM(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.SetVirtualMachineID(123)

@@ -46,6 +46,9 @@ const (
 	optionMemory  = "memory"
 )
 
+// ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmidRange.
+var ErrNoVMIDInRangeFree = errors.New("No free vmid found in vmidRange")
+
 // ReconcileVM makes sure that the VM is in the desired state by:
 //  1. Creating the VM if it does not exist, then...
 //  2. Updating the VM with the bootstrap data, such as the cloud-init meta and user data, before...
@@ -311,10 +314,15 @@ func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress,
 }
 
 func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) {
+	vmid, err := getVMID(ctx, scope)
+	if err != nil {
+		return proxmox.VMCloneResponse{}, err
+	}
+
 	options := proxmox.VMCloneRequest{
-		Node: scope.ProxmoxMachine.GetNode(),
-		// NewID:       0, no need to provide newID
-		Name: scope.ProxmoxMachine.GetName(),
+		Node:  scope.ProxmoxMachine.GetNode(),
+		NewID: int(vmid),
+		Name:  scope.ProxmoxMachine.GetName(),
 	}
 
 	if scope.ProxmoxMachine.Spec.Description != nil {
@@ -383,6 +391,28 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}, util.IsControlPlaneMachine(scope.Machine))
 
 	return res, scope.InfraCluster.PatchObject()
+}
+
+func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
+	if scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange != nil {
+		vmidRangeStart := scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange.Start
+		vmidRangeEnd := scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange.End
+		if vmidRangeStart != 0 && vmidRangeEnd != 0 {
+			// Get next free vmid from the range
+			for i := vmidRangeStart; i <= vmidRangeEnd; i++ {
+				// TODO: Check if id is already assigned to a ProxmoxMachine
+				if vmidFree, err := scope.InfraCluster.ProxmoxClient.CheckID(ctx, i); err == nil && vmidFree {
+					return i, nil
+				} else if err != nil {
+					return 0, err
+				}
+			}
+			// Fail if we can't find a free vmid in the range.
+			return 0, ErrNoVMIDInRangeFree
+		}
+	}
+	// If VMIDRange is not defined, return 0 to let luthermonson/go-proxmox get the next free id.
+	return 0, nil
 }
 
 var selectNextNode = scheduler.ScheduleVM
