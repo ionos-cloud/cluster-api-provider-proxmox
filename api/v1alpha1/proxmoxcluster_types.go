@@ -30,7 +30,7 @@ var (
 	// ErrVMIDRangeStartNotProvided is returned when the VMIDRangeStart is not provided.
 	ErrVMIDRangeStartNotProvided error = errors.New("spec.vmidRange.start not provided")
 	// ErrVMIDRangeEndNotProvided is returned when the VMIDRangeEnd is not provided.
-	ErrVMIDRangeEndNotProvided error = errors.New("spec.vmidRange.end not provied")
+	ErrVMIDRangeEndNotProvided error = errors.New("spec.vmidRange.end not provided")
 )
 
 const (
