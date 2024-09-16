@@ -2,7 +2,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 
 go 1.22.0
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.8.2
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.8.3
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
 
@@ -23,7 +23,7 @@ require (
 	k8s.io/client-go v0.30.4
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
-	sigs.k8s.io/cluster-api v1.8.2
+	sigs.k8s.io/cluster-api v1.8.3
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0
 	sigs.k8s.io/cluster-api/test v1.8.3
 	sigs.k8s.io/controller-runtime v0.18.5
