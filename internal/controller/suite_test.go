@@ -17,8 +17,9 @@ limitations under the License.
 package controller
 
 import (
-	"k8s.io/client-go/tools/record"
 	"testing"
+
+	"k8s.io/client-go/tools/record"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

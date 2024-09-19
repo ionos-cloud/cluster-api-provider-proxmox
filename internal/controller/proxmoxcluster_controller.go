@@ -20,6 +20,7 @@ package controller
 import (
 	"context"
 	"fmt"
+
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +32,6 @@ import (
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	clustererrors "sigs.k8s.io/cluster-api/errors"
-	"sigs.k8s.io/cluster-api/util"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -69,7 +69,7 @@ func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctr
 		For(&infrav1alpha1.ProxmoxCluster{}).
 		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
 		Watches(&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
+			handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
 			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
 		WithEventFilter(predicates.ResourceIsNotExternallyManaged(ctrl.LoggerFrom(ctx))).
 		Complete(r)
@@ -104,7 +104,7 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Get owner cluster
-	cluster, err := util.GetOwnerCluster(ctx, r.Client, proxmoxCluster.ObjectMeta)
+	cluster, err := clusterutil.GetOwnerCluster(ctx, r.Client, proxmoxCluster.ObjectMeta)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -154,6 +154,13 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
+	// We want to prevent deletion unless the owning cluster was flagged for deletion.
+	// if clusterScope.Cluster.DeletionTimestamp.IsZero() {
+	// 	clusterScope.Error(errors.New("deletion was requested but owning cluster wasn't deleted"), "Unable to delete ProxmoxCluster")
+	// 	// We stop reconciling here. It will be triggered again once the owning cluster was deleted.
+	// 	return reconcile.Result{}, nil
+	// }
+
 	clusterScope.Logger.V(4).Info("Reconciling ProxmoxCluster delete")
 	// Deletion usually should be triggered through the deletion of the owning cluster.
 	// If the ProxmoxCluster was also flagged for deletion (e.g. deletion using the manifest file)
@@ -323,17 +330,18 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 		return err
 	}
 
-	// Remove the ProxmoxCluster from the OwnerRef.
-	secret.SetOwnerReferences(clusterutil.RemoveOwnerRef(secret.GetOwnerReferences(),
-		metav1.OwnerReference{
-			APIVersion: infrav1alpha1.GroupVersion.String(),
-			Kind:       "ProxmoxCluster",
-			Name:       proxmoxCluster.Name,
-			UID:        proxmoxCluster.UID,
-		},
-	))
+	ownerRef := metav1.OwnerReference{
+		APIVersion: infrav1alpha1.GroupVersion.String(),
+		Kind:       "ProxmoxCluster",
+		Name:       proxmoxCluster.Name,
+		UID:        proxmoxCluster.UID,
+	}
 
-	if len(secret.GetOwnerReferences()) == 0 && ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+	if len(secret.GetOwnerReferences()) > 1 {
+		// Remove the ProxmoxCluster from the OwnerRef.
+		secret.SetOwnerReferences(clusterutil.RemoveOwnerRef(secret.GetOwnerReferences(), ownerRef))
+	} else if clusterutil.HasOwnerRef(secret.GetOwnerReferences(), ownerRef) && ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+		// There is only one OwnerRef, the current ProxmoxCluster. Remove the Finalizer (if present).
 		logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha1.SecretFinalizer), "Secret", klog.KObj(secret))
 		ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer)
 	}
