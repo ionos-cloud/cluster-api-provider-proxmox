@@ -19,6 +19,7 @@ package vmservice
 
 import (
 	"context"
+	"slices"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -398,9 +399,20 @@ func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
 		vmidRangeStart := scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange.Start
 		vmidRangeEnd := scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange.End
 		if vmidRangeStart != 0 && vmidRangeEnd != 0 {
+			// Get all used vmids from existing ProxmoxMachines
+			usedVMIDs := []int64{}
+			proxmoxMachines, err := scope.InfraCluster.ListProxmoxMachinesForCluster(ctx)
+			if err != nil {
+				return 0, err
+			}
+			for _, proxmoxMachine := range proxmoxMachines {
+				usedVMIDs = append(usedVMIDs, proxmoxMachine.GetVirtualMachineID())
+			}
 			// Get next free vmid from the range
 			for i := vmidRangeStart; i <= vmidRangeEnd; i++ {
-				// TODO: Check if id is already assigned to a ProxmoxMachine
+				if slices.Contains(usedVMIDs, i) {
+					continue
+				}
 				if vmidFree, err := scope.InfraCluster.ProxmoxClient.CheckID(ctx, i); err == nil && vmidFree {
 					return i, nil
 				} else if err != nil {

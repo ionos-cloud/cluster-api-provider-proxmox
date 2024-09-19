@@ -195,6 +195,20 @@ func (s *ClusterScope) PatchObject() error {
 	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster)
 }
 
+// ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.
+func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]infrav1alpha1.ProxmoxMachine, error) {
+	var machineList infrav1alpha1.ProxmoxMachineList
+
+	err := s.client.List(ctx, &machineList, client.InNamespace(s.Namespace()), client.MatchingLabels{
+		clusterv1.ClusterNameLabel: s.Name(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return machineList.Items, nil
+}
+
 // Close closes the current scope persisting the cluster configuration and status.
 func (s *ClusterScope) Close() error {
 	return s.PatchObject()
