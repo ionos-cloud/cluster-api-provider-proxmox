@@ -406,7 +406,9 @@ func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
 				return 0, err
 			}
 			for _, proxmoxMachine := range proxmoxMachines {
-				usedVMIDs = append(usedVMIDs, proxmoxMachine.GetVirtualMachineID())
+				if proxmoxMachine.GetVirtualMachineID() != -1 {
+					usedVMIDs = append(usedVMIDs, proxmoxMachine.GetVirtualMachineID())
+				}
 			}
 			// Get next free vmid from the range
 			for i := vmidRangeStart; i <= vmidRangeEnd; i++ {
