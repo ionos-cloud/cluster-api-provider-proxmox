@@ -155,11 +155,11 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
 	// We want to prevent deletion unless the owning cluster was flagged for deletion.
-	// if clusterScope.Cluster.DeletionTimestamp.IsZero() {
-	// 	clusterScope.Error(errors.New("deletion was requested but owning cluster wasn't deleted"), "Unable to delete ProxmoxCluster")
-	// 	// We stop reconciling here. It will be triggered again once the owning cluster was deleted.
-	// 	return reconcile.Result{}, nil
-	// }
+	if clusterScope.Cluster.DeletionTimestamp.IsZero() {
+		clusterScope.Error(errors.New("deletion was requested but owning cluster wasn't deleted"), "Unable to delete ProxmoxCluster")
+		// We stop reconciling here. It will be triggered again once the owning cluster was deleted.
+		return reconcile.Result{}, nil
+	}
 
 	clusterScope.Logger.V(4).Info("Reconciling ProxmoxCluster delete")
 	// Deletion usually should be triggered through the deletion of the owning cluster.

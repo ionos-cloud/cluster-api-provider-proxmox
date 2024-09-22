@@ -68,6 +68,7 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
 			assertProxmoxClusterIsReady(proxmoxCluster)
 
+			deleteCapiCluster(capiCluster)
 			deleteProxmoxCluster(proxmoxCluster)
 
 			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
@@ -106,6 +107,7 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
 
 			// Delete second cluster
+			deleteCapiCluster(capiCluster2)
 			deleteProxmoxCluster(proxmoxCluster2)
 
 			// Check owner references
@@ -115,6 +117,7 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
 
 			// Delete first cluster
+			deleteCapiCluster(capiCluster1)
 			deleteProxmoxCluster(proxmoxCluster1)
 
 			// Check owner references
@@ -138,6 +141,7 @@ var _ = Describe("Proxmox ClusterReconciler", func() {
 		assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
 
 		By("deleting the proxmoxcluster while the secret is gone")
+		deleteCapiCluster(capiCluster)
 		deleteProxmoxCluster(proxmoxCluster)
 		assertProxmoxClusterIsDeleted(proxmoxCluster)
 	})
@@ -467,6 +471,7 @@ func createOwnerCluster(proxmoxCluster *infrav1.ProxmoxCluster) *clusterv1.Clust
 			},
 		},
 	}
+	ctrlutil.AddFinalizer(capiCluster, "cluster.cluster.x-k8s.io")
 	Expect(testEnv.Create(testEnv.GetContext(), capiCluster)).To(Succeed())
 	return capiCluster
 }
@@ -514,6 +519,15 @@ func refreshCluster(proxmoxCluster *infrav1.ProxmoxCluster) *infrav1.ProxmoxClus
 func deleteProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster) {
 	Eventually(func() bool {
 		err := testEnv.Delete(testEnv.GetContext(), proxmoxCluster)
+		return err == nil
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func deleteCapiCluster(cluster *clusterv1.Cluster) {
+	Eventually(func() bool {
+		err := testEnv.Delete(testEnv.GetContext(), cluster)
 		return err == nil
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
