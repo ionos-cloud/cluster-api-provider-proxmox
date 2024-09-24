@@ -395,9 +395,9 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 }
 
 func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
-	if scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange != nil {
-		vmidRangeStart := scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange.Start
-		vmidRangeEnd := scope.InfraCluster.ProxmoxCluster.Spec.VMIDRange.End
+	if scope.ProxmoxMachine.Spec.VMIDRange != nil {
+		vmidRangeStart := scope.ProxmoxMachine.Spec.VMIDRange.Start
+		vmidRangeEnd := scope.ProxmoxMachine.Spec.VMIDRange.End
 		if vmidRangeStart != 0 && vmidRangeEnd != 0 {
 			// Get all used vmids from existing ProxmoxMachines
 			usedVMIDs := []int64{}

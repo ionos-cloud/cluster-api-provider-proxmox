@@ -125,7 +125,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
 		Start: 1000,
 		End:   1002,
 	}
@@ -147,7 +147,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
 		Start: 1000,
 		End:   1002,
 	}
@@ -164,7 +164,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 	machineScope, proxmoxClient, kubeClient := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
 		Start: 1000,
 		End:   1002,
 	}

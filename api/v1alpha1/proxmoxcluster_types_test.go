@@ -190,37 +190,6 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be less than or equal to 128")))
 		})
 	})
-
-	Context("VMIDRange", func() {
-		It("Should not allow only allow spec.vmidRange.start >= 100", func() {
-			dc := defaultCluster()
-			dc.Spec.VMIDRange = &VMIDRange{
-				Start: 1,
-			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be greater than or equal to 100")))
-		})
-		It("Should not allow only allow spec.vmidRange.end >= 100", func() {
-			dc := defaultCluster()
-			dc.Spec.VMIDRange = &VMIDRange{
-				End: 1,
-			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be greater than or equal to 101")))
-		})
-		It("Should not allow only allow spec.vmidRange.start if spec.vmidRange.end is set", func() {
-			dc := defaultCluster()
-			dc.Spec.VMIDRange = &VMIDRange{
-				Start: 100,
-			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.vmidRange.end in body should be greater than or equal to 101")))
-		})
-		It("Should not allow only allow spec.vmidRange.end if spec.vmidRange.start is set", func() {
-			dc := defaultCluster()
-			dc.Spec.VMIDRange = &VMIDRange{
-				End: 101,
-			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.vmidRange.start in body should be greater than or equal to 100")))
-		})
-	})
 })
 
 func TestRemoveNodeLocation(t *testing.T) {
