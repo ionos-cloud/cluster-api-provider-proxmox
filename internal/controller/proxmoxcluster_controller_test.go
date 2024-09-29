@@ -49,104 +49,6 @@ var (
 	testFinalizer = "cluster-test.cluster.x-k8s.io"
 )
 
-var _ = Describe("Proxmox ClusterReconciler", func() {
-	BeforeEach(func() {})
-	AfterEach(func() {})
-
-	Context("Reconcile an ProxmoxCluster", func() {
-		It("create and destroy a cluster", func() {
-			secret := createSecret()
-			proxmoxCluster := createProxmoxCluster()
-			setCredentialsRefOnProxmoxCluster(proxmoxCluster, secret)
-			capiCluster := createOwnerCluster(proxmoxCluster)
-			proxmoxCluster = refreshCluster(proxmoxCluster)
-			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
-
-			assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
-			assertSecretHasNumberOfOwnerRefs(secret, 1)
-			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
-			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
-			assertProxmoxClusterIsReady(proxmoxCluster)
-
-			deleteCapiCluster(capiCluster)
-			deleteProxmoxCluster(proxmoxCluster)
-
-			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
-			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
-
-			cleanup(proxmoxCluster, capiCluster, secret)
-		})
-
-		It("multiple clusters can set ownerRef on secret", func() {
-			secret := createSecret()
-			setRandomOwnerRefOnSecret(secret, "another-cluster")
-
-			//  First cluster
-			proxmoxCluster1 := createProxmoxCluster()
-			setCredentialsRefOnProxmoxCluster(proxmoxCluster1, secret)
-			capiCluster1 := createOwnerCluster(proxmoxCluster1)
-			proxmoxCluster1 = refreshCluster(proxmoxCluster1)
-			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster1, capiCluster1)
-			assertProxmoxClusterIsReady(proxmoxCluster1)
-			assertProxmoxClusterHasFinalizer(proxmoxCluster1, infrav1.ClusterFinalizer)
-
-			//  Second cluster
-			proxmoxCluster2 := createProxmoxCluster()
-			setCredentialsRefOnProxmoxCluster(proxmoxCluster2, secret)
-			capiCluster2 := createOwnerCluster(proxmoxCluster2)
-			proxmoxCluster2 = refreshCluster(proxmoxCluster2)
-			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster2, capiCluster2)
-			assertProxmoxClusterIsReady(proxmoxCluster2)
-			assertProxmoxClusterHasFinalizer(proxmoxCluster2, infrav1.ClusterFinalizer)
-
-			// Check owner references
-			assertSecretHasNumberOfOwnerRefs(secret, 3)
-			assertSecretHasOwnerRef(secret, proxmoxCluster1.Name)
-			assertSecretHasOwnerRef(secret, proxmoxCluster2.Name)
-			assertSecretHasOwnerRef(secret, "another-cluster")
-			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
-
-			// Delete second cluster
-			deleteCapiCluster(capiCluster2)
-			deleteProxmoxCluster(proxmoxCluster2)
-
-			// Check owner references
-			assertSecretHasNumberOfOwnerRefs(secret, 2)
-			assertSecretHasOwnerRef(secret, proxmoxCluster1.Name)
-			assertSecretHasOwnerRef(secret, "another-cluster")
-			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
-
-			// Delete first cluster
-			deleteCapiCluster(capiCluster1)
-			deleteProxmoxCluster(proxmoxCluster1)
-
-			// Check owner references
-			assertSecretHasNumberOfOwnerRefs(secret, 1)
-			assertSecretHasOwnerRef(secret, "another-cluster")
-			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
-
-			cleanup(proxmoxCluster1, capiCluster1, proxmoxCluster2, capiCluster2, secret)
-		})
-	})
-
-	It("should remove ProxmoxCluster finalizer if the secret does not exist", func() {
-		proxmoxCluster := createProxmoxCluster()
-		setRandomCredentialsRefOnProxmoxCluster(proxmoxCluster)
-
-		capiCluster := createOwnerCluster(proxmoxCluster)
-		proxmoxCluster = refreshCluster(proxmoxCluster)
-		setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
-
-		assertProxmoxClusterIsNotReady(proxmoxCluster)
-		assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
-
-		By("deleting the proxmoxcluster while the secret is gone")
-		deleteCapiCluster(capiCluster)
-		deleteProxmoxCluster(proxmoxCluster)
-		assertProxmoxClusterIsDeleted(proxmoxCluster)
-	})
-})
-
 var _ = Describe("Controller Test", func() {
 	g := NewWithT(GinkgoT())
 
@@ -300,6 +202,101 @@ var _ = Describe("Controller Test", func() {
 				WithPolling(time.Second).
 				Should(Succeed())
 		})
+	})
+})
+
+var _ = Describe("Proxmox ClusterReconciler", func() {
+	Context("Reconcile an ProxmoxCluster", func() {
+		It("create and destroy a cluster", func() {
+			secret := createSecret()
+			proxmoxCluster := createProxmoxCluster()
+			setCredentialsRefOnProxmoxCluster(proxmoxCluster, secret)
+			capiCluster := createOwnerCluster(proxmoxCluster)
+			proxmoxCluster = refreshCluster(proxmoxCluster)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
+
+			assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
+			assertSecretHasNumberOfOwnerRefs(secret, 1)
+			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+			assertProxmoxClusterIsReady(proxmoxCluster)
+
+			deleteCapiCluster(capiCluster)
+			deleteProxmoxCluster(proxmoxCluster)
+
+			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			cleanup(proxmoxCluster, capiCluster, secret)
+		})
+
+		It("multiple clusters can set ownerRef on secret", func() {
+			secret := createSecret()
+			setRandomOwnerRefOnSecret(secret, "another-cluster")
+
+			//  First cluster
+			proxmoxCluster1 := createProxmoxCluster()
+			setCredentialsRefOnProxmoxCluster(proxmoxCluster1, secret)
+			capiCluster1 := createOwnerCluster(proxmoxCluster1)
+			proxmoxCluster1 = refreshCluster(proxmoxCluster1)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster1, capiCluster1)
+			assertProxmoxClusterIsReady(proxmoxCluster1)
+			assertProxmoxClusterHasFinalizer(proxmoxCluster1, infrav1.ClusterFinalizer)
+
+			//  Second cluster
+			proxmoxCluster2 := createProxmoxCluster()
+			setCredentialsRefOnProxmoxCluster(proxmoxCluster2, secret)
+			capiCluster2 := createOwnerCluster(proxmoxCluster2)
+			proxmoxCluster2 = refreshCluster(proxmoxCluster2)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster2, capiCluster2)
+			assertProxmoxClusterIsReady(proxmoxCluster2)
+			assertProxmoxClusterHasFinalizer(proxmoxCluster2, infrav1.ClusterFinalizer)
+
+			// Check owner references
+			assertSecretHasNumberOfOwnerRefs(secret, 3)
+			assertSecretHasOwnerRef(secret, proxmoxCluster1.Name)
+			assertSecretHasOwnerRef(secret, proxmoxCluster2.Name)
+			assertSecretHasOwnerRef(secret, "another-cluster")
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			// Delete second cluster
+			deleteCapiCluster(capiCluster2)
+			deleteProxmoxCluster(proxmoxCluster2)
+
+			// Check owner references
+			assertSecretHasNumberOfOwnerRefs(secret, 2)
+			assertSecretHasOwnerRef(secret, proxmoxCluster1.Name)
+			assertSecretHasOwnerRef(secret, "another-cluster")
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			// Delete first cluster
+			deleteCapiCluster(capiCluster1)
+			deleteProxmoxCluster(proxmoxCluster1)
+
+			// Check owner references
+			assertSecretHasNumberOfOwnerRefs(secret, 1)
+			assertSecretHasOwnerRef(secret, "another-cluster")
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			cleanup(proxmoxCluster1, capiCluster1, proxmoxCluster2, capiCluster2, secret)
+		})
+	})
+
+	It("should remove ProxmoxCluster finalizer if the secret does not exist", func() {
+		proxmoxCluster := createProxmoxCluster()
+		setRandomCredentialsRefOnProxmoxCluster(proxmoxCluster)
+
+		capiCluster := createOwnerCluster(proxmoxCluster)
+		proxmoxCluster = refreshCluster(proxmoxCluster)
+		setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
+
+		assertProxmoxClusterIsNotReady(proxmoxCluster)
+		assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
+
+		By("deleting the proxmoxcluster while the secret is gone")
+		deleteCapiCluster(capiCluster)
+		deleteProxmoxCluster(proxmoxCluster)
+		assertProxmoxClusterIsDeleted(proxmoxCluster)
 	})
 })
 
