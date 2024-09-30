@@ -205,7 +205,7 @@ var _ = Describe("Controller Test", func() {
 	})
 })
 
-var _ = Describe("Proxmox ClusterReconciler", func() {
+var _ = Describe("External Credentials Tests", func() {
 	Context("Reconcile an ProxmoxCluster", func() {
 		It("create and destroy a cluster", func() {
 			secret := createSecret()
