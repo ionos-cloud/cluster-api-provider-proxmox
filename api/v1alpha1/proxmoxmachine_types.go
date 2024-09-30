@@ -50,6 +50,7 @@ const (
 	IPV6Format = "v6"
 )
 
+// ProxmoxMachineChecks defines possibibles checks to skip.
 type ProxmoxMachineChecks struct {
 	// Skip checking CloudInit which can be very useful for specific Operating Systems like TalOS
 	// +optional

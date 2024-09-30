@@ -108,35 +108,19 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 	return vm, nil
 }
 
-func skipQemuGuestCheck(mc *scope.MachineScope) bool {
-	if mc.ProxmoxMachine.Spec.Checks != nil {
-		return ptr.Deref(mc.ProxmoxMachine.Spec.Checks.SkipQemuGuestAgent, false)
-	}
-
-	return false
-}
-
-func skipCloudInitCheck(mc *scope.MachineScope) bool {
-	if mc.ProxmoxMachine.Spec.Checks != nil {
-		return ptr.Deref(mc.ProxmoxMachine.Spec.Checks.SkipCloudInitStatus, false)
-	}
-
-	return false
-}
-
 func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
 	if !machineScope.VirtualMachine.IsRunning() {
 		// skip if the vm is not running.
 		return true, nil
 	}
 
-	if !skipQemuGuestCheck(machineScope) {
+	if !machineScope.SkipQemuGuestCheck() {
 		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
 			return true, errors.Wrap(err, "error waiting for agent")
 		}
 	}
 
-	if !skipCloudInitCheck(machineScope) {
+	if !machineScope.SkipQemuGuestCheck() && !machineScope.SkipCloudInitCheck() {
 		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
 			if running {
 				return true, nil

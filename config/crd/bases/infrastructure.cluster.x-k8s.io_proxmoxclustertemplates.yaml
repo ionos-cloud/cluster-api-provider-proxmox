@@ -91,6 +91,8 @@ spec:
                                 state of a ProxmoxMachine.
                               properties:
                                 checks:
+                                  description: ProxmoxMachineChecks defines possibibles
+                                    checks to skip.
                                   properties:
                                     skipCloudInitStatus:
                                       description: Skip checking CloudInit which can
@@ -98,6 +100,9 @@ spec:
                                         like TalOS
                                       type: boolean
                                     skipQemuGuestAgent:
+                                      description: Skip checking QEMU Agent readiness
+                                        which can be very useful for specific Operating
+                                        Systems like TalOS
                                       type: boolean
                                   type: object
                                 description:
