@@ -108,22 +108,46 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 	return vm, nil
 }
 
+func skipQemuGuestCheck(mc *scope.MachineScope) bool {
+	if mc.ProxmoxMachine.Spec.Checks != nil {
+		return ptr.Deref(mc.ProxmoxMachine.Spec.Checks.SkipQemuGuestAgent, false)
+	}
+
+	return false
+}
+
+func skipCloudInitCheck(mc *scope.MachineScope) bool {
+	if mc.ProxmoxMachine.Spec.Checks != nil {
+		return ptr.Deref(mc.ProxmoxMachine.Spec.Checks.SkipCloudInitStatus, false)
+	}
+
+	return false
+}
+
 func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
 	if !machineScope.VirtualMachine.IsRunning() {
 		// skip if the vm is not running.
 		return true, nil
 	}
 
-	if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
-		if running {
-			return true, nil
+	if !skipQemuGuestCheck(machineScope) {
+		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
+			return true, errors.Wrap(err, "error waiting for agent")
 		}
-		if errors.Is(goproxmox.ErrCloudInitFailed, err) {
-			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
-			machineScope.SetFailureMessage(err)
-			machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
+	}
+
+	if !skipCloudInitCheck(machineScope) {
+		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
+			if running {
+				return true, nil
+			}
+			if errors.Is(goproxmox.ErrCloudInitFailed, err) {
+				conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
+				machineScope.SetFailureMessage(err)
+				machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
+			}
+			return false, err
 		}
-		return false, err
 	}
 
 	return false, nil

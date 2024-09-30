@@ -300,3 +300,11 @@ func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMach
 
 	return false, nil
 }
+
+func (c *APIClient) QemuAgentStatus(ctx context.Context, vm *proxmox.VirtualMachine) error {
+	if err := vm.WaitForAgent(ctx, 5); err != nil {
+		return errors.Wrap(err, "error waiting for agent")
+	}
+
+	return nil
+}
