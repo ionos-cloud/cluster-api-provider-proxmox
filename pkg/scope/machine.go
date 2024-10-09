@@ -255,6 +255,10 @@ func (m *MachineScope) SkipQemuGuestCheck() bool {
 
 // SkipCloudInitCheck check whether cloud-init status check is enabled.
 func (m *MachineScope) SkipCloudInitCheck() bool {
+	if m.SkipQemuGuestCheck() {
+		return true
+	}
+
 	if m.ProxmoxMachine.Spec.Checks != nil {
 		return ptr.Deref(m.ProxmoxMachine.Spec.Checks.SkipCloudInitStatus, false)
 	}

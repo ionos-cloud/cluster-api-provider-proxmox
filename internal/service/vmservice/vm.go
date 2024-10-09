@@ -120,7 +120,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 		}
 	}
 
-	if !machineScope.SkipQemuGuestCheck() && !machineScope.SkipCloudInitCheck() {
+	if !machineScope.SkipCloudInitCheck() {
 		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
 			if running {
 				return true, nil
