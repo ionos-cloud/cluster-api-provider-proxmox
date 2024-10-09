@@ -17,13 +17,21 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/errors"
+	clusterapierrors "sigs.k8s.io/cluster-api/errors"
+)
+
+var (
+	// ErrVMIDRangeStartNotProvided is returned when the VMIDRangeStart is not provided.
+	ErrVMIDRangeStartNotProvided = errors.New("spec.vmidRange.start not provided")
+	// ErrVMIDRangeEndNotProvided is returned when the VMIDRangeEnd is not provided.
+	ErrVMIDRangeEndNotProvided = errors.New("spec.vmidRange.end not provided")
 )
 
 const (
@@ -90,6 +98,10 @@ type ProxmoxMachineSpec struct {
 	// Network is the network configuration for this machine's VM.
 	// +optional
 	Network *NetworkSpec `json:"network,omitempty"`
+
+	// VMIDRange is the range of VMIDs to use for VMs.
+	// +optional
+	VMIDRange *VMIDRange `json:"vmidRange,omitempty"`
 }
 
 // Storage is the physical storage on the node.
@@ -422,7 +434,7 @@ type ProxmoxMachineStatus struct {
 	// can be added as events to the ProxmoxMachine object and/or logged in the
 	// controller's output.
 	// +optional
-	FailureReason *errors.MachineStatusError `json:"failureReason,omitempty"`
+	FailureReason *clusterapierrors.MachineStatusError `json:"failureReason,omitempty"`
 
 	// FailureMessage will be set in the event that there is a terminal problem
 	// reconciling the Machine and will contain a more verbose string suitable
@@ -457,6 +469,26 @@ type IPAddress struct {
 	// IPV6 is the IPv6 address.
 	// +optional
 	IPV6 string `json:"ipv6,omitempty"`
+}
+
+// VMIDRange defines the range of VMIDs to use for VMs.
+type VMIDRange struct {
+	// VMIDRangeStart is the start of the VMID range to use for VMs.
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:ExclusiveMinimum=false
+	// +kubebuilder:validation:Maximum=999999999
+	// +kubebuilder:validation:ExclusiveMaximum=false
+	// +kubebuilder:validation:Required
+	Start int64 `json:"start"`
+
+	// VMIDRangeEnd is the end of the VMID range to use for VMs.
+	// Only used if VMIDRangeStart is set.
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:ExclusiveMinimum=false
+	// +kubebuilder:validation:Maximum=999999999
+	// +kubebuilder:validation:ExclusiveMaximum=false
+	// +kubebuilder:validation:Required
+	End int64 `json:"end"`
 }
 
 // +kubebuilder:object:root=true

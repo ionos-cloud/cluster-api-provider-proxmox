@@ -31,6 +31,8 @@ type Client interface {
 
 	FindVMResource(ctx context.Context, vmID uint64) (*proxmox.ClusterResource, error)
 
+	CheckID(ctx context.Context, vmID int64) (bool, error)
+
 	GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error)
 
 	DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error)
