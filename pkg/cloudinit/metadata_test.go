@@ -24,7 +24,10 @@ import (
 
 const (
 	expectedValidMetadata = `instance-id: 9a82e2ca-4294-11ee-be56-0242ac120002
-local-hostname: proxmox-control-plane`
+local-hostname: proxmox-control-plane
+hostname: proxmox-control-plane
+provider-id: proxmox://9a82e2ca-4294-11ee-be56-0242ac120002
+`
 )
 
 func TestMetadata_Render(t *testing.T) {
