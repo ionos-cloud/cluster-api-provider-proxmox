@@ -39,7 +39,7 @@ jobs:
         run: "make test"
 
       - name: SonarCloud Scan ${{ github.ref }}
-        uses: SonarSource/sonarcloud-github-action@v3.0.0
+        uses: SonarSource/sonarcloud-github-action@v3.1.0
         if: ${{ github.event_name == 'push' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
@@ -47,7 +47,7 @@ jobs:
 
       # If triggered by a PR, we have to use the PR's source
       - name: SonarCloud Scan (preview) merge commit for PR ${{ github.event.pull_request.number }}
-        uses: SonarSource/sonarcloud-github-action@v3.0.0
+        uses: SonarSource/sonarcloud-github-action@v3.1.0
         if: ${{ github.event_name == 'pull_request_target' }}
         with:
          args: >
