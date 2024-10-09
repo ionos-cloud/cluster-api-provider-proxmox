@@ -84,7 +84,7 @@ type TestEnvironment struct {
 // NewTestEnvironment creates a new testing environment with a
 // pre-configured manager, that can be used to register reconcilers.
 func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnvironment {
-	_, filename, _, ok := goruntime.Caller(0) //nolint:dogsled
+	_, filename, _, ok := goruntime.Caller(0)
 	if !ok {
 		klog.Fatalf("Failed to get information for current file from runtime")
 	}

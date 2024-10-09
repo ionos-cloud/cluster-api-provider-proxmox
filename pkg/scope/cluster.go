@@ -115,14 +115,13 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 				return nil, err
 			}
 			return nil, errors.New("No credentials found, ProxmoxCluster missing credentialsRef")
-		} else {
-			// using proxmoxcluster.spec.credentialsRef
-			pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO())
-			if err != nil {
-				return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
-			}
-			clusterScope.ProxmoxClient = pmoxClient
 		}
+		// using proxmoxcluster.spec.credentialsRef
+		pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO())
+		if err != nil {
+			return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
+		}
+		clusterScope.ProxmoxClient = pmoxClient
 	}
 	return clusterScope, nil
 }
