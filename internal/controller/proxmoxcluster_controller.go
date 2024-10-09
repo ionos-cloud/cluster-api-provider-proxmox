@@ -19,16 +19,22 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util"
+	clustererrors "sigs.k8s.io/cluster-api/errors"
+	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -57,16 +63,29 @@ type ProxmoxClusterReconciler struct {
 	ProxmoxClient proxmox.Client
 }
 
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/finalizers,verbs=update
+// SetupWithManager sets up the controller with the Manager.
+func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&infrav1alpha1.ProxmoxCluster{}).
+		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
+		Watches(&clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
+			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
+		WithEventFilter(predicates.ResourceIsNotExternallyManaged(ctrl.LoggerFrom(ctx))).
+		Complete(r)
+}
 
-//+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters/finalizers,verbs=update
 
-//+kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=inclusterippools,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=globalinclusterippools,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=ipaddresses,verbs=get;list;watch
-//+kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=ipaddressclaims,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
+
+// +kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=inclusterippools,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=globalinclusterippools,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=ipaddresses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=ipaddressclaims,verbs=get;list;watch;create;update;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -85,7 +104,7 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Get owner cluster
-	cluster, err := util.GetOwnerCluster(ctx, r.Client, proxmoxCluster.ObjectMeta)
+	cluster, err := clusterutil.GetOwnerCluster(ctx, r.Client, proxmoxCluster.ObjectMeta)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -157,6 +176,10 @@ func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterS
 		return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
 	}
 
+	if err := r.reconcileDeleteCredentialsSecret(ctx, clusterScope); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	clusterScope.Info("cluster deleted successfully")
 	ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
 	return ctrl.Result{}, nil
@@ -175,6 +198,15 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 
 	if !res.IsZero() {
 		return res, nil
+	}
+
+	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
+		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, err.Error())
+		if apierrors.IsNotFound(err) {
+			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
+			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+		}
+		return reconcile.Result{}, err
 	}
 
 	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady)
@@ -233,13 +265,98 @@ func (r *ProxmoxClusterReconciler) listProxmoxMachinesForCluster(ctx context.Con
 	return machineList.Items, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrav1alpha1.ProxmoxCluster{}).
-		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))).
-		Watches(&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
-			builder.WithPredicates(predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)))).
-		Complete(r)
+func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.Context, clusterScope *scope.ClusterScope) error {
+	proxmoxCluster := clusterScope.ProxmoxCluster
+	if !hasCredentialsRef(proxmoxCluster) {
+		return nil
+	}
+
+	secret := &corev1.Secret{}
+	secretKey := client.ObjectKey{
+		Namespace: getNamespaceFromProxmoxCluster(proxmoxCluster),
+		Name:      proxmoxCluster.Spec.CredentialsRef.Name,
+	}
+	err := r.Client.Get(ctx, secretKey, secret)
+	if err != nil {
+		return err
+	}
+
+	helper, err := patch.NewHelper(secret, r.Client)
+	if err != nil {
+		return err
+	}
+
+	// Ensure the ProxmoxCluster is an owner and that the APIVersion is up-to-date.
+	secret.SetOwnerReferences(clusterutil.EnsureOwnerRef(secret.GetOwnerReferences(),
+		metav1.OwnerReference{
+			APIVersion: infrav1alpha1.GroupVersion.String(),
+			Kind:       "ProxmoxCluster",
+			Name:       proxmoxCluster.Name,
+			UID:        proxmoxCluster.UID,
+		},
+	))
+
+	// Ensure the finalizer is added.
+	if !ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+		ctrlutil.AddFinalizer(secret, infrav1alpha1.SecretFinalizer)
+	}
+
+	return helper.Patch(ctx, secret)
+}
+
+func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.Context, clusterScope *scope.ClusterScope) error {
+	proxmoxCluster := clusterScope.ProxmoxCluster
+	if !hasCredentialsRef(proxmoxCluster) {
+		return nil
+	}
+
+	logger := ctrl.LoggerFrom(ctx)
+
+	// Remove finalizer on Identity Secret
+	secret := &corev1.Secret{}
+	secretKey := client.ObjectKey{
+		Namespace: getNamespaceFromProxmoxCluster(proxmoxCluster),
+		Name:      proxmoxCluster.Spec.CredentialsRef.Name,
+	}
+	if err := r.Client.Get(ctx, secretKey, secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	helper, err := patch.NewHelper(secret, r.Client)
+	if err != nil {
+		return err
+	}
+
+	ownerRef := metav1.OwnerReference{
+		APIVersion: infrav1alpha1.GroupVersion.String(),
+		Kind:       "ProxmoxCluster",
+		Name:       proxmoxCluster.Name,
+		UID:        proxmoxCluster.UID,
+	}
+
+	if len(secret.GetOwnerReferences()) > 1 {
+		// Remove the ProxmoxCluster from the OwnerRef.
+		secret.SetOwnerReferences(clusterutil.RemoveOwnerRef(secret.GetOwnerReferences(), ownerRef))
+	} else if clusterutil.HasOwnerRef(secret.GetOwnerReferences(), ownerRef) && ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+		// There is only one OwnerRef, the current ProxmoxCluster. Remove the Finalizer (if present).
+		logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha1.SecretFinalizer), "Secret", klog.KObj(secret))
+		ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer)
+	}
+
+	return helper.Patch(ctx, secret)
+}
+
+func hasCredentialsRef(proxmoxCluster *infrav1alpha1.ProxmoxCluster) bool {
+	return proxmoxCluster != nil && proxmoxCluster.Spec.CredentialsRef != nil
+}
+
+func getNamespaceFromProxmoxCluster(proxmoxCluster *infrav1alpha1.ProxmoxCluster) string {
+	namespace := proxmoxCluster.Spec.CredentialsRef.Namespace
+	if len(namespace) == 0 {
+		namespace = proxmoxCluster.GetNamespace()
+	}
+	return namespace
 }

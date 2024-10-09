@@ -30,7 +30,7 @@ import (
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -59,7 +59,7 @@ var _ = BeforeSuite(func() {
 
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 
 	cachingClient, err := client.New(testEnv.GetConfig(), client.Options{Scheme: testEnv.Scheme()})
 	Expect(err).NotTo(HaveOccurred())
@@ -67,14 +67,21 @@ var _ = BeforeSuite(func() {
 
 	k8sClient = cachingClient
 
-	reconciler := ProxmoxClusterReconciler{
+	proxmoxClusterReconciler := ProxmoxClusterReconciler{
 		Client:        k8sClient,
 		Scheme:        testEnv.GetScheme(),
 		Recorder:      &record.FakeRecorder{},
 		ProxmoxClient: testEnv.ProxmoxClient,
 	}
+	Expect(proxmoxClusterReconciler.SetupWithManager(testEnv.GetContext(), testEnv.Manager)).To(Succeed())
 
-	Expect(reconciler.SetupWithManager(testEnv.GetContext(), testEnv.Manager)).To(Succeed())
+	proxmoxMachineReconciler := ProxmoxMachineReconciler{
+		Client:        k8sClient,
+		Scheme:        testEnv.GetScheme(),
+		Recorder:      &record.FakeRecorder{},
+		ProxmoxClient: testEnv.ProxmoxClient,
+	}
+	Expect(proxmoxMachineReconciler.SetupWithManager(testEnv.Manager)).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()

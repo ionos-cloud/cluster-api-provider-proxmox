@@ -31,6 +31,8 @@ const (
 	// ClusterFinalizer allows cleaning up resources associated with a
 	// ProxmoxCluster before removing it from the apiserver.
 	ClusterFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io"
+	// SecretFinalizer is the finalizer for ProxmoxCluster credentials secrets .
+	SecretFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io/secret" //nolint:gosec
 )
 
 // ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.
@@ -218,12 +220,12 @@ type NodeLocation struct {
 	Node string `json:"node"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:path=proxmoxclusters,scope=Namespaced,categories=cluster-api,singular=proxmoxcluster
-//+kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels['cluster\\.x-k8s\\.io/cluster-name']",description="Cluster"
-//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Cluster infrastructure is ready"
-//+kubebuilder:printcolumn:name="Endpoint",type="string",JSONPath=".spec.controlPlaneEndpoint",description="API Endpoint"
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=proxmoxclusters,scope=Namespaced,categories=cluster-api,singular=proxmoxcluster
+// +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels['cluster\\.x-k8s\\.io/cluster-name']",description="Cluster"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Cluster infrastructure is ready"
+// +kubebuilder:printcolumn:name="Endpoint",type="string",JSONPath=".spec.controlPlaneEndpoint",description="API Endpoint"
 
 // ProxmoxCluster is the Schema for the proxmoxclusters API.
 type ProxmoxCluster struct {
@@ -235,7 +237,7 @@ type ProxmoxCluster struct {
 	Status ProxmoxClusterStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxClusterList contains a list of ProxmoxCluster.
 type ProxmoxClusterList struct {

@@ -21,9 +21,12 @@ import (
 	"reflect"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,6 +38,7 @@ import (
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
@@ -68,14 +72,14 @@ var _ = Describe("Controller Test", func() {
 			},
 		}
 
-		controllerutil.AddFinalizer(cl, testFinalizer)
+		ctrlutil.AddFinalizer(cl, testFinalizer)
 		g.Expect(k8sClient.Create(context.Background(), cl)).To(Succeed())
 	})
 
 	AfterEach(func() {
 		var cl clusterv1.Cluster
 		g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKey{Name: "test", Namespace: testNS}, &cl)).To(Succeed())
-		controllerutil.RemoveFinalizer(&cl, testFinalizer)
+		ctrlutil.RemoveFinalizer(&cl, testFinalizer)
 		g.Expect(k8sClient.Update(testEnv.GetContext(), &cl)).To(Succeed())
 
 		g.Eventually(func(g Gomega) {
@@ -201,6 +205,101 @@ var _ = Describe("Controller Test", func() {
 	})
 })
 
+var _ = Describe("External Credentials Tests", func() {
+	Context("Reconcile an ProxmoxCluster", func() {
+		It("create and destroy a cluster", func() {
+			secret := createSecret()
+			proxmoxCluster := createProxmoxCluster()
+			setCredentialsRefOnProxmoxCluster(proxmoxCluster, secret)
+			capiCluster := createOwnerCluster(proxmoxCluster)
+			proxmoxCluster = refreshCluster(proxmoxCluster)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
+
+			assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
+			assertSecretHasNumberOfOwnerRefs(secret, 1)
+			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+			assertProxmoxClusterIsReady(proxmoxCluster)
+
+			deleteCapiCluster(capiCluster)
+			deleteProxmoxCluster(proxmoxCluster)
+
+			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			cleanup(proxmoxCluster, capiCluster, secret)
+		})
+
+		It("multiple clusters can set ownerRef on secret", func() {
+			secret := createSecret()
+			setRandomOwnerRefOnSecret(secret, "another-cluster")
+
+			//  First cluster
+			proxmoxCluster1 := createProxmoxCluster()
+			setCredentialsRefOnProxmoxCluster(proxmoxCluster1, secret)
+			capiCluster1 := createOwnerCluster(proxmoxCluster1)
+			proxmoxCluster1 = refreshCluster(proxmoxCluster1)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster1, capiCluster1)
+			assertProxmoxClusterIsReady(proxmoxCluster1)
+			assertProxmoxClusterHasFinalizer(proxmoxCluster1, infrav1.ClusterFinalizer)
+
+			//  Second cluster
+			proxmoxCluster2 := createProxmoxCluster()
+			setCredentialsRefOnProxmoxCluster(proxmoxCluster2, secret)
+			capiCluster2 := createOwnerCluster(proxmoxCluster2)
+			proxmoxCluster2 = refreshCluster(proxmoxCluster2)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster2, capiCluster2)
+			assertProxmoxClusterIsReady(proxmoxCluster2)
+			assertProxmoxClusterHasFinalizer(proxmoxCluster2, infrav1.ClusterFinalizer)
+
+			// Check owner references
+			assertSecretHasNumberOfOwnerRefs(secret, 3)
+			assertSecretHasOwnerRef(secret, proxmoxCluster1.Name)
+			assertSecretHasOwnerRef(secret, proxmoxCluster2.Name)
+			assertSecretHasOwnerRef(secret, "another-cluster")
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			// Delete second cluster
+			deleteCapiCluster(capiCluster2)
+			deleteProxmoxCluster(proxmoxCluster2)
+
+			// Check owner references
+			assertSecretHasNumberOfOwnerRefs(secret, 2)
+			assertSecretHasOwnerRef(secret, proxmoxCluster1.Name)
+			assertSecretHasOwnerRef(secret, "another-cluster")
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			// Delete first cluster
+			deleteCapiCluster(capiCluster1)
+			deleteProxmoxCluster(proxmoxCluster1)
+
+			// Check owner references
+			assertSecretHasNumberOfOwnerRefs(secret, 1)
+			assertSecretHasOwnerRef(secret, "another-cluster")
+			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
+
+			cleanup(proxmoxCluster1, capiCluster1, proxmoxCluster2, capiCluster2, secret)
+		})
+	})
+
+	It("should remove ProxmoxCluster finalizer if the secret does not exist", func() {
+		proxmoxCluster := createProxmoxCluster()
+		setRandomCredentialsRefOnProxmoxCluster(proxmoxCluster)
+
+		capiCluster := createOwnerCluster(proxmoxCluster)
+		proxmoxCluster = refreshCluster(proxmoxCluster)
+		setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
+
+		assertProxmoxClusterIsNotReady(proxmoxCluster)
+		assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
+
+		By("deleting the proxmoxcluster while the secret is gone")
+		deleteCapiCluster(capiCluster)
+		deleteProxmoxCluster(proxmoxCluster)
+		assertProxmoxClusterIsDeleted(proxmoxCluster)
+	})
+})
+
 func cleanupResources(ctx context.Context, g Gomega, cl infrav1.ProxmoxCluster) {
 	g.Expect(k8sClient.Delete(context.Background(), &clusterv1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNS}})).To(Succeed())
 	g.Expect(k8sClient.Delete(ctx, &cl)).To(Succeed())
@@ -286,4 +385,239 @@ func dummyIPAddress(client client.Client, owner client.Object, poolName string) 
 			Gateway: "10.10.10.1",
 		},
 	}
+}
+
+func createSecret() *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "secret-",
+			Namespace:    "default",
+		},
+		Data: map[string][]byte{
+			"url":    []byte("url"),
+			"token":  []byte("token"),
+			"secret": []byte("secret"),
+		},
+	}
+	Expect(testEnv.Create(testEnv.GetContext(), secret)).To(Succeed())
+	return secret
+}
+
+func createProxmoxCluster() *infrav1.ProxmoxCluster {
+	proxmoxCluster := &infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "proxmox-test-",
+			Namespace:    "default",
+		},
+		Spec: infrav1.ProxmoxClusterSpec{
+			IPv4Config: &infrav1.IPConfigSpec{
+				Addresses: []string{
+					"10.10.10.2-10.10.10.10",
+					"10.10.10.100-10.10.10.125",
+					"10.10.10.192/64",
+				},
+				Gateway: "10.10.10.1",
+				Prefix:  24,
+			},
+			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+		},
+	}
+	Expect(testEnv.Create(testEnv.GetContext(), proxmoxCluster)).To(Succeed())
+	return proxmoxCluster
+}
+
+func setCredentialsRefOnProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster, secret *corev1.Secret) {
+	Eventually(func() error {
+		ph, err := patch.NewHelper(proxmoxCluster, testEnv)
+		Expect(err).ShouldNot(HaveOccurred())
+		proxmoxCluster.Spec.CredentialsRef = &corev1.SecretReference{
+			Name:      secret.Name,
+			Namespace: secret.Namespace,
+		}
+		return ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeNil())
+}
+
+func setRandomCredentialsRefOnProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster) {
+	Eventually(func() error {
+		ph, err := patch.NewHelper(proxmoxCluster, testEnv)
+		Expect(err).ShouldNot(HaveOccurred())
+		proxmoxCluster.Spec.CredentialsRef = &corev1.SecretReference{
+			Name:      util.RandomString(6),
+			Namespace: util.RandomString(6),
+		}
+		return ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeNil())
+}
+
+func createOwnerCluster(proxmoxCluster *infrav1.ProxmoxCluster) *clusterv1.Cluster {
+	capiCluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-",
+			Namespace:    "default",
+		},
+		Spec: clusterv1.ClusterSpec{
+			InfrastructureRef: &corev1.ObjectReference{
+				APIVersion: infrav1.GroupVersion.String(),
+				Kind:       "ProxmoxCluster",
+				Name:       proxmoxCluster.Name,
+			},
+		},
+	}
+	ctrlutil.AddFinalizer(capiCluster, "cluster.cluster.x-k8s.io")
+	Expect(testEnv.Create(testEnv.GetContext(), capiCluster)).To(Succeed())
+	return capiCluster
+}
+
+func setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster, capiCluster *clusterv1.Cluster) {
+	Eventually(func() error {
+		ph, err := patch.NewHelper(proxmoxCluster, testEnv)
+		Expect(err).ShouldNot(HaveOccurred())
+		proxmoxCluster.OwnerReferences = append(proxmoxCluster.OwnerReferences, metav1.OwnerReference{
+			Kind:       "Cluster",
+			APIVersion: clusterv1.GroupVersion.String(),
+			Name:       capiCluster.Name,
+			UID:        (types.UID)(util.RandomString(6)),
+		})
+		return ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeNil())
+}
+
+func setRandomOwnerRefOnSecret(secret *corev1.Secret, ownerRef string) {
+	Eventually(func() error {
+		ph, err := patch.NewHelper(secret, testEnv)
+		Expect(err).ShouldNot(HaveOccurred())
+		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+			{
+				APIVersion: infrav1.GroupVersion.String(),
+				Kind:       "ProxmoxCluster",
+				Name:       ownerRef,
+				UID:        (types.UID)(util.RandomString(6)),
+			},
+		}
+		return ph.Patch(testEnv.GetContext(), secret, patch.WithStatusObservedGeneration{})
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeNil())
+}
+
+func refreshCluster(proxmoxCluster *infrav1.ProxmoxCluster) *infrav1.ProxmoxCluster {
+	key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+	Expect(testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)).To(Succeed())
+	return proxmoxCluster
+}
+
+func deleteProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster) {
+	Eventually(func() bool {
+		err := testEnv.Delete(testEnv.GetContext(), proxmoxCluster)
+		return err == nil
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func deleteCapiCluster(cluster *clusterv1.Cluster) {
+	Eventually(func() bool {
+		err := testEnv.Delete(testEnv.GetContext(), cluster)
+		return err == nil
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func assertProxmoxClusterHasFinalizer(proxmoxCluster *infrav1.ProxmoxCluster, finalizer string) {
+	key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+	Eventually(func() bool {
+		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
+			return false
+		}
+		return ctrlutil.ContainsFinalizer(proxmoxCluster, finalizer)
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func assertSecretHasFinalizer(secret *corev1.Secret, finalizer string) {
+	key := client.ObjectKey{Namespace: secret.Namespace, Name: secret.Name}
+	Eventually(func() bool {
+		if err := testEnv.Get(testEnv.GetContext(), key, secret); err != nil {
+			return false
+		}
+		return ctrlutil.ContainsFinalizer(secret, finalizer)
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func assertSecretHasOwnerRef(secret *corev1.Secret, ownerRef string) {
+	key := client.ObjectKey{Namespace: secret.Namespace, Name: secret.Name}
+	Eventually(func() bool {
+		if err := testEnv.Get(testEnv.GetContext(), key, secret); err != nil {
+			return false
+		}
+		for _, ref := range secret.OwnerReferences {
+			if ref.Name == ownerRef {
+				return true
+			}
+		}
+		return false
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func assertSecretHasNumberOfOwnerRefs(secret *corev1.Secret, nrOfOwnerRefs int) {
+	key := client.ObjectKey{Namespace: secret.Namespace, Name: secret.Name}
+	Eventually(func() bool {
+		if err := testEnv.Get(testEnv.GetContext(), key, secret); err != nil {
+			return false
+		}
+		return len(secret.OwnerReferences) == nrOfOwnerRefs
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func assertProxmoxClusterIsReady(proxmoxCluster *infrav1.ProxmoxCluster) {
+	key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+	Eventually(func() bool {
+		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
+			return false
+		}
+		return conditions.IsTrue(proxmoxCluster, infrav1.ProxmoxClusterReady)
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func assertProxmoxClusterIsNotReady(proxmoxCluster *infrav1.ProxmoxCluster) {
+	key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+	Eventually(func() bool {
+		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
+			return false
+		}
+		return conditions.IsFalse(proxmoxCluster, infrav1.ProxmoxClusterReady)
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func assertProxmoxClusterIsDeleted(proxmoxCluster *infrav1.ProxmoxCluster) {
+	key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
+	Eventually(func() bool {
+		err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)
+		return apierrors.IsNotFound(err)
+	}).WithTimeout(time.Second * 10).
+		WithPolling(time.Second).
+		Should(BeTrue())
+}
+
+func cleanup(objs ...client.Object) {
+	Expect(testEnv.Cleanup(testEnv.GetContext(), objs...)).To(Succeed())
 }
