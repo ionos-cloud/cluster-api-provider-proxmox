@@ -114,16 +114,24 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 		return true, nil
 	}
 
-	if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
-		if running {
-			return true, nil
+	if !machineScope.SkipQemuGuestCheck() {
+		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
+			return true, errors.Wrap(err, "error waiting for agent")
 		}
-		if errors.Is(goproxmox.ErrCloudInitFailed, err) {
-			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
-			machineScope.SetFailureMessage(err)
-			machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
+	}
+
+	if !machineScope.SkipCloudInitCheck() {
+		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
+			if running {
+				return true, nil
+			}
+			if errors.Is(goproxmox.ErrCloudInitFailed, err) {
+				conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
+				machineScope.SetFailureMessage(err)
+				machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
+			}
+			return false, err
 		}
-		return false, err
 	}
 
 	return false, nil
