@@ -20,7 +20,9 @@ package cloudinit
 // used to render cloudinit.
 type BaseCloudInitData struct {
 	Hostname          string
+	Zone              string
 	InstanceID        string
+	ProxmoxNode       string
 	NetworkConfigData []NetworkConfigData
 }
 
