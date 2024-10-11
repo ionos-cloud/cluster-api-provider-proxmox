@@ -20,7 +20,9 @@ const (
 	metadataTPl = `instance-id: {{ .InstanceID }}
 local-hostname: {{ .Hostname }}
 hostname: {{ .Hostname }}
+zone: {{ .Zone }}
 provider-id: proxmox://{{ .InstanceID }}
+proxmox-node: {{ .ProxmoxNode }}
 `
 )
 
@@ -30,12 +32,9 @@ type Metadata struct {
 }
 
 // NewMetadata returns a new Metadata object.
-func NewMetadata(instanceID, hostname string) *Metadata {
+func NewMetadata(cloudInitData BaseCloudInitData) *Metadata {
 	ci := new(Metadata)
-	ci.data = BaseCloudInitData{
-		Hostname:   hostname,
-		InstanceID: instanceID,
-	}
+	ci.data = cloudInitData
 	return ci
 }
 
@@ -54,6 +53,10 @@ func (r *Metadata) validate() error {
 	}
 	if r.data.InstanceID == "" {
 		return ErrMissingInstanceID
+	}
+	// Should this be enforced?
+	if r.data.ProxmoxNode == "" {
+		return ErrMissingProxmoxNode
 	}
 	return nil
 }

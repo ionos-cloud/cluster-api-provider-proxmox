@@ -25,6 +25,9 @@ var (
 	// ErrMissingInstanceID returns an error if required hostname is empty.
 	ErrMissingInstanceID = errors.New("instance-id is not set")
 
+	// ErrMissingProxmoxNode returns an error if required proxmox node name is empty.
+	ErrMissingProxmoxNode = errors.New("proxmox-node is not set")
+
 	// ErrMissingIPAddress returns an error if required ip address is empty.
 	ErrMissingIPAddress = errors.New("ip address is not set")
 
