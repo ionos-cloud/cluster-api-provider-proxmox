@@ -423,7 +423,13 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 }
 
 func TestDefaultISOInjector(t *testing.T) {
-	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test"), cloudinit.NewNetworkConfig(nil))
+	metadata := cloudinit.NewMetadata(cloudinit.BaseCloudInitData{
+		Hostname:    "test",
+		InstanceID:  biosUUID,
+		ProxmoxNode: "test-node",
+	})
+
+	injector := defaultISOInjector(newRunningVM(), []byte("data"), metadata, cloudinit.NewNetworkConfig(nil))
 
 	require.NotEmpty(t, injector)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).BootstrapData)

@@ -38,6 +38,8 @@ cluster-**.yaml
 **kubeadm-config.yaml
 envfile
 
+!templates/**
+
 # direnv files
 .envrc
 
