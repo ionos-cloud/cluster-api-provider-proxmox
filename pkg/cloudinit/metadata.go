@@ -18,7 +18,10 @@ package cloudinit
 
 const (
 	metadataTPl = `instance-id: {{ .InstanceID }}
-local-hostname: {{ .Hostname }}`
+local-hostname: {{ .Hostname }}
+hostname: {{ .Hostname }}
+provider-id: proxmox://{{ .InstanceID }}
+`
 )
 
 // Metadata provides functionality to render machine metadata.

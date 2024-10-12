@@ -186,7 +186,7 @@ func TestMachineScope_SkipQemuDisablesCloudInitCheck(t *testing.T) {
 		ProxmoxMachine: &p,
 	}
 
-	require.False(t, scope.SkipCloudInitCheck())
+	require.True(t, scope.SkipCloudInitCheck())
 }
 
 func TestMachineScope_GetBootstrapSecret(t *testing.T) {

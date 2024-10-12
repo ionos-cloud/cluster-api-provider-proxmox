@@ -8,9 +8,13 @@ metadata:
 spec:
   group: infrastructure.cluster.x-k8s.io
   names:
+    categories:
+    - cluster-api
     kind: ProxmoxClusterTemplate
     listKind: ProxmoxClusterTemplateList
     plural: proxmoxclustertemplates
+    shortNames:
+    - pct
     singular: proxmoxclustertemplate
   scope: Namespaced
   versions:
