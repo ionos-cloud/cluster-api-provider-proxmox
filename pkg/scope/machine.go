@@ -243,3 +243,25 @@ func (m *MachineScope) GetBootstrapSecret(ctx context.Context, secret *corev1.Se
 
 	return m.client.Get(ctx, secretKey, secret)
 }
+
+// SkipQemuGuestCheck check whether qemu-agent status check is enabled.
+func (m *MachineScope) SkipQemuGuestCheck() bool {
+	if m.ProxmoxMachine.Spec.Checks != nil {
+		return ptr.Deref(m.ProxmoxMachine.Spec.Checks.SkipQemuGuestAgent, false)
+	}
+
+	return false
+}
+
+// SkipCloudInitCheck check whether cloud-init status check is enabled.
+func (m *MachineScope) SkipCloudInitCheck() bool {
+	if m.SkipQemuGuestCheck() {
+		return true
+	}
+
+	if m.ProxmoxMachine.Spec.Checks != nil {
+		return ptr.Deref(m.ProxmoxMachine.Spec.Checks.SkipCloudInitStatus, false)
+	}
+
+	return false
+}
