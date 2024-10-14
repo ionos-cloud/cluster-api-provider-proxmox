@@ -28,7 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 // ProxmoxMachine is a type that implements
@@ -44,7 +44,7 @@ func (p *ProxmoxMachine) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha1-proxmoxmachine,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,versions=v1alpha1,name=validation.proxmoxmachine.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachine,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,versions=v1alpha2,name=validation.proxmoxmachine.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // ValidateCreate implements the creation validation function.
 func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
@@ -99,69 +99,36 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
-	if machine.Spec.Network != nil && machine.Spec.Network.Default == nil {
-		return apierrors.NewInvalid(
-			gk,
-			name,
-			field.ErrorList{
-				field.Invalid(
-					field.NewPath("spec", "network", "default"), machine.Spec.Network.Default, "default network device must be set when setting network spec"),
-			})
-	}
-
-	if machine.Spec.Network.Default != nil {
-		err := validateNetworkDeviceMTU(machine.Spec.Network.Default)
+	for i := range machine.Spec.Network.NetworkDevices {
+		err := validateNetworkDeviceMTU(&machine.Spec.Network.NetworkDevices[i])
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "default", "mtu"), machine.Spec.Network.Default, err.Error()),
-				})
-		}
-	}
-
-	for i := range machine.Spec.Network.AdditionalDevices {
-		err := validateIPPoolRef(machine.Spec.Network.AdditionalDevices[i])
-		if err != nil {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "IPPoolConfig"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.NetworkDevices[i], err.Error()),
 				})
 		}
 
-		err = validateNetworkDeviceMTU(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
+		err = validateInterfaceConfigMTU(&machine.Spec.Network.NetworkDevices[i].InterfaceConfig)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.NetworkDevices[i], err.Error()),
 				})
 		}
-		err = validateInterfaceConfigMTU(&machine.Spec.Network.AdditionalDevices[i].InterfaceConfig)
+		err = validateRoutingPolicy(&machine.Spec.Network.NetworkDevices[i].InterfaceConfig.RoutingPolicy)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
-				})
-		}
-		err = validateRoutingPolicy(&machine.Spec.Network.AdditionalDevices[i].InterfaceConfig.RoutingPolicy)
-		if err != nil {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"), machine.Spec.Network.NetworkDevices[i], err.Error()),
 				})
 		}
 	}
@@ -231,14 +198,6 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 		}
 
 		return fmt.Errorf("mtu must be at least 1280 or 1, but was %d", *device.MTU)
-	}
-
-	return nil
-}
-
-func validateIPPoolRef(net infrav1.AdditionalNetworkDevice) error {
-	if net.IPv4PoolRef == nil && net.IPv6PoolRef == nil {
-		return fmt.Errorf("at least one of IPv4PoolRef or IPv6PoolRef must be set")
 	}
 
 	return nil
