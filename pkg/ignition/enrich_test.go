@@ -60,12 +60,12 @@ func TestEnricher_Enrich(t *testing.T) {
 		ProviderID:    "proxmox://xxxx-xxx",
 		Network: []types.NetworkConfigData{
 			{
-				Name:        "eth0",
-				IPAddress:   "10.1.1.9/24",
-				IPV6Address: "2001:db8::1/64",
-				Gateway6:    "2001:db8::1",
-				Gateway:     "10.1.1.1",
-				DNSServers:  []string{"10.1.1.1"},
+				Name: "eth0",
+				IPConfigs: []types.IPConfig{
+					{IPAddress: "10.1.1.9/24", Gateway: "10.1.1.1"},
+					{IPAddress: "2001:db8::1/64", Gateway: "2001:db8::1"},
+				},
+				DNSServers: []string{"10.1.1.1"},
 			},
 		},
 	}
