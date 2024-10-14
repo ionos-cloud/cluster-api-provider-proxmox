@@ -19,7 +19,7 @@ package webhook
 import (
 	"time"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,7 +87,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow invalid IPV6 IPs", func() {
 			cluster := validProxmoxCluster("test-cluster")
-			cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+			cluster.Spec.IPv6Config = &infrav2.IPConfigSpec{
 				Addresses: []string{"invalid"},
 				Prefix:    64,
 				Gateway:   "2001:db8::1",
@@ -98,7 +98,7 @@ var _ = Describe("Controller Test", func() {
 		It("should disallow endpoint IP to intersect with node IPs", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
 			cluster.Spec.ControlPlaneEndpoint.Host = "2001:db8::1"
-			cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+			cluster.Spec.IPv6Config = &infrav2.IPConfigSpec{
 				Addresses: []string{"2001:db8::/64"},
 				Prefix:    64,
 				Gateway:   "2001:db8::1",
@@ -127,18 +127,18 @@ var _ = Describe("Controller Test", func() {
 	})
 })
 
-func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
-	return infrav1.ProxmoxCluster{
+func validProxmoxCluster(name string) infrav2.ProxmoxCluster {
+	return infrav2.ProxmoxCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 		},
-		Spec: infrav1.ProxmoxClusterSpec{
+		Spec: infrav2.ProxmoxClusterSpec{
 			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
 				Host: "10.10.10.1",
 				Port: 6443,
 			},
-			IPv4Config: &infrav1.IPConfigSpec{
+			IPv4Config: &infrav2.IPConfigSpec{
 				Addresses: []string{
 					"10.10.10.2-10.10.10.10",
 				},
@@ -150,7 +150,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 	}
 }
 
-func invalidProxmoxCluster(name string) infrav1.ProxmoxCluster {
+func invalidProxmoxCluster(name string) infrav2.ProxmoxCluster {
 	cl := validProxmoxCluster(name)
 	cl.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
 		Host: "10.10.10.2",

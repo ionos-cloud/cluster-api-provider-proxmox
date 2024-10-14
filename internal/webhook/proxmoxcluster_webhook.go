@@ -24,7 +24,7 @@ import (
 	"regexp"
 	"strings"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/pkg/errors"
 	"go4.org/netipx"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,16 +44,16 @@ type ProxmoxCluster struct{}
 // custom interfaces.
 func (p *ProxmoxCluster) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(&infrav1.ProxmoxCluster{}).
+		For(&infrav2.ProxmoxCluster{}).
 		WithValidator(p).
 		Complete()
 }
 
-//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha1-proxmoxcluster,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha1,name=validation.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxcluster,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha2,name=validation.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // ValidateCreate implements the creation validation function.
 func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	cluster, ok := obj.(*infrav1.ProxmoxCluster)
+	cluster, ok := obj.(*infrav2.ProxmoxCluster)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", obj))
 	}
@@ -79,7 +79,7 @@ func (*ProxmoxCluster) ValidateDelete(_ context.Context, _ runtime.Object) (admi
 
 // ValidateUpdate implements the update validation function.
 func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
-	newCluster, ok := newObj.(*infrav1.ProxmoxCluster)
+	newCluster, ok := newObj.(*infrav2.ProxmoxCluster)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
 	}
@@ -92,7 +92,7 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 	return warnings, nil
 }
 
-func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
+func validateControlPlaneEndpoint(cluster *infrav2.ProxmoxCluster) error {
 	ep := cluster.Spec.ControlPlaneEndpoint
 
 	gk, name := cluster.GroupVersionKind().GroupKind(), cluster.GetName()
@@ -214,7 +214,7 @@ func buildSetFromAddresses(addresses []string) (*netipx.IPSet, error) {
 	return set, nil
 }
 
-func hasNoIPPoolConfig(cluster *infrav1.ProxmoxCluster) bool {
+func hasNoIPPoolConfig(cluster *infrav2.ProxmoxCluster) bool {
 	return cluster.Spec.IPv4Config == nil && cluster.Spec.IPv6Config == nil
 }
 

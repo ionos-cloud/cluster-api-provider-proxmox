@@ -24,7 +24,7 @@ import (
 	"sort"
 
 	"github.com/go-logr/logr"
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 	"sigs.k8s.io/cluster-api/util"
 )
@@ -59,10 +59,10 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 func selectNode(
 	ctx context.Context,
 	client resourceClient,
-	machine *infrav1.ProxmoxMachine,
-	locations []infrav1.NodeLocation,
+	machine *infrav2.ProxmoxMachine,
+	locations []infrav2.NodeLocation,
 	allowedNodes []string,
-	schedulerHints *infrav1.SchedulerHints,
+	schedulerHints *infrav2.SchedulerHints,
 ) (string, error) {
 	byMemory := make(sortByAvailableMemory, len(allowedNodes))
 	for i, nodeName := range allowedNodes {

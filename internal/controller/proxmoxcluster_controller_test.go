@@ -36,7 +36,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -49,7 +49,7 @@ var _ = Describe("Controller Test", func() {
 	g := NewWithT(GinkgoT())
 
 	BeforeEach(func() {
-		gvk := infrav1.GroupVersion.WithKind(reflect.TypeOf(infrav1.ProxmoxCluster{}).Name())
+		gvk := infrav2.GroupVersion.WithKind(reflect.TypeOf(infrav2.ProxmoxCluster{}).Name())
 
 		cl := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -98,7 +98,7 @@ var _ = Describe("Controller Test", func() {
 			assertClusterIsReady(testEnv.GetContext(), g, clusterName)
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav2.IPV4Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				config := cl.Spec.IPv4Config
@@ -116,7 +116,7 @@ var _ = Describe("Controller Test", func() {
 		})
 		It("Should successfully create IPAM IPV6 related resources", func() {
 			cl := buildProxmoxCluster(clusterName)
-			cl.Spec.IPv6Config = &infrav1.IPConfigSpec{
+			cl.Spec.IPv6Config = &infrav2.IPConfigSpec{
 				Addresses: []string{"2001:db8::/64"},
 				Prefix:    64,
 				Gateway:   "2001:db8::1",
@@ -130,7 +130,7 @@ var _ = Describe("Controller Test", func() {
 			assertClusterIsReady(testEnv.GetContext(), g, clusterName)
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV6Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav2.IPV6Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				config := cl.Spec.IPv6Config
@@ -157,7 +157,7 @@ var _ = Describe("Controller Test", func() {
 			assertClusterIsReady(testEnv.GetContext(), g, clusterName)
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav2.IPV4Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				config := cl.Spec.IPv4Config
@@ -172,13 +172,13 @@ var _ = Describe("Controller Test", func() {
 				WithPolling(time.Second).
 				Should(Succeed())
 
-			pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+			pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav2.IPV4Format)
 			g.Expect(err).ToNot(HaveOccurred())
 			// create an IPAddress.
 			g.Expect(k8sClient.Create(testEnv.GetContext(), dummyIPAddress(k8sClient, &cl, pool.GetName()))).To(Succeed())
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav2.IPV4Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				ipAddr, err := helper.GetIPAddress(testEnv.GetContext(), client.ObjectKeyFromObject(&cl))
@@ -201,20 +201,20 @@ var _ = Describe("Controller Test", func() {
 	})
 })
 
-func cleanupResources(ctx context.Context, g Gomega, cl infrav1.ProxmoxCluster) {
+func cleanupResources(ctx context.Context, g Gomega, cl infrav2.ProxmoxCluster) {
 	g.Expect(k8sClient.Delete(context.Background(), &clusterv1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNS}})).To(Succeed())
 	g.Expect(k8sClient.Delete(ctx, &cl)).To(Succeed())
 	g.Expect(k8sClient.DeleteAllOf(ctx, &ipamicv1.InClusterIPPool{}, client.InNamespace(testNS))).To(Succeed())
 	g.Eventually(func(g Gomega) {
-		err := k8sClient.Get(ctx, client.ObjectKey{Name: cl.GetName(), Namespace: cl.GetNamespace()}, &infrav1.ProxmoxCluster{})
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: cl.GetName(), Namespace: cl.GetNamespace()}, &infrav2.ProxmoxCluster{})
 		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
 		Should(Succeed())
 }
 
-func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
-	cl := infrav1.ProxmoxCluster{
+func buildProxmoxCluster(name string) infrav2.ProxmoxCluster {
+	cl := infrav2.ProxmoxCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: testNS,
@@ -227,12 +227,12 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 				},
 			},
 		},
-		Spec: infrav1.ProxmoxClusterSpec{
+		Spec: infrav2.ProxmoxClusterSpec{
 			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
 				Host: "10.10.10.11",
 				Port: 6443,
 			},
-			IPv4Config: &infrav1.IPConfigSpec{
+			IPv4Config: &infrav2.IPConfigSpec{
 				Addresses: []string{
 					"10.10.10.2-10.10.10.10",
 					"10.10.10.100-10.10.10.125",
@@ -250,7 +250,7 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 
 func assertClusterIsReady(ctx context.Context, g Gomega, clusterName string) {
 	g.Eventually(func(g Gomega) {
-		var res infrav1.ProxmoxCluster
+		var res infrav2.ProxmoxCluster
 		g.Expect(k8sClient.Get(ctx, client.ObjectKey{
 			Namespace: testNS,
 			Name:      clusterName,

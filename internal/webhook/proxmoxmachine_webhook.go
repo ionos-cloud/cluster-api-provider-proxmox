@@ -28,7 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 // ProxmoxMachine is a type that implements
@@ -39,16 +39,16 @@ type ProxmoxMachine struct{}
 // custom interfaces.
 func (p *ProxmoxMachine) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(&infrav1.ProxmoxMachine{}).
+		For(&infrav2.ProxmoxMachine{}).
 		WithValidator(p).
 		Complete()
 }
 
-//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha1-proxmoxmachine,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,versions=v1alpha1,name=validation.proxmoxmachine.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachine,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,versions=v1alpha2,name=validation.proxmoxmachine.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // ValidateCreate implements the creation validation function.
 func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	machine, ok := obj.(*infrav1.ProxmoxMachine)
+	machine, ok := obj.(*infrav2.ProxmoxMachine)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", obj))
 	}
@@ -64,7 +64,7 @@ func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (
 
 // ValidateUpdate implements the update validation function.
 func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (warnings admission.Warnings, err error) {
-	newMachine, ok := newObj.(*infrav1.ProxmoxMachine)
+	newMachine, ok := newObj.(*infrav2.ProxmoxMachine)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", newObj))
 	}
@@ -83,55 +83,42 @@ func (p *ProxmoxMachine) ValidateDelete(_ context.Context, _ runtime.Object) (wa
 	return nil, nil
 }
 
-func validateNetworks(machine *infrav1.ProxmoxMachine) error {
+func validateNetworks(machine *infrav2.ProxmoxMachine) error {
 	if machine.Spec.Network == nil {
 		return nil
 	}
 
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
-	if machine.Spec.Network.Default != nil {
-		err := validateNetworkDeviceMTU(machine.Spec.Network.Default)
+	for i := range machine.Spec.Network.NetworkDevices {
+		err := validateNetworkDeviceMTU(&machine.Spec.Network.NetworkDevices[i])
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "default", "mtu"), machine.Spec.Network.Default, err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.NetworkDevices[i], err.Error()),
 				})
 		}
-	}
-
-	for i := range machine.Spec.Network.AdditionalDevices {
-		err := validateNetworkDeviceMTU(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
+		err = validateInterfaceConfigMTU(&machine.Spec.Network.NetworkDevices[i].InterfaceConfig)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.NetworkDevices[i], err.Error()),
 				})
 		}
-		err = validateInterfaceConfigMTU(&machine.Spec.Network.AdditionalDevices[i].InterfaceConfig)
+		err = validateRoutingPolicy(&machine.Spec.Network.NetworkDevices[i].InterfaceConfig.RoutingPolicy)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
-				})
-		}
-		err = validateRoutingPolicy(&machine.Spec.Network.AdditionalDevices[i].InterfaceConfig.RoutingPolicy)
-		if err != nil {
-			return apierrors.NewInvalid(
-				gk,
-				name,
-				field.ErrorList{
-					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"), machine.Spec.Network.NetworkDevices[i], err.Error()),
 				})
 		}
 	}
@@ -152,7 +139,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	return nil
 }
 
-func validateRoutingPolicy(policies *[]infrav1.RoutingPolicySpec) error {
+func validateRoutingPolicy(policies *[]infrav2.RoutingPolicySpec) error {
 	for i, policy := range *policies {
 		if policy.Table == nil {
 			return fmt.Errorf("routing policy [%d] requires a table", i)
@@ -161,7 +148,7 @@ func validateRoutingPolicy(policies *[]infrav1.RoutingPolicySpec) error {
 	return nil
 }
 
-func validateVRFConfigRoutingPolicy(vrf *infrav1.VRFDevice) error {
+func validateVRFConfigRoutingPolicy(vrf *infrav2.VRFDevice) error {
 	for _, policy := range vrf.Routing.RoutingPolicy {
 		// Netplan will not accept rules not matching the l3mdev table, although
 		// there is no technical reason for this limitation.
@@ -174,7 +161,7 @@ func validateVRFConfigRoutingPolicy(vrf *infrav1.VRFDevice) error {
 	return nil
 }
 
-func validateInterfaceConfigMTU(ifconfig *infrav1.InterfaceConfig) error {
+func validateInterfaceConfigMTU(ifconfig *infrav2.InterfaceConfig) error {
 	if ifconfig.LinkMTU != nil {
 		// We allow MTUs down to 576, but since everything below 1280 breaks IPv6, you
 		// should disable the webhook if you really mean it.
@@ -187,7 +174,7 @@ func validateInterfaceConfigMTU(ifconfig *infrav1.InterfaceConfig) error {
 	return nil
 }
 
-func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
+func validateNetworkDeviceMTU(device *infrav2.NetworkDevice) error {
 	if device.MTU != nil {
 		// special value '1' to inherit the MTU value from the underlying bridge
 		if *device.MTU == 1 {

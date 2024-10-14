@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"testing"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,7 +37,7 @@ func miBytes(in uint64) uint64 {
 
 func TestSelectNode(t *testing.T) {
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
-	var locations []infrav1.NodeLocation
+	var locations []infrav2.NodeLocation
 	const requestMiB = 8
 	availableMem := map[string]uint64{
 		"pve1": miBytes(20),
@@ -54,35 +54,35 @@ func TestSelectNode(t *testing.T) {
 
 	for i, expectedNode := range expectedNodes {
 		t.Run(fmt.Sprintf("round %d", i+1), func(t *testing.T) {
-			proxmoxMachine := &infrav1.ProxmoxMachine{
-				Spec: infrav1.ProxmoxMachineSpec{
+			proxmoxMachine := &infrav2.ProxmoxMachine{
+				Spec: infrav2.ProxmoxMachineSpec{
 					MemoryMiB: requestMiB,
 				},
 			}
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav2.SchedulerHints{})
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
 			require.Greater(t, availableMem[node], miBytes(requestMiB))
 			availableMem[node] -= miBytes(requestMiB)
 
-			locations = append(locations, infrav1.NodeLocation{Node: node})
+			locations = append(locations, infrav2.NodeLocation{Node: node})
 		})
 	}
 
 	t.Run("out of memory", func(t *testing.T) {
-		proxmoxMachine := &infrav1.ProxmoxMachine{
-			Spec: infrav1.ProxmoxMachineSpec{
+		proxmoxMachine := &infrav2.ProxmoxMachine{
+			Spec: infrav2.ProxmoxMachineSpec{
 				MemoryMiB: requestMiB,
 			},
 		}
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav2.SchedulerHints{})
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 

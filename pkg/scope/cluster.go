@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -46,7 +46,7 @@ type ClusterScopeParams struct {
 	Client         client.Client
 	Logger         *logr.Logger
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1alpha2.ProxmoxCluster
 	ProxmoxClient  capmox.Client
 	ControllerName string
 	IPAMHelper     *ipam.Helper
@@ -59,7 +59,7 @@ type ClusterScope struct {
 	patchHelper *patch.Helper
 
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1alpha2.ProxmoxCluster
 
 	ProxmoxClient  capmox.Client
 	controllerName string
@@ -188,7 +188,7 @@ func (s *ClusterScope) PatchObject() error {
 	// always update the readyCondition.
 	conditions.SetSummary(s.ProxmoxCluster,
 		conditions.WithConditions(
-			infrav1alpha1.ProxmoxClusterReady,
+			infrav1alpha2.ProxmoxClusterReady,
 		),
 	)
 

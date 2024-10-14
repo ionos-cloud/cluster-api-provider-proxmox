@@ -31,7 +31,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 )
@@ -43,11 +43,11 @@ func TestNewClusterScope_MissingParams(t *testing.T) {
 		name   string
 		params ClusterScopeParams
 	}{
-		{"missing client", ClusterScopeParams{Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing cluster", ClusterScopeParams{Client: client, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing client", ClusterScopeParams{Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha2.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing cluster", ClusterScopeParams{Client: client, ProxmoxCluster: &infrav1alpha2.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
 		{"missing proxmox cluster", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing ipam helper", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}}},
-		{"missing proxmox client", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing ipam helper", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha2.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}}},
+		{"missing proxmox client", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha2.ProxmoxCluster{}, IPAMHelper: &ipam.Helper{}}},
 	}
 
 	for _, test := range tests {
@@ -61,16 +61,16 @@ func TestNewClusterScope_MissingParams(t *testing.T) {
 func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 	client := getFakeClient(t)
 
-	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{
+	proxmoxCluster := &infrav1alpha2.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: infrav1alpha1.GroupVersion.String(),
+			APIVersion: infrav1alpha2.GroupVersion.String(),
 			Kind:       "ProxmoxCluster",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "proxmoxcluster",
 			Namespace: "default",
 		},
-		Spec: infrav1alpha1.ProxmoxClusterSpec{
+		Spec: infrav1alpha2.ProxmoxClusterSpec{
 			AllowedNodes: []string{"pve", "pve-2"},
 		},
 	}
@@ -94,16 +94,16 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 func TestNewClusterScope_SetupProxmoxClient(t *testing.T) {
 	client := getFakeClient(t)
 
-	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{
+	proxmoxCluster := &infrav1alpha2.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: infrav1alpha1.GroupVersion.String(),
+			APIVersion: infrav1alpha2.GroupVersion.String(),
 			Kind:       "ProxmoxCluster",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "proxmoxcluster",
 			Namespace: "default",
 		},
-		Spec: infrav1alpha1.ProxmoxClusterSpec{
+		Spec: infrav1alpha2.ProxmoxClusterSpec{
 			AllowedNodes: []string{"pve", "pve-2"},
 			CredentialsRef: &corev1.SecretReference{
 				Name:      "test-secret",
@@ -143,7 +143,7 @@ func getFakeClient(t *testing.T) ctrlclient.Client {
 	require.NoError(t, err)
 	err = clusterv1.AddToScheme(scheme)
 	require.NoError(t, err)
-	err = infrav1alpha1.AddToScheme(scheme)
+	err = infrav1alpha2.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	return fake.NewClientBuilder().WithScheme(scheme).Build()

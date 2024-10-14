@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -45,7 +45,7 @@ type MachineScopeParams struct {
 	Cluster        *clusterv1.Cluster
 	Machine        *clusterv1.Machine
 	InfraCluster   *ClusterScope
-	ProxmoxMachine *infrav1alpha1.ProxmoxMachine
+	ProxmoxMachine *infrav1alpha2.ProxmoxMachine
 	IPAMHelper     *ipam.Helper
 }
 
@@ -58,7 +58,7 @@ type MachineScope struct {
 	Cluster        *clusterv1.Cluster
 	Machine        *clusterv1.Machine
 	InfraCluster   *ClusterScope
-	ProxmoxMachine *infrav1alpha1.ProxmoxMachine
+	ProxmoxMachine *infrav1alpha2.ProxmoxMachine
 	IPAMHelper     *ipam.Helper
 	VirtualMachine *proxmox.VirtualMachine
 }
@@ -210,7 +210,7 @@ func (m *MachineScope) PatchObject() error {
 	// always update the readyCondition.
 	conditions.SetSummary(m.ProxmoxMachine,
 		conditions.WithConditions(
-			infrav1alpha1.VMProvisionedCondition,
+			infrav1alpha2.VMProvisionedCondition,
 		),
 	)
 
@@ -220,7 +220,7 @@ func (m *MachineScope) PatchObject() error {
 		m.ProxmoxMachine,
 		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
 			clusterv1.ReadyCondition,
-			infrav1alpha1.VMProvisionedCondition,
+			infrav1alpha2.VMProvisionedCondition,
 		}})
 }
 
