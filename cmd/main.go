@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/flags"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -47,7 +48,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrastructurev1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
@@ -82,7 +83,7 @@ var (
 func init() {
 	_ = clusterv1.AddToScheme(scheme)
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = infrastructurev1alpha1.AddToScheme(scheme)
+	_ = infrastructurev1alpha2.AddToScheme(scheme)
 	_ = ipamicv1.AddToScheme(scheme)
 	_ = ipamv1.AddToScheme(scheme)
 
@@ -149,6 +150,17 @@ func main() {
 	if setupErr := setupReconcilers(ctx, mgr, pmoxClient); setupErr != nil {
 		setupLog.Error(err, "unable to setup reconcilers")
 		os.Exit(1)
+	}
+
+	// TODO: do I need this?
+	cache := mgr.GetCache()
+
+	indexFunc := func(obj client.Object) []string {
+		return []string{obj.(*ipamv1.IPAddress).Spec.PoolRef.Name}
+	}
+
+	if err = cache.IndexField(ctx, &ipamv1.IPAddress{}, "spec.poolRef.name", indexFunc); err != nil {
+		panic(err)
 	}
 
 	if enableWebhooks {

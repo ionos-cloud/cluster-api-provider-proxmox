@@ -128,26 +128,25 @@ func TestRenderNetworkConfigData(t *testing.T) {
 			args: args{
 				nics: []types.NetworkConfigData{
 					{
-						Type:        "ethernet",
-						Name:        "eth0",
-						MacAddress:  "E2:B8:FE:E7:50:75",
-						IPAddress:   "10.0.0.98/25",
-						Gateway:     "10.0.0.1",
-						ProxName:    "net0",
-						DNSServers:  []string{"10.0.1.1"},
-						Metric:      ptr.To(uint32(100)),
-						IPV6Address: "2001:db8:1::10/64",
-						Gateway6:    "2001:db8:1::1",
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "E2:B8:FE:E7:50:75",
+						IPConfigs: []types.IPConfig{
+							{IPAddress: "10.0.0.98/25", Gateway: "10.0.0.1", Metric: ptr.To(uint32(100))},
+							{IPAddress: "2001:db8:1::10/64", Gateway: "2001:db8:1::1", Metric: ptr.To(uint32(100))},
+						},
+						ProxName:   "net0",
+						DNSServers: []string{"10.0.1.1"},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
-						IPAddress:  "10.0.1.84/25",
-						Gateway:    "10.0.1.1",
+						IPConfigs: []types.IPConfig{
+							{IPAddress: "10.0.1.84/25", Gateway: "10.0.1.1", Metric: ptr.To(uint32(200))},
+						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
-						Metric:     ptr.To(uint32(200)),
 						FIBRules: []types.FIBRuleData{{
 							To:       "8.7.6.5/32",
 							From:     "1.1.1.1/32",
@@ -167,26 +166,25 @@ func TestRenderNetworkConfigData(t *testing.T) {
 			args: args{
 				nics: []types.NetworkConfigData{
 					{
-						Type:        "ethernet",
-						Name:        "eth0",
-						MacAddress:  "E2:B8:FE:E7:50:75",
-						IPAddress:   "10.0.0.98/25",
-						Gateway:     "10.0.0.1",
-						ProxName:    "net0",
-						DNSServers:  []string{"10.0.1.1"},
-						Metric:      ptr.To(uint32(100)),
-						IPV6Address: "2001:db8:1::10/64",
-						Gateway6:    "2001:db8:1::1",
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "E2:B8:FE:E7:50:75",
+						IPConfigs: []types.IPConfig{
+							{IPAddress: "10.0.0.98/25", Gateway: "10.0.0.1", Metric: ptr.To(uint32(100))},
+							{IPAddress: "2001:db8:1::10/64", Gateway: "2001:db8:1::1", Metric: ptr.To(uint32(100))},
+						},
+						ProxName:   "net0",
+						DNSServers: []string{"10.0.1.1"},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
-						IPAddress:  "10.0.1.84/25",
-						Gateway:    "10.0.1.1",
+						IPConfigs: []types.IPConfig{
+							{IPAddress: "10.0.1.84/25", Gateway: "10.0.1.1", Metric: ptr.To(uint32(200))},
+						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
-						Metric:     ptr.To(uint32(200)),
 					},
 					{
 						Type:       "vrf",
