@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/uuid"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	//	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -116,39 +116,42 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
 
-	if machineScope.ProxmoxMachine.Spec.Network.Default != nil {
-		net0 := nets[infrav1alpha1.DefaultNetworkDevice]
-		if net0 == "" {
-			return true
-		}
-
-		desiredDefault := *machineScope.ProxmoxMachine.Spec.Network.Default
-
-		model := extractNetworkModel(net0)
-		bridge := extractNetworkBridge(net0)
-
-		if model != *desiredDefault.Model || bridge != desiredDefault.Bridge {
-			return true
-		}
-
-		if desiredDefault.MTU != nil {
-			mtu := extractNetworkMTU(net0)
-
-			if mtu != *desiredDefault.MTU {
+	// TODO: remove
+	/*
+		if machineScope.ProxmoxMachine.Spec.Network.Default != nil {
+			net0 := nets[infrav1alpha2.DefaultNetworkDevice]
+			if net0 == "" {
 				return true
 			}
-		}
 
-		if desiredDefault.VLAN != nil {
-			vlan := extractNetworkVLAN(net0)
+			desiredDefault := *machineScope.ProxmoxMachine.Spec.Network.Default
 
-			if vlan != *desiredDefault.VLAN {
+			model := extractNetworkModel(net0)
+			bridge := extractNetworkBridge(net0)
+
+			if model != *desiredDefault.Model || bridge != desiredDefault.Bridge {
 				return true
 			}
-		}
-	}
 
-	devices := machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices
+			if desiredDefault.MTU != nil {
+				mtu := extractNetworkMTU(net0)
+
+				if mtu != *desiredDefault.MTU {
+					return true
+				}
+			}
+
+			if desiredDefault.VLAN != nil {
+				vlan := extractNetworkVLAN(net0)
+
+				if vlan != *desiredDefault.VLAN {
+					return true
+				}
+			}
+		}
+	*/
+
+	devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 	for _, v := range devices {
 		net := nets[v.Name]
 		// device is empty.

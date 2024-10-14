@@ -86,7 +86,8 @@ const (
 {{- end -}}
 
 {{- define "routes" }}
-    {{- if or .Gateway .Gateway6 }}
+    {{- range $ipconfig := .IPConfigs }}
+    {{- if .Gateway }}
       routes:
        {{- if .Gateway }}
         - to: 0.0.0.0/0
@@ -95,17 +96,11 @@ const (
           {{- end }}
           via: {{ .Gateway }}
        {{- end }}
-       {{- if .Gateway6 }}
-        - to: '::/0'
-          {{- if .Metric6 }}
-          metric: {{ .Metric6 }}
-          {{- end }}
-          via: '{{ .Gateway6 }}'
-       {{- end }}
     {{- else }}
       {{- if .Routes }}
       routes:
       {{- end -}}
+    {{- end -}}
     {{- end -}}
     {{- range $index, $route := .Routes }}
         - {
@@ -176,12 +171,16 @@ func (r *NetworkConfig) validate() error {
 	if len(r.data.NetworkConfigData) == 0 {
 		return ErrMissingNetworkConfigData
 	}
-	metrics := make(map[uint32]*struct {
-		ipv4 bool
-		ipv6 bool
-	})
+	// TODO: Fix validation
+	/*
+		metrics := make(map[uint32]*struct {
+			ipv4 bool
+			ipv6 bool
+		})
+	*/
 
-	for i, d := range r.data.NetworkConfigData {
+	// for i, d := range r.data.NetworkConfigData {
+	for _, d := range r.data.NetworkConfigData {
 		// TODO: refactor this when network configuration is unified
 		if d.Type != "ethernet" {
 			err := validRoutes(d.Routes)
@@ -195,58 +194,59 @@ func (r *NetworkConfig) validate() error {
 			continue
 		}
 
-		if !d.DHCP4 && !d.DHCP6 && len(d.IPAddress) == 0 && len(d.IPV6Address) == 0 {
+		if !d.DHCP4 && !d.DHCP6 && len(d.IPConfigs) == 0 {
 			return ErrMissingIPAddress
 		}
 
 		if d.MacAddress == "" {
 			return ErrMissingMacAddress
 		}
-
-		if !d.DHCP4 && len(d.IPAddress) > 0 {
-			err := validIPAddress(d.IPAddress)
-			if err != nil {
-				return err
-			}
-			if d.Gateway == "" && i == 0 {
-				return ErrMissingGateway
-			}
-		}
-
-		if !d.DHCP6 && len(d.IPV6Address) > 0 {
-			err6 := validIPAddress(d.IPV6Address)
-			if err6 != nil {
-				return err6
-			}
-			if d.Gateway6 == "" && i == 0 {
-				return ErrMissingGateway
-			}
-		}
-		if d.Metric != nil {
-			if _, exists := metrics[*d.Metric]; !exists {
-				metrics[*d.Metric] = new(struct {
-					ipv4 bool
-					ipv6 bool
-				})
-			}
-			if metrics[*d.Metric].ipv4 {
-				return ErrConflictingMetrics
-			}
-			metrics[*d.Metric].ipv4 = true
-		}
-		if d.Metric6 != nil {
-			if _, exists := metrics[*d.Metric6]; !exists {
-				metrics[*d.Metric6] = new(struct {
-					ipv4 bool
-					ipv6 bool
-				})
+		/*
+			if !d.DHCP4 && len(d.IPConfigs) > 0 {
+				err := validIPAddress(d.IPAddress)
+				if err != nil {
+					return err
+				}
+				if d.Gateway == "" && i == 0 {
+					return ErrMissingGateway
+				}
 			}
 
-			if metrics[*d.Metric6].ipv6 {
-				return ErrConflictingMetrics
+			if !d.DHCP6 && len(d.IPConfigs) > 0 {
+				err6 := validIPAddress(d.IPV6Address)
+				if err6 != nil {
+					return err6
+				}
+				if d.Gateway6 == "" && i == 0 {
+					return ErrMissingGateway
+				}
 			}
-			metrics[*d.Metric6].ipv6 = true
-		}
+			if d.Metric != nil {
+				if _, exists := metrics[*d.Metric]; !exists {
+					metrics[*d.Metric] = new(struct {
+						ipv4 bool
+						ipv6 bool
+					})
+				}
+				if metrics[*d.Metric].ipv4 {
+					return ErrConflictingMetrics
+				}
+				metrics[*d.Metric].ipv4 = true
+			}
+			if d.Metric6 != nil {
+				if _, exists := metrics[*d.Metric6]; !exists {
+					metrics[*d.Metric6] = new(struct {
+						ipv4 bool
+						ipv6 bool
+					})
+				}
+
+				if metrics[*d.Metric6].ipv6 {
+					return ErrConflictingMetrics
+				}
+				metrics[*d.Metric6].ipv6 = true
+			}
+		*/
 	}
 	return nil
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
@@ -35,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 // Helper provides handling of ipam objects such as, InClusterPool, IPAddressClaim.
@@ -218,6 +219,7 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 	return annotations, err
 }
 
+// TODO: remove
 // CreateIPAddressClaim creates an IPAddressClaim for a given object.
 func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, device, format, clusterNameLabel string, ref *corev1.TypedLocalObjectReference) error {
 	var gvk schema.GroupVersionKind
@@ -226,9 +228,6 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 		Name:      owner.GetName(),
 	}
 	suffix := infrav1.DefaultSuffix
-	if format == infrav1.IPV6Format {
-		suffix += "6"
-	}
 
 	switch {
 	case device == infrav1.DefaultNetworkDevice && ref == nil:
@@ -293,12 +292,103 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 	return err
 }
 
+// CreateIPAddressClaim creates an IPAddressClaim for a given object.
+func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object, device string, poolNum int, clusterNameLabel string, ref *corev1.TypedLocalObjectReference) error {
+	var gvk schema.GroupVersionKind
+	key := client.ObjectKey{
+		Namespace: owner.GetNamespace(),
+		Name:      owner.GetName(),
+	}
+	suffix := infrav1.DefaultSuffix
+
+	switch {
+	case ref.Kind == "InClusterIPPool":
+		pool, err := h.GetInClusterIPPool(ctx, ref)
+		if err != nil {
+			return errors.Wrapf(err, "unable to find inclusterpool for cluster %s", h.cluster.Name)
+		}
+		key.Name = pool.GetName()
+		gvk, err = gvkForObject(pool, h.ctrlClient.Scheme())
+		if err != nil {
+			return err
+		}
+	case ref.Kind == "GlobalInClusterIPPool":
+		pool, err := h.GetGlobalInClusterIPPool(ctx, ref)
+		if err != nil {
+			return errors.Wrapf(err, "unable to find global inclusterpool for cluster %s", h.cluster.Name)
+		}
+		key.Name = pool.GetName()
+		gvk, err = gvkForObject(pool, h.ctrlClient.Scheme())
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("unsupported pool type %s", ref.Kind)
+	}
+
+	// Ensures that the claim has a reference to the cluster of the VM to
+	// support pausing reconciliation.
+	labels := map[string]string{
+		clusterv1.ClusterNameLabel: clusterNameLabel,
+	}
+
+	desired := &ipamv1.IPAddressClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s-%02d-%s", owner.GetName(), device, poolNum, suffix),
+			Namespace: owner.GetNamespace(),
+			Labels:    labels,
+		},
+		Spec: ipamv1.IPAddressClaimSpec{
+			PoolRef: corev1.TypedLocalObjectReference{
+				APIGroup: ptr.To(gvk.Group),
+				Kind:     gvk.Kind,
+				Name:     key.Name,
+			},
+		},
+	}
+	_, err := controllerutil.CreateOrUpdate(ctx, h.ctrlClient, desired, func() error {
+		// set the owner reference to the cluster
+		return controllerutil.SetControllerReference(owner, desired, h.ctrlClient.Scheme())
+	})
+
+	return err
+}
+
 // GetIPAddress attempts to retrieve the IPAddress.
 func (h *Helper) GetIPAddress(ctx context.Context, key client.ObjectKey) (*ipamv1.IPAddress, error) {
 	out := &ipamv1.IPAddress{}
 	err := h.ctrlClient.Get(ctx, key, out)
 	if err != nil {
 		return nil, err
+	}
+
+	return out, nil
+}
+
+// GetIPAddressByPool attempts to retrieve all IPAddresses belonging to a pool
+func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {
+	addresses := &ipamv1.IPAddressList{}
+	var out []ipamv1.IPAddress
+
+	//fieldSelector, err := fields.ParseSelector("spec.poolRef.name=" + poolRef.Name + ",spec.poolRef.kind=" + poolRef.Kind)
+	fieldSelector, err := fields.ParseSelector("spec.poolRef.name=" + poolRef.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	listOptions := client.ListOptions{FieldSelector: fieldSelector}
+	err = h.ctrlClient.List(ctx, addresses, &listOptions)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, addr := range addresses.Items {
+		groupVersion, _ := schema.ParseGroupVersion(addr.APIVersion)
+		if groupVersion.Group != "ipam.cluster.x-k8s.io" {
+			continue
+		}
+		out = append(out, addr)
 	}
 
 	return out, nil

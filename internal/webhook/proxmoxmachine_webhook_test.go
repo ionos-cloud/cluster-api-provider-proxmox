@@ -27,7 +27,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 var _ = Describe("Controller Test", func() {
@@ -46,7 +46,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow invalid network mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.AdditionalDevices[0].MTU = ptr.To(uint16(1000))
+			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(uint16(1000))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1280 or 1, but was 1000")))
 		})
 
@@ -57,13 +57,13 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow invalid network vlan for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.AdditionalDevices[0].VLAN = ptr.To(uint16(0))
+			machine.Spec.Network.NetworkDevices[0].VLAN = ptr.To(uint16(0))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
 
 		It("should disallow invalid link mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.AdditionalDevices[0].LinkMTU = ptr.To(uint16(1000))
+			machine.Spec.Network.NetworkDevices[0].LinkMTU = ptr.To(uint16(1000))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1280, but was 1000")))
 		})
 
@@ -75,30 +75,8 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow routing policy without table", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.AdditionalDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
+			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
-		})
-
-		It("should disallow machine with network spec but without Default device", func() {
-			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network = &infrav1.NetworkSpec{
-				AdditionalDevices: []infrav1.AdditionalNetworkDevice{
-					{
-						Name: "net1",
-						NetworkDevice: infrav1.NetworkDevice{
-							Bridge: "vmbr2",
-							IPPoolConfig: infrav1.IPPoolConfig{
-								IPv4PoolRef: &corev1.TypedLocalObjectReference{
-									APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-									Kind:     "InClusterIPPool",
-									Name:     "simple-pool",
-								},
-							},
-						},
-					},
-				},
-			}
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("default network device must be set when setting network spec")))
 		})
 	})
 
@@ -109,10 +87,10 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 
 			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&machine), &machine)).To(Succeed())
-			machine.Spec.Network.Default.MTU = ptr.To(uint16(50))
+			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(uint16(50))
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
-			machine.Spec.Network.Default.VLAN = ptr.To(uint16(0))
+			machine.Spec.Network.NetworkDevices[0].VLAN = ptr.To(uint16(0))
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
 
@@ -157,37 +135,31 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 				},
 			},
 			Network: &infrav1.NetworkSpec{
-				Default: &infrav1.NetworkDevice{
+				NetworkDevices: []infrav1.NetworkDevice{{
+					Name:   "net0",
 					Bridge: "vmbr1",
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(uint16(1500)),
 					VLAN:   ptr.To(uint16(100)),
-				},
-				AdditionalDevices: []infrav1.AdditionalNetworkDevice{
-					{
-						Name: "net1",
-						NetworkDevice: infrav1.NetworkDevice{
-							Bridge: "vmbr2",
-							Model:  ptr.To("virtio"),
-							MTU:    ptr.To(uint16(1500)),
-							VLAN:   ptr.To(uint16(100)),
-							IPPoolConfig: infrav1.IPPoolConfig{
-								IPv4PoolRef: &corev1.TypedLocalObjectReference{
-									Name:     "simple-pool",
-									Kind:     "InClusterIPPool",
-									APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-								},
-							},
-						},
-						InterfaceConfig: infrav1.InterfaceConfig{
-							Routing: infrav1.Routing{
-								RoutingPolicy: []infrav1.RoutingPolicySpec{{
-									Table: ptr.To(uint32(665)),
-								}},
-							},
+				}, {
+					Name:   "net1",
+					Bridge: "vmbr2",
+					Model:  ptr.To("virtio"),
+					MTU:    ptr.To(uint16(1500)),
+					VLAN:   ptr.To(uint16(100)),
+					InterfaceConfig: infrav1.InterfaceConfig{
+						IPPoolRef: []corev1.TypedLocalObjectReference{{
+							Name:     "simple-pool",
+							Kind:     "InClusterIPPool",
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+						}},
+						Routing: infrav1.Routing{
+							RoutingPolicy: []infrav1.RoutingPolicySpec{{
+								Table: ptr.To(uint32(665)),
+							}},
 						},
 					},
-				},
+				}},
 				VirtualNetworkDevices: infrav1.VirtualNetworkDevices{
 					VRFs: []infrav1.VRFDevice{{
 						Table: 665,
@@ -206,20 +178,22 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 
 func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
-	machine.Spec.Network.Default = &infrav1.NetworkDevice{
+	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
+		Name:   "net0",
 		Bridge: "vmbr1",
 		Model:  ptr.To("virtio"),
 		MTU:    ptr.To(uint16(50)),
-	}
+	}}
 	return machine
 }
 
 func invalidVLANProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
-	machine.Spec.Network.Default = &infrav1.NetworkDevice{
+	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
+		Name:   "net0",
 		Bridge: "vmbr1",
 		Model:  ptr.To("virtio"),
 		VLAN:   ptr.To(uint16(0)),
-	}
+	}}
 	return machine
 }

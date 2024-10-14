@@ -19,25 +19,26 @@ package types
 
 // NetworkConfigData is used to render network-config.
 type NetworkConfigData struct {
-	ProxName    string // Device name in Proxmox
-	MacAddress  string
-	DHCP4       bool
-	DHCP6       bool
-	IPAddress   string
-	IPV6Address string
-	Gateway     string
-	Metric      *uint32
-	Gateway6    string
-	Metric6     *uint32
-	DNSServers  []string
-	Type        string
-	Name        string
-	Interfaces  []string // Interfaces controlled by this one.
-	Table       uint32   // linux routing table number for VRF.
-	Routes      []RoutingData
-	FIBRules    []FIBRuleData // Forwarding information block for routing.
-	LinkMTU     *uint16       // linux network device MTU
-	VRF         string        // linux VRF name // only used in networkd config.
+	ProxName   string // Device name in Proxmox
+	MacAddress string
+	DHCP4      bool
+	DHCP6      bool
+	IPConfigs  []IPConfig
+	DNSServers []string
+	Type       string
+	Name       string
+	Interfaces []string // Interfaces controlled by this one.
+	Table      uint32   // linux routing table number for VRF.
+	Routes     []RoutingData
+	FIBRules   []FIBRuleData // Forwarding information block for routing.
+	LinkMTU    *uint16       // linux network device MTU
+	VRF        string        // linux VRF name // only used in networkd config.
+}
+
+type IPConfig struct {
+	IPAddress string
+	Gateway   string
+	Metric    *uint32
 }
 
 // RoutingData stores routing configuration.

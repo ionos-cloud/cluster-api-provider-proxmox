@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
@@ -50,7 +50,7 @@ type ClusterScopeParams struct {
 	Client         client.Client
 	Logger         *logr.Logger
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1alpha2.ProxmoxCluster
 	ProxmoxClient  capmox.Client
 	ControllerName string
 	IPAMHelper     *ipam.Helper
@@ -63,7 +63,7 @@ type ClusterScope struct {
 	patchHelper *patch.Helper
 
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1alpha2.ProxmoxCluster
 
 	ProxmoxClient  capmox.Client
 	controllerName string
@@ -208,7 +208,7 @@ func (s *ClusterScope) PatchObject() error {
 	// always update the readyCondition.
 	conditions.SetSummary(s.ProxmoxCluster,
 		conditions.WithConditions(
-			infrav1alpha1.ProxmoxClusterReady,
+			infrav1alpha2.ProxmoxClusterReady,
 		),
 	)
 
@@ -216,8 +216,8 @@ func (s *ClusterScope) PatchObject() error {
 }
 
 // ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.
-func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]infrav1alpha1.ProxmoxMachine, error) {
-	var machineList infrav1alpha1.ProxmoxMachineList
+func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]infrav1alpha2.ProxmoxMachine, error) {
+	var machineList infrav1alpha2.ProxmoxMachineList
 
 	err := s.client.List(ctx, &machineList, client.InNamespace(s.Namespace()), client.MatchingLabels{
 		clusterv1.ClusterNameLabel: s.Name(),
