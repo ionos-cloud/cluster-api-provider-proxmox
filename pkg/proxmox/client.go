@@ -50,6 +50,7 @@ type Client interface {
 	TagVM(ctx context.Context, vm *proxmox.VirtualMachine, tag string) (*proxmox.Task, error)
 
 	UnmountCloudInitISO(ctx context.Context, vm *proxmox.VirtualMachine, device string) error
-
 	CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) (bool, error)
+
+	QemuAgentStatus(ctx context.Context, vm *proxmox.VirtualMachine) error
 }

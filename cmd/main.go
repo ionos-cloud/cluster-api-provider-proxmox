@@ -51,7 +51,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -78,7 +78,7 @@ func init() {
 	_ = ipamicv1.AddToScheme(scheme)
 	_ = ipamv1.AddToScheme(scheme)
 
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
@@ -144,7 +144,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	//+kubebuilder:scaffold:builder
+	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
@@ -162,12 +162,12 @@ func main() {
 	}
 }
 
-func setupReconcilers(ctx context.Context, mgr ctrl.Manager, client capmox.Client) error {
+func setupReconcilers(ctx context.Context, mgr ctrl.Manager, proxmoxClient capmox.Client) error {
 	if err := (&controller.ProxmoxClusterReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
-		ProxmoxClient: client,
+		ProxmoxClient: proxmoxClient,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxCluster controller: %w", err)
 	}
@@ -175,7 +175,7 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager, client capmox.Clien
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"),
-		ProxmoxClient: client,
+		ProxmoxClient: proxmoxClient,
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxMachine controller: %w", err)
 	}

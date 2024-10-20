@@ -287,7 +287,7 @@ func (c *APIClient) UnmountCloudInitISO(ctx context.Context, vm *proxmox.Virtual
 
 // CloudInitStatus returns the cloud-init status of the VM.
 func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) (running bool, err error) {
-	if err := vm.WaitForAgent(ctx, 5); err != nil {
+	if err := c.QemuAgentStatus(ctx, vm); err != nil {
 		return false, errors.Wrap(err, "error waiting for agent")
 	}
 
@@ -309,4 +309,13 @@ func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMach
 	}
 
 	return false, nil
+}
+
+// QemuAgentStatus returns the qemu-agent status of the VM.
+func (c *APIClient) QemuAgentStatus(ctx context.Context, vm *proxmox.VirtualMachine) error {
+	if err := vm.WaitForAgent(ctx, 5); err != nil {
+		return errors.Wrap(err, "error waiting for agent")
+	}
+
+	return nil
 }

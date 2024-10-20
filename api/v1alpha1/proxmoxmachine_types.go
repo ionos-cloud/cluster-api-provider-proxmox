@@ -58,6 +58,16 @@ const (
 	IPV6Format = "v6"
 )
 
+// ProxmoxMachineChecks defines possibibles checks to skip.
+type ProxmoxMachineChecks struct {
+	// Skip checking CloudInit which can be very useful for specific Operating Systems like TalOS
+	// +optional
+	SkipCloudInitStatus *bool `json:"skipCloudInitStatus,omitempty"`
+	// Skip checking QEMU Agent readiness which can be very useful for specific Operating Systems like TalOS
+	// +optional
+	SkipQemuGuestAgent *bool `json:"skipQemuGuestAgent,omitempty"`
+}
+
 // ProxmoxMachineSpec defines the desired state of a ProxmoxMachine.
 type ProxmoxMachineSpec struct {
 	VirtualMachineCloneSpec `json:",inline"`
@@ -102,6 +112,8 @@ type ProxmoxMachineSpec struct {
 	// VMIDRange is the range of VMIDs to use for VMs.
 	// +optional
 	VMIDRange *VMIDRange `json:"vmidRange,omitempty"`
+
+	Checks *ProxmoxMachineChecks `json:"checks,omitempty"`
 }
 
 // Storage is the physical storage on the node.

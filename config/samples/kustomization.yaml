@@ -2,6 +2,7 @@
 ## Append samples of your project ##
 resources:
 - infrastructure_v1alpha1_proxmoxcluster.yaml
+- infrastructure_v1alpha1_proxmoxclustertemplate.yaml
 - infrastructure_v1alpha1_proxmoxmachine.yaml
 - infrastructure_v1alpha1_proxmoxmachinetemplate.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
