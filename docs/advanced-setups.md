@@ -184,7 +184,7 @@ For the Proxmox API user/token you create for CAPMOX, these are the minimum requ
 
 * Create a role called `Sys.Audit` with the `Sys.Audit` permission and a role called `Datastore.AllocateSpace` with the `Datastore.AllocateSpace` permission only. Apart from these roles, we only need the built-in roles.
 
-* Create a pool for the VMs created and managed by CAPMOX (called `capi`` in the example).
+* Create a pool for the VMs created and managed by CAPMOX (called `capi` in the example).
 * Create a pool for the templates used by CAPMOX (called `templates` in the example) and assign all templates that should be accessible by CAPMOX to this pool.
 
 ### Privileges
