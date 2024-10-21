@@ -176,6 +176,32 @@ This behaviour can be configured in the `ProxmoxCluster` CR through the field `.
 
 For example, setting it to `0` (zero), entirely disables scheduling based on memory. Alternatively, if you set it to any value greater than `0`, the scheduler will treat your host as it would have `${value}%` of memory. In real numbers that would mean, if you have a host with 64GB of memory and set the number to `300`, the scheduler would allow you to provision guests with a total of 192GB memory and therefore overprovision the host. (Use with caution! It's strongly suggested to have memory ballooning configured everywhere.). Or, if you were to set it to `95` for example, it would treat your host as it would only have 60,8GB of memory, and leave the remaining 3,2GB for the host.
 
+## Proxmox RBAC with least privileges
+
+For the Proxmox API user/token you create for CAPMOX, these are the minimum required permissions.
+
+### Prerequisites
+
+* Create a role called `Sys.Audit` with the `Sys.Audit` permission and a role called `Datastore.AllocateSpace` with the `Datastore.AllocateSpace` permission only. Apart from these roles, we only need the built-in roles.
+
+* Create a pool for the VMs created and managed by CAPMOX (called `capi`` in the example).
+* Create a pool for the templates used by CAPMOX (called `templates` in the example) and assign all templates that should be accessible by CAPMOX to this pool.
+
+### Privileges
+
+| Path                                 | Role                    | Propagate |
+| ------------------------------------ | ----------------------- | --------- |
+| `/`                                  | Sys.Audit               | false     |
+| `/nodes`                             | Sys.Audit               | true      |
+| `/pool/capi`                         | PVEVMAdmin              | false     |
+| `/pool/templates`                    | PVETemplateUser         | false     |
+| `/sdn/zones/localnetwork/vmbr0/1234` | PVESDNUser              | false     |
+| `/storage/capi_files`                | PVEDataStoreAdmin       | false     |
+| `/storage/shared_block`              | Datastore.AllocateSpace | false     |
+
+* In the SDN example, `1234` is the optional VLAN ID if you want to restrict the user to a specific VLAN.
+* CAPMOX needs `PVEDataStoreAdmin` on a storage suitable for ISO images for cloud-init. Create a dedicated storage for this (you can use subdirectories in an existing network share for example).
+* CAPMOX needs `AllocateSpace` permissions on a storage suitable for disc images. This can be shared with other users as it is only accessed indirectly by cloning/deleting VMs.
 
 ## Notes
 
