@@ -64,6 +64,9 @@ pveum user token add capmox@pve capi -privsep 0
 ```
 on your Proxmox VE node.
 
+
+If you want to create a CAPMOX user with least privileges, see the [advanced setups docs](advanced-setups.md#proxmox-rbac-with-least-privileges).
+
 ---
 
 clusterctl requires the following variables, which should be set in `~/.cluster-api/clusterctl.yaml` as the following:
