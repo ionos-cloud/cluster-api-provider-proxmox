@@ -31,6 +31,8 @@ import (
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
+	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -54,7 +56,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.")
 
 	// Get the bootstrap data.
-	bootstrapData, err := getBootstrapData(ctx, machineScope)
+	bootstrapData, format, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return false, err
@@ -68,6 +70,24 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, err
 	}
 
+	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
+
+	switch format {
+	case "ignition":
+		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData)
+	default:
+		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData)
+	}
+	if err != nil {
+		return false, errors.Wrap(err, "failed to inject bootstrap data")
+	}
+
+	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
+
+	return false, nil
+}
+
+func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
 	// create network renderer
 	network := cloudinit.NewNetworkConfig(nicData)
 
@@ -80,18 +100,36 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	})
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
-	if err = injector.Inject(ctx); err != nil {
+	//machineScope.InfraCluster.ProxmoxClient
+	if err := injector.Inject(ctx, "cloud-init"); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
-		return false, errors.Wrap(err, "cloud-init iso inject failed")
+		return errors.Wrap(err, "cloud-init iso inject failed")
+	}
+	return nil
+}
+
+func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+	// create an enricher
+	enricher := &ignition.Enricher{
+		BootstrapData: bootstrapData,
+		Hostname:      machineScope.Name(),
+		Zone:          "dummy", // TODO: Figure out how to identify the availability zone inside a datacenter / proxmox cluster and make this generic enough to be used by other users of the provider (outside of ionos)
+		InstanceID:    biosUUID,
+		ProviderID:    fmt.Sprintf("proxmox://%s", biosUUID),
+		ProxmoxNode:   machineScope.LocateProxmoxNode(),
+		Network:       nicData,
 	}
 
-	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-
-	return false, nil
+	injector := ignitionISOInjector(machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine, enricher)
+	if err := injector.Inject(ctx, "ignition"); err != nil {
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		return errors.Wrap(err, "ignition iso inject failed")
+	}
+	return nil
 }
 
 type isoInjector interface {
-	Inject(ctx context.Context) error
+	Inject(ctx context.Context, format string) error
 }
 
 func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metadata, network cloudinit.Renderer) isoInjector {
@@ -103,27 +141,36 @@ func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metada
 	}
 }
 
+func ignitionISOInjector(client capmox.Client, vm *proxmox.VirtualMachine, enricher *ignition.Enricher) isoInjector {
+	return &inject.ISOInjector{
+		VirtualMachine:   vm,
+		IgnitionEnricher: enricher,
+		Client:           client,
+	}
+}
+
 var getISOInjector = defaultISOInjector
 
 // getBootstrapData obtains a machine's bootstrap data from the relevant K8s secret and returns the data.
 // TODO: Add format return if ignition will be supported.
-func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, error) {
+func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, string, error) {
 	if scope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		scope.Logger.Info("machine has no bootstrap data.")
-		return nil, errors.New("machine has no bootstrap data")
+		return nil, "", errors.New("machine has no bootstrap data")
 	}
 
 	secret := &corev1.Secret{}
 	if err := scope.GetBootstrapSecret(ctx, secret); err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret")
+		return nil, "", errors.Wrapf(err, "failed to retrieve bootstrap data secret")
 	}
 
+	format := string(secret.Data["format"])
 	value, ok := secret.Data["value"]
 	if !ok {
-		return nil, errors.New("error retrieving bootstrap data: secret `value` key is missing")
+		return nil, "", errors.New("error retrieving bootstrap data: secret `value` key is missing")
 	}
 
-	return value, nil
+	return value, format, nil
 }
 
 func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]cloudinit.NetworkConfigData, error) {

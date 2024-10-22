@@ -46,7 +46,7 @@ type FakeISOInjector struct {
 	error
 }
 
-func (f FakeISOInjector) Inject(_ context.Context) error {
+func (f FakeISOInjector) Inject(_ context.Context, format string) error {
 	return f.error
 }
 

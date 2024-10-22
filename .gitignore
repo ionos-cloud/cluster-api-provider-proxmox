@@ -50,3 +50,4 @@ test/e2e/config/*-envsubst.yaml
 
 # asdf package manager
 .tool-versions
+cmd/test/
