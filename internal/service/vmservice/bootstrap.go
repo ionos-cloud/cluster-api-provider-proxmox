@@ -92,12 +92,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(cloudinit.BaseCloudInitData{
-		Hostname:    machineScope.Name(),
-		Zone:        "dummy", // TODO: Figure out how to identify the availability zone inside a datacenter / proxmox cluster and make this generic enough to be used by other users of the provider (outside of ionos)
-		InstanceID:  biosUUID,
-		ProxmoxNode: machineScope.LocateProxmoxNode(),
-	})
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name())
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	//machineScope.InfraCluster.ProxmoxClient

@@ -27,11 +27,15 @@ const (
 local-hostname: proxmox-control-plane
 hostname: proxmox-control-plane
 provider-id: proxmox://9a82e2ca-4294-11ee-be56-0242ac120002
-proxmox-node: proxmox-node-0
 `
 )
 
 func TestMetadata_Render(t *testing.T) {
+	type args struct {
+		instanceID string
+		hostname   string
+	}
+
 	type want struct {
 		metadata string
 		err      error
@@ -39,36 +43,24 @@ func TestMetadata_Render(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		args   BaseCloudInitData
+		args   args
 		want   want
 	}{
 		"ValidCloudinit": {
 			reason: "rendering metadata, network-config",
-			args: BaseCloudInitData{
-				InstanceID:  "9a82e2ca-4294-11ee-be56-0242ac120002",
-				Hostname:    "proxmox-control-plane",
-				ProxmoxNode: "proxmox-node-0",
+			args: args{
+				instanceID: "9a82e2ca-4294-11ee-be56-0242ac120002",
+				hostname:   "proxmox-control-plane",
 			},
 			want: want{
 				metadata: expectedValidMetadata,
 				err:      nil,
 			},
 		},
-		"InvalidCloudinitMissingProxmoxNode": {
-			reason: "instance-id is not set",
-			args: BaseCloudInitData{
-				InstanceID: "some-id",
-				Hostname:   "some-hostname",
-			},
-			want: want{
-				metadata: "",
-				err:      ErrMissingProxmoxNode,
-			},
-		},
 		"InvalidCloudinitMissingInstanceID": {
 			reason: "instance-id is not set",
-			args: BaseCloudInitData{
-				Hostname: "some-hostname",
+			args: args{
+				hostname: "some-hostname",
 			},
 			want: want{
 				metadata: "",
@@ -77,7 +69,7 @@ func TestMetadata_Render(t *testing.T) {
 		},
 		"InvalidCloudinitMissingHostname": {
 			reason: "hostname is not set",
-			args:   BaseCloudInitData{},
+			args:   args{},
 			want: want{
 				metadata: "",
 				err:      ErrMissingHostname,
@@ -87,7 +79,7 @@ func TestMetadata_Render(t *testing.T) {
 
 	for n, tc := range cases {
 		t.Run(n, func(t *testing.T) {
-			ci := NewMetadata(tc.args)
+			ci := NewMetadata(tc.args.instanceID, tc.args.hostname)
 			metadata, err := ci.Render()
 			require.ErrorIs(t, err, tc.want.err)
 			require.Equal(t, tc.want.metadata, string(metadata))
