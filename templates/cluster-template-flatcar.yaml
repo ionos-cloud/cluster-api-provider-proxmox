@@ -44,8 +44,9 @@ spec:
       name: "${CLUSTER_NAME}-control-plane"
   kubeadmConfigSpec:
     users:
-      - name: root
+      - name: core
         sshAuthorizedKeys: [${VM_SSH_KEYS}]
+        sudo: ALL=(ALL) NOPASSWD:ALL
     files:
       - content: |
           apiVersion: v1
@@ -156,12 +157,10 @@ spec:
       nodeRegistration:
         kubeletExtraArgs:
           provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
-          node-labels: "node.kubernetes.io/proxmox-node={{ ds.meta_data.proxmox_node }},topology.kubernetes.io/zone={{ ds.meta_data.zone }}"
     joinConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
           provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
-          node-labels: "node.kubernetes.io/proxmox-node={{ ds.meta_data.proxmox_node }},topology.kubernetes.io/zone={{ ds.meta_data.zone }}"
   version: "${KUBERNETES_VERSION}"
 ---
 kind: ProxmoxMachineTemplate
@@ -243,11 +242,79 @@ metadata:
 spec:
   template:
     spec:
-      users:
-        - name: root
-          sshAuthorizedKeys: [${VM_SSH_KEYS}]
+      format: ignition
+      ignition:
+        containerLinuxConfig:
+          additionalConfig: |-
+            storage:
+              files:
+              - path: /opt/set-hostname
+                filesystem: root
+                mode: 0744
+                contents:
+                  inline: |
+                    #!/bin/sh
+                    set -x
+                    echo "${COREOS_CUSTOM_HOSTNAME}" > /etc/hostname
+                    hostname "${COREOS_CUSTOM_HOSTNAME}"
+                    echo "::1         ipv6-localhost ipv6-loopback" >/etc/hosts
+                    echo "127.0.0.1   localhost" >>/etc/hosts
+                    echo "127.0.0.1   ${COREOS_CUSTOM_HOSTNAME}" >>/etc/hosts
+            systemd:
+              units:
+              - name: coreos-metadata.service
+                contents: |
+                  [Unit]
+                  Description=Proxmox metadata agent
+                  After=nss-lookup.target
+                  After=network-online.target
+                  Wants=network-online.target
+                  [Service]
+                  Type=oneshot
+                  Restart=on-failure
+                  RemainAfterExit=yes
+                  Environment=OUTPUT=/run/metadata/coreos
+                  ExecStart=/usr/bin/mkdir --parent /run/metadata
+                  ExecStart=/usr/bin/bash -c 'cat /etc/proxmox-env > ${OUTPUT}'
+              - name: set-hostname.service
+                enabled: true
+                contents: |
+                  [Unit]
+                  Description=Set the hostname for this machine
+                  Requires=coreos-metadata.service
+                  After=coreos-metadata.service
+                  [Service]
+                  Type=oneshot
+                  EnvironmentFile=/run/metadata/coreos
+                  ExecStart=/opt/set-hostname
+                  [Install]
+                  WantedBy=multi-user.target
+              - name: kubeadm.service
+                enabled: true
+                dropins:
+                - name: 10-flatcar.conf
+                  contents: |
+                    [Unit]
+                    # kubeadm must run after coreos-metadata populated /run/metadata directory.
+                    Requires=coreos-metadata.service
+                    After=coreos-metadata.service
+                    # kubeadm must run after containerd - see https://github.com/kubernetes-sigs/image-builder/issues/939.
+                    After=containerd.service
+                    [Service]
+                    # Make metadata environment variables available for pre-kubeadm commands.
+                    EnvironmentFile=/run/metadata/coreos
+                    # Log to file
+                    StandardOutput=append:/var/log/kubeadm-service.log
+                    StandardError=inherit
+
+      preKubeadmCommands:
+        - envsubst < /etc/kubeadm.yml > /etc/kubeadm.yml.tmp
+        - mv /etc/kubeadm.yml.tmp /etc/kubeadm.yml
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
-            node-labels: "node.kubernetes.io/proxmox-node={{ ds.meta_data.proxmox_node }},topology.kubernetes.io/zone={{ ds.meta_data.zone }}"
+            provider-id: proxmox://'${COREOS_CUSTOM_INSTANCE_ID}'
+      users:
+        - name: core
+          sshAuthorizedKeys: [${VM_SSH_KEYS}]
+          sudo: ALL=(ALL) NOPASSWD:ALL

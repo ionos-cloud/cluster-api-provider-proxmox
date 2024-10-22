@@ -135,7 +135,7 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 func TestGetBootstrapData_MissingSecretName(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
-	data, err := getBootstrapData(context.Background(), machineScope)
+	data, format, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "machine has no bootstrap data")
 	require.Nil(t, data)
@@ -171,6 +171,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "error retrieving bootstrap data: secret `value` key is missing")
 	require.Nil(t, data)
+	require.Equal(t, "cloud-init", format)
 }
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
