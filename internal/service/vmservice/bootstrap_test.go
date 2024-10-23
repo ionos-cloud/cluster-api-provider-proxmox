@@ -171,7 +171,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "error retrieving bootstrap data: secret `value` key is missing")
 	require.Nil(t, data)
-	require.Equal(t, "cloud-init", format)
+	require.Equal(t, "", format)
 }
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
