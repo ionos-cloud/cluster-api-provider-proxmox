@@ -101,6 +101,10 @@ func (e *Enricher) getEnrichConfig() *ignitionTypes.Config {
 
 func getNetworkdUnit(net cloudinit.NetworkConfigData) string {
 	str := fmt.Sprintf("[Match]\nMACAddress=%s\n\n[Link]\nName=%s\n\n[Network]\nAddress=%s\nGateway=%s\n", net.MacAddress, net.Name, net.IPAddress, net.Gateway)
+	if net.IPV6Address != "" {
+		str += fmt.Sprintf("Address=%s\n", net.IPV6Address)
+		str += fmt.Sprintf("Gateway=%s\n", net.Gateway6)
+	}
 	if net.DNSServers != nil {
 		for _, dns := range net.DNSServers {
 			str += fmt.Sprintf("DNS=%s\n", dns)
