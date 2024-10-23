@@ -34,8 +34,6 @@ import (
 type Enricher struct {
 	BootstrapData []byte
 	Hostname      string
-	Zone          string
-	ProxmoxNode   string
 	InstanceID    string
 	ProviderID    string
 	Network       []cloudinit.NetworkConfigData
@@ -112,14 +110,19 @@ func getNetworkdUnit(net cloudinit.NetworkConfigData) string {
 }
 
 func (e *Enricher) getProxmoxEnvContent() string {
-	content := fmt.Sprintf("COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_ZONE=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s\nCOREOS_CUSTOM_NODE=%s\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", e.Hostname, e.Zone, e.InstanceID, e.ProviderID, e.ProxmoxNode, e.Network[0].IPAddress)
-
+	content := fmt.Sprintf("COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s", e.Hostname, e.InstanceID, e.ProviderID)
+	if len(e.Network) > 0 && e.Network[0].IPAddress != "" {
+		content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", e.Network[0].IPAddress)
+	}
+	if len(e.Network) > 0 && e.Network[0].IPV6Address != "" {
+		content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", e.Network[0].IPV6Address)
+	}
 	return url.PathEscape(content)
 }
 
 func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Config) ([]byte, string, error) {
 	// We control bootstrapData config, so treat it as strict.
-	ign, _, err := convertToIgnition(bootstrapData, true)
+	ign, _, err := convertToIgnition(bootstrapData, false)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "converting bootstrap-data to Ignition")
 	}
