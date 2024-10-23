@@ -13,6 +13,8 @@ import (
 var (
 	blockSize        = 2048
 	volumeIdentifier = "config-2"
+
+	TagCloudInit = "cloud-init"
 )
 
 // Ignition takes a json doc as a string and make an ISO, upload it to the data store as <vmid>-user-data.iso and will
@@ -47,6 +49,11 @@ func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, dev
 
 	// iso should only be < 5mb so wait for it and then mount it
 	if err := task.WaitFor(ctx, 5); err != nil {
+		return err
+	}
+
+	_, err = v.AddTag(ctx, proxmox.MakeTag(TagCloudInit))
+	if err != nil && !proxmox.IsErrNoop(err) {
 		return err
 	}
 
