@@ -107,10 +107,8 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 	enricher := &ignition.Enricher{
 		BootstrapData: bootstrapData,
 		Hostname:      machineScope.Name(),
-		Zone:          "dummy", // TODO: Figure out how to identify the availability zone inside a datacenter / proxmox cluster and make this generic enough to be used by other users of the provider (outside of ionos)
 		InstanceID:    biosUUID,
 		ProviderID:    fmt.Sprintf("proxmox://%s", biosUUID),
-		ProxmoxNode:   machineScope.LocateProxmoxNode(),
 		Network:       nicData,
 	}
 
