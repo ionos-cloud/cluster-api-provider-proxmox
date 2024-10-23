@@ -95,7 +95,6 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name())
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
-	//machineScope.InfraCluster.ProxmoxClient
 	if err := injector.Inject(ctx, "cloud-init"); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return errors.Wrap(err, "cloud-init iso inject failed")

@@ -1,3 +1,20 @@
+/*
+Copyright 2023-2024 IONOS Cloud.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package ignition implements an enricher for Ignition configs.
 package ignition
 
 import (
@@ -13,6 +30,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 )
 
+// Enricher is responsible for enriching the Ignition config with additional data.
 type Enricher struct {
 	BootstrapData []byte
 	Hostname      string
@@ -23,16 +41,12 @@ type Enricher struct {
 	Network       []cloudinit.NetworkConfigData
 }
 
+// Enrich enriches the Ignition config with additional data.
 func (e *Enricher) Enrich() ([]byte, string, error) {
-	enrichConfig, err := e.getEnrichConfig()
-	if err != nil {
-		return nil, "", errors.Wrapf(err, "getting enrich config")
-	}
-
-	return buildIgnitionConfig(e.BootstrapData, enrichConfig)
+	return buildIgnitionConfig(e.BootstrapData, e.getEnrichConfig())
 }
 
-func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
+func (e *Enricher) getEnrichConfig() *ignitionTypes.Config {
 	ign := &ignitionTypes.Config{
 		Storage: ignitionTypes.Storage{
 			Files: []ignitionTypes.File{
@@ -84,7 +98,7 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 		})
 	}
 
-	return ign, nil
+	return ign
 }
 
 func getNetworkdUnit(net cloudinit.NetworkConfigData) string {
@@ -130,7 +144,7 @@ func convertToIgnition(data []byte, strict bool) (ignitionTypes.Config, string, 
 	if err != nil {
 		return ignitionTypes.Config{}, "", errors.Wrapf(err, "parsing ignition Config")
 	}
-	if reports.IsFatal() {
+	if strict && len(reports.Entries) > 0 || reports.IsFatal() {
 		return ignitionTypes.Config{}, "", fmt.Errorf("error parsing ignition Config: %v", reports.String())
 	}
 

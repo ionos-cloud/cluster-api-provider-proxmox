@@ -1,3 +1,19 @@
+/*
+Copyright 2023-2024 IONOS Cloud.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package goproxmox
 
 import (
@@ -13,8 +29,6 @@ import (
 var (
 	blockSize        = 2048
 	volumeIdentifier = "config-2"
-
-	TagCloudInit = "cloud-init"
 )
 
 // Ignition takes a json doc as a string and make an ISO, upload it to the data store as <vmid>-user-data.iso and will
@@ -52,7 +66,7 @@ func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, dev
 		return err
 	}
 
-	_, err = v.AddTag(ctx, proxmox.MakeTag(TagCloudInit))
+	_, err = v.AddTag(ctx, proxmox.MakeTag(proxmox.TagCloudInit))
 	if err != nil && !proxmox.IsErrNoop(err) {
 		return err
 	}
@@ -73,7 +87,7 @@ func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, dev
 }
 
 func makeCloudInitISO(filename, userdata string) (iso *os.File, err error) {
-	iso, err = os.Create(filepath.Join(os.TempDir(), filename))
+	iso, err = os.Create(filepath.Join(os.TempDir(), filename)) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
@@ -113,5 +127,5 @@ func makeCloudInitISO(filename, userdata string) (iso *os.File, err error) {
 		return nil, err
 	}
 
-	return
+	return iso, err
 }
