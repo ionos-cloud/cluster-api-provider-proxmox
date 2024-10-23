@@ -24,6 +24,59 @@ func (_m *MockClient) EXPECT() *MockClient_Expecter {
 	return &MockClient_Expecter{mock: &_m.Mock}
 }
 
+// CheckID provides a mock function with given fields: ctx, vmID
+func (_m *MockClient) CheckID(ctx context.Context, vmID int64) (bool, error) {
+	ret := _m.Called(ctx, vmID)
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (bool, error)); ok {
+		return rf(ctx, vmID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) bool); ok {
+		r0 = rf(ctx, vmID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, vmID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_CheckID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckID'
+type MockClient_CheckID_Call struct {
+	*mock.Call
+}
+
+// CheckID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vmID int64
+func (_e *MockClient_Expecter) CheckID(ctx interface{}, vmID interface{}) *MockClient_CheckID_Call {
+	return &MockClient_CheckID_Call{Call: _e.mock.On("CheckID", ctx, vmID)}
+}
+
+func (_c *MockClient_CheckID_Call) Run(run func(ctx context.Context, vmID int64)) *MockClient_CheckID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockClient_CheckID_Call) Return(_a0 bool, _a1 error) *MockClient_CheckID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_CheckID_Call) RunAndReturn(run func(context.Context, int64) (bool, error)) *MockClient_CheckID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CloneVM provides a mock function with given fields: ctx, templateID, clone
 func (_m *MockClient) CloneVM(ctx context.Context, templateID int, clone proxmox.VMCloneRequest) (proxmox.VMCloneResponse, error) {
 	ret := _m.Called(ctx, templateID, clone)

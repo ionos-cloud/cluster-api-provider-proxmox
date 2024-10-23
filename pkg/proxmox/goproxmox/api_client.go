@@ -184,6 +184,16 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 	return task, nil
 }
 
+// CheckID checks if the vmid is available on the cluster.
+// Returns true if the vmid is available, false if it is taken.
+func (c *APIClient) CheckID(ctx context.Context, vmid int64) (bool, error) {
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return false, fmt.Errorf("cannot get cluster")
+	}
+	return cluster.CheckID(ctx, int(vmid))
+}
+
 // GetTask returns a task associated with upID.
 func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, error) {
 	task := proxmox.NewTask(proxmox.UPID(upID), c.Client)
