@@ -115,7 +115,7 @@ func TestGetBootstrapData_MissingSecretName(t *testing.T) {
 	data, format, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
 	require.Nil(t, data)
-	require.Equal(t, "cloud-init", format)
+	require.Equal(t, "", format)
 }
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
