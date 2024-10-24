@@ -31,6 +31,7 @@ import (
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -479,9 +480,38 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition) == infrav1alpha1.WaitingForStaticIPAllocationReason)
 }
 
+func TestReconcileBootstrapDataFormatIgnition(t *testing.T) {
+	machineScope, mockClient, kubeClient := setupReconcilerTest(t)
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	vm.VirtualMachineConfig.SMBios1 = biosUUID
+	machineScope.SetVirtualMachine(vm)
+
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
+	createBootstrapSecretIgnition(t, kubeClient, machineScope)
+
+	data := "{\"ignition\":{\"config\":{},\"security\":{\"tls\":{}},\"timeouts\":{},\"version\":\"2.3.0\"},\"networkd\":{\"units\":[{\"contents\":\"[Match]\\nMACAddress=A6:23:64:4D:84:CB\\n\\n[Link]\\nName=eth0\\n\\n[Network]\\nAddress=10.10.10.10/24\\nGateway=10.10.10.11\\nDNS=1.2.3.4\\n\",\"name\":\"00-eth0.network\"}]},\"passwd\":{\"users\":[{\"name\":\"core\",\"sshAuthorizedKeys\":[\"ssh-ed25519 ...\"]}]},\"storage\":{\"files\":[{\"filesystem\":\"root\",\"path\":\"/etc/sudoers.d/core\",\"contents\":{\"source\":\"data:,core%20ALL%3D(ALL)%20NOPASSWD%3AALL%0A\",\"verification\":{}},\"mode\":384},{\"filesystem\":\"root\",\"overwrite\":true,\"path\":\"/etc/hostname\",\"contents\":{\"source\":\"data:,test\",\"verification\":{}},\"mode\":420},{\"filesystem\":\"root\",\"overwrite\":true,\"path\":\"/etc/proxmox-env\",\"contents\":{\"source\":\"data:,COREOS_CUSTOM_HOSTNAME=test%0ACOREOS_CUSTOM_INSTANCE_ID=41ec1197-580f-460b-b41b-1dfefabe6e32%0ACOREOS_CUSTOM_PROVIDER_ID=proxmox:%2F%2F41ec1197-580f-460b-b41b-1dfefabe6e32%0ACOREOS_CUSTOM_PRIVATE_IPV4=10.10.10.10%2F24\",\"verification\":{}},\"mode\":420}]},\"systemd\":{\"units\":[{\"contents\":\"[Unit]\\nDescription=kubeadm\\n# Run only once. After successful run, this file is moved to /tmp/.\\nConditionPathExists=/etc/kubeadm.yml\\nAfter=network.target\\n[Service]\\n# To not restart the unit when it exits, as it is expected.\\nType=oneshot\\nExecStart=/etc/kubeadm.sh\\n[Install]\\nWantedBy=multi-user.target\\n\",\"enabled\":true,\"name\":\"kubeadm.service\"},{\"enable\":true,\"name\":\"systemd-resolved.service\"}]}}"
+	mockClient.EXPECT().Ignition(context.Background(), vm, "ide0", data).Return(nil)
+
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+}
+
 func TestDefaultISOInjector(t *testing.T) {
 	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test"), cloudinit.NewNetworkConfig(nil))
 
 	require.NotEmpty(t, injector)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).BootstrapData)
+}
+
+func TestIgnitionISOInjector(t *testing.T) {
+	injector := ignitionISOInjector(nil, newRunningVM(), &ignition.Enricher{
+		BootstrapData: []byte("data"),
+		Hostname:      "test",
+	})
+
+	require.NotEmpty(t, injector)
+	require.NotNil(t, injector.(*inject.ISOInjector).IgnitionEnricher)
+	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).IgnitionEnricher.BootstrapData)
 }

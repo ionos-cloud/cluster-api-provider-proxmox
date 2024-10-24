@@ -42,6 +42,52 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
+const (
+	ignitionData = `{
+  "ignition": {
+    "config": {},
+    "security": {
+      "tls": {}
+    },
+    "timeouts": {},
+    "version": "2.3.0"
+  },
+  "networkd": {},
+  "passwd": {
+    "users": [
+      {
+        "name": "core",
+        "sshAuthorizedKeys": [
+          "ssh-ed25519 ..."
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "filesystem": "root",
+        "path": "/etc/sudoers.d/core",
+        "contents": {
+          "source": "data:,core%20ALL%3D(ALL)%20NOPASSWD%3AALL%0A",
+          "verification": {}
+        },
+        "mode": 384
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "contents": "[Unit]\nDescription=kubeadm\n# Run only once. After successful run, this file is moved to /tmp/.\nConditionPathExists=/etc/kubeadm.yml\nAfter=network.target\n[Service]\n# To not restart the unit when it exits, as it is expected.\nType=oneshot\nExecStart=/etc/kubeadm.sh\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "kubeadm.service"
+      }
+    ]
+  }
+}`
+)
+
 type FakeISOInjector struct {
 	Error error
 }
@@ -216,7 +262,23 @@ func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.Ma
 			Namespace: machineScope.Namespace(),
 		},
 		Data: map[string][]byte{
-			"value": []byte("data"),
+			"value":  []byte("data"),
+			"format": []byte("cloud-config"),
+		},
+	}
+	require.NoError(t, c.Create(context.Background(), secret))
+}
+
+func createBootstrapSecretIgnition(t *testing.T, c client.Client, machineScope *scope.MachineScope) {
+	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      machineScope.Name(),
+			Namespace: machineScope.Namespace(),
+		},
+		Data: map[string][]byte{
+			"value":  []byte(ignitionData),
+			"format": []byte("ignition"),
 		},
 	}
 	require.NoError(t, c.Create(context.Background(), secret))
