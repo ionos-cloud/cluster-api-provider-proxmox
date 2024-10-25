@@ -83,6 +83,6 @@ func TestEnricher_Enrich(t *testing.T) {
 
 	// wrong ignition
 	e.BootstrapData = []byte(`{}`)
-	userdata, reports, err = e.Enrich()
+	_, _, err = e.Enrich()
 	require.Error(t, err, "parsing ignition Config")
 }
