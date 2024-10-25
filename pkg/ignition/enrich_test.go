@@ -61,10 +61,12 @@ func TestEnricher_Enrich(t *testing.T) {
 		ProviderID:    "proxmox://xxxx-xxx",
 		Network: []cloudinit.NetworkConfigData{
 			{
-				Name:       "eth0",
-				IPAddress:  "10.1.1.9/24",
-				Gateway:    "10.1.1.1",
-				DNSServers: []string{"10.1.1.1"},
+				Name:        "eth0",
+				IPAddress:   "10.1.1.9/24",
+				IPV6Address: "2001:db8::1/64",
+				Gateway6:    "2001:db8::1",
+				Gateway:     "10.1.1.1",
+				DNSServers:  []string{"10.1.1.1"},
 			},
 		},
 	}
@@ -78,4 +80,9 @@ func TestEnricher_Enrich(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.Len(t, cfg.Networkd.Units, 1)
+
+	// wrong ignition
+	e.BootstrapData = []byte(`{}`)
+	userdata, reports, err = e.Enrich()
+	require.Error(t, err, "parsing ignition Config")
 }
