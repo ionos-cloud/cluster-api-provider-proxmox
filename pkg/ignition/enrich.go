@@ -141,8 +141,6 @@ func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Confi
 		return nil, "", errors.Wrapf(err, "marshaling generated Ignition config into JSON")
 	}
 
-	fmt.Println("userData: ", string(userData))
-
 	return userData, clcWarnings, nil
 }
 

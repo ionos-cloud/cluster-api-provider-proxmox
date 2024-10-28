@@ -42,9 +42,7 @@ func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, dev
 		return err
 	}
 
-	defer func() {
-		// _ = os.Remove(iso.Name())
-	}()
+	// TODO, defer remove the temp file
 
 	node, err := c.Node(ctx, v.Node)
 	if err != nil {
@@ -87,7 +85,7 @@ func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, dev
 }
 
 func makeCloudInitISO(filename, userdata string) (iso *os.File, err error) {
-	iso, err = os.Create(filepath.Join(os.TempDir(), filename)) //nolint:gosec
+	iso, err = os.Create(filepath.Join(os.TempDir(), filename)) //nolint:gosec // we are just creating a temp file
 	if err != nil {
 		return nil, err
 	}

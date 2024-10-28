@@ -98,7 +98,8 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 				IPAddress:  "10.1.1.6/24",
 				Gateway:    "10.1.1.1",
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-			}}),
+			},
+		}),
 	}
 
 	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/storage`, "pve"),
@@ -141,7 +142,8 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 				IPAddress:  "10.1.1.6/24",
 				Gateway:    "10.1.1.1",
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-			}}),
+			},
+		}),
 	}
 
 	// missing hostname
