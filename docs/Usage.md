@@ -170,6 +170,7 @@ We provide the following templates:
 | default             | templates/cluster-template.yaml                      | -                                                         |
 | cilium loadbalancer | templates/cluster-template-cilium-load-balancer.yaml | templates/crs/cni/cilium.yaml, templates/crs/metallb.yaml |
 | external-creds      | templates/cluster-template-external-creds.yaml       |                                                           |
+| flatcar             | templates/cluster-template-flatcar.yaml              |                                                           |
 
 For more information about advanced clusters please check our [advanced setups docs](advanced-setups.md).
 
@@ -270,6 +271,39 @@ kubectl apply -f cluster-crs.yaml
 ### Cleaning a cluster
 ```
 kubectl delete cluster proxmox-quickstart
+```
+
+
+#### Provision a cluster with flatcar
+
+To provision a cluster with flatcar,
+you need to build a suitable image with [image-builder](https://github.com/kubernetes-sigs/image-builder)
+once this PR is merged, https://github.com/kubernetes-sigs/image-builder/pull/1589
+please follow the docs in building flatcar image for Proxmox.
+
+After having a VM template with flatcar, you can provision a cluster with the same environment variables:
+
+```shell
+$ clusterctl generate cluster flatcar-quickstart \
+    --infrastructure proxmox \
+    --kubernetes-version v1.30.5 \
+    --control-plane-machine-count 3 \
+    --worker-machine-count 3 \
+    --flavor flatcar > cluster.yaml
+
+$ kubectl apply -f cluster.yaml
+```
+
+**Notes**: 
+- Make sure to define at least an ssh Key in the `VM_SSH_KEYS` environment variable, or the cluster will fail to provision.
+- If you want more customization, you can extend the template to add multiple interfaces or dual-stack.
+- please always make sure that the ProxmoxMachines ignores the cloud-init status by defining `spec.checks.skipCloudInitStatus: true` in the ProxmoxMachine CR.
+
+```yaml
+spec:
+  checks:
+    skipQemuGuestAgent: false
+    skipCloudInitStatus: true
 ```
 
 ### Custom cluster templates
