@@ -32,8 +32,36 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Get e2e skip label
+        id: get_labels
+        run: |
+          # Look for label that starts with skip-e2e/
+          skip_label="Flatcar"
+          
+          # Convert labels to JSON and check if it is not null
+          labels_json='${{ toJson(github.event.pull_request.labels) }}'
+          
+          if [[ "$labels_json" != "null" ]] && [[ "$labels_json" != "[]" ]]; then
+              # Use jq to parse the labels and extract names
+              labels=$(echo $labels_json | jq -r '.[].name')
+          
+              # Iterate through the names and check for the prefix "skip-e2e/"
+              for label_name in $labels; do
+                if [[ $label_name == skip-e2e/* ]]; then
+                  skip_label="${label_name#skip-e2e/}" # Remove the prefix to get the value
+                  break
+                fi
+              done
+          else
+              echo "No labels found."
+          fi
+          
+          echo "SKIP_E2E=$skip_label"
+          # Output the label value, or set it to "none" if not found
+          echo "SKIP_E2E=$skip_label" >> "$GITHUB_ENV"
+
       - name: Run e2e tests
-        run: "make test-e2e"
+        run: "make test-e2e GINKGO_SKIP=${{ env.SKIP_E2E }}"
 
       - name: Cleanup kind clusters
         uses: gacts/run-and-post-run@v1
