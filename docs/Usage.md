@@ -274,14 +274,11 @@ kubectl delete cluster proxmox-quickstart
 ```
 
 
-#### Provision a cluster with flatcar
+#### Provision a cluster with Flatcar Container Linux Images
 
-To provision a cluster with flatcar,
-you need to build a suitable image with [image-builder](https://github.com/kubernetes-sigs/image-builder)
-once this PR is merged, https://github.com/kubernetes-sigs/image-builder/pull/1589
-please follow the docs in building flatcar image for Proxmox.
-
-After having a VM template with flatcar, you can provision a cluster with the same environment variables:
+To provision a cluster with Flatcar, you need to build a suitable image with [image-builder](https://github.com/kubernetes-sigs/image-builder)
+Once this PR [#1589](https://github.com/kubernetes-sigs/image-builder/pull/1589) is merged, you can follow the official docs on how to build a Flatcar image for Proxmox.
+After you create a VM template using Flatcar, you can provision a cluster with the following options:
 
 ```shell
 $ clusterctl generate cluster flatcar-quickstart \
@@ -295,9 +292,9 @@ $ kubectl apply -f cluster.yaml
 ```
 
 **Notes**: 
-- Make sure to define at least an ssh Key in the `VM_SSH_KEYS` environment variable, or the cluster will fail to provision.
+- Make sure to define at least one ssh key in the `VM_SSH_KEYS` environment variable, or the cluster will fail to provision.
 - If you want more customization, you can extend the template to add multiple interfaces or dual-stack.
-- please always make sure that the ProxmoxMachines ignores the cloud-init status by defining `spec.checks.skipCloudInitStatus: true` in the ProxmoxMachine CR.
+- Please make sure that the ProxmoxMachines always ignore the cloud-init status by defining `spec.checks.skipCloudInitStatus: true` in the ProxmoxMachine CR.
 
 ```yaml
 spec:

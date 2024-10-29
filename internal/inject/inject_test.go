@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	testBaseURL   = "http://pve.local.test/" // regression test against trailing /
-	bootstrapData = `{
+	baseURLWithTrailingSlash = "http://pve.local.test/"
+	bootstrapData            = `{
   "ignition": {
     "config": {},
     "security": {
@@ -216,10 +216,10 @@ func newTestClient(t *testing.T) *goproxmox.APIClient {
 	httpmock.Activate()
 	t.Cleanup(httpmock.DeactivateAndReset)
 
-	httpmock.RegisterResponder(http.MethodGet, testBaseURL+"api2/json/version",
+	httpmock.RegisterResponder(http.MethodGet, baseURLWithTrailingSlash+"api2/json/version",
 		newJSONResponder(200, proxmox.Version{Release: "test"}, 1))
 
-	client, err := goproxmox.NewAPIClient(context.Background(), logr.Discard(), testBaseURL)
+	client, err := goproxmox.NewAPIClient(context.Background(), logr.Discard(), baseURLWithTrailingSlash)
 	require.NoError(t, err)
 
 	return client

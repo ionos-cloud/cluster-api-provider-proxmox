@@ -36,6 +36,11 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
+const (
+	// IgnitionFormat is the format of the bootstrap data as ignition.
+	IgnitionFormat = "ignition"
+)
+
 func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
 	if ptr.Deref(machineScope.ProxmoxMachine.Status.BootstrapDataProvided, false) {
 		// skip machine already have the bootstrap data.
@@ -72,10 +77,10 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
-	switch format {
-	case "ignition":
+	// Inject userdata based on the format
+	if format == IgnitionFormat {
 		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData)
-	default:
+	} else {
 		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData)
 	}
 	if err != nil {

@@ -147,10 +147,10 @@ func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Confi
 func convertToIgnition(data []byte, strict bool) (ignitionTypes.Config, string, error) {
 	cfg, reports, err := ignition.Parse(data)
 	if err != nil {
-		return ignitionTypes.Config{}, "", errors.Wrapf(err, "parsing ignition Config")
+		return ignitionTypes.Config{}, "", errors.Wrapf(err, "parsing Ignition config")
 	}
 	if strict && len(reports.Entries) > 0 || reports.IsFatal() {
-		return ignitionTypes.Config{}, "", fmt.Errorf("error parsing ignition Config: %v", reports.String())
+		return ignitionTypes.Config{}, "", fmt.Errorf("error parsing Ignition config: %v", reports.String())
 	}
 
 	return cfg, reports.String(), nil

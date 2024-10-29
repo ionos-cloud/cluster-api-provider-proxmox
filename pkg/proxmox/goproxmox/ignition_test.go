@@ -19,24 +19,23 @@ func TestAPIClient_Ignition(t *testing.T) {
 	vmid := int64(100)
 
 	userdata := `{
-  "ignition": {
-    "version": "3.2.0"
-  },
-  "storage": {
-    "files": [
-      {
-        "path": "/etc/hostname",
-        "contents": {
-          "source": "data:,my-flatcar-hostname",
-          "verification": {}
-        },
-        "mode": 420
-      }
-    ]
-  }
-}`
+	  "ignition": {
+		"version": "3.2.0"
+	  },
+	  "storage": {
+		"files": [
+		  {
+			"path": "/etc/hostname",
+			"contents": {
+			  "source": "data:,my-flatcar-hostname",
+			  "verification": {}
+			},
+			"mode": 420
+		  }
+		]
+	  }
+	}`
 
-	// mocks
 	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/status`, node),
 		newJSONResponder(200, proxmox.Node{Name: "pve"}))
 

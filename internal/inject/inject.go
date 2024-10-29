@@ -72,6 +72,7 @@ func (i *ISOInjector) injectCloudInit(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "unable to inject CloudInit ISO")
 	}
+
 	return nil
 }
 
@@ -79,6 +80,7 @@ func (i *ISOInjector) injectIgnition(ctx context.Context) error {
 	if i.Client == nil {
 		return errors.New("proxmox client is not defined")
 	}
+
 	if i.IgnitionEnricher == nil {
 		return errors.New("ignition enricher is not defined")
 	}
@@ -97,5 +99,6 @@ func (i *ISOInjector) injectIgnition(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "unable to inject ignition ISO")
 	}
+
 	return nil
 }

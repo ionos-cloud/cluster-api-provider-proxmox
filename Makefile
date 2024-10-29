@@ -281,7 +281,7 @@ KUBETEST_CONF_PATH ?= $(abspath $(E2E_DATA_DIR)/kubetest/conformance.yaml)
 
 # Allow overriding the e2e configurations
 GINKGO_FOCUS ?= Workload cluster creation
-GINKGO_SKIP ?= API Version Upgrade
+GINKGO_SKIP ?= Generic|Flatcar
 GINKGO_NODES ?= 1
 GINKGO_NOCOLOR ?= false
 GINKGO_ARGS ?=

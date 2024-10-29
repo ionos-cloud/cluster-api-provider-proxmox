@@ -31,8 +31,8 @@ var (
 	volumeIdentifier = "config-2"
 )
 
-// Ignition takes a json doc as a string and make an ISO, upload it to the data store as <vmid>-user-data.iso and will
-// mount it as a CD-ROM to be used with nutanix config-drive  'config-2'.
+// Ignition expects userdata as stringified JSON. Create an ISO out of it, which will be uploaded to the data store as <vmid>-user-data.iso and
+// mounted as a CD-ROM to be used with nutanix config-drive 'config-2'.
 func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, device, userdata string) error {
 	UserDataISOFormat := "user-data-%d.iso"
 	isoName := fmt.Sprintf(UserDataISOFormat, v.VMID)
@@ -41,8 +41,6 @@ func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, dev
 	if err != nil {
 		return err
 	}
-
-	// TODO, defer remove the temp file
 
 	node, err := c.Node(ctx, v.Node)
 	if err != nil {
@@ -59,7 +57,7 @@ func (c *APIClient) Ignition(ctx context.Context, v *proxmox.VirtualMachine, dev
 		return err
 	}
 
-	// iso should only be < 5mb so wait for it and then mount it
+	// iso should only be < 5mb so wait and then mount it
 	if err := task.WaitFor(ctx, 5); err != nil {
 		return err
 	}
