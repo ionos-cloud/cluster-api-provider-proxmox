@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
-	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
@@ -123,34 +122,6 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 			return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
 		}
 		clusterScope.ProxmoxClient = pmoxClient
-	}
-
-	// when a Cluster is marked failed cause the Proxmox client is nil.
-	// the cluster doesn't reconcile the failed state if we restart the controller.
-	// so we need to check if the ProxmoxClient is not nil and the ProxmoxCluster has a failure reason.
-	if clusterScope.ProxmoxClient != nil &&
-		clusterScope.ProxmoxCluster.Status.FailureReason != nil &&
-		clusterScope.ProxmoxCluster.Status.FailureMessage != nil &&
-		ptr.Deref(clusterScope.ProxmoxCluster.Status.FailureReason, "") == clustererrors.InvalidConfigurationClusterError &&
-		strings.Contains(ptr.Deref(clusterScope.ProxmoxCluster.Status.FailureMessage, ""), "No credentials found") {
-
-		// clear the failure reason
-		clusterScope.ProxmoxCluster.Status.FailureMessage = nil
-		clusterScope.ProxmoxCluster.Status.FailureReason = nil
-		if err = clusterScope.Close(); err != nil {
-			return nil, err
-		}
-
-		cHelper, err := patch.NewHelper(params.Cluster, params.Client)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to init patch helper")
-		}
-		clusterScope.Cluster.Status.FailureMessage = nil
-		clusterScope.Cluster.Status.FailureReason = nil
-		if err = cHelper.Patch(context.TODO(), clusterScope.Cluster); err != nil {
-			return nil, err
-		}
-		return nil, errors.New("reconciling cluster failure state")
 	}
 
 	return clusterScope, nil
