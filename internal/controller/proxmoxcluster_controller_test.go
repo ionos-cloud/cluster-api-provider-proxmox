@@ -21,23 +21,23 @@ import (
 	"reflect"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/cluster-api/util/conditions"
-	"sigs.k8s.io/cluster-api/util/patch"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clustererrors "sigs.k8s.io/cluster-api/errors"
+	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
@@ -201,6 +201,29 @@ var _ = Describe("Controller Test", func() {
 			}).WithTimeout(time.Second * 10).
 				WithPolling(time.Second).
 				Should(Succeed())
+		})
+		It("Should reconcile failed cluster state", func() {
+			cl := buildProxmoxCluster(clusterName)
+			cl.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			cl.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
+			g.Expect(k8sClient.Status().Update(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
+
+			defer cleanupResources(testEnv.GetContext(), g, cl)
+
+			g.Eventually(func(g Gomega) {
+				var res infrav1.ProxmoxCluster
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKey{
+					Namespace: testNS,
+					Name:      clusterName,
+				}, &res)).To(Succeed())
+
+				g.Expect(res.Status.FailureReason).To(BeNil())
+				g.Expect(res.Status.FailureMessage).To(BeNil())
+			}).WithTimeout(time.Second * 20).
+				WithPolling(time.Second).
+				Should(Succeed())
+
 		})
 	})
 })
@@ -399,7 +422,7 @@ func createSecret() *corev1.Secret {
 			"secret": []byte("secret"),
 		},
 	}
-	Expect(testEnv.Create(testEnv.GetContext(), secret)).To(Succeed())
+	Expect(k8sClient.Create(testEnv.GetContext(), secret)).To(Succeed())
 	return secret
 }
 

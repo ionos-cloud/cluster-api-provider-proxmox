@@ -37,17 +37,17 @@ import (
 )
 
 func TestNewClusterScope_MissingParams(t *testing.T) {
-	client := fake.NewClientBuilder().Build()
+	k8sClient := fake.NewClientBuilder().Build()
 
 	tests := []struct {
 		name   string
 		params ClusterScopeParams
 	}{
 		{"missing client", ClusterScopeParams{Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing cluster", ClusterScopeParams{Client: client, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing proxmox cluster", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing ipam helper", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}}},
-		{"missing proxmox client", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing cluster", ClusterScopeParams{Client: k8sClient, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing proxmox cluster", ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxClient: &goproxmox.APIClient{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing ipam helper", ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, ProxmoxClient: &goproxmox.APIClient{}}},
+		{"missing proxmox client", ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: &infrav1alpha1.ProxmoxCluster{}, IPAMHelper: &ipam.Helper{}}},
 	}
 
 	for _, test := range tests {
@@ -59,7 +59,7 @@ func TestNewClusterScope_MissingParams(t *testing.T) {
 }
 
 func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
-	client := getFakeClient(t)
+	k8sClient := getFakeClient(t)
 
 	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
@@ -79,7 +79,7 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 		name   string
 		params ClusterScopeParams
 	}{
-		{"missing proxmox client in ref", ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: proxmoxCluster, IPAMHelper: &ipam.Helper{}}},
+		{"missing proxmox client in ref", ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: proxmoxCluster, IPAMHelper: &ipam.Helper{}}},
 	}
 
 	for _, test := range tests {
@@ -92,7 +92,7 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 }
 
 func TestNewClusterScope_SetupProxmoxClient(t *testing.T) {
-	client := getFakeClient(t)
+	k8sClient := getFakeClient(t)
 
 	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
@@ -112,7 +112,7 @@ func TestNewClusterScope_SetupProxmoxClient(t *testing.T) {
 		},
 	}
 
-	params := ClusterScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: proxmoxCluster, IPAMHelper: &ipam.Helper{}}
+	params := ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: proxmoxCluster, IPAMHelper: &ipam.Helper{}}
 	_, err := NewClusterScope(params)
 	require.Error(t, err)
 
@@ -128,7 +128,7 @@ func TestNewClusterScope_SetupProxmoxClient(t *testing.T) {
 		},
 	}
 
-	err = client.Create(context.Background(), &creds)
+	err = k8sClient.Create(context.Background(), &creds)
 	require.NoError(t, err)
 
 	_, err = NewClusterScope(params)
