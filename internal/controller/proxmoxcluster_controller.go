@@ -20,6 +20,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -191,6 +192,14 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
 
+	// when a Cluster is marked failed cause the Proxmox client is nil.
+	// the cluster doesn't reconcile the failed state if we restart the controller.
+	// so we need to check if the ProxmoxClient is not nil and the ProxmoxCluster has a failure reason.
+	err := r.reconcileFailedClusterState(clusterScope)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	res, err := r.reconcileIPAM(ctx, clusterScope)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -214,6 +223,34 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	clusterScope.ProxmoxCluster.Status.Ready = true
 
 	return ctrl.Result{}, nil
+}
+
+func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(clusterScope *scope.ClusterScope) error {
+	if clusterScope.ProxmoxClient != nil &&
+		clusterScope.ProxmoxCluster.Status.FailureReason != nil &&
+		clusterScope.ProxmoxCluster.Status.FailureMessage != nil &&
+		ptr.Deref(clusterScope.ProxmoxCluster.Status.FailureReason, "") == clustererrors.InvalidConfigurationClusterError &&
+		strings.Contains(ptr.Deref(clusterScope.ProxmoxCluster.Status.FailureMessage, ""), "No credentials found") {
+		// clear the failure reason
+		clusterScope.ProxmoxCluster.Status.FailureMessage = nil
+		clusterScope.ProxmoxCluster.Status.FailureReason = nil
+		if err := clusterScope.Close(); err != nil {
+			return err
+		}
+
+		cHelper, err := patch.NewHelper(clusterScope.Cluster, r.Client)
+		if err != nil {
+			return errors.Wrap(err, "failed to init patch helper")
+		}
+		clusterScope.Cluster.Status.FailureMessage = nil
+		clusterScope.Cluster.Status.FailureReason = nil
+		if err = cHelper.Patch(context.TODO(), clusterScope.Cluster); err != nil {
+			return err
+		}
+		return errors.New("reconciling cluster failure state")
+	}
+
+	return nil
 }
 
 func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
