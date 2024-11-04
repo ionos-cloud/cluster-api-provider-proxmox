@@ -206,6 +206,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 
 			return ctrl.Result{Requeue: true}, nil
 		}
+	}
 
 	// when a Cluster is marked failed cause the Proxmox client is nil.
 	// the cluster doesn't reconcile the failed state if we restart the controller.
