@@ -9,13 +9,14 @@ on:
 
 jobs:
   e2e:
-    if: ${{ ! contains( github.event.pull_request.labels.*.name, 'skip e2e') }}
+    if: ${{ ! contains( github.event.pull_request.labels.*.name, 'e2e/none') }}
     runs-on: [capmox,e2e,dcd-playground]
     environment: e2e
     env:
       PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
       PROXMOX_TOKEN: ${{ secrets.PROXMOX_TOKEN }}
       PROXMOX_SECRET: ${{ secrets.PROXMOX_SECRET }}
+      SKIP_E2E: Flatcar
     steps:
       - name: Check out branch ${{ github.ref }}
         if: ${{ github.event_name == 'push' }}
@@ -32,8 +33,12 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Check if requested to skip Flatcar tests
+        if: ${{ contains( github.event.pull_request.labels.*.name, 'e2e/flatcar') }}
+        run: echo 'SKIP_E2E=""' >> "$GITHUB_ENV"
+
       - name: Run e2e tests
-        run: "make test-e2e"
+        run: "make test-e2e GINKGO_SKIP=${{ env.SKIP_E2E }}"
 
       - name: Cleanup kind clusters
         uses: gacts/run-and-post-run@v1
