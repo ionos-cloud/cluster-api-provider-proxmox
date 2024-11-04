@@ -123,6 +123,7 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		}
 		clusterScope.ProxmoxClient = pmoxClient
 	}
+
 	return clusterScope, nil
 }
 
