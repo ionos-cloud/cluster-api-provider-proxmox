@@ -288,28 +288,28 @@ var _ = Describe("ProxmoxMachine Test", func() {
 	})
 
 	Context("VMIDRange", func() {
-		It("Should not allow only allow spec.vmidRange.start >= 100", func() {
+		It("Should only allow spec.vmidRange.start >= 100", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				Start: 1,
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 100")))
 		})
-		It("Should not allow only allow spec.vmidRange.end >= 100", func() {
+		It("Should only allow spec.vmidRange.end >= 100", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				End: 1,
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 100")))
 		})
-		It("Should not allow only allow spec.vmidRange.start if spec.vmidRange.end is set", func() {
+		It("Should only allow spec.vmidRange.start if spec.vmidRange.end is set", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				Start: 100,
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.vmidRange.end in body should be greater than or equal to 100")))
 		})
-		It("Should not allow only allow spec.vmidRange.end if spec.vmidRange.start is set", func() {
+		It("Should only allow spec.vmidRange.end if spec.vmidRange.start is set", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				End: 100,
