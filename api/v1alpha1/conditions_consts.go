@@ -86,4 +86,8 @@ const (
 const (
 	// ProxmoxClusterReady documents the status of ProxmoxCluster and its underlying resources.
 	ProxmoxClusterReady clusterv1.ConditionType = "ClusterReady"
+
+	// ProxmoxUnreachableReason (Severity=Error) documents a controller detecting
+	// issues with Proxmox reachability.
+	ProxmoxUnreachableReason = "ProxmoxUnreachable"
 )

@@ -477,6 +477,49 @@ func (_c *MockClient_GetVM_Call) RunAndReturn(run func(context.Context, string, 
 	return _c
 }
 
+// QemuAgentStatus provides a mock function with given fields: ctx, vm
+func (_m *MockClient) QemuAgentStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) error {
+	ret := _m.Called(ctx, vm)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
+		r0 = rf(ctx, vm)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockClient_QemuAgentStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QemuAgentStatus'
+type MockClient_QemuAgentStatus_Call struct {
+	*mock.Call
+}
+
+// QemuAgentStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vm *go_proxmox.VirtualMachine
+func (_e *MockClient_Expecter) QemuAgentStatus(ctx interface{}, vm interface{}) *MockClient_QemuAgentStatus_Call {
+	return &MockClient_QemuAgentStatus_Call{Call: _e.mock.On("QemuAgentStatus", ctx, vm)}
+}
+
+func (_c *MockClient_QemuAgentStatus_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine)) *MockClient_QemuAgentStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine))
+	})
+	return _c
+}
+
+func (_c *MockClient_QemuAgentStatus_Call) Return(_a0 error) *MockClient_QemuAgentStatus_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockClient_QemuAgentStatus_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine) error) *MockClient_QemuAgentStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ResizeDisk provides a mock function with given fields: ctx, vm, disk, size
 func (_m *MockClient) ResizeDisk(ctx context.Context, vm *go_proxmox.VirtualMachine, disk string, size string) error {
 	ret := _m.Called(ctx, vm, disk, size)
