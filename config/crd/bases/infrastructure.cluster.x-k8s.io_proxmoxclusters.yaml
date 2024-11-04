@@ -615,6 +615,11 @@ spec:
                   type: string
                 minItems: 1
                 type: array
+              externalManagedControlPlane:
+                description: |-
+                  ExternalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
+                  Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
+                type: boolean
               ipv4Config:
                 description: |-
                   IPv4Config contains information about available IPV4 address pools and the gateway.
