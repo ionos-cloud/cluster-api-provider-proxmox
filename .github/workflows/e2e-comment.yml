@@ -1,0 +1,29 @@
+name: comment-e2e
+
+on:
+  pull_request_target:
+    types: ["opened"]
+    branches: ["main"]
+
+jobs:
+  comment-e2e:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: PR comment with file
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: |
+            ### 🚀  e2e tests  run
+            We add labels to the PRs to control the e2e test runs by running specific tests and skipping some test contexts,
+            please follow this guide:
+            
+            | Label | Behaviour |
+            |--|--|
+            | none | Run `Generic` tests |
+            | https://github.com/ionos-cloud/cluster-api-provider-proxmox/labels/e2e%2Fnone | Do not run any tests (overrides all e2e/ flags) |
+            | https://github.com/ionos-cloud/cluster-api-provider-proxmox/labels/e2e%2Fflatcar | Add `Flatcar` tests to the run |
+            
+            ℹ️ Ask a `Member` to add the requested labels if you don't have enough permissions.
+          comment_tag: e2e
+          mode: "recreate"
