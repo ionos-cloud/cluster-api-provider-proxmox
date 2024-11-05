@@ -73,7 +73,7 @@ Metrics are, like all network configuration, part of bootstrap, and will not rec
 ```bash
 clusterctl generate cluster test-multiple-vlans  \
   --infrastructure proxmox \
-  --kubernetes-version v1.28.3  \
+  --kubernetes-version v1.30.6  \
   --control-plane-machine-count=1 \
   --worker-machine-count=2 \
   --flavor=multiple-vlans > cluster.yaml
@@ -106,7 +106,7 @@ If you're using cilium, be aware that Cilium's helm chart requires `ipv6.enabled
 ```bash
 clusterctl generate cluster test-duacl-stack  \
   --infrastructure proxmox \
-  --kubernetes-version v1.28.3  \
+  --kubernetes-version v1.30.6  \
   --control-plane-machine-count=1 \
   --worker-machine-count=2 \
   --flavor=dual-stack > cluster.yaml
@@ -162,7 +162,7 @@ METALLB_IPV6_RANGE:
 ```bash
 clusterctl generate cluster test-bgp-lb  \
   --infrastructure proxmox \
-  --kubernetes-version v1.28.3  \
+  --kubernetes-version v1.30.6  \
   --control-plane-machine-count=1 \
   --worker-machine-count=2 \
   --flavor=cilium-load-balancer > cluster.yaml
