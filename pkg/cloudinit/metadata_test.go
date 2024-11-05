@@ -27,6 +27,7 @@ const (
 local-hostname: proxmox-control-plane
 hostname: proxmox-control-plane
 provider-id: proxmox://9a82e2ca-4294-11ee-be56-0242ac120002
+kubernetes-version: v1.31.0
 `
 )
 
@@ -79,7 +80,7 @@ func TestMetadata_Render(t *testing.T) {
 
 	for n, tc := range cases {
 		t.Run(n, func(t *testing.T) {
-			ci := NewMetadata(tc.args.instanceID, tc.args.hostname)
+			ci := NewMetadata(tc.args.instanceID, tc.args.hostname, "v1.31.0")
 			metadata, err := ci.Render()
 			require.ErrorIs(t, err, tc.want.err)
 			require.Equal(t, tc.want.metadata, string(metadata))

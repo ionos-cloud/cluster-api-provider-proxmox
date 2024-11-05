@@ -21,6 +21,7 @@ package cloudinit
 type BaseCloudInitData struct {
 	Hostname          string
 	InstanceID        string
+	KubernetesVersion string
 	NetworkConfigData []NetworkConfigData
 }
 
