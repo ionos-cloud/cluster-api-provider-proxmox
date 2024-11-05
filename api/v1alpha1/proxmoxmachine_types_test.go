@@ -312,6 +312,14 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 100")))
 		})
+		It("Should only allow spec.vmIDRange.end >= spec.vmIDRange.start", func() {
+			dm := defaultMachine()
+			dm.Spec.VMIDRange = &VMIDRange{
+				Start: 101,
+				End:   100,
+			}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to start")))
+		})
 		It("Should only allow spec.vmIDRange.start if spec.vmIDRange.end is set", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{

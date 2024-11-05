@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -25,13 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	clusterapierrors "sigs.k8s.io/cluster-api/errors"
-)
-
-var (
-	// ErrVMIDRangeStartNotProvided is returned when the VMIDRangeStart is not provided.
-	ErrVMIDRangeStartNotProvided = errors.New("spec.vmIDRange.start not provided")
-	// ErrVMIDRangeEndNotProvided is returned when the VMIDRangeEnd is not provided.
-	ErrVMIDRangeEndNotProvided = errors.New("spec.vmIDRange.end not provided")
 )
 
 const (
@@ -111,6 +103,7 @@ type ProxmoxMachineSpec struct {
 
 	// VMIDRange is the range of VMIDs to use for VMs.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.end >= self.start",message="end should be greater than or equal to start"
 	VMIDRange *VMIDRange `json:"vmIDRange,omitempty"`
 
 	Checks *ProxmoxMachineChecks `json:"checks,omitempty"`

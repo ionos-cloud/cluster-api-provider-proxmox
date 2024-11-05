@@ -616,6 +616,10 @@ spec:
                                   - end
                                   - start
                                   type: object
+                                  x-kubernetes-validations:
+                                  - message: end should be greater than or equal to
+                                      start
+                                    rule: self.end >= self.start
                               required:
                               - sourceNode
                               type: object
