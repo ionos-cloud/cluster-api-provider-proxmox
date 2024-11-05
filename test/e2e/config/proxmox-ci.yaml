@@ -81,7 +81,7 @@ providers:
       - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-upgrades.yaml"
 
 variables:
-  KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.28.6}"
+  KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.30.6}"
   CONTROL_PLANE_MACHINE_COUNT: "${CONTROL_PLANE_MACHINE_COUNT:-1}"
   WORKER_MACHINE_COUNT: "${WORKER_MACHINE_COUNT:-2}"
   EXP_CLUSTER_RESOURCE_SET: "true"
