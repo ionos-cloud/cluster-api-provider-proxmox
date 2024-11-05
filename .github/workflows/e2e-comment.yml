@@ -11,7 +11,7 @@ jobs:
     permissions: write-all
     steps:
       - name: PR comment with file
-        uses: thollander/actions-comment-pull-request@v2
+        uses: thollander/actions-comment-pull-request@v3
         with:
           message: |
             ### 🚀  e2e tests  run
