@@ -10,7 +10,10 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
@@ -30,12 +33,27 @@ func TestSetupReconcilers(t *testing.T) {
 	require.NoError(t, ipamicv1.AddToScheme(s))
 	require.NoError(t, ipamv1.AddToScheme(s))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: s})
+	c := mockGetConfig(s)
+	require.NotNil(t, c)
+
+	mgr, err := ctrl.NewManager(c, ctrl.Options{Scheme: s})
 	require.NoError(t, err)
 	require.NotNil(t, mgr)
 
 	err = setupReconcilers(context.Background(), mgr, proxmoxClient)
 	require.NoError(t, err)
+}
+
+func mockGetConfig(s *runtime.Scheme) *rest.Config {
+	// Return a basic rest.Config, here we use empty values for fields since we're not connecting to a real cluster
+	return &rest.Config{
+		Host:    "http://localhost:8080",
+		APIPath: "api",
+		ContentConfig: rest.ContentConfig{
+			GroupVersion:         &schema.GroupVersion{Version: "v1"},
+			NegotiatedSerializer: serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(s)},
+		},
+	}
 }
 
 func TestSetupProxmoxClient_NoClient(t *testing.T) {
