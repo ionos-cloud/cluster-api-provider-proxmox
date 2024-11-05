@@ -29,9 +29,9 @@ import (
 
 var (
 	// ErrVMIDRangeStartNotProvided is returned when the VMIDRangeStart is not provided.
-	ErrVMIDRangeStartNotProvided = errors.New("spec.vmidRange.start not provided")
+	ErrVMIDRangeStartNotProvided = errors.New("spec.vmIDRange.start not provided")
 	// ErrVMIDRangeEndNotProvided is returned when the VMIDRangeEnd is not provided.
-	ErrVMIDRangeEndNotProvided = errors.New("spec.vmidRange.end not provided")
+	ErrVMIDRangeEndNotProvided = errors.New("spec.vmIDRange.end not provided")
 )
 
 const (
@@ -111,7 +111,7 @@ type ProxmoxMachineSpec struct {
 
 	// VMIDRange is the range of VMIDs to use for VMs.
 	// +optional
-	VMIDRange *VMIDRange `json:"vmidRange,omitempty"`
+	VMIDRange *VMIDRange `json:"vmIDRange,omitempty"`
 
 	Checks *ProxmoxMachineChecks `json:"checks,omitempty"`
 }

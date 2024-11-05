@@ -518,7 +518,7 @@ spec:
                   VM.
                 format: int64
                 type: integer
-              vmidRange:
+              vmIDRange:
                 description: VMIDRange is the range of VMIDs to use for VMs.
                 properties:
                   end:

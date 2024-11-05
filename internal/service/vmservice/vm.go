@@ -47,8 +47,8 @@ const (
 	optionMemory  = "memory"
 )
 
-// ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmidRange.
-var ErrNoVMIDInRangeFree = errors.New("No free vmid found in vmidRange")
+// ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmIDRange.
+var ErrNoVMIDInRangeFree = errors.New("No free vmid found in vmIDRange")
 
 // ReconcileVM makes sure that the VM is in the desired state by:
 //  1. Creating the VM if it does not exist, then...
@@ -404,9 +404,9 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 
 func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
 	if scope.ProxmoxMachine.Spec.VMIDRange != nil {
-		vmidRangeStart := scope.ProxmoxMachine.Spec.VMIDRange.Start
-		vmidRangeEnd := scope.ProxmoxMachine.Spec.VMIDRange.End
-		if vmidRangeStart != 0 && vmidRangeEnd != 0 {
+		vmIDRangeStart := scope.ProxmoxMachine.Spec.VMIDRange.Start
+		vmIDRangeEnd := scope.ProxmoxMachine.Spec.VMIDRange.End
+		if vmIDRangeStart != 0 && vmIDRangeEnd != 0 {
 			// Get all used vmids from existing ProxmoxMachines
 			usedVMIDs := []int64{}
 			proxmoxMachines, err := scope.InfraCluster.ListProxmoxMachinesForCluster(ctx)
@@ -419,7 +419,7 @@ func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
 				}
 			}
 			// Get next free vmid from the range
-			for i := vmidRangeStart; i <= vmidRangeEnd; i++ {
+			for i := vmIDRangeStart; i <= vmIDRangeEnd; i++ {
 				if slices.Contains(usedVMIDs, i) {
 					continue
 				}

@@ -108,16 +108,18 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				Default: &NetworkDevice{
 					Bridge: "vmbr0",
 				},
-				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
-					Name:          "net0",
-					InterfaceConfig: InterfaceConfig{
-						IPv4PoolRef: &corev1.TypedLocalObjectReference{
-							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-							Kind:     "InClusterIPPool",
-							Name:     "some-pool",
-						}},
-				},
+				AdditionalDevices: []AdditionalNetworkDevice{
+					{
+						NetworkDevice: NetworkDevice{},
+						Name:          "net0",
+						InterfaceConfig: InterfaceConfig{
+							IPv4PoolRef: &corev1.TypedLocalObjectReference{
+								APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+								Kind:     "InClusterIPPool",
+								Name:     "some-pool",
+							},
+						},
+					},
 				},
 			}
 
@@ -127,15 +129,17 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		It("Should only allow IPAM pool resources in IPv4PoolRef apiGroup", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
-				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
-					Name:          "net1",
-					InterfaceConfig: InterfaceConfig{
-						IPv4PoolRef: &corev1.TypedLocalObjectReference{
-							APIGroup: ptr.To("apps"),
-							Name:     "some-app",
-						}},
-				},
+				AdditionalDevices: []AdditionalNetworkDevice{
+					{
+						NetworkDevice: NetworkDevice{},
+						Name:          "net1",
+						InterfaceConfig: InterfaceConfig{
+							IPv4PoolRef: &corev1.TypedLocalObjectReference{
+								APIGroup: ptr.To("apps"),
+								Name:     "some-app",
+							},
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("ipv4PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io")))
@@ -144,15 +148,16 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		It("Should only allow IPAM pool resources in IPv4PoolRef kind", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
-				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
-					Name:          "net1",
-					InterfaceConfig: InterfaceConfig{IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "ConfigMap",
-						Name:     "some-app",
-					}},
-				},
+				AdditionalDevices: []AdditionalNetworkDevice{
+					{
+						NetworkDevice: NetworkDevice{},
+						Name:          "net1",
+						InterfaceConfig: InterfaceConfig{IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "ConfigMap",
+							Name:     "some-app",
+						}},
+					},
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("ipv4PoolRef allows either InClusterIPPool or GlobalInClusterIPPool")))
@@ -161,15 +166,17 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		It("Should only allow IPAM pool resources in IPv6PoolRef apiGroup", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
-				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
-					Name:          "net1",
-					InterfaceConfig: InterfaceConfig{
-						IPv6PoolRef: &corev1.TypedLocalObjectReference{
-							APIGroup: ptr.To("apps"),
-							Name:     "some-app",
-						}},
-				},
+				AdditionalDevices: []AdditionalNetworkDevice{
+					{
+						NetworkDevice: NetworkDevice{},
+						Name:          "net1",
+						InterfaceConfig: InterfaceConfig{
+							IPv6PoolRef: &corev1.TypedLocalObjectReference{
+								APIGroup: ptr.To("apps"),
+								Name:     "some-app",
+							},
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("ipv6PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io")))
@@ -178,16 +185,18 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		It("Should only allow IPAM pool resources in IPv6PoolRef kind", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
-				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
-					Name:          "net1",
-					InterfaceConfig: InterfaceConfig{
-						IPv6PoolRef: &corev1.TypedLocalObjectReference{
-							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-							Kind:     "ConfigMap",
-							Name:     "some-app",
-						}},
-				},
+				AdditionalDevices: []AdditionalNetworkDevice{
+					{
+						NetworkDevice: NetworkDevice{},
+						Name:          "net1",
+						InterfaceConfig: InterfaceConfig{
+							IPv6PoolRef: &corev1.TypedLocalObjectReference{
+								APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+								Kind:     "ConfigMap",
+								Name:     "some-app",
+							},
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("ipv6PoolRef allows either InClusterIPPool or GlobalInClusterIPPool")))
@@ -196,10 +205,11 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		It("Should only allow Machine with additional devices with at least a pool ref", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
-				AdditionalDevices: []AdditionalNetworkDevice{{
-					NetworkDevice: NetworkDevice{},
-					Name:          "net1",
-				},
+				AdditionalDevices: []AdditionalNetworkDevice{
+					{
+						NetworkDevice: NetworkDevice{},
+						Name:          "net1",
+					},
 				},
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("at least one pool reference must be set, either ipv4PoolRef or ipv6PoolRef")))
@@ -288,33 +298,33 @@ var _ = Describe("ProxmoxMachine Test", func() {
 	})
 
 	Context("VMIDRange", func() {
-		It("Should only allow spec.vmidRange.start >= 100", func() {
+		It("Should only allow spec.vmIDRange.start >= 100", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				Start: 1,
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 100")))
 		})
-		It("Should only allow spec.vmidRange.end >= 100", func() {
+		It("Should only allow spec.vmIDRange.end >= 100", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				End: 1,
 			}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 100")))
 		})
-		It("Should only allow spec.vmidRange.start if spec.vmidRange.end is set", func() {
+		It("Should only allow spec.vmIDRange.start if spec.vmIDRange.end is set", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				Start: 100,
 			}
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.vmidRange.end in body should be greater than or equal to 100")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.vmIDRange.end in body should be greater than or equal to 100")))
 		})
-		It("Should only allow spec.vmidRange.end if spec.vmidRange.start is set", func() {
+		It("Should only allow spec.vmIDRange.end if spec.vmIDRange.start is set", func() {
 			dm := defaultMachine()
 			dm.Spec.VMIDRange = &VMIDRange{
 				End: 100,
 			}
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.vmidRange.start in body should be greater than or equal to 100")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.vmIDRange.start in body should be greater than or equal to 100")))
 		})
 	})
 })
