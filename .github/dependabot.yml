@@ -11,6 +11,10 @@ updates:
       - k8s.io/api
       - k8s.io/apimachinery
       - k8s.io/client-go
+    cluster-api:
+      patterns:
+      - sigs.k8s.io/cluster-api
+      - sigs.k8s.io/cluster-api/test
 
 - package-ecosystem: "docker"
   directory: "/"
