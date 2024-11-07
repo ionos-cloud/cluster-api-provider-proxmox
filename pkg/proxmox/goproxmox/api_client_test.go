@@ -23,10 +23,11 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/jarcoal/httpmock"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
+
+	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 )
 
 const testBaseURL = "http://pve.local.test/" // regression test against trailing /
@@ -156,7 +157,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		client := newTestClient(t)
 		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
 			newJSONResponder(401, "Forbidden"))
-		reservable, err := client.GetReservableMemoryBytes("test")
+		reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
@@ -169,8 +170,8 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
 			newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}}))
 		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu`,
-			newJSONResponder(401, "Forbidden"))
-		reservable, err := client.GetReservableMemoryBytes("test")
+			newJSONResponder(401, nil))
+		reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", 1)
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
@@ -214,7 +215,7 @@ func TestProxmoxAPIClient_CloneVM(t *testing.T) {
 				newJSONResponder(test.http[5], "101"))
 
 			clone := capmox.VMCloneRequest{Node: "test"}
-			cloneresponse, err := client.CloneVM(100, clone)
+			cloneresponse, err := client.CloneVM(context.Background(), 100, clone)
 
 			if test.fails {
 				require.Error(t, err)
@@ -258,9 +259,9 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 				newJSONResponder(200,
 					proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
 
-			node, err := client.Client.Node("test")
+			node, err := client.Client.Node(context.Background(), "test")
 			require.NoError(t, err)
-			vm, err := node.VirtualMachine(101)
+			vm, err := node.VirtualMachine(context.Background(), 101)
 			require.NoError(t, err)
 
 			if test.fails {
@@ -270,7 +271,7 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 			//  These two are merely to use the variadic interface
 			oName := capmox.VirtualMachineOption{Name: "name", Value: "RenameTest"}
 			oMem := capmox.VirtualMachineOption{Name: "memory", Value: 4096}
-			task, err := client.ConfigureVM(vm, oName, oMem)
+			task, err := client.ConfigureVM(context.Background(), vm, oName, oMem)
 
 			if test.fails {
 				require.Error(t, err)
@@ -317,7 +318,7 @@ func TestProxmoxAPIClient_GetVM(t *testing.T) {
 				newJSONResponder(200,
 					proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
 
-			vm, err := client.GetVM(test.node, test.vmID)
+			vm, err := client.GetVM(context.Background(), test.node, test.vmID)
 
 			if test.fails {
 				require.Error(t, err)
@@ -340,10 +341,10 @@ func TestProxmoxAPIClient_FindVMResource(t *testing.T) {
 		err   string
 	}{
 		{name: "find", http: []int{200, 200}, vmID: 101, fails: false, err: ""},
-		{name: "clusterstatus broken", http: []int{403, 200}, vmID: 101, fails: true,
-			err: "cannot get cluster status: not authorized to access endpoint"},
-		{name: "resourcelisting broken", http: []int{200, 403}, vmID: 102, fails: true,
-			err: "could not list vm resources: not authorized to access endpoint"},
+		{name: "clusterstatus broken", http: []int{500, 200}, vmID: 101, fails: true,
+			err: "cannot get cluster status: 500"},
+		{name: "resourcelisting broken", http: []int{200, 500}, vmID: 102, fails: true,
+			err: "could not list vm resources: 500"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -357,7 +358,7 @@ func TestProxmoxAPIClient_FindVMResource(t *testing.T) {
 					&proxmox.ClusterResource{VMID: 101},
 				}))
 
-			clusterResource, err := client.FindVMResource(test.vmID)
+			clusterResource, err := client.FindVMResource(context.Background(), test.vmID)
 
 			if test.fails {
 				require.Error(t, err)
@@ -391,6 +392,8 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 			// "UPID:$node:$pid:$pstart:$startime:$dtype:$id:$user"
 			upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:qmdestroy:101:root@pam:"
 
+			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
+				newJSONResponder(400, fmt.Sprintf("VM %d already exists", test.vmID)))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
 				newJSONResponder(200, proxmox.Node{}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/enoent/status`,
@@ -411,7 +414,7 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 				newJSONResponder(200,
 					proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
 
-			task, err := client.DeleteVM(test.node, test.vmID)
+			task, err := client.DeleteVM(context.Background(), test.node, test.vmID)
 
 			if test.fails {
 				require.Error(t, err)
@@ -448,11 +451,11 @@ func TestProxmoxAPIClient_GetTask(t *testing.T) {
 				newJSONResponder(501, nil))
 
 			if test.fails {
-				_, err := client.GetTask(upid2)
+				_, err := client.GetTask(context.Background(), upid2)
 				require.Error(t, err)
 				require.Equal(t, test.err, err.Error())
 			} else {
-				task, err := client.GetTask(upid)
+				task, err := client.GetTask(context.Background(), upid)
 				require.NoError(t, err)
 				require.Equal(t, upid, string(task.UPID))
 				require.Equal(t, "101", task.ID)
