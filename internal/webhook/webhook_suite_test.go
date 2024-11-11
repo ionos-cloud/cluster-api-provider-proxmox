@@ -24,9 +24,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
 
 	//+kubebuilder:scaffold:imports
 
