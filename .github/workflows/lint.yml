@@ -16,7 +16,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: false
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
@@ -43,3 +42,4 @@ jobs:
       - name: Check workflow files
         run: ${{ steps.get_actionlint.outputs.executable }} -color
         shell: bash
+
