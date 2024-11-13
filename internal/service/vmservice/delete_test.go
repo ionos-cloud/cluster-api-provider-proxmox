@@ -21,10 +21,11 @@ import (
 	"errors"
 	"testing"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
+
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 )
 
 func TestDeleteVM_SuccessNotFound(t *testing.T) {

@@ -18,11 +18,13 @@ package vmservice
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
@@ -109,11 +111,65 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
+func TestReconcileBootstrapData_BadInjector(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTest(t)
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	machineScope.SetVirtualMachine(vm)
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
+	createBootstrapSecret(t, kubeClient, machineScope)
+
+	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
+		return FakeISOInjector{Error: errors.New("bad FakeISOInjector")}
+	}
+	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), "cloud-init iso inject failed: bad FakeISOInjector")
+	require.False(t, requeue)
+	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition))
+	require.Nil(t, machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+}
+
 func TestGetBootstrapData_MissingSecretName(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
 	data, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
+	require.Equal(t, err.Error(), "machine has no bootstrap data")
+	require.Nil(t, data)
+}
+
+func TestGetBootstrapData_MissingSecretNotName(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTest(t)
+
+	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To("foo")
+	data, err := getBootstrapData(context.Background(), machineScope)
+
+	require.Error(t, err)
+	require.Equal(t, err.Error(), "failed to retrieve bootstrap data secret: secrets \"foo\" not found")
+	require.Nil(t, data)
+}
+
+func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
+	machineScope, _, client := setupReconcilerTest(t)
+
+	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      machineScope.Name(),
+			Namespace: machineScope.Namespace(),
+		},
+		Data: map[string][]byte{
+			"notvalue": []byte("notdata"),
+		},
+	}
+	require.NoError(t, client.Create(context.Background(), secret))
+
+	data, err := getBootstrapData(context.Background(), machineScope)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), "error retrieving bootstrap data: secret `value` key is missing")
 	require.Nil(t, data)
 }
 
