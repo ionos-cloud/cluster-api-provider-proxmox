@@ -2,7 +2,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.28.0
+ENVTEST_K8S_VERSION = 1.30.0
 
 TOOLS_DIR := hack/tools
 
@@ -219,7 +219,7 @@ crs-cilium: ## Generates crs manifests for Cilium.
 	$(HELM) repo add cilium https://helm.cilium.io/ --force-update
 	$(HELM) template cilium cilium/cilium --version $(CILIUM_VERSION) --set internalTrafficPolicy=local --namespace kube-system > templates/crs/cni/cilium.yaml
 
-CALICO_VERSION ?= v3.26.3
+CALICO_VERSION ?= v3.28.2
 
 .PHONY: crs-calico
 crs-calico: ## Generates crs manifests for Calico.
