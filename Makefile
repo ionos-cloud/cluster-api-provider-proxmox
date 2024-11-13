@@ -219,7 +219,7 @@ crs-cilium: ## Generates crs manifests for Cilium.
 	$(HELM) repo add cilium https://helm.cilium.io/ --force-update
 	$(HELM) template cilium cilium/cilium --version $(CILIUM_VERSION) --set internalTrafficPolicy=local --namespace kube-system > templates/crs/cni/cilium.yaml
 
-CALICO_VERSION ?= v3.26.3
+CALICO_VERSION ?= v3.28.2
 
 .PHONY: crs-calico
 crs-calico: ## Generates crs manifests for Calico.
