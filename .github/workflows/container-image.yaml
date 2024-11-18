@@ -7,7 +7,7 @@ on:
       - release-*
     # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
 
   pull_request:
     branches:
@@ -29,7 +29,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/ionos-cloud/cluster-api-provider-proxmox
+          images: ghcr.io/rybnico/cluster-api-provider-proxmox
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
