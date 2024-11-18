@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,6 +40,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/vmservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 

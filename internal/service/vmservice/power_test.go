@@ -20,8 +20,9 @@ import (
 	"context"
 	"testing"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/stretchr/testify/require"
+
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 )
 
 func TestReconcilePowerState_MissingIPAddress(t *testing.T) {

@@ -25,10 +25,11 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/pkg/errors"
+
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
-	"github.com/pkg/errors"
 )
 
 // DeleteVM implements the logic of destroying a VM.

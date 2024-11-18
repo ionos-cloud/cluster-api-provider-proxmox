@@ -20,8 +20,9 @@ limitations under the License.
 package tools
 
 import (
-	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
-	_ "github.com/vektra/mockery/v2"
-	_ "github.com/google/yamlfmt"
 	_ "github.com/braydonk/yaml"
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+	_ "github.com/google/yamlfmt"
+	_ "github.com/vektra/mockery/v2"
+	_ "golang.org/x/tools/cmd/goimports"
 )
