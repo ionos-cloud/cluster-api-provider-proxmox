@@ -72,7 +72,11 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name())
+	kubernetesVersion := ""
+	if machineScope.Machine.Spec.Version != nil {
+		kubernetesVersion = *machineScope.Machine.Spec.Version
+	}
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion)
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err = injector.Inject(ctx); err != nil {

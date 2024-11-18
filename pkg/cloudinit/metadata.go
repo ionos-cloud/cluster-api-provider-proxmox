@@ -21,6 +21,7 @@ const (
 local-hostname: {{ .Hostname }}
 hostname: {{ .Hostname }}
 provider-id: proxmox://{{ .InstanceID }}
+kubernetes-version: {{ .KubernetesVersion }}
 `
 )
 
@@ -30,11 +31,12 @@ type Metadata struct {
 }
 
 // NewMetadata returns a new Metadata object.
-func NewMetadata(instanceID, hostname string) *Metadata {
+func NewMetadata(instanceID, hostname string, kubernetesVersion string) *Metadata {
 	ci := new(Metadata)
 	ci.data = BaseCloudInitData{
-		Hostname:   hostname,
-		InstanceID: instanceID,
+		Hostname:          hostname,
+		InstanceID:        instanceID,
+		KubernetesVersion: kubernetesVersion,
 	}
 	return ci
 }
