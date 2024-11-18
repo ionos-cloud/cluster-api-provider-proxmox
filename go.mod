@@ -2,7 +2,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 
 go 1.22.0
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.8.4
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.8.5
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
 
@@ -17,15 +17,15 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
-	golang.org/x/tools v0.26.0
-	k8s.io/api v0.30.4
-	k8s.io/apimachinery v0.30.4
-	k8s.io/client-go v0.30.4
+	golang.org/x/tools v0.27.0
+	k8s.io/api v0.30.6
+	k8s.io/apimachinery v0.30.6
+	k8s.io/client-go v0.30.6
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
-	sigs.k8s.io/cluster-api v1.8.4
+	sigs.k8s.io/cluster-api v1.8.5
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v0.1.0
-	sigs.k8s.io/cluster-api/test v1.8.4
+	sigs.k8s.io/cluster-api/test v1.8.5
 	sigs.k8s.io/controller-runtime v0.18.5
 )
 
@@ -129,15 +129,15 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.28.0 // indirect
+	golang.org/x/crypto v0.29.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
-	golang.org/x/mod v0.21.0 // indirect
-	golang.org/x/net v0.30.0 // indirect
+	golang.org/x/mod v0.22.0 // indirect
+	golang.org/x/net v0.31.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/term v0.25.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
+	golang.org/x/term v0.26.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240311132316-a219d84964c2 // indirect

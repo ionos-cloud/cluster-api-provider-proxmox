@@ -19,9 +19,10 @@ package vmservice
 import (
 	"testing"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
+
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 )
 
 func TestExtractUUID(t *testing.T) {

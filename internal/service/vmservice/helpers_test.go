@@ -43,11 +43,11 @@ import (
 )
 
 type FakeISOInjector struct {
-	error
+	Error error
 }
 
 func (f FakeISOInjector) Inject(_ context.Context) error {
-	return f.error
+	return f.Error
 }
 
 // setupReconcilerTest initializes a MachineScope with a mock Proxmox client and a fake controller-runtime client.
