@@ -37,22 +37,3 @@ jobs:
 
       - name: Run tests
         run: "make test"
-
-      - name: SonarCloud Scan ${{ github.ref }}
-        uses: SonarSource/sonarcloud-github-action@v3.1.0
-        if: ${{ github.event_name == 'push' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      # If triggered by a PR, we have to use the PR's source
-      - name: SonarCloud Scan (preview) merge commit for PR ${{ github.event.pull_request.number }}
-        uses: SonarSource/sonarcloud-github-action@v3.1.0
-        if: ${{ github.event_name == 'pull_request_target' }}
-        with:
-         args: >
-           -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-           -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
