@@ -22,7 +22,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
@@ -179,6 +182,104 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
 	require.True(t, machineScope.HasFailed())
+}
+
+func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+		Start: 1000,
+		End:   1002,
+	}
+
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1001, Name: "test"}
+	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(1001)}
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1000)).Return(false, nil)
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(true, nil)
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.Equal(t, int64(1001), machineScope.ProxmoxMachine.GetVirtualMachineID())
+	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
+}
+
+func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+		Start: 1000,
+		End:   1002,
+	}
+
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1000)).Return(false, nil)
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(false, nil)
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1002)).Return(false, nil)
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.Error(t, err, ErrNoVMIDInRangeFree)
+	require.False(t, requeue)
+	require.Equal(t, int64(-1), machineScope.ProxmoxMachine.GetVirtualMachineID())
+}
+
+func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
+	machineScope, proxmoxClient, kubeClient := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
+		Start: 1000,
+		End:   1002,
+	}
+
+	// Add a VM with ID 1000.
+	// Make sure the check for a free vmid skips 1000 by ensuring the Proxmox CheckID function isn't called more than once.
+	// It is called once when reconciling this test vm.
+	vm := newRunningVM()
+	vm.Name = "vm1000"
+	proxmoxClient.EXPECT().GetVM(context.Background(), "", int64(1000)).Return(vm, nil).Once()
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1000)).Return(false, nil).Once()
+	infraMachine := infrav1alpha1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "vm1000",
+		},
+		Spec: infrav1alpha1.ProxmoxMachineSpec{
+			VirtualMachineID: ptr.To(int64(1000)),
+		},
+	}
+	machine := clusterv1.Machine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "vm1000",
+		},
+		Spec: clusterv1.MachineSpec{
+			InfrastructureRef: corev1.ObjectReference{
+				Kind: "ProxmoxMachine",
+				Name: "vm1000",
+			},
+		},
+	}
+	machineScopeVMThousand, err := scope.NewMachineScope(scope.MachineScopeParams{
+		Client:         kubeClient,
+		Logger:         machineScope.Logger,
+		Cluster:        machineScope.Cluster,
+		Machine:        &machine,
+		InfraCluster:   machineScope.InfraCluster,
+		ProxmoxMachine: &infraMachine,
+		IPAMHelper:     machineScope.IPAMHelper,
+	})
+	require.NoError(t, err)
+	machineScopeVMThousand.SetVirtualMachineID(1000)
+	_, err = ensureVirtualMachine(context.Background(), machineScopeVMThousand)
+	require.NoError(t, err)
+
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1002, Name: "test"}
+	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(1002)}
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(false, nil).Once()
+	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1002)).Return(true, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Equal(t, int64(1002), machineScope.ProxmoxMachine.GetVirtualMachineID())
 }
 
 func TestEnsureVirtualMachine_FindVM(t *testing.T) {
