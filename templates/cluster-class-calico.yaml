@@ -982,6 +982,7 @@ spec:
         default:
           bridge: ${BRIDGE}
           model: virtio
+          vlan: ${VLAN:=null}
 ---
 kind: ProxmoxMachineTemplate
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
@@ -998,6 +999,7 @@ spec:
         default:
           bridge: ${BRIDGE}
           model: virtio
+          vlan: ${VLAN:=null}
 ---
 kind: KubeadmConfigTemplate
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
