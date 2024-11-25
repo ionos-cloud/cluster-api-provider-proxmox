@@ -44,6 +44,7 @@ type NetworkConfigData struct {
 	Routes      []RoutingData
 	FIBRules    []FIBRuleData // Forwarding information block for routing.
 	LinkMTU     *uint16       // linux network device MTU
+	VRF         string        // linux VRF name // only used in networkd config.
 }
 
 // RoutingData stores routing configuration.

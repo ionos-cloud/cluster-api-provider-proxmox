@@ -108,6 +108,9 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 }
 
 func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+	// create metadata renderer
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name())
+
 	// create an enricher
 	enricher := &ignition.Enricher{
 		BootstrapData: bootstrapData,
@@ -117,7 +120,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 		Network:       nicData,
 	}
 
-	injector := ignitionISOInjector(machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine, enricher)
+	injector := ignitionISOInjector(machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine, metadata, enricher)
 	if err := injector.Inject(ctx, "ignition"); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return errors.Wrap(err, "ignition iso inject failed")
@@ -138,10 +141,11 @@ func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metada
 	}
 }
 
-func ignitionISOInjector(client capmox.Client, vm *proxmox.VirtualMachine, enricher *ignition.Enricher) isoInjector {
+func ignitionISOInjector(client capmox.Client, vm *proxmox.VirtualMachine, metadata cloudinit.Renderer, enricher *ignition.Enricher) isoInjector {
 	return &inject.ISOInjector{
 		VirtualMachine:   vm,
 		IgnitionEnricher: enricher,
+		MetaRenderer:     metadata,
 		Client:           client,
 	}
 }

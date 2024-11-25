@@ -41,10 +41,15 @@ type Enricher struct {
 
 // Enrich enriches the Ignition config with additional data.
 func (e *Enricher) Enrich() ([]byte, string, error) {
-	return buildIgnitionConfig(e.BootstrapData, e.getEnrichConfig())
+	ign, err := e.getEnrichConfig()
+	if err != nil {
+		return nil, "", errors.Wrap(err, "getting enrich config")
+	}
+
+	return buildIgnitionConfig(e.BootstrapData, ign)
 }
 
-func (e *Enricher) getEnrichConfig() *ignitionTypes.Config {
+func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 	ign := &ignitionTypes.Config{
 		Storage: ignitionTypes.Storage{
 			Files: []ignitionTypes.File{
@@ -89,28 +94,20 @@ func (e *Enricher) getEnrichConfig() *ignitionTypes.Config {
 		},
 	}
 
-	for i, net := range e.Network {
+	// populate networkd units
+	nets, err := RenderNetworkConfigData(cloudinit.BaseCloudInitData{NetworkConfigData: e.Network})
+	if err != nil {
+		return nil, errors.Wrap(err, "rendering networkd units")
+	}
+
+	for name, contents := range nets {
 		ign.Networkd.Units = append(ign.Networkd.Units, ignitionTypes.Networkdunit{
-			Name:     fmt.Sprintf("%d%d-eth%d.network", i, i, i),
-			Contents: getNetworkdUnit(net),
+			Name:     name,
+			Contents: string(contents),
 		})
 	}
 
-	return ign
-}
-
-func getNetworkdUnit(net cloudinit.NetworkConfigData) string {
-	str := fmt.Sprintf("[Match]\nMACAddress=%s\n\n[Link]\nName=%s\n\n[Network]\nAddress=%s\nGateway=%s\n", net.MacAddress, net.Name, net.IPAddress, net.Gateway)
-	if net.IPV6Address != "" {
-		str += fmt.Sprintf("Address=%s\n", net.IPV6Address)
-		str += fmt.Sprintf("Gateway=%s\n", net.Gateway6)
-	}
-	if net.DNSServers != nil {
-		for _, dns := range net.DNSServers {
-			str += fmt.Sprintf("DNS=%s\n", dns)
-		}
-	}
-	return str
+	return ign, nil
 }
 
 func (e *Enricher) getProxmoxEnvContent() string {

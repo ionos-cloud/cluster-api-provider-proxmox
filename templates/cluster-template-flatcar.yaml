@@ -74,9 +74,11 @@ spec:
                 Type=oneshot
                 Restart=on-failure
                 RemainAfterExit=yes
-                Environment=OUTPUT=/run/metadata/coreos
+                EnvironmentFile=/etc/proxmox-env
                 ExecStart=/usr/bin/mkdir --parent /run/metadata
-                ExecStart=/usr/bin/bash -c 'cat /etc/proxmox-env > $${OUTPUT}'
+                ExecStart=/bin/bash -c 'env > /run/metadata/flatcar'
+                [Install]
+                WantedBy=multi-user.target
             - name: set-hostname.service
               enabled: true
               contents: |
@@ -86,7 +88,7 @@ spec:
                 After=coreos-metadata.service
                 [Service]
                 Type=oneshot
-                EnvironmentFile=/run/metadata/coreos
+                EnvironmentFile=/run/metadata/flatcar
                 ExecStart=/opt/set-hostname
                 [Install]
                 WantedBy=multi-user.target
@@ -103,7 +105,7 @@ spec:
                   After=containerd.service
                   [Service]
                   # Make metadata environment variables available for pre-kubeadm commands.
-                  EnvironmentFile=/run/metadata/coreos
+                  EnvironmentFile=/run/metadata/flatcar
                   # Log to file
                   StandardOutput=append:/var/log/kubeadm-service.log
                   StandardError=inherit
@@ -213,6 +215,7 @@ spec:
         owner: root:root
         permissions: "0700"
     preKubeadmCommands:
+      - rm /etc/proxmox-env
       - envsubst < /etc/kubeadm.yml > /etc/kubeadm.yml.tmp
       - mv /etc/kubeadm.yml.tmp /etc/kubeadm.yml
       - /etc/kube-vip-prepare.sh
@@ -346,9 +349,11 @@ spec:
                   Type=oneshot
                   Restart=on-failure
                   RemainAfterExit=yes
-                  Environment=OUTPUT=/run/metadata/coreos
+                  EnvironmentFile=/etc/proxmox-env
                   ExecStart=/usr/bin/mkdir --parent /run/metadata
-                  ExecStart=/usr/bin/bash -c 'cat /etc/proxmox-env > $${OUTPUT}'
+                  ExecStart=/bin/bash -c 'env > /run/metadata/flatcar'
+                  [Install]
+                  WantedBy=multi-user.target
               - name: set-hostname.service
                 enabled: true
                 contents: |
@@ -358,7 +363,7 @@ spec:
                   After=coreos-metadata.service
                   [Service]
                   Type=oneshot
-                  EnvironmentFile=/run/metadata/coreos
+                  EnvironmentFile=/run/metadata/flatcar
                   ExecStart=/opt/set-hostname
                   [Install]
                   WantedBy=multi-user.target
@@ -375,11 +380,12 @@ spec:
                     After=containerd.service
                     [Service]
                     # Make metadata environment variables available for pre-kubeadm commands.
-                    EnvironmentFile=/run/metadata/coreos
+                    EnvironmentFile=/run/metadata/flatcar
                     # Log to file
                     StandardOutput=append:/var/log/kubeadm-service.log
                     StandardError=inherit
       preKubeadmCommands:
+        - rm /etc/proxmox-env
         - envsubst < /etc/kubeadm.yml > /etc/kubeadm.yml.tmp
         - mv /etc/kubeadm.yml.tmp /etc/kubeadm.yml
       joinConfiguration:

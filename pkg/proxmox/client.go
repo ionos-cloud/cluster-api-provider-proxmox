@@ -52,6 +52,4 @@ type Client interface {
 	CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) (bool, error)
 
 	QemuAgentStatus(ctx context.Context, vm *proxmox.VirtualMachine) error
-
-	Ignition(ctx context.Context, v *proxmox.VirtualMachine, device, userdata string) error
 }

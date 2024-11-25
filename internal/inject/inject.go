@@ -89,15 +89,25 @@ func (i *ISOInjector) injectIgnition(ctx context.Context) error {
 		i.IgnitionEnricher.BootstrapData = i.BootstrapData
 	}
 
+	if i.MetaRenderer == nil {
+		return errors.New("metadata renderer is not defined")
+	}
+
+	// Render metadata.
+	metadata, err := i.MetaRenderer.Render()
+	if err != nil {
+		return errors.Wrap(err, "unable to render metadata")
+	}
+
 	bootstrapData, _, err := i.IgnitionEnricher.Enrich()
 	if err != nil {
 		return errors.Wrap(err, "unable to enrich ignition")
 	}
 
-	// Inject an ISO as config-2 with user_data as an ignition into the VirtualMachine.
-	err = i.Client.Ignition(ctx, i.VirtualMachine, CloudInitISODevice, string(bootstrapData))
+	// Inject an ISO with ignition userdata, metadata and an empty network-config v1 into the VirtualMachine.
+	err = i.VirtualMachine.CloudInit(ctx, CloudInitISODevice, string(bootstrapData), string(metadata), "", string(cloudinit.EmptyNetworkV1))
 	if err != nil {
-		return errors.Wrap(err, "unable to inject ignition ISO")
+		return errors.Wrap(err, "unable to inject ignition userdata iso")
 	}
 
 	return nil

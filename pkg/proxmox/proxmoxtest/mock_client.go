@@ -477,51 +477,6 @@ func (_c *MockClient_GetVM_Call) RunAndReturn(run func(context.Context, string, 
 	return _c
 }
 
-// Ignition provides a mock function with given fields: ctx, v, device, userdata
-func (_m *MockClient) Ignition(ctx context.Context, v *go_proxmox.VirtualMachine, device string, userdata string) error {
-	ret := _m.Called(ctx, v, device, userdata)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine, string, string) error); ok {
-		r0 = rf(ctx, v, device, userdata)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockClient_Ignition_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Ignition'
-type MockClient_Ignition_Call struct {
-	*mock.Call
-}
-
-// Ignition is a helper method to define mock.On call
-//   - ctx context.Context
-//   - v *go_proxmox.VirtualMachine
-//   - device string
-//   - userdata string
-func (_e *MockClient_Expecter) Ignition(ctx interface{}, v interface{}, device interface{}, userdata interface{}) *MockClient_Ignition_Call {
-	return &MockClient_Ignition_Call{Call: _e.mock.On("Ignition", ctx, v, device, userdata)}
-}
-
-func (_c *MockClient_Ignition_Call) Run(run func(ctx context.Context, v *go_proxmox.VirtualMachine, device string, userdata string)) *MockClient_Ignition_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine), args[2].(string), args[3].(string))
-	})
-	return _c
-}
-
-func (_c *MockClient_Ignition_Call) Return(_a0 error) *MockClient_Ignition_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockClient_Ignition_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine, string, string) error) *MockClient_Ignition_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // QemuAgentStatus provides a mock function with given fields: ctx, vm
 func (_m *MockClient) QemuAgentStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) error {
 	ret := _m.Called(ctx, vm)
