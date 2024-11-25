@@ -7,7 +7,6 @@ replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.8.5
 replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
 
 require (
-	github.com/diskfs/go-diskfs v1.2.0
 	github.com/flatcar/ignition v0.36.2
 	github.com/go-logr/logr v1.4.2
 	github.com/google/uuid v1.6.0
@@ -53,6 +52,7 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/diskfs/go-diskfs v1.2.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker v27.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
