@@ -136,6 +136,9 @@ func RenderNetworkConfigData(data cloudinit.BaseCloudInitData) (map[string][]byt
 	// Add VRFs first so that they are created before the ethernet interfaces.
 	n := 0
 	for i, networkConfig := range data.NetworkConfigData {
+		// the []data.NetworkConfigData have types ethernet and vrf
+		// we need to make sure to add vrf netdev first.
+		// and that's why we use n to keep track of the vrf index.
 		if networkConfig.Type == networkTypeVRF {
 			config, err := render(fmt.Sprintf("%d-%s", i, networkConfig.Type), netDevConfigTpl, networkConfig)
 			if err != nil {
