@@ -25,7 +25,6 @@ import (
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
-	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 )
 
 // CloudInitISODevice default device used to inject cdrom iso.
@@ -41,7 +40,6 @@ type ISOInjector struct {
 	NetworkRenderer cloudinit.Renderer
 
 	IgnitionEnricher *ignition.Enricher
-	Client           capmox.Client
 }
 
 // Inject injects cloudinit userdata, metadata and network-config into a Proxmox VirtualMachine.
@@ -77,10 +75,6 @@ func (i *ISOInjector) injectCloudInit(ctx context.Context) error {
 }
 
 func (i *ISOInjector) injectIgnition(ctx context.Context) error {
-	if i.Client == nil {
-		return errors.New("proxmox client is not defined")
-	}
-
 	if i.IgnitionEnricher == nil {
 		return errors.New("ignition enricher is not defined")
 	}

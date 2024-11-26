@@ -32,7 +32,6 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
-	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -120,7 +119,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 		Network:       nicData,
 	}
 
-	injector := ignitionISOInjector(machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine, metadata, enricher)
+	injector := ignitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
 	if err := injector.Inject(ctx, "ignition"); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return errors.Wrap(err, "ignition iso inject failed")
@@ -141,12 +140,11 @@ func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metada
 	}
 }
 
-func ignitionISOInjector(client capmox.Client, vm *proxmox.VirtualMachine, metadata cloudinit.Renderer, enricher *ignition.Enricher) isoInjector {
+func ignitionISOInjector(vm *proxmox.VirtualMachine, metadata cloudinit.Renderer, enricher *ignition.Enricher) isoInjector {
 	return &inject.ISOInjector{
 		VirtualMachine:   vm,
 		IgnitionEnricher: enricher,
 		MetaRenderer:     metadata,
-		Client:           client,
 	}
 }
 
