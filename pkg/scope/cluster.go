@@ -20,6 +20,8 @@ package scope
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"net/http"
 
 	"github.com/go-logr/logr"
@@ -151,9 +153,25 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	tokenSecret := string(secret.Data["secret"])
 	url := string(secret.Data["url"])
 
-	// TODO, check if we need to delete tls config
+	tlsInsecure := string(secret.Data["insecure"]) != "false"
+	tlsRootCA := secret.Data["root_ca"]
+
+	rootCerts, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("loading system cert pool: %w", err)
+	}
+
+	if len(tlsRootCA) > 0 {
+		if !rootCerts.AppendCertsFromPEM(tlsRootCA) {
+			return nil, fmt.Errorf("failure adding cert to root cert list")
+		}
+	}
+
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: tlsInsecure, //#nosec:G402 // Default retained, user can enable cert checking
+			RootCAs:            rootCerts,
+		},
 	}
 
 	httpClient := &http.Client{Transport: tr}
