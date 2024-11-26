@@ -243,7 +243,7 @@ spec:
   template:
     spec:
       sourceNode: "${PROXMOX_SOURCENODE}"
-      templateID: ${TEMPLATE_VMID}
+      templateID: ${TEMPLATE_VMID_FLATCAR}
       format: "qcow2"
       full: true
       numSockets: ${NUM_SOCKETS:=2}
@@ -295,7 +295,7 @@ spec:
   template:
     spec:
       sourceNode: "${PROXMOX_SOURCENODE}"
-      templateID: ${TEMPLATE_VMID}
+      templateID: ${TEMPLATE_VMID_FLATCAR}
       format: "qcow2"
       full: true
       numSockets: ${NUM_SOCKETS:=2}
