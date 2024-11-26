@@ -142,13 +142,7 @@ func RenderNetworkConfigData(data cloudinit.BaseCloudInitData) (map[string][]byt
 				return nil, err
 			}
 
-			name := "00-vrf0.netdev"
-			switch {
-			case i < 10 && networkConfig.Type == networkTypeVRF:
-				name = fmt.Sprintf("%d0-vrf%d.netdev", n, n)
-			case i >= 10 && networkConfig.Type == networkTypeVRF:
-				name = fmt.Sprintf("%d-vrf%d.netdev", n, n)
-			}
+			name := fmt.Sprintf("%02d-vrf%d.netdev", n, n)
 
 			n++
 			configs[name] = config
@@ -163,14 +157,10 @@ func RenderNetworkConfigData(data cloudinit.BaseCloudInitData) (map[string][]byt
 
 		name := "00-eth0.network"
 		switch {
-		case i < 10 && networkConfig.Type == networkTypeEthernet:
-			name = fmt.Sprintf("%d0-eth%d.network", i, i)
-		case i >= 10 && networkConfig.Type == networkTypeEthernet:
-			name = fmt.Sprintf("%d-eth%d.network", i, i)
-		case i < 10 && networkConfig.Type == networkTypeVRF:
-			name = fmt.Sprintf("%d0-vrf%d.network", i, i)
-		case i >= 10 && networkConfig.Type == networkTypeVRF:
-			name = fmt.Sprintf("%d-vrf%d.network", i, i)
+		case networkConfig.Type == networkTypeEthernet:
+			name = fmt.Sprintf("%02d-eth%d.network", i, i)
+		case networkConfig.Type == networkTypeVRF:
+			name = fmt.Sprintf("%02d-vrf%d.network", i, i)
 		}
 
 		configs[name] = config

@@ -29,7 +29,7 @@ Metric=100
 Destination=::/0
 Gateway=2001:db8:1::1
 `),
-		"10-eth1.network": []byte(`[Match]
+		"01-eth1.network": []byte(`[Match]
 MACAddress=E2:8E:95:1F:EB:36
 
 [Network]
@@ -70,7 +70,7 @@ Metric=100
 Destination=::/0
 Gateway=2001:db8:1::1
 `),
-		"10-eth1.network": []byte(`[Match]
+		"01-eth1.network": []byte(`[Match]
 MACAddress=E2:8E:95:1F:EB:36
 
 [Network]
@@ -85,7 +85,7 @@ Gateway=10.0.1.1
 Metric=200
 `),
 
-		"20-vrf2.network": []byte(`[Match]
+		"02-vrf2.network": []byte(`[Match]
 Name=vrf0
 
 [Route]
