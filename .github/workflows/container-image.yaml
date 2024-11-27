@@ -25,11 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
 
+      - name: Generate lowercase repository name
+        run: |
+          echo "REPO=${GITHUB_REPOSITORY,,}" >> "${GITHUB_ENV}"
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/ionos-cloud/cluster-api-provider-proxmox
+          images: ghcr.io/${{ env.REPO }}
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
