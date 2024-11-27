@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
 
-      - name: Generate downcase repository name
+      - name: Generate lowercase repository name
         run: |
           echo "REPO=${GITHUB_REPOSITORY,,}" >> "${GITHUB_ENV}"
 
