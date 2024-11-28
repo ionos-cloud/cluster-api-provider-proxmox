@@ -34,9 +34,6 @@ func defaultMachine() *ProxmoxMachine {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ProxmoxMachineSpec{
-			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
-				SourceNode: "pve1",
-			},
 			ProviderID:       ptr.To("proxmox://abcdef"),
 			VirtualMachineID: ptr.To[int64](100),
 			Disks: &Storage{
@@ -56,18 +53,18 @@ var _ = Describe("ProxmoxMachine Test", func() {
 	})
 
 	Context("VirtualMachineCloneSpec", func() {
-		It("Should not allow empty source node", func() {
-			dm := defaultMachine()
-			dm.Spec.SourceNode = ""
-
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be at least 1 chars long")))
-		})
-
 		It("Should not allow specifying format if full clone is disabled", func() {
 			dm := defaultMachine()
 			dm.Spec.Full = ptr.To(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying format")))
+		})
+
+		It("Should not allow specifying TemplateSelector with empty MatchTags", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{}}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should have at least 1 items")))
 		})
 	})
 

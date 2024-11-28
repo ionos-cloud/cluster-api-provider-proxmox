@@ -173,11 +173,15 @@ type VirtualMachineCloneSpec struct {
 	// will be cloned onto the same node as SourceNode.
 	//
 	// +kubebuilder:validation:MinLength=1
-	SourceNode string `json:"sourceNode"`
+	// +optional
+	SourceNode string `json:"sourceNode,omitempty"`
 
 	// TemplateID the vm_template vmid used for cloning a new VM.
 	// +optional
 	TemplateID *int32 `json:"templateID,omitempty"`
+
+	// +optional
+	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty"`
 
 	// Description for the new VM.
 	// +optional
@@ -211,6 +215,14 @@ type VirtualMachineCloneSpec struct {
 	// Target node. Only allowed if the original VM is on shared storage.
 	// +optional
 	Target *string `json:"target,omitempty"`
+}
+
+// TemplateSelector defines tags for looking up images.
+type TemplateSelector struct {
+	// Specifies all tags to look for, when looking up the VM template.
+	//
+	// +kubebuilder:validation:MinItems=1
+	MatchTags []string `json:"matchTags"`
 }
 
 // NetworkSpec defines the virtual machine's network configuration.
@@ -566,9 +578,20 @@ func (r *ProxmoxMachine) GetTemplateID() int32 {
 	return -1
 }
 
+// GetTemplateSelectorTags get the tags, the desired vm template should have.
+func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
+	if r.Spec.TemplateSelector != nil && r.Spec.TemplateSelector.MatchTags != nil {
+		return r.Spec.TemplateSelector.MatchTags
+	}
+	return nil
+}
+
 // GetNode get the Proxmox node used to provision this machine.
 func (r *ProxmoxMachine) GetNode() string {
-	return r.Spec.SourceNode
+	if r.Spec.SourceNode != "" {
+		return r.Spec.SourceNode
+	}
+	return ""
 }
 
 // FormatSize returns the format required for the Proxmox API.
