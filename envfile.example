@@ -3,6 +3,7 @@ export PROXMOX_TOKEN=""
 export PROXMOX_SECRET=""
 export PROXMOX_SOURCENODE="pve"
 export TEMPLATE_VMID=100
+export TEMPLATE_TAGS="tag1,tag2"
 export VM_SSH_KEYS="ssh-ed25519 ..., ssh-ed25519 ..."
 export KUBERNETES_VERSION="1.25.1"
 export CONTROL_PLANE_ENDPOINT_IP=10.10.10.4

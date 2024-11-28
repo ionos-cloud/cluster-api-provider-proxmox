@@ -513,13 +513,24 @@ spec:
                   VM.
                 format: int32
                 type: integer
+              templateSelector:
+                description: TemplateSelector defines tags for looking up images.
+                properties:
+                  matchTags:
+                    description: Specifies all tags to look for, when looking up the
+                      VM template.
+                    items:
+                      type: string
+                    minItems: 1
+                    type: array
+                required:
+                - matchTags
+                type: object
               virtualMachineID:
                 description: VirtualMachineID is the Proxmox identifier for the ProxmoxMachine
                   VM.
                 format: int64
                 type: integer
-            required:
-            - sourceNode
             type: object
             x-kubernetes-validations:
             - message: Must set full=true when specifying format

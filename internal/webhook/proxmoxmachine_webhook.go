@@ -24,6 +24,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/ptr"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -59,6 +60,12 @@ func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (
 		return warnings, err
 	}
 
+	err = validateTemplate(machine)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox machine %s", machine.GetName()))
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
@@ -75,12 +82,44 @@ func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, _, newObj runtime.Obj
 		return warnings, err
 	}
 
+	err = validateTemplate(newMachine)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot update proxmox machine %s", newMachine.GetName()))
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
 // ValidateDelete implements the deletion validation function.
 func (p *ProxmoxMachine) ValidateDelete(_ context.Context, _ runtime.Object) (warnings admission.Warnings, err error) {
 	return nil, nil
+}
+
+func validateTemplate(machine *infrav1.ProxmoxMachine) error {
+	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
+
+	if (machine.Spec.TemplateID != nil || machine.Spec.SourceNode != "") && (machine.Spec.TemplateSelector != nil) {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec"), machine.Spec, "combination of spec.sourceNode and spec.templateID cannot be used with spec.templateSelector"),
+			})
+	}
+
+	if ((machine.Spec.TemplateID == nil || machine.Spec.TemplateID == ptr.To(int32(-1))) || machine.Spec.SourceNode == "") && (machine.Spec.TemplateSelector == nil) {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec"), machine.Spec, "must define either spec.sourceNode and spec.templateID together, or spec.templateSelector"),
+			})
+	}
+
+	return nil
 }
 
 func validateNetworks(machine *infrav1.ProxmoxMachine) error {
