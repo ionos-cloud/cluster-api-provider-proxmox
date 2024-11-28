@@ -20,7 +20,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
 	"net/http"
@@ -49,6 +48,7 @@ import (
 
 	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -195,21 +195,9 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 		return nil, nil
 	}
 
-	rootCerts, err := x509.SystemCertPool()
+	rootCerts, err := tlshelper.SystemRootsWithFile(proxmoxRootCertFile)
 	if err != nil {
-		return nil, fmt.Errorf("loading system cert pool: %w", err)
-	}
-
-	if proxmoxRootCertFile != "" {
-		// There is a custom root cert, we need to load it
-		pemBlock, err := os.ReadFile(proxmoxRootCertFile) //#nosec:G304 // File provided by system operator
-		if err != nil {
-			return nil, fmt.Errorf("reading proxmox-root-cert-file: %w", err)
-		}
-
-		if !rootCerts.AppendCertsFromPEM(pemBlock) {
-			return nil, fmt.Errorf("failure adding cert to root cert list")
-		}
+		return nil, fmt.Errorf("loading cert pool: %w", err)
 	}
 
 	tr := &http.Transport{

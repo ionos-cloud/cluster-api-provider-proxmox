@@ -20,7 +20,6 @@ package scope
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net/http"
 
@@ -38,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -156,15 +156,9 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	tlsInsecure := string(secret.Data["insecure"]) != "false"
 	tlsRootCA := secret.Data["root_ca"]
 
-	rootCerts, err := x509.SystemCertPool()
+	rootCerts, err := tlshelper.SystemRootsWithCert(tlsRootCA)
 	if err != nil {
-		return nil, fmt.Errorf("loading system cert pool: %w", err)
-	}
-
-	if len(tlsRootCA) > 0 {
-		if !rootCerts.AppendCertsFromPEM(tlsRootCA) {
-			return nil, fmt.Errorf("failure adding cert to root cert list")
-		}
+		return nil, fmt.Errorf("loading cert pool: %w", err)
 	}
 
 	tr := &http.Transport{
