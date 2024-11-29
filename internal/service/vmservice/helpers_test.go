@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -46,7 +47,7 @@ type FakeISOInjector struct {
 	Error error
 }
 
-func (f FakeISOInjector) Inject(_ context.Context, _ string) error {
+func (f FakeISOInjector) Inject(_ context.Context, _ inject.BootstrapDataFormat) error {
 	return f.Error
 }
 

@@ -294,7 +294,7 @@ $ kubectl apply -f cluster.yaml
 **Notes**: 
 - Make sure to define at least one ssh key in the `VM_SSH_KEYS` environment variable, or the cluster will fail to provision.
 - If you want more customization, you can extend the template to add multiple interfaces or dual-stack.
-- Please make sure that the ProxmoxMachines always ignore the cloud-init status by defining `spec.checks.skipCloudInitStatus: true` in the ProxmoxMachine CR.
+- Make sure that the ProxmoxMachines always ignore the cloud-init status by defining `spec.checks.skipCloudInitStatus: true` in the ProxmoxMachine CR.
 
 ```yaml
 spec:

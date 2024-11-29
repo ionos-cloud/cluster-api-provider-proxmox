@@ -16,6 +16,11 @@ limitations under the License.
 
 package cloudinit
 
+const (
+	// FormatCloudConfig is the format for cloud-config.
+	FormatCloudConfig = "cloud-config"
+)
+
 // BaseCloudInitData is shared across all the various types of files written to disk.
 // used to render cloudinit.
 type BaseCloudInitData struct {

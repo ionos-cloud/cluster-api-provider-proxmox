@@ -157,6 +157,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	machineScope, _, client := setupReconcilerTest(t)
 
 	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
+	// missing format
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      machineScope.Name(),
@@ -170,9 +171,19 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 
 	data, format, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
+	require.Equal(t, err.Error(), "error retrieving format data: secret `format` key is missing")
+	require.Nil(t, data)
+	require.Nil(t, format)
+
+	// missing value
+	secret.Data["format"] = []byte("cloud-config")
+	require.NoError(t, client.Update(context.Background(), secret))
+
+	data, format, err = getBootstrapData(context.Background(), machineScope)
+	require.Error(t, err)
 	require.Equal(t, err.Error(), "error retrieving bootstrap data: secret `value` key is missing")
 	require.Nil(t, data)
-	require.Equal(t, "", format)
+	require.Nil(t, format)
 }
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {

@@ -123,7 +123,7 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 	httpmock.RegisterResponder(http.MethodPost, fmt.Sprintf(`=~/nodes/%s/qemu/%d/config`, "pve", 100),
 		newJSONResponder(200, ptask.UPID, 2))
 
-	err = injector.Inject(context.Background(), "cloudinit")
+	err = injector.Inject(context.Background(), "cloud-config")
 	require.NoError(t, err)
 }
 
@@ -147,7 +147,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 	}
 
 	// missing hostname
-	err := injector.Inject(context.Background(), "cloudinit")
+	err := injector.Inject(context.Background(), "cloud-config")
 	require.Error(t, err)
 
 	// missing network
@@ -282,6 +282,30 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 	injector.IgnitionEnricher = e
 	err = injector.Inject(context.Background(), "ignition")
 	require.Error(t, err, "unable to enrich ignition")
+}
+
+func TestISOInjectorInject_Unsupported(t *testing.T) {
+	vm := &proxmox.VirtualMachine{
+		Node: "pve",
+		VMID: proxmox.StringOrUint64(100),
+	}
+	injector := &ISOInjector{
+		VirtualMachine: vm,
+		BootstrapData:  []byte(""),
+		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", ""),
+		NetworkRenderer: cloudinit.NewNetworkConfig([]cloudinit.NetworkConfigData{
+			{
+				Name:       "eth0",
+				IPAddress:  "10.1.1.6/24",
+				Gateway:    "10.1.1.1",
+				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+			},
+		}),
+	}
+
+	// unsupported format
+	err := injector.Inject(context.Background(), "invalid")
+	require.Error(t, err)
 }
 
 func newTestClient(t *testing.T) *goproxmox.APIClient {

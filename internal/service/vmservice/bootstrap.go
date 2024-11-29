@@ -35,11 +35,6 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
-const (
-	// IgnitionFormat is the format of the bootstrap data as ignition.
-	IgnitionFormat = "ignition"
-)
-
 func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
 	if ptr.Deref(machineScope.ProxmoxMachine.Status.BootstrapDataProvided, false) {
 		// skip machine already have the bootstrap data.
@@ -77,9 +72,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
 	// Inject userdata based on the format
-	if format == IgnitionFormat {
+	if ptr.Deref(format, "") == ignition.FormatIgnition {
 		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData)
-	} else {
+	} else if ptr.Deref(format, "") == cloudinit.FormatCloudConfig {
 		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData)
 	}
 	if err != nil {
@@ -99,7 +94,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name())
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
-	if err := injector.Inject(ctx, "cloud-init"); err != nil {
+	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return errors.Wrap(err, "cloud-init iso inject failed")
 	}
@@ -120,7 +115,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 	}
 
 	injector := ignitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
-	if err := injector.Inject(ctx, "ignition"); err != nil {
+	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return errors.Wrap(err, "ignition iso inject failed")
 	}
@@ -128,7 +123,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 }
 
 type isoInjector interface {
-	Inject(ctx context.Context, format string) error
+	Inject(ctx context.Context, format inject.BootstrapDataFormat) error
 }
 
 func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metadata, network cloudinit.Renderer) isoInjector {
@@ -152,24 +147,28 @@ var getISOInjector = defaultISOInjector
 
 // getBootstrapData obtains a machine's bootstrap data from the relevant K8s secret and returns the data.
 // TODO: Add format return if ignition will be supported.
-func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, string, error) {
+func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, *string, error) {
 	if scope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		scope.Logger.Info("machine has no bootstrap data.")
-		return nil, "", errors.New("machine has no bootstrap data")
+		return nil, nil, errors.New("machine has no bootstrap data")
 	}
 
 	secret := &corev1.Secret{}
 	if err := scope.GetBootstrapSecret(ctx, secret); err != nil {
-		return nil, "", errors.Wrapf(err, "failed to retrieve bootstrap data secret")
+		return nil, nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret")
 	}
 
-	format := string(secret.Data["format"])
+	f, ok := secret.Data["format"]
+	if !ok {
+		return nil, nil, errors.New("error retrieving format data: secret `format` key is missing")
+	}
+	format := string(f)
 	value, ok := secret.Data["value"]
 	if !ok {
-		return nil, "", errors.New("error retrieving bootstrap data: secret `value` key is missing")
+		return nil, nil, errors.New("error retrieving bootstrap data: secret `value` key is missing")
 	}
 
-	return value, format, nil
+	return value, &format, nil
 }
 
 func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]cloudinit.NetworkConfigData, error) {

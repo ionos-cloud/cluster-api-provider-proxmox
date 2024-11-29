@@ -43,12 +43,14 @@ type ISOInjector struct {
 }
 
 // Inject injects cloudinit userdata, metadata and network-config into a Proxmox VirtualMachine.
-func (i *ISOInjector) Inject(ctx context.Context, format string) error {
+func (i *ISOInjector) Inject(ctx context.Context, format BootstrapDataFormat) error {
 	switch format {
-	case "ignition":
+	case IgnitionFormat:
 		return i.injectIgnition(ctx)
-	default:
+	case CloudConfigFormat:
 		return i.injectCloudInit(ctx)
+	default:
+		return errors.New("unsupported format")
 	}
 }
 
