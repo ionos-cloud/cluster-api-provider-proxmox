@@ -14,7 +14,6 @@ func TestEnricher_Enrich(t *testing.T) {
 	  "ignition": {
 		"config": {},
 		"security": {
-		  "tls": {}
 		},
 		"timeouts": {},
 		"version": "2.3.0"

@@ -123,12 +123,11 @@ func (e *Enricher) getProxmoxEnvContent() string {
 
 func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Config) ([]byte, string, error) {
 	// We control bootstrapData config, so treat it as strict.
-	ign, _, err := convertToIgnition(bootstrapData, false)
+	ign, reports, err := convertToIgnition(bootstrapData, false)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "converting bootstrap-data to Ignition")
 	}
 
-	var clcWarnings string
 	if enrichConfig != nil {
 		ign = ignition.Append(ign, *enrichConfig)
 	}
@@ -138,7 +137,7 @@ func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Confi
 		return nil, "", errors.Wrapf(err, "marshaling generated Ignition config into JSON")
 	}
 
-	return userData, clcWarnings, nil
+	return userData, reports, nil
 }
 
 func convertToIgnition(data []byte, strict bool) (ignitionTypes.Config, string, error) {
