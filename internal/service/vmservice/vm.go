@@ -325,6 +325,10 @@ func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress,
 func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) {
 	vmid, err := getVMID(ctx, scope)
 	if err != nil {
+		if errors.Is(err, ErrNoVMIDInRangeFree) {
+			scope.SetFailureMessage(err)
+			scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
+		}
 		return proxmox.VMCloneResponse{}, err
 	}
 
