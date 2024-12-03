@@ -280,12 +280,10 @@ To provision a cluster with Flatcar, you need to build a suitable image with [im
 Once this PR [#1589](https://github.com/kubernetes-sigs/image-builder/pull/1589) is merged, you can follow the official docs on how to build a Flatcar image for Proxmox.
 After you create a VM template using Flatcar, you can provision a cluster with the following options:
 
-First, make sure this variable is set in your environment before initializing a Management Cluster:
-```shell
-export EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true
+First, make sure to enable the
+[experimental-feature-ignition-bootstrap-config](https://cluster-api.sigs.k8s.io/tasks/experimental-features/ignition#experimental-feature-ignition-bootstrap-config-alpha)
 
-clusterctl init --infrastructure proxmox --ipam in-cluster
-```
+you can do so, by [Enabling Experimental Features on Existing Management Clusters](https://cluster-api.sigs.k8s.io/tasks/experimental-features/experimental-features#enabling-experimental-features-on-existing-management-clusters)
 
 Then, you can generate a cluster manifest with the following command:
 ```shell
