@@ -411,34 +411,46 @@ func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
 		vmIDRangeStart := scope.ProxmoxMachine.Spec.VMIDRange.Start
 		vmIDRangeEnd := scope.ProxmoxMachine.Spec.VMIDRange.End
 		if vmIDRangeStart != 0 && vmIDRangeEnd != 0 {
-			// Get all used vmids from existing ProxmoxMachines
-			usedVMIDs := []int64{}
-			proxmoxMachines, err := scope.InfraCluster.ListProxmoxMachinesForCluster(ctx)
-			if err != nil {
-				return 0, err
-			}
-			for _, proxmoxMachine := range proxmoxMachines {
-				if proxmoxMachine.GetVirtualMachineID() != -1 {
-					usedVMIDs = append(usedVMIDs, proxmoxMachine.GetVirtualMachineID())
-				}
-			}
-			// Get next free vmid from the range
-			for i := vmIDRangeStart; i <= vmIDRangeEnd; i++ {
-				if slices.Contains(usedVMIDs, i) {
-					continue
-				}
-				if vmidFree, err := scope.InfraCluster.ProxmoxClient.CheckID(ctx, i); err == nil && vmidFree {
-					return i, nil
-				} else if err != nil {
-					return 0, err
-				}
-			}
-			// Fail if we can't find a free vmid in the range.
-			return 0, ErrNoVMIDInRangeFree
+			return getNextFreeVMIDfromRange(ctx, scope, vmIDRangeStart, vmIDRangeEnd)
 		}
 	}
 	// If VMIDRange is not defined, return 0 to let luthermonson/go-proxmox get the next free id.
 	return 0, nil
+}
+
+func getNextFreeVMIDfromRange(ctx context.Context, scope *scope.MachineScope, vmIDRangeStart int64, vmIDRangeEnd int64) (int64, error) {
+	usedVMIDs, err := getUsedVMIDs(ctx, scope)
+	if err != nil {
+		return 0, err
+	}
+	// Get next free vmid from the range
+	for i := vmIDRangeStart; i <= vmIDRangeEnd; i++ {
+		if slices.Contains(usedVMIDs, i) {
+			continue
+		}
+		if vmidFree, err := scope.InfraCluster.ProxmoxClient.CheckID(ctx, i); err == nil && vmidFree {
+			return i, nil
+		} else if err != nil {
+			return 0, err
+		}
+	}
+	// Fail if we can't find a free vmid in the range.
+	return 0, ErrNoVMIDInRangeFree
+}
+
+func getUsedVMIDs(ctx context.Context, scope *scope.MachineScope) ([]int64, error) {
+	// Get all used vmids from existing ProxmoxMachines
+	usedVMIDs := []int64{}
+	proxmoxMachines, err := scope.InfraCluster.ListProxmoxMachinesForCluster(ctx)
+	if err != nil {
+		return usedVMIDs, err
+	}
+	for _, proxmoxMachine := range proxmoxMachines {
+		if proxmoxMachine.GetVirtualMachineID() != -1 {
+			usedVMIDs = append(usedVMIDs, proxmoxMachine.GetVirtualMachineID())
+		}
+	}
+	return usedVMIDs, nil
 }
 
 var selectNextNode = scheduler.ScheduleVM
