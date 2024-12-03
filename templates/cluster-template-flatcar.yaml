@@ -217,7 +217,7 @@ spec:
     preKubeadmCommands:
       - rm /etc/proxmox-env
       - envsubst < /etc/kubeadm.yml > /etc/kubeadm.yml.tmp
-      - mv /etc/kubeadm.yml.tmp /etc/kubeadm.yml
+      - cp /etc/kubeadm.yml.tmp /etc/kubeadm.yml
       - /etc/kube-vip-prepare.sh
     users:
       - name: core
@@ -387,7 +387,7 @@ spec:
       preKubeadmCommands:
         - rm /etc/proxmox-env
         - envsubst < /etc/kubeadm.yml > /etc/kubeadm.yml.tmp
-        - mv /etc/kubeadm.yml.tmp /etc/kubeadm.yml
+        - cp /etc/kubeadm.yml.tmp /etc/kubeadm.yml
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:

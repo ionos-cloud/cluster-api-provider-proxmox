@@ -292,6 +292,7 @@ type RoutingPolicySpec struct {
 	From string `json:"from,omitempty"`
 
 	// Table is the routing table ID.
+	// when used in the networks, the value should be the VRF Table.
 	// +optional
 	Table *uint32 `json:"table,omitempty"`
 

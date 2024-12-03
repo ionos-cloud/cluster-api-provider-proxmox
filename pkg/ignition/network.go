@@ -23,6 +23,7 @@ const (
 MACAddress={{ $element.MacAddress }}
 
 {{- if .LinkMTU }}
+[Link]
 MTUBytes={{ .LinkMTU }}
 {{- end }}
 
