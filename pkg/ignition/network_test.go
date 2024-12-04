@@ -41,10 +41,16 @@ Address=10.0.1.84/25
 Destination=0.0.0.0/0
 Gateway=10.0.1.1
 Metric=200
+
+[RoutingPolicyRule]
+To=8.7.6.5/32
+From=1.1.1.1/32
+Priority=100
+Table=500
 `),
 	}
 
-	expectedValidNetworkConfigWithVRF = map[string][]byte{
+	expectedValidNetworkConfigWithVRFPolicies = map[string][]byte{
 		"00-vrf0.netdev": []byte(`[NetDev]
 Name=vrf0
 Kind=vrf
@@ -92,6 +98,12 @@ Name=vrf0
 Destination=3.4.5.6
 Gateway=10.0.1.1
 Metric=100
+
+[RoutingPolicyRule]
+To=8.7.6.5/32
+From=1.1.1.1/32
+Priority=100
+Table=644
 `),
 	}
 )
@@ -136,6 +148,12 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
 						Metric:     ptr.To(uint32(200)),
+						FIBRules: []cloudinit.FIBRuleData{{
+							To:       "8.7.6.5/32",
+							From:     "1.1.1.1/32",
+							Priority: 100,
+							Table:    500,
+						}},
 					},
 				},
 			},
@@ -144,8 +162,8 @@ func TestRenderNetworkConfigData(t *testing.T) {
 				err:   nil,
 			},
 		},
-		"ValidNetworkdConfigWithVRF": {
-			reason: "render valid networkd with static ip and VRF",
+		"ValidNetworkdConfigWithVRFPolicies": {
+			reason: "render valid networkd with static ip and VRF and policies",
 			args: args{
 				nics: []cloudinit.NetworkConfigData{
 					{
@@ -181,11 +199,16 @@ func TestRenderNetworkConfigData(t *testing.T) {
 							Via:    "10.0.1.1",
 							Metric: 100,
 						}},
+						FIBRules: []cloudinit.FIBRuleData{{
+							To:       "8.7.6.5/32",
+							From:     "1.1.1.1/32",
+							Priority: 100,
+						}},
 					},
 				},
 			},
 			want: want{
-				units: expectedValidNetworkConfigWithVRF,
+				units: expectedValidNetworkConfigWithVRFPolicies,
 				err:   nil,
 			},
 		},

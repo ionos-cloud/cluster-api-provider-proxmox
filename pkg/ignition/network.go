@@ -91,13 +91,17 @@ DNS={{ $dnsServer }}
 
 {{- define "rules" }}
 {{- if .FIBRules }}
+{{- $type := .Type }}
+{{- $table := .Table }}
 {{- range $index, $rule := .FIBRules }}
-
 [RoutingPolicyRule]
 {{ if $rule.To }}To={{$rule.To}}{{- end }}
 {{ if $rule.From }}From={{$rule.From}}{{- end }}
 {{ if $rule.Priority }}Priority={{$rule.Priority}}{{- end }}
-{{ if $rule.Table }}Table={{$rule.Table}}{{- end }}
+{{ if and (eq $type "vrf") (not $rule.Table) }}Table={{ $table }}
+{{ else }}{{ if $rule.Table }}Table={{$rule.Table}}
+{{ end -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
