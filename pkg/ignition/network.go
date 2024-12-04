@@ -94,8 +94,8 @@ DNS={{ $dnsServer }}
 {{- range $index, $rule := .FIBRules }}
 
 [RoutingPolicyRule]
-{{ if $rule.To }}To="{{$rule.To}}"{{- end }}
-{{ if $rule.From }}From="{{$rule.From}}"{{- end }}
+{{ if $rule.To }}To={{$rule.To}}{{- end }}
+{{ if $rule.From }}From={{$rule.From}}{{- end }}
 {{ if $rule.Priority }}Priority={{$rule.Priority}}{{- end }}
 {{ if $rule.Table }}Table={{$rule.Table}}{{- end }}
 {{- end -}}
