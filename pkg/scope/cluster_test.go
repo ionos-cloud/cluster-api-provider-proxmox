@@ -34,6 +34,7 @@ import (
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 )
 
 func TestNewClusterScope_MissingParams(t *testing.T) {
@@ -133,6 +134,110 @@ func TestNewClusterScope_SetupProxmoxClient(t *testing.T) {
 
 	_, err = NewClusterScope(params)
 	require.Error(t, err)
+}
+
+func TestListProxmoxMachinesForCluster(t *testing.T) {
+	k8sClient := getFakeClient(t)
+	proxmoxClient := proxmoxtest.NewMockClient(t)
+
+	cluster := &clusterv1.Cluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: clusterv1.GroupVersion.String(),
+			Kind:       "Cluster",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "proxmoxcluster",
+			Namespace: "default",
+		},
+	}
+	err := k8sClient.Create(context.Background(), cluster)
+	require.NoError(t, err)
+
+	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: infrav1alpha1.GroupVersion.String(),
+			Kind:       "ProxmoxCluster",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "proxmoxcluster",
+			Namespace: "default",
+		},
+		Spec: infrav1alpha1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"pve", "pve-2"},
+			CredentialsRef: &corev1.SecretReference{
+				Name:      "test-secret",
+				Namespace: "default",
+			},
+		},
+	}
+	err = k8sClient.Create(context.Background(), proxmoxCluster)
+	require.NoError(t, err)
+
+	creds := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: "default",
+		},
+		StringData: map[string]string{
+			"url":    "https://localhost:8006",
+			"token":  "test-token",
+			"secret": "test-secret",
+		},
+	}
+
+	err = k8sClient.Create(context.Background(), &creds)
+	require.NoError(t, err)
+
+	params := ClusterScopeParams{Client: k8sClient, Cluster: cluster, ProxmoxCluster: proxmoxCluster, ProxmoxClient: proxmoxClient, IPAMHelper: &ipam.Helper{}}
+	clusterScope, err := NewClusterScope(params)
+	require.NoError(t, err)
+
+	expectedMachineList := &infrav1alpha1.ProxmoxMachineList{
+		Items: []infrav1alpha1.ProxmoxMachine{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine01",
+					Namespace: "default",
+					Labels: map[string]string{
+						clusterv1.ClusterNameLabel: clusterScope.Name(),
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "machine02",
+					Namespace: "default",
+					Labels: map[string]string{
+						clusterv1.ClusterNameLabel: clusterScope.Name(),
+					},
+				},
+			},
+		},
+	}
+
+	for machineIdx := range expectedMachineList.Items {
+		err = k8sClient.Create(context.Background(), &expectedMachineList.Items[machineIdx])
+		require.NoError(t, err)
+		// As the k8sClient sets ResourceVersion to 1, we also set it in the expectedMachineList.
+		expectedMachineList.Items[machineIdx].ResourceVersion = "1"
+	}
+
+	unexpectedMachine := &infrav1alpha1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "other-cluster-machine01",
+			Namespace: "default",
+			Labels: map[string]string{
+				clusterv1.ClusterNameLabel: "other-cluster",
+			},
+		},
+	}
+	err = k8sClient.Create(context.Background(), unexpectedMachine)
+	require.NoError(t, err)
+
+	machines, err := clusterScope.ListProxmoxMachinesForCluster(context.Background())
+
+	require.NoError(t, err)
+	require.Equal(t, expectedMachineList.Items, machines)
 }
 
 func getFakeClient(t *testing.T) ctrlclient.Client {
