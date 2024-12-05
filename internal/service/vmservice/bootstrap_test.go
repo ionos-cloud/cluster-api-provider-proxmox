@@ -31,6 +31,7 @@ import (
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -126,7 +127,7 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
-	require.Equal(t, err.Error(), "cloud-init iso inject failed: bad FakeISOInjector")
+	require.Contains(t, err.Error(), "cloud-init iso inject failed: bad FakeISOInjector")
 	require.False(t, requeue)
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition))
 	require.Nil(t, machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
@@ -135,7 +136,7 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 func TestGetBootstrapData_MissingSecretName(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
-	data, err := getBootstrapData(context.Background(), machineScope)
+	data, _, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "machine has no bootstrap data")
 	require.Nil(t, data)
@@ -145,7 +146,7 @@ func TestGetBootstrapData_MissingSecretNotName(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
 	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To("foo")
-	data, err := getBootstrapData(context.Background(), machineScope)
+	data, _, err := getBootstrapData(context.Background(), machineScope)
 
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "failed to retrieve bootstrap data secret: secrets \"foo\" not found")
@@ -156,6 +157,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	machineScope, _, client := setupReconcilerTest(t)
 
 	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
+	// missing format
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      machineScope.Name(),
@@ -167,10 +169,21 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	}
 	require.NoError(t, client.Create(context.Background(), secret))
 
-	data, err := getBootstrapData(context.Background(), machineScope)
+	data, format, err := getBootstrapData(context.Background(), machineScope)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), "error retrieving format data: secret `format` key is missing")
+	require.Nil(t, data)
+	require.Nil(t, format)
+
+	// missing value
+	secret.Data["format"] = []byte("cloud-config")
+	require.NoError(t, client.Update(context.Background(), secret))
+
+	data, format, err = getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), "error retrieving bootstrap data: secret `value` key is missing")
 	require.Nil(t, data)
+	require.Nil(t, format)
 }
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
@@ -483,4 +496,15 @@ func TestDefaultISOInjector(t *testing.T) {
 
 	require.NotEmpty(t, injector)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).BootstrapData)
+}
+
+func TestIgnitionISOInjector(t *testing.T) {
+	injector := ignitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test"), &ignition.Enricher{
+		BootstrapData: []byte("data"),
+		Hostname:      "test",
+	})
+
+	require.NotEmpty(t, injector)
+	require.NotNil(t, injector.(*inject.ISOInjector).IgnitionEnricher)
+	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).IgnitionEnricher.BootstrapData)
 }

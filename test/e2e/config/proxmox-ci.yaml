@@ -15,7 +15,7 @@ providers:
     type: CoreProvider
     versions:
       - name: v1.8.2
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/core-components.yaml
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.8.2/core-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -28,7 +28,7 @@ providers:
     type: BootstrapProvider
     versions:
       - name: v1.8.2
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/bootstrap-components.yaml
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.8.2/bootstrap-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -41,7 +41,7 @@ providers:
     type: ControlPlaneProvider
     versions:
       - name: v1.8.2
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.7.2/control-plane-components.yaml
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.8.2/control-plane-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -79,6 +79,7 @@ providers:
       - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-ci.yaml"
         targetName: "cluster-template.yaml"
       - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-upgrades.yaml"
+      - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-flatcar.yaml"
 
 variables:
   KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.30.5}"
@@ -90,6 +91,7 @@ variables:
 
   PROXMOX_SOURCENODE: "${PROXMOX_SOURCENODE:-pve}"
   TEMPLATE_VMID: "${TEMPLATE_VMID:-112}"
+  TEMPLATE_VMID_FLATCAR: "${TEMPLATE_VMID_FLATCAR:-106}"
   VM_SSH_KEYS: "${VM_SSH_KEYS:-}"
   NODE_IP_RANGES: "${NODE_IP_RANGES:-[10.10.10.15-10.10.10.120]}"
   GATEWAY: "${GATEWAY:-10.10.10.1}"
@@ -110,6 +112,8 @@ variables:
   CONFORMANCE_CONTROL_PLANE_MACHINE_COUNT: "${CONFORMANCE_CONTROL_PLANE_MACHINE_COUNT:-1}"
   CONFORMANCE_NODES: "${CONFORMANCE_NODES:-4}"
   KUBETEST_CONFIGURATION: "${PWD}/test/e2e/data/kubetest/conformance.yaml"
+
+  EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: true
 
 intervals:
   default/wait-controllers: ["3m", "10s"]

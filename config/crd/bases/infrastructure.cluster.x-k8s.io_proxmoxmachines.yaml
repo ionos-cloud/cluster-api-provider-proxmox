@@ -301,7 +301,9 @@ spec:
                                     kernel rules
                                   rule: (self > 0 && self < 32765) || (self > 32766)
                               table:
-                                description: Table is the routing table ID.
+                                description: |-
+                                  Table is the routing table ID.
+                                  when used in the networks, the value should be the VRF Table.
                                 format: int32
                                 type: integer
                               to:
@@ -427,7 +429,9 @@ spec:
                                     kernel rules
                                   rule: (self > 0 && self < 32765) || (self > 32766)
                               table:
-                                description: Table is the routing table ID.
+                                description: |-
+                                  Table is the routing table ID.
+                                  when used in the networks, the value should be the VRF Table.
                                 format: int32
                                 type: integer
                               to:

@@ -46,5 +46,4 @@ _artifacts
 **e2e.test
 test/e2e/config/*-envsubst.yaml
 
-# asdf package manager
 .tool-versions
