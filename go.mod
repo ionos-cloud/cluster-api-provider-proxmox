@@ -12,18 +12,18 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/luthermonson/go-proxmox v0.2.1
-	github.com/onsi/ginkgo/v2 v2.21.0
-	github.com/onsi/gomega v1.35.1
+	github.com/onsi/ginkgo/v2 v2.22.0
+	github.com/onsi/gomega v1.36.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.10.0
-	go4.org/netipx v0.0.0-20230303233057-f1b76eb4bb35
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.27.0
 	k8s.io/api v0.30.6
 	k8s.io/apimachinery v0.30.6
 	k8s.io/client-go v0.30.6
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
+	k8s.io/utils v0.0.0-20240423183400-0849a56e8f22
 	sigs.k8s.io/cluster-api v1.8.5
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.0.0
 	sigs.k8s.io/cluster-api/test v1.8.5
