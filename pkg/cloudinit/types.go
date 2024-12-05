@@ -24,9 +24,10 @@ const (
 // BaseCloudInitData is shared across all the various types of files written to disk.
 // used to render cloudinit.
 type BaseCloudInitData struct {
-	Hostname          string
-	InstanceID        string
-	NetworkConfigData []NetworkConfigData
+	Hostname            string
+	InstanceID          string
+	ProviderIDInjection bool
+	NetworkConfigData   []NetworkConfigData
 }
 
 // NetworkConfigData is used to render network-config.

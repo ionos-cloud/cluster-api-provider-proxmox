@@ -106,7 +106,13 @@ type ProxmoxMachineSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self.end >= self.start",message="end should be greater than or equal to start"
 	VMIDRange *VMIDRange `json:"vmIDRange,omitempty"`
 
+	// Checks defines possibles checks to skip.
+	// +optional
 	Checks *ProxmoxMachineChecks `json:"checks,omitempty"`
+
+	// MetadataSettings defines the metadata settings for this machine's VM.
+	// +optional
+	MetadataSettings *MetadataSettings `json:"metadataSettings,omitempty"`
 }
 
 // Storage is the physical storage on the node.
@@ -495,6 +501,14 @@ type VMIDRange struct {
 	// +kubebuilder:validation:ExclusiveMaximum=false
 	// +kubebuilder:validation:Required
 	End int64 `json:"end"`
+}
+
+// MetadataSettings defines the metadata settings for the machine.
+type MetadataSettings struct {
+	// ProviderIDInjection enables the injection of the `providerID` into the cloudinit metadata.
+	// this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
+	// +optional
+	ProviderIDInjection bool `json:"providerIDInjection,omitempty"`
 }
 
 // +kubebuilder:object:root=true
