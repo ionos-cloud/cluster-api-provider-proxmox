@@ -106,7 +106,7 @@ type ProxmoxMachineSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self.end >= self.start",message="end should be greater than or equal to start"
 	VMIDRange *VMIDRange `json:"vmIDRange,omitempty"`
 
-	// Checks defines possibibles checks to skip.
+	// Checks defines possibles checks to skip.
 	// +optional
 	Checks *ProxmoxMachineChecks `json:"checks,omitempty"`
 
@@ -505,7 +505,8 @@ type VMIDRange struct {
 
 // MetadataSettings defines the metadata settings for the machine.
 type MetadataSettings struct {
-	// ProviderIDInjection enables the injection of the providerID into the cloudinit metadata.
+	// ProviderIDInjection enables the injection of the `providerID` into the cloudinit metadata.
+	// this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
 	// +optional
 	ProviderIDInjection bool `json:"providerIDInjection,omitempty"`
 }

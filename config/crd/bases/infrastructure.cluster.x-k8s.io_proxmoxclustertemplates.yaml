@@ -95,7 +95,7 @@ spec:
                                 state of a ProxmoxMachine.
                               properties:
                                 checks:
-                                  description: Checks defines possibibles checks to
+                                  description: Checks defines possibles checks to
                                     skip.
                                   properties:
                                     skipCloudInitStatus:
@@ -175,9 +175,9 @@ spec:
                                     settings for this machine's VM.
                                   properties:
                                     providerIDInjection:
-                                      description: ProviderIDInjection enables the
-                                        injection of the providerID into the cloudinit
-                                        metadata.
+                                      description: |-
+                                        ProviderIDInjection enables the injection of the `providerID` into the cloudinit metadata.
+                                        this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
                                       type: boolean
                                   type: object
                                 network:
