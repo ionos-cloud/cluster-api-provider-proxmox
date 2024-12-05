@@ -91,7 +91,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name())
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
@@ -103,7 +103,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 
 func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name())
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
 
 	// create an enricher
 	enricher := &ignition.Enricher{

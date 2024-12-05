@@ -20,7 +20,9 @@ const (
 	metadataTPl = `instance-id: {{ .InstanceID }}
 local-hostname: {{ .Hostname }}
 hostname: {{ .Hostname }}
+{{- if .ProviderIDInjection }}
 provider-id: proxmox://{{ .InstanceID }}
+{{- end }}
 `
 )
 
@@ -30,11 +32,12 @@ type Metadata struct {
 }
 
 // NewMetadata returns a new Metadata object.
-func NewMetadata(instanceID, hostname string) *Metadata {
+func NewMetadata(instanceID, hostname string, injectProviderID bool) *Metadata {
 	ci := new(Metadata)
 	ci.data = BaseCloudInitData{
-		Hostname:   hostname,
-		InstanceID: instanceID,
+		Hostname:            hostname,
+		InstanceID:          instanceID,
+		ProviderIDInjection: injectProviderID,
 	}
 	return ci
 }
