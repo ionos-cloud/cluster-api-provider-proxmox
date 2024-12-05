@@ -53,7 +53,7 @@ providers:
   - name: in-cluster
     type: IPAMProvider
     versions:
-      - name: v0.1.0
+      - name: v1.0.0
         value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v0.1.0/ipam-components.yaml
         type: url
         files:
