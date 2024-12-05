@@ -36,6 +36,10 @@ func defaultMachine() *ProxmoxMachine {
 		Spec: ProxmoxMachineSpec{
 			ProviderID:       ptr.To("proxmox://abcdef"),
 			VirtualMachineID: ptr.To[int64](100),
+			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
+				SourceNode: ptr.To("pve1"),
+				TemplateID: ptr.To[int32](100),
+			},
 			Disks: &Storage{
 				BootVolume: &DiskSize{
 					Disk:   "scsi0",

@@ -99,7 +99,7 @@ func (p *ProxmoxMachine) ValidateDelete(_ context.Context, _ runtime.Object) (wa
 func validateTemplate(machine *infrav1.ProxmoxMachine) error {
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
-	if (machine.Spec.TemplateID != nil || machine.Spec.SourceNode != "") && (machine.Spec.TemplateSelector != nil) {
+	if (machine.Spec.TemplateID != nil || machine.Spec.SourceNode != nil) && (machine.Spec.TemplateSelector != nil) {
 		return apierrors.NewInvalid(
 			gk,
 			name,
@@ -109,7 +109,7 @@ func validateTemplate(machine *infrav1.ProxmoxMachine) error {
 			})
 	}
 
-	if ((machine.Spec.TemplateID == nil || machine.Spec.TemplateID == ptr.To(int32(-1))) || machine.Spec.SourceNode == "") && (machine.Spec.TemplateSelector == nil) {
+	if ((machine.Spec.TemplateID == nil || machine.Spec.TemplateID == ptr.To(int32(-1))) || machine.Spec.SourceNode == nil) && (machine.Spec.TemplateSelector == nil) {
 		return apierrors.NewInvalid(
 			gk,
 			name,

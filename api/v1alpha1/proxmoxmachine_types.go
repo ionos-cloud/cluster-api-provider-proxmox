@@ -163,7 +163,7 @@ type VirtualMachineCloneSpec struct {
 	//
 	// +kubebuilder:validation:MinLength=1
 	// +optional
-	SourceNode string `json:"sourceNode,omitempty"`
+	SourceNode *string `json:"sourceNode,omitempty"`
 
 	// TemplateID the vm_template vmid used for cloning a new VM.
 	// +optional
@@ -499,6 +499,7 @@ type ProxmoxMachine struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:XValidation:rule="self.full && self.format != ''",message="Must set full=true when specifying format"
+	// +kubebuilder:validation:XValidation:rule="(has(self.sourceNode) && self.templateID != 0) || (self.templateSelector != null)",message="must define either SourceNode and TemplateID, OR TemplateSelector"
 	Spec   ProxmoxMachineSpec   `json:"spec,omitempty"`
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
 }
@@ -548,8 +549,8 @@ func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
 
 // GetNode get the Proxmox node used to provision this machine.
 func (r *ProxmoxMachine) GetNode() string {
-	if r.Spec.SourceNode != "" {
-		return r.Spec.SourceNode
+	if r.Spec.SourceNode != nil {
+		return *r.Spec.SourceNode
 	}
 	return ""
 }

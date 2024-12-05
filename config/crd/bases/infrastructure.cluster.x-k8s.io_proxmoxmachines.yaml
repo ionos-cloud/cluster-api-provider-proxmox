@@ -535,6 +535,9 @@ spec:
             x-kubernetes-validations:
             - message: Must set full=true when specifying format
               rule: self.full && self.format != ''
+            - message: must define either SourceNode and TemplateID, OR TemplateSelector
+              rule: (has(self.sourceNode) && self.templateID != 0) || (self.templateSelector
+                != null)
           status:
             description: ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
             properties:

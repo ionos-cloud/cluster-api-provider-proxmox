@@ -98,7 +98,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		},
 		Spec: infrav1alpha1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1alpha1.VirtualMachineCloneSpec{
-				SourceNode: "node1",
+				SourceNode: ptr.To("node1"),
 				TemplateID: ptr.To[int32](123),
 			},
 		},

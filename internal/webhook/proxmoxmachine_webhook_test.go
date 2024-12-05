@@ -124,7 +124,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 		},
 		Spec: infrav1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
-				SourceNode: "pve",
+				SourceNode: ptr.To("pve"),
 				TemplateID: ptr.To(int32(1337)),
 			},
 			NumSockets: 1,
