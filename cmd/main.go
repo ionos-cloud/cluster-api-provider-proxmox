@@ -48,6 +48,7 @@ import (
 
 	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -69,6 +70,9 @@ var (
 	ProxmoxTokenID string
 	// ProxmoxSecret env variable that defines the Proxmox secret for the given token id.
 	ProxmoxSecret string
+
+	proxmoxInsecure     bool
+	proxmoxRootCertFile string
 )
 
 func init() {
@@ -190,9 +194,17 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 	if ProxmoxURL == "" || ProxmoxTokenID == "" || ProxmoxSecret == "" {
 		return nil, nil
 	}
-	// TODO, check if we need to delete tls config
+
+	rootCerts, err := tlshelper.SystemRootsWithFile(proxmoxRootCertFile)
+	if err != nil {
+		return nil, fmt.Errorf("loading cert pool: %w", err)
+	}
+
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: proxmoxInsecure, //#nosec:G402 // Default retained, user can enable cert checking
+			RootCAs:            rootCerts,
+		},
 	}
 
 	httpClient := &http.Client{Transport: tr}
@@ -208,6 +220,12 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	ProxmoxURL = env.GetString("PROXMOX_URL", "")
 	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
 	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
+
+	fs.BoolVar(&proxmoxInsecure, "proxmox-insecure",
+		env.GetString("PROXMOX_INSECURE", "true") == "true",
+		"Skip TLS verification when connecting to Proxmox")
+	fs.StringVar(&proxmoxRootCertFile, "proxmox-root-cert-file", "",
+		"Root-Certificate to use to verify server TLS certificate")
 
 	fs.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
