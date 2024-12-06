@@ -170,7 +170,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	require.NoError(t, client.Create(context.Background(), secret))
 
 	// missing value
-	data, format, err := getBootstrapData(context.Background(), machineScope)
+	data, _, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
 	require.Equal(t, "error retrieving bootstrap data: secret `value` key is missing", err.Error())
 	require.Nil(t, data)
@@ -179,7 +179,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	require.NoError(t, client.Update(context.Background(), secret))
 
 	// test defaulting of format to cloud-config
-	data, format, err = getBootstrapData(context.Background(), machineScope)
+	data, format, err := getBootstrapData(context.Background(), machineScope)
 	require.Equal(t, cloudinit.FormatCloudConfig, ptr.Deref(format, ""))
 	require.Equal(t, []byte("notdata"), data)
 	require.Nil(t, err)
