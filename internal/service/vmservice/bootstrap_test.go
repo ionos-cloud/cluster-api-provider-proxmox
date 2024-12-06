@@ -169,21 +169,29 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	}
 	require.NoError(t, client.Create(context.Background(), secret))
 
+	// missing value
 	data, format, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
-	require.Equal(t, err.Error(), "error retrieving format data: secret `format` key is missing")
+	require.Equal(t, "error retrieving bootstrap data: secret `value` key is missing", err.Error())
 	require.Nil(t, data)
-	require.Nil(t, format)
 
-	// missing value
-	secret.Data["format"] = []byte("cloud-config")
+	secret.Data["value"] = []byte("notdata")
+	require.NoError(t, client.Update(context.Background(), secret))
+
+	// test defaulting of format to cloud-config
+	data, format, err = getBootstrapData(context.Background(), machineScope)
+	require.Equal(t, cloudinit.FormatCloudConfig, ptr.Deref(format, ""))
+	require.Equal(t, []byte("notdata"), data)
+	require.Nil(t, err)
+
+	// test explicitly setting format to ignition
+	secret.Data["format"] = []byte(ignition.FormatIgnition)
 	require.NoError(t, client.Update(context.Background(), secret))
 
 	data, format, err = getBootstrapData(context.Background(), machineScope)
-	require.Error(t, err)
-	require.Equal(t, err.Error(), "error retrieving bootstrap data: secret `value` key is missing")
-	require.Nil(t, data)
-	require.Nil(t, format)
+	require.Equal(t, ignition.FormatIgnition, ptr.Deref(format, ""))
+	require.Equal(t, []byte("notdata"), data)
+	require.Nil(t, err)
 }
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {

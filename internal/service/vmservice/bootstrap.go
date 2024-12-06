@@ -158,11 +158,12 @@ func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, *
 		return nil, nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret")
 	}
 
+	format := cloudinit.FormatCloudConfig
 	f, ok := secret.Data["format"]
-	if !ok {
-		return nil, nil, errors.New("error retrieving format data: secret `format` key is missing")
+	if ok {
+		format = string(f)
 	}
-	format := string(f)
+
 	value, ok := secret.Data["value"]
 	if !ok {
 		return nil, nil, errors.New("error retrieving bootstrap data: secret `value` key is missing")
