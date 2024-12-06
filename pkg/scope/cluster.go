@@ -22,6 +22,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
@@ -153,7 +155,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	tokenSecret := string(secret.Data["secret"])
 	url := string(secret.Data["url"])
 
-	tlsInsecure := string(secret.Data["insecure"]) != "false"
+	tlsInsecure, tlsInsecureSet := secret.Data["insecure"]
 	tlsRootCA := secret.Data["root_ca"]
 
 	rootCerts, err := tlshelper.SystemRootsWithCert(tlsRootCA)
@@ -163,7 +165,12 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: tlsInsecure, //#nosec:G402 // Default retained, user can enable cert checking
+			// When "insecure" is unset we retain the pre-v0.7 behavior of
+			// setting the connection insecure. If it is set we compare
+			// against YAML true-ish values.
+			//
+			//#nosec:G402 // Intended to enable insecure mode for unknown CAs
+			InsecureSkipVerify: !tlsInsecureSet || slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
 			RootCAs:            rootCerts,
 		},
 	}
