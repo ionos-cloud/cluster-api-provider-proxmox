@@ -91,6 +91,7 @@ GATEWAY: "10.10.10.1"                                         # The gateway for 
 IP_PREFIX: "25"                                               # Subnet Mask in CIDR notation for your node IP ranges
 DNS_SERVERS: "[8.8.8.8,8.8.4.4]"                              # The dns nameservers for the machines network-config.
 BRIDGE: "vmbr1"                                               # The network bridge device for Proxmox VE VMs
+VLAN: "2"                                                     # (optional) The VLAN to put the bridge device into
 
 ## -- xl nodes -- ##
 BOOT_VOLUME_DEVICE: "scsi0"                                   # The device used for the boot disk.
