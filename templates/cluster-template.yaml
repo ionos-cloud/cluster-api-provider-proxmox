@@ -184,6 +184,7 @@ spec:
         default:
           bridge: ${BRIDGE}
           model: virtio
+          vlan: ${VLAN:=null}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -233,6 +234,7 @@ spec:
         default:
           bridge: ${BRIDGE}
           model: virtio
+          vlan: ${VLAN:=null}
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
