@@ -20,7 +20,10 @@ package scope
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
@@ -36,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -151,9 +155,24 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	tokenSecret := string(secret.Data["secret"])
 	url := string(secret.Data["url"])
 
-	// TODO, check if we need to delete tls config
+	tlsInsecure, tlsInsecureSet := secret.Data["insecure"]
+	tlsRootCA := secret.Data["root_ca"]
+
+	rootCerts, err := tlshelper.SystemRootsWithCert(tlsRootCA)
+	if err != nil {
+		return nil, fmt.Errorf("loading cert pool: %w", err)
+	}
+
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		TLSClientConfig: &tls.Config{
+			// When "insecure" is unset we retain the pre-v0.7 behavior of
+			// setting the connection insecure. If it is set we compare
+			// against YAML true-ish values.
+			//
+			//#nosec:G402 // Intended to enable insecure mode for unknown CAs
+			InsecureSkipVerify: !tlsInsecureSet || slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
+			RootCAs:            rootCerts,
+		},
 	}
 
 	httpClient := &http.Client{Transport: tr}
