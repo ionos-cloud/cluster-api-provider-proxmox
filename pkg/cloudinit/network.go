@@ -141,6 +141,9 @@ const (
     {{- template "mtu" . }}
 {{- end -}}
 `
+	// EmptyNetworkV1 is an empty network-config for version 1.
+	EmptyNetworkV1 = `version: 1
+config: []`
 )
 
 // NetworkConfig provides functionality to render machine network-config.

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,14 +27,18 @@ const (
 local-hostname: proxmox-control-plane
 hostname: proxmox-control-plane
 provider-id: proxmox://9a82e2ca-4294-11ee-be56-0242ac120002
-kubernetes-version: v1.31.0
+`
+	expectedValidMetadataWithoutProviderID = `instance-id: 9a82e2ca-4294-11ee-be56-0242ac120002
+local-hostname: proxmox-control-plane
+hostname: proxmox-control-plane
 `
 )
 
 func TestMetadata_Render(t *testing.T) {
 	type args struct {
-		instanceID string
-		hostname   string
+		instanceID       string
+		hostname         string
+		injectProviderID bool
 	}
 
 	type want struct {
@@ -48,10 +52,11 @@ func TestMetadata_Render(t *testing.T) {
 		want   want
 	}{
 		"ValidCloudinit": {
-			reason: "rendering metadata, network-config",
+			reason: "rendering metadata",
 			args: args{
-				instanceID: "9a82e2ca-4294-11ee-be56-0242ac120002",
-				hostname:   "proxmox-control-plane",
+				instanceID:       "9a82e2ca-4294-11ee-be56-0242ac120002",
+				hostname:         "proxmox-control-plane",
+				injectProviderID: true,
 			},
 			want: want{
 				metadata: expectedValidMetadata,
@@ -76,11 +81,23 @@ func TestMetadata_Render(t *testing.T) {
 				err:      ErrMissingHostname,
 			},
 		},
+		"ValidCloudinitwithoutProviderID": {
+			reason: "rendering metadata if providerID is not injected",
+			args: args{
+				instanceID:       "9a82e2ca-4294-11ee-be56-0242ac120002",
+				hostname:         "proxmox-control-plane",
+				injectProviderID: false,
+			},
+			want: want{
+				metadata: expectedValidMetadataWithoutProviderID,
+				err:      nil,
+			},
+		},
 	}
 
 	for n, tc := range cases {
 		t.Run(n, func(t *testing.T) {
-			ci := NewMetadata(tc.args.instanceID, tc.args.hostname, "v1.31.0")
+			ci := NewMetadata(tc.args.instanceID, tc.args.hostname, tc.args.injectProviderID)
 			metadata, err := ci.Render()
 			require.ErrorIs(t, err, tc.want.err)
 			require.Equal(t, tc.want.metadata, string(metadata))

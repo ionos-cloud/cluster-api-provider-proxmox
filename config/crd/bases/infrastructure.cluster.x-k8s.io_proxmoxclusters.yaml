@@ -73,8 +73,7 @@ spec:
                         a ProxmoxMachine.
                       properties:
                         checks:
-                          description: ProxmoxMachineChecks defines possibibles checks
-                            to skip.
+                          description: Checks defines possibles checks to skip.
                           properties:
                             skipCloudInitStatus:
                               description: Skip checking CloudInit which can be very
@@ -147,6 +146,16 @@ spec:
                           format: int32
                           multipleOf: 8
                           type: integer
+                        metadataSettings:
+                          description: MetadataSettings defines the metadata settings
+                            for this machine's VM.
+                          properties:
+                            providerIDInjection:
+                              description: |-
+                                ProviderIDInjection enables the injection of the `providerID` into the cloudinit metadata.
+                                this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
+                              type: boolean
+                          type: object
                         network:
                           description: Network is the network configuration for this
                             machine's VM.
@@ -328,8 +337,9 @@ spec:
                                             rule: (self > 0 && self < 32765) || (self
                                               > 32766)
                                         table:
-                                          description: Table is the routing table
-                                            ID.
+                                          description: |-
+                                            Table is the routing table ID.
+                                            when used in the networks, the value should be the VRF Table.
                                           format: int32
                                           type: integer
                                         to:
@@ -461,8 +471,9 @@ spec:
                                             rule: (self > 0 && self < 32765) || (self
                                               > 32766)
                                         table:
-                                          description: Table is the routing table
-                                            ID.
+                                          description: |-
+                                            Table is the routing table ID.
+                                            when used in the networks, the value should be the VRF Table.
                                           format: int32
                                           type: integer
                                         to:

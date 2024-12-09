@@ -2,6 +2,6 @@
   "name": "infrastructure-proxmox",
   "config": {
     "componentsFile": "infrastructure-components.yaml",
-    "nextVersion": "v0.5.1"
+    "nextVersion": "v0.6.1"
   }
 }

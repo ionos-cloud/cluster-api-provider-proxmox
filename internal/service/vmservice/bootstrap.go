@@ -31,6 +31,7 @@ import (
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -54,7 +55,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.")
 
 	// Get the bootstrap data.
-	bootstrapData, err := getBootstrapData(ctx, machineScope)
+	bootstrapData, format, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return false, err
@@ -68,20 +69,16 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, err
 	}
 
-	// create network renderer
-	network := cloudinit.NewNetworkConfig(nicData)
+	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
-	// create metadata renderer
-	kubernetesVersion := ""
-	if machineScope.Machine.Spec.Version != nil {
-		kubernetesVersion = *machineScope.Machine.Spec.Version
+	// Inject userdata based on the format
+	if ptr.Deref(format, "") == ignition.FormatIgnition {
+		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData)
+	} else if ptr.Deref(format, "") == cloudinit.FormatCloudConfig {
+		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData)
 	}
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion)
-
-	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
-	if err = injector.Inject(ctx); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
-		return false, errors.Wrap(err, "cloud-init iso inject failed")
+	if err != nil {
+		return false, errors.Wrap(err, "failed to inject bootstrap data")
 	}
 
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
@@ -89,8 +86,44 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	return false, nil
 }
 
+func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+	// create network renderer
+	network := cloudinit.NewNetworkConfig(nicData)
+
+	// create metadata renderer
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
+
+	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
+	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		return errors.Wrap(err, "cloud-init iso inject failed")
+	}
+	return nil
+}
+
+func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+	// create metadata renderer
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
+
+	// create an enricher
+	enricher := &ignition.Enricher{
+		BootstrapData: bootstrapData,
+		Hostname:      machineScope.Name(),
+		InstanceID:    biosUUID,
+		ProviderID:    fmt.Sprintf("proxmox://%s", biosUUID),
+		Network:       nicData,
+	}
+
+	injector := ignitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
+	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
+		return errors.Wrap(err, "ignition iso inject failed")
+	}
+	return nil
+}
+
 type isoInjector interface {
-	Inject(ctx context.Context) error
+	Inject(ctx context.Context, format inject.BootstrapDataFormat) error
 }
 
 func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metadata, network cloudinit.Renderer) isoInjector {
@@ -102,27 +135,41 @@ func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metada
 	}
 }
 
+func ignitionISOInjector(vm *proxmox.VirtualMachine, metadata cloudinit.Renderer, enricher *ignition.Enricher) isoInjector {
+	return &inject.ISOInjector{
+		VirtualMachine:   vm,
+		IgnitionEnricher: enricher,
+		MetaRenderer:     metadata,
+	}
+}
+
 var getISOInjector = defaultISOInjector
 
 // getBootstrapData obtains a machine's bootstrap data from the relevant K8s secret and returns the data.
 // TODO: Add format return if ignition will be supported.
-func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, error) {
+func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, *string, error) {
 	if scope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		scope.Logger.Info("machine has no bootstrap data.")
-		return nil, errors.New("machine has no bootstrap data")
+		return nil, nil, errors.New("machine has no bootstrap data")
 	}
 
 	secret := &corev1.Secret{}
 	if err := scope.GetBootstrapSecret(ctx, secret); err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret")
+		return nil, nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret")
+	}
+
+	format := cloudinit.FormatCloudConfig
+	f, ok := secret.Data["format"]
+	if ok {
+		format = string(f)
 	}
 
 	value, ok := secret.Data["value"]
 	if !ok {
-		return nil, errors.New("error retrieving bootstrap data: secret `value` key is missing")
+		return nil, nil, errors.New("error retrieving bootstrap data: secret `value` key is missing")
 	}
 
-	return value, nil
+	return value, &format, nil
 }
 
 func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]cloudinit.NetworkConfigData, error) {

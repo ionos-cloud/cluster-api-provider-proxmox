@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2024 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ const (
 	metadataTPl = `instance-id: {{ .InstanceID }}
 local-hostname: {{ .Hostname }}
 hostname: {{ .Hostname }}
+{{- if .ProviderIDInjection }}
 provider-id: proxmox://{{ .InstanceID }}
-kubernetes-version: {{ .KubernetesVersion }}
+{{- end }}
 `
 )
 
@@ -31,12 +32,12 @@ type Metadata struct {
 }
 
 // NewMetadata returns a new Metadata object.
-func NewMetadata(instanceID, hostname string, kubernetesVersion string) *Metadata {
+func NewMetadata(instanceID, hostname string, injectProviderID bool) *Metadata {
 	ci := new(Metadata)
 	ci.data = BaseCloudInitData{
-		Hostname:          hostname,
-		InstanceID:        instanceID,
-		KubernetesVersion: kubernetesVersion,
+		Hostname:            hostname,
+		InstanceID:          instanceID,
+		ProviderIDInjection: injectProviderID,
 	}
 	return ci
 }

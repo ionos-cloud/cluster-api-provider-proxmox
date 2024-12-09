@@ -1,0 +1,398 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: "${CLUSTER_NAME}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: ProxmoxCluster
+    name: "${CLUSTER_NAME}"
+  controlPlaneRef:
+    kind: KubeadmControlPlane
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    name: "${CLUSTER_NAME}-control-plane"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxCluster
+metadata:
+  name: "${CLUSTER_NAME}"
+spec:
+  controlPlaneEndpoint:
+    host: ${CONTROL_PLANE_ENDPOINT_IP}
+    port: 6443
+  ipv4Config:
+    addresses: ${NODE_IP_RANGES}
+    prefix: ${IP_PREFIX}
+    gateway: ${GATEWAY}
+  dnsServers: ${DNS_SERVERS}
+  allowedNodes: ${ALLOWED_NODES:=[]}
+---
+kind: KubeadmControlPlane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+spec:
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  machineTemplate:
+    infrastructureRef:
+      kind: ProxmoxMachineTemplate
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      name: "${CLUSTER_NAME}-control-plane"
+  kubeadmConfigSpec:
+    format: ignition
+    ignition:
+      containerLinuxConfig:
+        additionalConfig: |-
+          storage:
+            files:
+            - path: /opt/set-hostname
+              filesystem: root
+              mode: 0744
+              contents:
+                inline: |
+                  #!/bin/sh
+                  set -x
+                  echo "$${COREOS_CUSTOM_HOSTNAME}" > /etc/hostname
+                  hostname "$${COREOS_CUSTOM_HOSTNAME}"
+                  echo "::1         ipv6-localhost ipv6-loopback" >/etc/hosts
+                  echo "127.0.0.1   localhost" >>/etc/hosts
+                  echo "127.0.0.1   $${COREOS_CUSTOM_HOSTNAME}" >>/etc/hosts
+          systemd:
+            units:
+            - name: coreos-metadata.service
+              contents: |
+                [Unit]
+                Description=Proxmox metadata agent
+                After=nss-lookup.target
+                After=network-online.target
+                Wants=network-online.target
+                [Service]
+                Type=oneshot
+                Restart=on-failure
+                RemainAfterExit=yes
+                EnvironmentFile=/etc/proxmox-env
+                ExecStart=/usr/bin/mkdir --parent /run/metadata
+                ExecStart=/bin/bash -c 'env > /run/metadata/flatcar'
+                [Install]
+                WantedBy=multi-user.target
+            - name: set-hostname.service
+              enabled: true
+              contents: |
+                [Unit]
+                Description=Set the hostname for this machine
+                Requires=coreos-metadata.service
+                After=coreos-metadata.service
+                [Service]
+                Type=oneshot
+                EnvironmentFile=/run/metadata/flatcar
+                ExecStart=/opt/set-hostname
+                [Install]
+                WantedBy=multi-user.target
+            - name: kubeadm.service
+              enabled: true
+              dropins:
+              - name: 10-flatcar.conf
+                contents: |
+                  [Unit]
+                  # kubeadm must run after coreos-metadata populated /run/metadata directory.
+                  Requires=coreos-metadata.service
+                  After=coreos-metadata.service
+                  # kubeadm must run after containerd - see https://github.com/kubernetes-sigs/image-builder/issues/939.
+                  After=containerd.service
+                  [Service]
+                  # Make metadata environment variables available for pre-kubeadm commands.
+                  EnvironmentFile=/run/metadata/flatcar
+                  # Log to file
+                  StandardOutput=append:/var/log/kubeadm-service.log
+                  StandardError=inherit
+    files:
+      - content: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            creationTimestamp: null
+            name: kube-vip
+            namespace: kube-system
+          spec:
+            containers:
+            - args:
+              - manager
+              env:
+              - name: cp_enable
+                value: "true"
+              - name: vip_interface
+                value: ${VIP_NETWORK_INTERFACE=""}
+              - name: address
+                value: ${CONTROL_PLANE_ENDPOINT_IP}
+              - name: port
+                value: "6443"
+              - name: vip_arp
+                value: "true"
+              - name: vip_leaderelection
+                value: "true"
+              - name: vip_leaseduration
+                value: "15"
+              - name: vip_renewdeadline
+                value: "10"
+              - name: vip_retryperiod
+                value: "2"
+              image: ghcr.io/kube-vip/kube-vip:v0.7.1
+              imagePullPolicy: IfNotPresent
+              name: kube-vip
+              resources: {}
+              securityContext:
+                capabilities:
+                  add:
+                  - NET_ADMIN
+                  - NET_RAW
+              volumeMounts:
+              - mountPath: /etc/kubernetes/admin.conf
+                name: kubeconfig
+            hostAliases:
+            - hostnames:
+              - localhost
+              - kubernetes
+              ip: 127.0.0.1
+            hostNetwork: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/admin.conf
+                type: FileOrCreate
+              name: kubeconfig
+          status: {}
+        owner: root:root
+        path: /etc/kubernetes/manifests/kube-vip.yaml
+        permissions: "0644"
+      - path: /etc/kube-vip-prepare.sh
+        content: |
+          #!/bin/bash
+          
+          # Copyright 2020 The Kubernetes Authors.
+          #
+          # Licensed under the Apache License, Version 2.0 (the "License");
+          # you may not use this file except in compliance with the License.
+          # You may obtain a copy of the License at
+          #
+          #     http://www.apache.org/licenses/LICENSE-2.0
+          #
+          # Unless required by applicable law or agreed to in writing, software
+          # distributed under the License is distributed on an "AS IS" BASIS,
+          # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+          # See the License for the specific language governing permissions and
+          # limitations under the License.
+          
+          set -e
+          
+          # Configure the workaround required for kubeadm init with kube-vip:
+          # xref: https://github.com/kube-vip/kube-vip/issues/684
+          
+          # Nothing to do for kubernetes < v1.29
+          KUBEADM_MINOR="$(kubeadm version -o short | cut -d '.' -f 2)"
+          if [[ "$KUBEADM_MINOR" -lt "29" ]]; then
+            exit 0
+          fi
+          
+          IS_KUBEADM_INIT="false"
+          
+          # cloud-init kubeadm init
+          if [[ -f /run/kubeadm/kubeadm.yaml ]]; then
+            IS_KUBEADM_INIT="true"
+          fi
+          
+          # ignition kubeadm init
+          if [[ -f /etc/kubeadm.sh ]] && grep -q -e "kubeadm init" /etc/kubeadm.sh; then
+            IS_KUBEADM_INIT="true"
+          fi
+          
+          if [[ "$IS_KUBEADM_INIT" == "true" ]]; then
+            sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' \
+              /etc/kubernetes/manifests/kube-vip.yaml
+          fi
+        owner: root:root
+        permissions: "0700"
+    preKubeadmCommands:
+      - rm /etc/proxmox-env
+      - envsubst < /etc/kubeadm.yml > /etc/kubeadm.yml.tmp
+      - cp /etc/kubeadm.yml.tmp /etc/kubeadm.yml
+      - /etc/kube-vip-prepare.sh
+    users:
+      - name: core
+        sshAuthorizedKeys: [ ${ VM_SSH_KEYS } ]
+        sudo: ALL=(ALL) NOPASSWD:ALL
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          provider-id: proxmox://'$${COREOS_CUSTOM_INSTANCE_ID}'
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          provider-id: proxmox://'$${COREOS_CUSTOM_INSTANCE_ID}'
+  version: "${KUBERNETES_VERSION}"
+---
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+spec:
+  template:
+    spec:
+      sourceNode: "${PROXMOX_SOURCENODE}"
+      templateID: ${TEMPLATE_VMID}
+      format: "qcow2"
+      full: true
+      numSockets: ${NUM_SOCKETS:=2}
+      numCores: ${NUM_CORES:=4}
+      memoryMiB: ${MEMORY_MIB:=16384}
+      disks:
+        bootVolume:
+          disk: ${BOOT_VOLUME_DEVICE}
+          sizeGb: ${BOOT_VOLUME_SIZE:=100}
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
+      checks:
+        skipQemuGuestAgent: false
+        skipCloudInitStatus: true
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: "${CLUSTER_NAME}-workers"
+spec:
+  clusterName: "${CLUSTER_NAME}"
+  replicas: ${WORKER_MACHINE_COUNT}
+  selector:
+    matchLabels:
+  template:
+    metadata:
+      labels:
+        node-role.kubernetes.io/node: ""
+    spec:
+      clusterName: "${CLUSTER_NAME}"
+      version: "${KUBERNETES_VERSION}"
+      bootstrap:
+        configRef:
+          name: "${CLUSTER_NAME}-worker"
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+      infrastructureRef:
+        name: "${CLUSTER_NAME}-worker"
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: ProxmoxMachineTemplate
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+spec:
+  template:
+    spec:
+      sourceNode: "${PROXMOX_SOURCENODE}"
+      templateID: ${TEMPLATE_VMID}
+      format: "qcow2"
+      full: true
+      numSockets: ${NUM_SOCKETS:=2}
+      numCores: ${NUM_CORES:=4}
+      memoryMiB: ${MEMORY_MIB:=16384}
+      disks:
+        bootVolume:
+          disk: ${BOOT_VOLUME_DEVICE}
+          sizeGb: ${BOOT_VOLUME_SIZE:=100}
+      network:
+        default:
+          bridge: ${BRIDGE}
+          model: virtio
+      checks:
+        skipQemuGuestAgent: false
+        skipCloudInitStatus: true
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+spec:
+  template:
+    spec:
+      format: ignition
+      ignition:
+        containerLinuxConfig:
+          additionalConfig: |-
+            storage:
+              files:
+              - path: /opt/set-hostname
+                filesystem: root
+                mode: 0744
+                contents:
+                  inline: |
+                    #!/bin/sh
+                    set -x
+                    echo "$${COREOS_CUSTOM_HOSTNAME}" > /etc/hostname
+                    hostname "$${COREOS_CUSTOM_HOSTNAME}"
+                    echo "::1         ipv6-localhost ipv6-loopback" >/etc/hosts
+                    echo "127.0.0.1   localhost" >>/etc/hosts
+                    echo "127.0.0.1   $${COREOS_CUSTOM_HOSTNAME}" >>/etc/hosts
+            systemd:
+              units:
+              - name: coreos-metadata.service
+                contents: |
+                  [Unit]
+                  Description=Proxmox metadata agent
+                  After=nss-lookup.target
+                  After=network-online.target
+                  Wants=network-online.target
+                  [Service]
+                  Type=oneshot
+                  Restart=on-failure
+                  RemainAfterExit=yes
+                  EnvironmentFile=/etc/proxmox-env
+                  ExecStart=/usr/bin/mkdir --parent /run/metadata
+                  ExecStart=/bin/bash -c 'env > /run/metadata/flatcar'
+                  [Install]
+                  WantedBy=multi-user.target
+              - name: set-hostname.service
+                enabled: true
+                contents: |
+                  [Unit]
+                  Description=Set the hostname for this machine
+                  Requires=coreos-metadata.service
+                  After=coreos-metadata.service
+                  [Service]
+                  Type=oneshot
+                  EnvironmentFile=/run/metadata/flatcar
+                  ExecStart=/opt/set-hostname
+                  [Install]
+                  WantedBy=multi-user.target
+              - name: kubeadm.service
+                enabled: true
+                dropins:
+                - name: 10-flatcar.conf
+                  contents: |
+                    [Unit]
+                    # kubeadm must run after coreos-metadata populated /run/metadata directory.
+                    Requires=coreos-metadata.service
+                    After=coreos-metadata.service
+                    # kubeadm must run after containerd - see https://github.com/kubernetes-sigs/image-builder/issues/939.
+                    After=containerd.service
+                    [Service]
+                    # Make metadata environment variables available for pre-kubeadm commands.
+                    EnvironmentFile=/run/metadata/flatcar
+                    # Log to file
+                    StandardOutput=append:/var/log/kubeadm-service.log
+                    StandardError=inherit
+      preKubeadmCommands:
+        - rm /etc/proxmox-env
+        - envsubst < /etc/kubeadm.yml > /etc/kubeadm.yml.tmp
+        - cp /etc/kubeadm.yml.tmp /etc/kubeadm.yml
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            provider-id: proxmox://'$${COREOS_CUSTOM_INSTANCE_ID}'
+      users:
+        - name: core
+          sshAuthorizedKeys: [${VM_SSH_KEYS}]
+          sudo: ALL=(ALL) NOPASSWD:ALL

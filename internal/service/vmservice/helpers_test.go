@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -46,7 +47,7 @@ type FakeISOInjector struct {
 	Error error
 }
 
-func (f FakeISOInjector) Inject(_ context.Context) error {
+func (f FakeISOInjector) Inject(_ context.Context, _ inject.BootstrapDataFormat) error {
 	return f.Error
 }
 
@@ -216,7 +217,8 @@ func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.Ma
 			Namespace: machineScope.Namespace(),
 		},
 		Data: map[string][]byte{
-			"value": []byte("data"),
+			"value":  []byte("data"),
+			"format": []byte("cloud-config"),
 		},
 	}
 	require.NoError(t, c.Create(context.Background(), secret))

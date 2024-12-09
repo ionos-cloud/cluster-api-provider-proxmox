@@ -16,13 +16,18 @@ limitations under the License.
 
 package cloudinit
 
+const (
+	// FormatCloudConfig is the format for cloud-config.
+	FormatCloudConfig = "cloud-config"
+)
+
 // BaseCloudInitData is shared across all the various types of files written to disk.
 // used to render cloudinit.
 type BaseCloudInitData struct {
-	Hostname          string
-	InstanceID        string
-	KubernetesVersion string
-	NetworkConfigData []NetworkConfigData
+	Hostname            string
+	InstanceID          string
+	ProviderIDInjection bool
+	NetworkConfigData   []NetworkConfigData
 }
 
 // NetworkConfigData is used to render network-config.
@@ -45,6 +50,7 @@ type NetworkConfigData struct {
 	Routes      []RoutingData
 	FIBRules    []FIBRuleData // Forwarding information block for routing.
 	LinkMTU     *uint16       // linux network device MTU
+	VRF         string        // linux VRF name // only used in networkd config.
 }
 
 // RoutingData stores routing configuration.
