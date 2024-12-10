@@ -509,6 +509,10 @@ type MetadataSettings struct {
 	// this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
 	// +optional
 	ProviderIDInjection bool `json:"providerIDInjection,omitempty"`
+	// KubernetesVersionInjection enables the injection of the `kubernetesVersion` into the cloudinit metadata.
+	// this will basically set the `kubernetes-version` field in the metadata to Machine.Spec.Version
+	// +optional
+	KubernetesVersionInjection bool `json:"kubernetesVersionInjection,omitempty"`
 }
 
 // +kubebuilder:object:root=true
