@@ -23,6 +23,9 @@ hostname: {{ .Hostname }}
 {{- if .ProviderIDInjection }}
 provider-id: proxmox://{{ .InstanceID }}
 {{- end }}
+{{- if .KubernetesVersionInjection }}
+kubernetes-version: {{ .KubernetesVersion }}
+{{- end }}
 `
 )
 
@@ -32,12 +35,14 @@ type Metadata struct {
 }
 
 // NewMetadata returns a new Metadata object.
-func NewMetadata(instanceID, hostname string, injectProviderID bool) *Metadata {
+func NewMetadata(instanceID, hostname string, kubernetesVersion string, injectProviderID bool, injectKubernetesVersion bool) *Metadata {
 	ci := new(Metadata)
 	ci.data = BaseCloudInitData{
-		Hostname:            hostname,
-		InstanceID:          instanceID,
-		ProviderIDInjection: injectProviderID,
+		Hostname:                   hostname,
+		InstanceID:                 instanceID,
+		ProviderIDInjection:        injectProviderID,
+		KubernetesVersion:          kubernetesVersion,
+		KubernetesVersionInjection: injectKubernetesVersion,
 	}
 	return ci
 }

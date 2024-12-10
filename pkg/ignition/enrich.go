@@ -32,11 +32,12 @@ import (
 
 // Enricher is responsible for enriching the Ignition config with additional data.
 type Enricher struct {
-	BootstrapData []byte
-	Hostname      string
-	InstanceID    string
-	ProviderID    string
-	Network       []cloudinit.NetworkConfigData
+	BootstrapData     []byte
+	Hostname          string
+	InstanceID        string
+	ProviderID        string
+	Network           []cloudinit.NetworkConfigData
+	KubernetesVersion string
 }
 
 // Enrich enriches the Ignition config with additional data.
