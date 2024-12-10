@@ -69,13 +69,18 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, err
 	}
 
+	kubernetesVersion := ""
+	if machineScope.Machine.Spec.Version != nil {
+		kubernetesVersion = *machineScope.Machine.Spec.Version
+	}
+
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
 	// Inject userdata based on the format
 	if ptr.Deref(format, "") == ignition.FormatIgnition {
-		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData)
+		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)
 	} else if ptr.Deref(format, "") == cloudinit.FormatCloudConfig {
-		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData)
+		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)
 	}
 	if err != nil {
 		return false, errors.Wrap(err, "failed to inject bootstrap data")
@@ -86,12 +91,12 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	return false, nil
 }
 
-func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData, kubernetesVersion string) error {
 	// create network renderer
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection, ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{KubernetesVersionInjection: false}).KubernetesVersionInjection)
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
@@ -101,9 +106,9 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	return nil
 }
 
-func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData, kubernetesVersion string) error {
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection, ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{KubernetesVersionInjection: false}).KubernetesVersionInjection)
 
 	// create an enricher
 	enricher := &ignition.Enricher{
@@ -332,7 +337,7 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 	// Only set IPAddresses if they haven't been set yet
 	if ippool := ifconfig.IPv4PoolRef; ippool != nil && ciconfig.IPAddress == "" {
 		// retrieve IPAddress.
-		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix)
+		ifname := fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix)
 		ipAddr, err := findIPAddress(ctx, machineScope, ifname)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
@@ -347,7 +352,7 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 		ciconfig.Metric = metric
 	}
 	if ifconfig.IPv6PoolRef != nil && ciconfig.IPV6Address == "" {
-		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix+"6")
+		ifname := fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix+"6")
 		ipAddr, err := findIPAddress(ctx, machineScope, ifname)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find IPAddress, device=%s", ifname)
@@ -368,7 +373,7 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.VRFs))
 
 	for _, device := range network.VRFs {
-		var config = ptr.To(cloudinit.NetworkConfigData{})
+		config := ptr.To(cloudinit.NetworkConfigData{})
 		config.Type = "vrf"
 		config.Name = device.Name
 		config.Table = device.Table
@@ -395,10 +400,10 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 	networkConfigData := make([]cloudinit.NetworkConfigData, 0, len(network.AdditionalDevices))
 
 	// additional network devices append after the provisioning interface
-	var index = 1
+	index := 1
 	// additional network devices.
 	for _, nic := range network.AdditionalDevices {
-		var config = ptr.To(cloudinit.NetworkConfigData{})
+		config := ptr.To(cloudinit.NetworkConfigData{})
 
 		if nic.IPv4PoolRef != nil {
 			device := fmt.Sprintf("%s-%s", nic.Name, infrav1alpha1.DefaultSuffix)
