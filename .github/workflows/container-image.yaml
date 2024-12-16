@@ -53,7 +53,7 @@ jobs:
 
       - name: Scan image
         if: github.event_name == 'pull_request'
-        uses: anchore/scan-action@v5
+        uses: anchore/scan-action@v6
         id: scan
         with:
           image: ${{ steps.meta.outputs.tags }}
