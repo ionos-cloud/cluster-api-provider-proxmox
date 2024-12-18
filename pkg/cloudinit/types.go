@@ -26,6 +26,7 @@ const (
 type BaseCloudInitData struct {
 	Hostname            string
 	InstanceID          string
+	KubernetesVersion   string
 	ProviderIDInjection bool
 	NetworkConfigData   []NetworkConfigData
 }
