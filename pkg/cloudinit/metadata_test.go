@@ -27,18 +27,26 @@ const (
 local-hostname: proxmox-control-plane
 hostname: proxmox-control-plane
 provider-id: proxmox://9a82e2ca-4294-11ee-be56-0242ac120002
+kubernetes-version: 1.2.3
 `
 	expectedValidMetadataWithoutProviderID = `instance-id: 9a82e2ca-4294-11ee-be56-0242ac120002
 local-hostname: proxmox-control-plane
 hostname: proxmox-control-plane
+kubernetes-version: 1.2.3
+`
+	expectedValidMetadataWithoutKubernetesVersion = `instance-id: 9a82e2ca-4294-11ee-be56-0242ac120002
+local-hostname: proxmox-control-plane
+hostname: proxmox-control-plane
+provider-id: proxmox://9a82e2ca-4294-11ee-be56-0242ac120002
 `
 )
 
 func TestMetadata_Render(t *testing.T) {
 	type args struct {
-		instanceID       string
-		hostname         string
-		injectProviderID bool
+		instanceID        string
+		hostname          string
+		kubernetesVersion string
+		injectProviderID  bool
 	}
 
 	type want struct {
@@ -54,9 +62,10 @@ func TestMetadata_Render(t *testing.T) {
 		"ValidCloudinit": {
 			reason: "rendering metadata",
 			args: args{
-				instanceID:       "9a82e2ca-4294-11ee-be56-0242ac120002",
-				hostname:         "proxmox-control-plane",
-				injectProviderID: true,
+				instanceID:        "9a82e2ca-4294-11ee-be56-0242ac120002",
+				hostname:          "proxmox-control-plane",
+				kubernetesVersion: "1.2.3",
+				injectProviderID:  true,
 			},
 			want: want{
 				metadata: expectedValidMetadata,
@@ -84,12 +93,26 @@ func TestMetadata_Render(t *testing.T) {
 		"ValidCloudinitwithoutProviderID": {
 			reason: "rendering metadata if providerID is not injected",
 			args: args{
-				instanceID:       "9a82e2ca-4294-11ee-be56-0242ac120002",
-				hostname:         "proxmox-control-plane",
-				injectProviderID: false,
+				instanceID:        "9a82e2ca-4294-11ee-be56-0242ac120002",
+				hostname:          "proxmox-control-plane",
+				kubernetesVersion: "1.2.3",
+				injectProviderID:  false,
 			},
 			want: want{
 				metadata: expectedValidMetadataWithoutProviderID,
+				err:      nil,
+			},
+		},
+		"ValidCloudinitwithoutKubernetesVersion": {
+			reason: "rendering metadata if kubernetesVersion is not provided",
+			args: args{
+				instanceID:        "9a82e2ca-4294-11ee-be56-0242ac120002",
+				hostname:          "proxmox-control-plane",
+				kubernetesVersion: "",
+				injectProviderID:  true,
+			},
+			want: want{
+				metadata: expectedValidMetadataWithoutKubernetesVersion,
 				err:      nil,
 			},
 		},
@@ -97,7 +120,7 @@ func TestMetadata_Render(t *testing.T) {
 
 	for n, tc := range cases {
 		t.Run(n, func(t *testing.T) {
-			ci := NewMetadata(tc.args.instanceID, tc.args.hostname, tc.args.injectProviderID)
+			ci := NewMetadata(tc.args.instanceID, tc.args.hostname, tc.args.kubernetesVersion, tc.args.injectProviderID)
 			metadata, err := ci.Render()
 			require.ErrorIs(t, err, tc.want.err)
 			require.Equal(t, tc.want.metadata, string(metadata))
