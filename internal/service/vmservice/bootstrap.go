@@ -69,13 +69,18 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, err
 	}
 
+	kubernetesVersion := ""
+	if machineScope.Machine.Spec.Version != nil {
+		kubernetesVersion = *machineScope.Machine.Spec.Version
+	}
+
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
 	// Inject userdata based on the format
 	if ptr.Deref(format, "") == ignition.FormatIgnition {
-		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData)
+		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)
 	} else if ptr.Deref(format, "") == cloudinit.FormatCloudConfig {
-		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData)
+		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)
 	}
 	if err != nil {
 		return false, errors.Wrap(err, "failed to inject bootstrap data")
@@ -86,12 +91,12 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	return false, nil
 }
 
-func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData, kubernetesVersion string) error {
 	// create network renderer
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
@@ -101,9 +106,9 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	return nil
 }
 
-func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData) error {
+func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []cloudinit.NetworkConfigData, kubernetesVersion string) error {
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
 
 	// create an enricher
 	enricher := &ignition.Enricher{
