@@ -500,14 +500,14 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 }
 
 func TestDefaultISOInjector(t *testing.T) {
-	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test", true), cloudinit.NewNetworkConfig(nil))
+	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), cloudinit.NewNetworkConfig(nil))
 
 	require.NotEmpty(t, injector)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).BootstrapData)
 }
 
 func TestIgnitionISOInjector(t *testing.T) {
-	injector := ignitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test", true), &ignition.Enricher{
+	injector := ignitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), &ignition.Enricher{
 		BootstrapData: []byte("data"),
 		Hostname:      "test",
 	})
