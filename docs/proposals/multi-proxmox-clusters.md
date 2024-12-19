@@ -54,7 +54,7 @@ status: experimental
 ## Summary
 
 Today, with Cluster API provider for proxmox it can provision Kubernetes clusters on a single proxmox cluster.
-However, CAPMOX allows (setting a proxmox credentials for each cluster)[https://github.com/ionos-cloud/cluster-api-provider-proxmox/pull/215],
+However, CAPMOX allows [setting a proxmox credentials for each cluster](https://github.com/ionos-cloud/cluster-api-provider-proxmox/pull/215),
 but it does not allow provisioning Kubernetes clusters on multiple proxmox clusters.
 
 With the feature of provisioning a single Kubernetes cluster on multiple proxmox clusters,
