@@ -21,28 +21,26 @@ status: experimental
 - [Glossary](#glossary)
 - [Summary](#summary)
 - [Motivation](#motivation)
-    - [Goals](#goals)
-    - [Non-Goals/Future Work](#non-goalsfuture-work)
+  - [Goals](#goals)
+  - [Non-Goals/Future Work](#non-goalsfuture-work)
 - [Proposal](#proposal)
-    - [User Stories](#user-stories)
-        - [Story 1](#story-1)
-        - [Story 2](#story-2)
-    - [Requirements (Optional)](#requirements-optional)
-        - [Functional Requirements](#functional-requirements)
-            - [FR1](#fr1)
-            - [FR2](#fr2)
-        - [Non-Functional Requirements](#non-functional-requirements)
-            - [NFR1](#nfr1)
-            - [NFR2](#nfr2)
+  - [User Stories](#user-stories)
+    - [Story 1](#story-1)
+    - [Story 2](#story-2)
+    - [Story 3](#story-3)
     - [Implementation Details/Notes/Constraints](#implementation-detailsnotesconstraints)
-    - [Security Model](#security-model)
-    - [Risks and Mitigations](#risks-and-mitigations)
+      - [ProxmoxCluster CRD](#proxmoxcluster-crd)
+      - [ProxmoxMachine CRD](#proxmoxmachine-crd)
+      - [Proxmox Client](#proxmox-client)
+        - [The client interface](#the-client-interface)
+        - [The client implementation](#the-client-implementation)
+  - [Security Model](#security-model)
+  - [Risks and Mitigations](#risks-and-mitigations)
 - [Alternatives](#alternatives)
 - [Upgrade Strategy](#upgrade-strategy)
 - [Additional Details](#additional-details)
-    - [Test Plan [optional]](#test-plan-optional)
-    - [Graduation Criteria [optional]](#graduation-criteria-optional)
-    - [Version Skew Strategy [optional]](#version-skew-strategy-optional)
+  - [Test Plan](#test-plan)
+  - [Graduation Criteria](#graduation-criteria)
 - [Implementation History](#implementation-history)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -50,6 +48,7 @@ status: experimental
 ## Glossary
 
 - **CAPMOX**: Cluster API Provider for Proxmox
+- **Proxmox**: Proxmox Virtual Environment
 
 ## Summary
 
@@ -64,166 +63,217 @@ This proposal aims to enable provisioning Kubernetes clusters on multiple proxmo
 
 ## Motivation
 
-This section is for explicitly listing the motivation, goals and non-goals of this proposal.
+Proxmox is a great virtualization platform for running Kubernetes clusters, as it provides a simple and easy way to manage virtual machines.
+However, it is not possible to provision a single Kubernetes cluster on multiple proxmox clusters.
 
-- Describe why the change is important and the benefits to users.
-- The motivation section can optionally provide links to [experience reports](https://github.com/golang/go/wiki/ExperienceReports)
-  to demonstrate the interest in a proposal within the wider Kubernetes community.
+For the following reasons, it is important to enable provisioning Kubernetes clusters on multiple proxmox clusters:
+
+- **Resource Utilization**: By provisioning a single Kubernetes cluster on multiple proxmox clusters, we can better utilize the resources of the proxmox clusters.
+- **High Availability**: By provisioning a single Kubernetes cluster on multiple proxmox clusters, we can achieve high availability.
 
 ### Goals
 
-- List the specific high-level goals of the proposal.
-- How will we know that this has succeeded?
+- To design a solution for provisioning Kubernetes Clusters on multiple proxmox clusters.
+- To distribute machines to various proxmox clusters.
+- To enable high availability of Kubernetes clusters by provisioning them on multiple proxmox clusters.
 
 ### Non-Goals/Future Work
 
-- What high-levels are out of scope for this proposal?
-- Listing non-goals helps to focus discussion and make progress.
+- To manage the lifecycle of the Proxmox clusters instances.
+- To manage the security of the Proxmox clusters instances.
+- To maintain the state of the Proxmox clusters instances.
+- To provide the credentials for the Proxmox clusters instances.
 
 ## Proposal
 
-This is where we get down to the nitty gritty of what the proposal actually is.
+This document introduces the concept of a Multi Proxmox Clusters provisioning, a new way to provision HA clusters.
+This feature require the user to set a specific credentials and configuration in the Secret and ProxmoxCluster.
 
-- What is the plan for implementing this feature?
-- What data model changes, additions, or removals are required?
-- Provide a scenario, or example.
-- Use diagrams to communicate concepts, flows of execution, and states.
-
-[PlantUML](http://plantuml.com) is the preferred tool to generate diagrams,
-place your `.plantuml` files under `images/` and run `make diagrams` from the docs folder.
 
 ### User Stories
 
-- Detail the things that people will be able to do if this proposal is implemented.
-- Include as much detail as possible so that people can understand the "how" of the system.
-- The goal here is to make this feel real for users without getting bogged down.
-
 #### Story 1
+
+As a developer or Cluster operator, I would like to Provision K8s Cluster on multiple Proxmox Clusters, 
+so that I can better utilize the resources of the proxmox clusters.
 
 #### Story 2
 
-### Requirements (Optional)
+As a developer or Cluster operator, I would like CAPMOX to expose configurations to enable provisioning Kubernetes clusters on multiple proxmox clusters.
 
-Some authors may wish to use requirements in addition to user stories.
-Technical requirements should derived from user stories, and provide a trace from
-use case to design, implementation and test case. Requirements can be prioritised
-using the MoSCoW (MUST, SHOULD, COULD, WON'T) criteria.
+#### Story 3
 
-The FR and NFR notation is intended to be used as cross-references across a CAEP.
+As a developer or Cluster operator, I would like CAPMOX to use a specific schema for Proxmox credentials that is used to provision the Kubernetes cluster on multiple proxmox clusters.
 
-The difference between goals and requirements is that between an executive summary
-and the body of a document. Each requirement should be in support of a goal,
-but narrowly scoped in a way that is verifiable or ideally - testable.
+#### Implementation Details/Notes/Constraints
 
-#### Functional Requirements
+The proposed solution is designed to make the provision of workload clusters as easy as possible while keeping backward compatible with the existing CAPMOX.
 
-Functional requirements are the properties that this design should include.
+##### ProxmoxCluster CRD
 
-##### FR1
+We propose to introduce a new field `spec.settings` in ProxmoxCluster CRD.
+The goal of this field is to determine which mode to use for provisioning the Kubernetes cluster.
 
-##### FR2
 
-#### Non-Functional Requirements
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxCluster
+metadata:
+  name: test
+spec:
+  settings:
+    mode: Default
+    instances:
+      - name: pmox-txl
+        nodes: [pmox-txl-1, pmox-txl-2]
+        template:
+          sourceNode: pmox-txl-1
+          templateID: 1000
+        credentialsRef:
+          name: "pmox-txl-proxmox-credentials"
+      - name: pmox-fra
+        nodes: [pmox-fra-1, pmox-fra-2, pmox-fra-3]
+        template:
+          templateSelector:
+            matchTags:
+              - capi
+              - v1.30.5
+        credentialsRef:
+          name: "pmox-fra-proxmox-credentials"
+  controlPlaneEndpoint:
+    host: 10.0.0.10
+    port: 6443
+  ipv4Config:
+    addresses: [10.0.0.11-10.0.0.50]
+    prefix: 24
+    gateway: 10.0.0.1
+  dnsServers: [10.0.0.1]
+  allowedNodes: []
+  credentialsRef:
+    name: "test-proxmox-credentials"
+```
 
-Non-functional requirements are user expectations of the solution. Include
-considerations for performance, reliability and security.
+The `spec.settings.mode` field will have the following values:
+* `Default`: This is the default mode. It will provision the Kubernetes cluster on a single proxmox cluster.
+* `SingleInstance`: This mode will provision the Kubernetes cluster on a single proxmox cluster.
+* `MultiInstance`: This mode will provision the Kubernetes cluster on multiple proxmox clusters.
 
-##### NFR1
+The `spec.settings.instances` field will have the list of proxmox clusters to provision the Kubernetes cluster on.
 
-##### NFR2
+* `spec.settings.mode=Default`: if this mode is set and the `spec.settings.instances` field is not set, the Kubernetes cluster will be provisioned on the default proxmox cluster,
+  and when instances is set it will provision the Kubernetes cluster on the first proxmox instance.
 
-### Implementation Details/Notes/Constraints
+* `spec.settings.mode=SingleInstance`: if this mode is set, the Kubernetes cluster will be provisioned on a single proxmox cluster chosen randomly from the list of proxmox clusters in the `spec.settings.instances` field.
 
-- What are some important details that didn't come across above.
-- What are the caveats to the implementation?
-- Go in to as much detail as necessary here.
-- Talk about core concepts and how they relate.
+* `spec.settings.mode=MultiInstance`: if this mode is set, the Kubernetes cluster will be provisioned on multiple proxmox clusters from the list of proxmox clusters in the `spec.settings.instances` field.
+
+Notes:
+
+* `spec.allowedNodes` can be deprecated and have no effect.
+* `spec.credentialsRef` will be used only for the default proxmox cluster (can be deprecated in future). 
+* If no `mode` is set the Cluster will be provisioned on the default proxmox cluster.
+
+This will make sure to distribute the machines to the different proxmox clusters.
+
+##### ProxmoxMachine CRD
+
+First, in order to enable multi cluster deployment, we need the feature of selecting the template by tags https://github.com/ionos-cloud/cluster-api-provider-proxmox/pull/343
+The tags, should match tags set on VM templates in Proxmox for all instances.
+
+In order to have a way of manually setting an instance in machine level for example, when using a MachineDeployment.
+we can add the field `instance` to the ProxmoxMachine CRD.
+
+```yaml
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: "test-worker-1"
+spec:
+  template:
+    spec:
+      templateSelector:
+        matchTags:
+          - capi
+          - v1.30.5
+      instance: pmox-txl
+```
+
+##### Proxmox Client
+
+The new model of having multiple proxmox clusters will require changes in the Proxmox client to support multiple proxmox clusters.
+
+###### The client interface
+
+The client interface will stay the same, any required changes will be adapted.
+
+###### The client implementation
+
+The api client struct will now have a map of clients instead of a single client.
+The map will have the name of the proxmox cluster as the key and the client as the value.
+
+```go
+// APIClient Proxmox API client object.
+type APIClient struct {
+	clients map[string]*proxmox.Client
+	logger logr.Logger
+}
+```
+
+* In default mode, the client will use the default client key.
+
+The function `NewAPIClient()` will be initialized in the controller.
+
+The controller will determine which instance to use and provide the name to the APIClient.
+The APIClient functions should have a param that specify which instance to use, based on instance name.
+
+```go
+
+// selectNextInstance selects a client based on the request.
+func (c *APIClient) CloneVM(, templateID int, clone capmox.VMCloneRequest, instance string) (capmox.VMCloneResponse, error) {
+
+}
+```
+
+
+**State**
+The proxmox instance will be saved in ProxmoxMachine as `spec.instance`.
+The state of distributing the machines will be saved in the ProxmoxCluster as `status.instances`.
+
 
 ### Security Model
 
-Document the intended security model for the proposal, including implications
-on the Kubernetes RBAC model. Questions you may want to answer include:
-
-* Does this proposal implement security controls or require the need to do so?
-    * If so, consider describing the different roles and permissions with tables.
-* Are their adequate security warnings where appropriate (see https://adam.shostack.org/ReederEtAl_NEATatMicrosoft.pdf for guidance).
-* Are regex expressions going to be used, and are their appropriate defenses against DOS.
-* Is any sensitive data being stored in a secret, and only exists for as long as necessary?
+This proposal will add a new fields to ProxmoxCluster and ProxmoxMachine CRDs.
+The permissions will stay the same.
+This feature will also may require the user to manage multiple secrets.
 
 ### Risks and Mitigations
 
-- What are the risks of this proposal and how do we mitigate? Think broadly.
-- How will UX be reviewed and by whom?
-- How will security be reviewed and by whom?
-- Consider including folks that also work outside the SIG or subproject.
+* The new feature introduce new secrets for proxmox credentials.
 
 ## Alternatives
 
-The `Alternatives` section is used to highlight and record other possible approaches to delivering the value proposed by a proposal.
+The alternative is to use the existing CAPMOX and provision the Kubernetes cluster on a single proxmox cluster.
 
 ## Upgrade Strategy
 
-If applicable, how will the component be upgraded? Make sure this is in the test plan.
+since there are changes within the API and/or deprecations, we need to create a new version. 
+`v1alpha2` or `v1alpha3` will be the new version of the ProxmoxCluster and ProxmoxMachine CRDs.
 
-Consider the following in developing an upgrade strategy for this enhancement:
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to make on upgrade in order to keep previous behavior?
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to make on upgrade in order to make use of the enhancement?
+CAPMOX will support multiple versions at the same time.
+only when the end of life of the the new version must be communicated with the users.
 
 ## Additional Details
 
-### Test Plan [optional]
+### Test Plan 
 
-**Note:** *Section not required until targeted at a release.*
+- Unit test coverage for the Proxmox instance selection and distributions.
+- E2e tests if possible, to test the distribution of the machines to the different proxmox clusters.
 
-Consider the following in developing a test plan for this enhancement:
-- Will there be e2e and integration tests, in addition to unit tests?
-- How will it be tested in isolation vs with other components?
+### Graduation Criteria
 
-No need to outline all of the test cases, just the general strategy.
-Anything that would count as tricky in the implementation and anything particularly challenging to test should be called out.
-
-All code is expected to have adequate tests (eventually with coverage expectations).
-Please adhere to the [Kubernetes testing guidelines][testing-guidelines] when drafting this test plan.
-
-[testing-guidelines]: https://git.k8s.io/community/contributors/devel/sig-testing/testing.md
-
-### Graduation Criteria [optional]
-
-**Note:** *Section not required until targeted at a release.*
-
-Define graduation milestones.
-
-These may be defined in terms of API maturity, or as something else. Initial proposal should keep
-this high-level with a focus on what signals will be looked at to determine graduation.
-
-Consider the following in developing the graduation criteria for this enhancement:
-- [Maturity levels (`alpha`, `beta`, `stable`)][maturity-levels]
-- [Deprecation policy][deprecation-policy]
-
-Clearly define what graduation means by either linking to the [API doc definition](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-versioning),
-or by redefining what graduation means.
-
-In general, we try to use the same stages (alpha, beta, GA), regardless how the functionality is accessed.
-
-[maturity-levels]: https://git.k8s.io/community/contributors/devel/sig-architecture/api_changes.md#alpha-beta-and-stable-versions
-[deprecation-policy]: https://kubernetes.io/docs/reference/using-api/deprecation-policy/
-
-### Version Skew Strategy [optional]
-
-If applicable, how will the component handle version skew with other components? What are the guarantees? Make sure
-this is in the test plan.
-
-Consider the following in developing a version skew strategy for this enhancement:
-- Does this enhancement involve coordinating behavior in the control plane and in the kubelet? How does an n-2 kubelet without this feature available behave when this feature is used?
-- Will any other components on the node change? For example, changes to CSI, CRI or CNI may require updating that component before the kubelet.
+This feature will be released in a new version CRD `v1alpha3` to CAPMOX.
 
 ## Implementation History
 
-- [ ] MM/DD/YYYY: Proposed idea in an issue or [community meeting]
-- [ ] MM/DD/YYYY: Compile a Google Doc following the CAEP template (link here)
-- [ ] MM/DD/YYYY: First round of feedback from community
-- [ ] MM/DD/YYYY: Present proposal at a [community meeting]
-- [ ] MM/DD/YYYY: Open proposal PR
-
-<!-- Links -->
-[community meeting]: https://docs.google.com/document/d/1ushaVqAKYnZ2VN_aa3GyKlS4kEd6bSug13xaXOakAQI/edit#heading=h.pxsq37pzkbdq
+- [X] 2024-12-19: Open proposal PR
+- [ ] MM/DD/YYYY: Present proposal at a community meeting
