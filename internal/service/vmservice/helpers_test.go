@@ -38,6 +38,8 @@ import (
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -48,6 +50,14 @@ type FakeISOInjector struct {
 }
 
 func (f FakeISOInjector) Inject(_ context.Context, _ inject.BootstrapDataFormat) error {
+	return f.Error
+}
+
+type FakeIgnitionISOInjector struct {
+	Error error
+}
+
+func (f FakeIgnitionISOInjector) Inject(_ context.Context, _ inject.BootstrapDataFormat) error {
 	return f.Error
 }
 
@@ -209,17 +219,27 @@ func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineSco
 	}
 }
 
-func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.MachineScope) {
+func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.MachineScope, format string) {
 	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
+	data := map[string][]byte{}
+	switch format {
+	case cloudinit.FormatCloudConfig:
+		data = map[string][]byte{
+			"value":  []byte("data"),
+			"format": []byte("cloud-config"),
+		}
+	case ignition.FormatIgnition:
+		data = map[string][]byte{
+			"value":  []byte("{\"ignition\":{\"version\":\"2.3.0\"}}"),
+			"format": []byte("ignition"),
+		}
+	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      machineScope.Name(),
 			Namespace: machineScope.Namespace(),
 		},
-		Data: map[string][]byte{
-			"value":  []byte("data"),
-			"format": []byte("cloud-config"),
-		},
+		Data: data,
 	}
 	require.NoError(t, c.Create(context.Background(), secret))
 }
