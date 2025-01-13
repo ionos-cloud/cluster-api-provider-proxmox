@@ -119,7 +119,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 		Network:       nicData,
 	}
 
-	injector := ignitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
+	injector := getIgnitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
 	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, err.Error())
 		return errors.Wrap(err, "ignition iso inject failed")
@@ -140,7 +140,7 @@ func defaultISOInjector(vm *proxmox.VirtualMachine, bootStrapData []byte, metada
 	}
 }
 
-func ignitionISOInjector(vm *proxmox.VirtualMachine, metadata cloudinit.Renderer, enricher *ignition.Enricher) isoInjector {
+func defaultIgnitionISOInjector(vm *proxmox.VirtualMachine, metadata cloudinit.Renderer, enricher *ignition.Enricher) isoInjector {
 	return &inject.ISOInjector{
 		VirtualMachine:   vm,
 		IgnitionEnricher: enricher,
@@ -148,7 +148,10 @@ func ignitionISOInjector(vm *proxmox.VirtualMachine, metadata cloudinit.Renderer
 	}
 }
 
-var getISOInjector = defaultISOInjector
+var (
+	getISOInjector         = defaultISOInjector
+	getIgnitionISOInjector = defaultIgnitionISOInjector
+)
 
 // getBootstrapData obtains a machine's bootstrap data from the relevant K8s secret and returns the data.
 // TODO: Add format return if ignition will be supported.

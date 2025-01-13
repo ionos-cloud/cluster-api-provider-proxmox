@@ -540,7 +540,7 @@ func TestDefaultISOInjector(t *testing.T) {
 }
 
 func TestIgnitionISOInjector(t *testing.T) {
-	injector := ignitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), &ignition.Enricher{
+	injector := defaultIgnitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), &ignition.Enricher{
 		BootstrapData: []byte("data"),
 		Hostname:      "test",
 	})
