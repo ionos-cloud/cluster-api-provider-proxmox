@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
@@ -178,18 +179,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	secret.Data["value"] = []byte("notdata")
 	require.NoError(t, client.Update(context.Background(), secret))
 
-	// test defaulting of format to cloud-config
-	data, format, err := getBootstrapData(context.Background(), machineScope)
-	require.Equal(t, cloudinit.FormatCloudConfig, ptr.Deref(format, ""))
-	require.Equal(t, []byte("notdata"), data)
-	require.Nil(t, err)
-
-	// test explicitly setting format to ignition
-	secret.Data["format"] = []byte(ignition.FormatIgnition)
-	require.NoError(t, client.Update(context.Background(), secret))
-
-	data, format, err = getBootstrapData(context.Background(), machineScope)
-	require.Equal(t, ignition.FormatIgnition, ptr.Deref(format, ""))
+	data, _, err = getBootstrapData(context.Background(), machineScope)
 	require.Equal(t, []byte("notdata"), data)
 	require.Nil(t, err)
 }
@@ -497,6 +487,49 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition))
 	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition))
 	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition) == infrav1alpha1.WaitingForStaticIPAllocationReason)
+}
+
+func TestReconcileBootstrapData_Formats(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTest(t)
+
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	vm.VirtualMachineConfig.SMBios1 = biosUUID
+	machineScope.SetVirtualMachine(vm)
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
+	createBootstrapSecret(t, kubeClient, machineScope)
+	machineScope.SetVirtualMachine(vm)
+	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
+		return FakeISOInjector{}
+	}
+	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+
+	// test defaulting of format to cloud-config
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	data, format, err := getBootstrapData(context.Background(), machineScope)
+	require.Equal(t, cloudinit.FormatCloudConfig, ptr.Deref(format, ""))
+	require.Equal(t, []byte("data"), data)
+	require.Nil(t, err)
+
+	// test explicitly setting format to ignition
+	var dataSecret corev1.Secret
+	err = kubeClient.Get(context.Background(), client.ObjectKey{Namespace: machineScope.Machine.Namespace, Name: ptr.Deref(machineScope.Machine.Spec.Bootstrap.DataSecretName, "")}, &dataSecret)
+	require.NoError(t, err)
+	dataSecret.Data["format"] = []byte(ignition.FormatIgnition)
+	require.NoError(t, kubeClient.Update(context.Background(), &dataSecret))
+
+	_, err = reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	data, format, err = getBootstrapData(context.Background(), machineScope)
+	require.Equal(t, ignition.FormatIgnition, ptr.Deref(format, ""))
+	require.Equal(t, []byte("data"), data)
+	require.Nil(t, err)
 }
 
 func TestDefaultISOInjector(t *testing.T) {
