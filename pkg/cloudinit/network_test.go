@@ -22,6 +22,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
+
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -419,7 +421,7 @@ const (
 
 func TestNetworkConfig_Render(t *testing.T) {
 	type args struct {
-		nics []NetworkConfigData
+		nics []types.NetworkConfigData
 	}
 
 	type want struct {
@@ -435,7 +437,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfig": {
 			reason: "render valid network-config with static ip",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -455,7 +457,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithLinkMTU": {
 			reason: "render valid network-config with static ip and mtu",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -476,7 +478,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithDHCP": {
 			reason: "render valid network-config with ipv6 static ip and dhcp",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -497,7 +499,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigIPWithDHCP": {
 			reason: "render valid network-config with ipv6 static ip and dhcp",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -518,7 +520,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithRoutes": {
 			reason: "render valid network-config with ipv6 static ip and dhcp and routes",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -535,7 +537,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						IPAddress:  "10.10.11.12/24",
 						Gateway:    "10.10.11.1",
 						Metric:     ptr.To(uint32(200)),
-						Routes: []RoutingData{{
+						Routes: []types.RoutingData{{
 							To:     "172.16.24.1/24",
 							Metric: 50,
 							Via:    "10.10.10.254",
@@ -555,7 +557,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithFIBRules": {
 			reason: "render valid network-config with FIB rules/routing policy",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -572,7 +574,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Gateway:    "10.10.11.1",
 						Metric:     ptr.To(uint32(200)),
 						MacAddress: "92:60:a0:5b:22:c3",
-						FIBRules: []FIBRuleData{{
+						FIBRules: []types.FIBRuleData{{
 							To:       "0.0.0.0/0",
 							From:     "192.168.178.1/24",
 							Priority: 999,
@@ -590,7 +592,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigIp": {
 			reason: "ip address is not set",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -609,7 +611,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigMalformedIp": {
 			reason: "malformed ip address",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -629,7 +631,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigMalformedIP": {
 			reason: "ip address malformed",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -649,7 +651,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigGW": {
 			reason: "gw is not set",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -668,7 +670,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigMacAddress": {
 			reason: "macaddress is not set",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -687,7 +689,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigConflictingMetrics": {
 			reason: "metric already exists for default gateway",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -715,7 +717,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigWithoutDNS": {
 			reason: "valid config without dns",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -734,7 +736,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigMultipleNics": {
 			reason: "valid config multiple nics",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -763,7 +765,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigData": {
 			reason: "invalid config missing network config data",
 			args: args{
-				nics: []NetworkConfigData{},
+				nics: []types.NetworkConfigData{},
 			},
 			want: want{
 				network: "",
@@ -773,7 +775,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDualStack": {
 			reason: "render valid network-config",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:        "ethernet",
 						Name:        "eth0",
@@ -796,7 +798,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigIPV6": {
 			reason: "render valid ipv6 network-config",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:        "ethernet",
 						Name:        "eth0",
@@ -816,7 +818,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDHCP": {
 			reason: "render valid network-config with dhcp",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -835,7 +837,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDHCP4": {
 			reason: "render valid network-config with dhcp",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -854,7 +856,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDHCP6": {
 			reason: "render valid network-config with dhcp",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -873,7 +875,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigMultipleNicsVRF": {
 			reason: "valid config multiple nics enslaved to VRF",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -897,7 +899,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "vrf-blue",
 						Table:      500,
 						Interfaces: []string{"eth0", "eth1"},
-						Routes: []RoutingData{{
+						Routes: []types.RoutingData{{
 							To:     "default",
 							Via:    "192.168.178.1",
 							Metric: 100,
@@ -907,7 +909,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Via:    "192.168.178.254",
 							Metric: 100,
 						}},
-						FIBRules: []FIBRuleData{{
+						FIBRules: []types.FIBRuleData{{
 							To:       "0.0.0.0/0",
 							From:     "192.168.178.1/24",
 							Priority: 999,
@@ -924,7 +926,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigMultipleNicsMultipleVRF": {
 			reason: "valid config multiple nics enslaved to multiple VRFs",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -948,7 +950,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "vrf-blue",
 						Table:      500,
 						Interfaces: []string{"eth0"},
-						Routes: []RoutingData{{
+						Routes: []types.RoutingData{{
 							To:     "default",
 							Via:    "192.168.178.1",
 							Metric: 100,
@@ -958,7 +960,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Via:    "192.168.178.254",
 							Metric: 100,
 						}},
-						FIBRules: []FIBRuleData{{
+						FIBRules: []types.FIBRuleData{{
 							To:       "0.0.0.0/0",
 							From:     "192.168.178.1/24",
 							Priority: 999,
@@ -970,7 +972,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "vrf-red",
 						Table:      501,
 						Interfaces: []string{"eth1"},
-						FIBRules: []FIBRuleData{{
+						FIBRules: []types.FIBRuleData{{
 							To:       "0.0.0.0/0",
 							From:     "192.168.100.0/24",
 							Priority: 999,
@@ -987,12 +989,12 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigValidFIBRule": {
 			reason: "valid config valid routing policy",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:  "vrf",
 						Name:  "vrf-blue",
 						Table: 500,
-						FIBRules: []FIBRuleData{{
+						FIBRules: []types.FIBRuleData{{
 							From: "10.10.0.0/16",
 						}},
 					},
@@ -1006,13 +1008,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigMalformedFIBRule": {
 			reason: "invalid config malformed routing policy",
 			args: args{
-				nics: []NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:       "vrf",
 						Name:       "vrf-blue",
 						Table:      500,
 						Interfaces: []string{"eth0", "eth1"},
-						Routes: []RoutingData{{
+						Routes: []types.RoutingData{{
 							Table: 100,
 						}},
 					},
