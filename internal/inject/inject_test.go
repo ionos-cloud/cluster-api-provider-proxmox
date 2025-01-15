@@ -14,6 +14,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -92,7 +93,7 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]cloudinit.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",
@@ -136,7 +137,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]cloudinit.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",
@@ -187,7 +188,7 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []cloudinit.NetworkConfigData{
+		Network: []types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",
@@ -239,7 +240,7 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []cloudinit.NetworkConfigData{
+		Network: []types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.9/24",
@@ -293,7 +294,7 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "1.2.3", false),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]cloudinit.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",

@@ -16,6 +16,8 @@ limitations under the License.
 
 package cloudinit
 
+import "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+
 const (
 	// FormatCloudConfig is the format for cloud-config.
 	FormatCloudConfig = "cloud-config"
@@ -28,44 +30,5 @@ type BaseCloudInitData struct {
 	InstanceID          string
 	KubernetesVersion   string
 	ProviderIDInjection bool
-	NetworkConfigData   []NetworkConfigData
-}
-
-// NetworkConfigData is used to render network-config.
-type NetworkConfigData struct {
-	ProxName    string // Device name in Proxmox
-	MacAddress  string
-	DHCP4       bool
-	DHCP6       bool
-	IPAddress   string
-	IPV6Address string
-	Gateway     string
-	Metric      *uint32
-	Gateway6    string
-	Metric6     *uint32
-	DNSServers  []string
-	Type        string
-	Name        string
-	Interfaces  []string // Interfaces controlled by this one.
-	Table       uint32   // linux routing table number for VRF.
-	Routes      []RoutingData
-	FIBRules    []FIBRuleData // Forwarding information block for routing.
-	LinkMTU     *uint16       // linux network device MTU
-	VRF         string        // linux VRF name // only used in networkd config.
-}
-
-// RoutingData stores routing configuration.
-type RoutingData struct {
-	To     string
-	Via    string
-	Metric uint32
-	Table  uint32
-}
-
-// FIBRuleData stores forward information base rules (routing policies).
-type FIBRuleData struct {
-	To       string
-	From     string
-	Priority uint32
-	Table    uint32
+	NetworkConfigData   []types.NetworkConfigData
 }

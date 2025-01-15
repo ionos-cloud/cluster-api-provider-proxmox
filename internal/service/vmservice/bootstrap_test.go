@@ -33,6 +33,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -221,7 +222,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 		},
 	}
 
-	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	cfg := &types.NetworkConfigData{Name: "net1"}
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
 	require.Error(t, err)
 }
@@ -238,7 +239,7 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 		},
 	}
 
-	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	cfg := &types.NetworkConfigData{Name: "net1"}
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
 	require.NoError(t, err)
 }
@@ -288,7 +289,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10")
 	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
 
-	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	cfg := &types.NetworkConfigData{Name: "net1"}
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
 	require.Equal(t, "10.0.0.10/24", cfg.IPAddress)
 	require.Equal(t, "2001:db8::9/64", cfg.IPV6Address)
@@ -313,7 +314,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 			}},
 		},
 	}
-	networkConfigData := []cloudinit.NetworkConfigData{{}}
+	networkConfigData := []types.NetworkConfigData{{}}
 
 	cfg, err := getVirtualNetworkDevices(context.Background(), machineScope, networkSpec, networkConfigData)
 	require.Error(t, err)
