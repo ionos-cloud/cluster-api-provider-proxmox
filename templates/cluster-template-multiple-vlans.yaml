@@ -193,10 +193,12 @@ spec:
         default:
           bridge: ${BRIDGE}
           model: virtio
+          vlan: ${VLAN:=null}
         additionalDevices:
         - name: net1
           bridge: ${SECONDARY_BRIDGE}
           model: virtio
+          vlan: ${SECONDARY_VLAN:=null}
           ipv4PoolRef:
             apiGroup: ipam.cluster.x-k8s.io
             kind: GlobalInClusterIPPool
@@ -251,10 +253,12 @@ spec:
         default:
           bridge: ${BRIDGE}
           model: virtio
+          vlan: ${VLAN:=null}
         additionalDevices:
         - name: net1
           bridge: ${SECONDARY_BRIDGE}
           model: virtio
+          vlan: ${SECONDARY_VLAN:=null}
           ipv4PoolRef:
             apiGroup: ipam.cluster.x-k8s.io
             kind: GlobalInClusterIPPool
