@@ -6,7 +6,7 @@ import (
 	ignition "github.com/flatcar/ignition/config/v2_3"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 func TestEnricher_Enrich(t *testing.T) {
@@ -58,7 +58,7 @@ func TestEnricher_Enrich(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []cloudinit.NetworkConfigData{
+		Network: []types.NetworkConfigData{
 			{
 				Name:        "eth0",
 				IPAddress:   "10.1.1.9/24",

@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -132,15 +132,15 @@ Table={{ $element.Table }}
 )
 
 // RenderNetworkConfigData renders network-config data into systemd-networkd unit files.
-func RenderNetworkConfigData(data cloudinit.BaseCloudInitData) (map[string][]byte, error) {
+func RenderNetworkConfigData(data []types.NetworkConfigData) (map[string][]byte, error) {
 	configs := make(map[string][]byte)
 
 	// adjust VRFs
-	adjustVrfs(data.NetworkConfigData)
+	adjustVrfs(data)
 
 	// Add VRFs first so that they are created before the ethernet interfaces.
 	n := 0
-	for i, networkConfig := range data.NetworkConfigData {
+	for i, networkConfig := range data {
 		// the []data.NetworkConfigData have types ethernet and vrf
 		// we need to make sure to add vrf netdev first.
 		// and that's why we use n to keep track of the vrf index.
@@ -157,7 +157,7 @@ func RenderNetworkConfigData(data cloudinit.BaseCloudInitData) (map[string][]byt
 		}
 	}
 
-	for i, networkConfig := range data.NetworkConfigData {
+	for i, networkConfig := range data {
 		config, err := render(fmt.Sprintf("%d-%s", i, networkConfig.Type), networkConfigTPlNetworkd, networkConfig)
 		if err != nil {
 			return nil, err
@@ -177,7 +177,7 @@ func RenderNetworkConfigData(data cloudinit.BaseCloudInitData) (map[string][]byt
 	return configs, nil
 }
 
-func render(name string, tpl string, data cloudinit.NetworkConfigData) ([]byte, error) {
+func render(name string, tpl string, data types.NetworkConfigData) ([]byte, error) {
 	mt, err := template.New(name).Parse(tpl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s template", name)
@@ -190,7 +190,7 @@ func render(name string, tpl string, data cloudinit.NetworkConfigData) ([]byte, 
 	return buffer.Bytes(), nil
 }
 
-func adjustVrfs(data []cloudinit.NetworkConfigData) {
+func adjustVrfs(data []types.NetworkConfigData) {
 	// adjust VRFs, by adding the VRF name to the ethernet interface.
 	for i, networkConfig := range data {
 		if networkConfig.Type == "ethernet" {
