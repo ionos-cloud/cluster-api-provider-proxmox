@@ -3,56 +3,50 @@ on:
   push:
     branches: ["main"]
   pull_request_target:
-    types: ["opened", "synchronize", "reopened"]
     branches: ["main"]
 
 jobs:
   go_test:
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
-      # If triggered by a push to **our** repository, we can directly checkout the code.
-      - name: Checkout branch ${{ github.ref }}
-        if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v4.1.1
         with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
-
-      # If triggered by a PR, we have to check out the PR's source
-      - name: Checkout (preview) merge commit for PR ${{ github.event.pull_request.number }}
-        if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/checkout@v4.1.1
-        with:
-          # Disabling shallow clone is recommended for improving relevancy of reporting
-          fetch-depth: 0
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-
+          fetch-depth: 0 # for sonarcloud
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
-      - name: Verify
-        run: "make verify"
-
-      - name: Run tests
-        run: "make test"
-
-      - name: SonarCloud Scan ${{ github.ref }}
-        uses: SonarSource/sonarcloud-github-action@v4.0.0
+      - run: "make verify"
+      - run: "make test"
+      - uses: SonarSource/sonarcloud-github-action@v4.0.0
         if: ${{ github.event_name == 'push' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # If triggered by a PR, we have to use the PR's source
-      - name: SonarCloud Scan (preview) merge commit for PR ${{ github.event.pull_request.number }}
-        uses: SonarSource/sonarcloud-github-action@v4.0.0
-        if: ${{ github.event_name == 'pull_request_target' }}
+  ext_pr:
+    if: ${{ github.event_name == 'pull_request_target' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4.1.1
         with:
-         args: >
-           -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-           -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          fetch-depth: 2 # for diff
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: generate comment message
+        run: |
+          printf '%s\n%s\n\n' '### External PR' 'Test runs on external PRs require manual approval.' >"${{ runner.temp }}/msg"
+          git diff --name-only -z HEAD^1 HEAD | grep -Evz '\.go$|^docs/' | tr '\0' '\n' >"${{ runner.temp }}/diff"
+          if [ -s '${{ runner.temp }}'/diff ]; then
+            echo '**Note:** This PR changes the following non-go, non-docs files:' >>"${{ runner.temp }}/msg"
+            cat "${{ runner.temp }}/diff" >>"${{ runner.temp }}/msg"
+          fi
+
+      - uses: thollander/actions-comment-pull-request@v3
+        with:
+          comment_tag: test
+          mode: recreate
+          file-path: ${{ runner.temp }}/msg
