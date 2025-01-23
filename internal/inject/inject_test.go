@@ -14,6 +14,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -91,8 +92,8 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 	injector := &ISOInjector{
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
-		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]cloudinit.NetworkConfigData{
+		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", true),
+		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",
@@ -135,8 +136,8 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 	injector := &ISOInjector{
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
-		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]cloudinit.NetworkConfigData{
+		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "", true),
+		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",
@@ -151,7 +152,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 	require.Error(t, err)
 
 	// missing network
-	injector.MetaRenderer = cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", false)
+	injector.MetaRenderer = cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", false)
 	injector.NetworkRenderer = cloudinit.NewNetworkConfig(nil)
 	err = injector.Inject(context.Background(), "cloudinit")
 	require.Error(t, err)
@@ -187,7 +188,7 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []cloudinit.NetworkConfigData{
+		Network: []types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",
@@ -200,7 +201,7 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 	injector := &ISOInjector{
 		VirtualMachine:   vm,
 		BootstrapData:    []byte(bootstrapData),
-		MetaRenderer:     cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", false),
+		MetaRenderer:     cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", false),
 		IgnitionEnricher: enricher,
 	}
 
@@ -239,7 +240,7 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []cloudinit.NetworkConfigData{
+		Network: []types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.9/24",
@@ -260,14 +261,14 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 	require.Error(t, err)
 
 	// missing hostname
-	injector.MetaRenderer = cloudinit.NewMetadata("xxxx-xxxxx", "", false)
+	injector.MetaRenderer = cloudinit.NewMetadata("xxxx-xxxxx", "", "1.2.3", false)
 	e.BootstrapData = []byte(bootstrapData)
 	err = injector.Inject(context.Background(), "ignition")
 	require.Error(t, err)
 
 	// no bootstrapdata
 	e.BootstrapData = nil
-	injector.MetaRenderer = cloudinit.NewMetadata("xxxx-xxxxx", "my-custom-vm", true)
+	injector.MetaRenderer = cloudinit.NewMetadata("xxxx-xxxxx", "my-custom-vm", "1.2.3", true)
 	injector.BootstrapData = []byte("invalid")
 	err = injector.Inject(context.Background(), "ignition")
 	require.Error(t, err)
@@ -292,8 +293,8 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 	injector := &ISOInjector{
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
-		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", false),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]cloudinit.NetworkConfigData{
+		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "1.2.3", false),
+		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
 				IPAddress:  "10.1.1.6/24",

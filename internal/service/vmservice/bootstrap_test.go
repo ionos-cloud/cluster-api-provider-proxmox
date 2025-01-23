@@ -33,6 +33,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -71,7 +72,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
-	createBootstrapSecret(t, kubeClient, machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -99,7 +100,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}, "net1": {IPV4: "10.100.10.10"}}
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
 	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10")
-	createBootstrapSecret(t, kubeClient, machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{}
 	}
@@ -118,7 +119,7 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
-	createBootstrapSecret(t, kubeClient, machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{Error: errors.New("bad FakeISOInjector")}
@@ -178,18 +179,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	secret.Data["value"] = []byte("notdata")
 	require.NoError(t, client.Update(context.Background(), secret))
 
-	// test defaulting of format to cloud-config
-	data, format, err := getBootstrapData(context.Background(), machineScope)
-	require.Equal(t, cloudinit.FormatCloudConfig, ptr.Deref(format, ""))
-	require.Equal(t, []byte("notdata"), data)
-	require.Nil(t, err)
-
-	// test explicitly setting format to ignition
-	secret.Data["format"] = []byte(ignition.FormatIgnition)
-	require.NoError(t, client.Update(context.Background(), secret))
-
-	data, format, err = getBootstrapData(context.Background(), machineScope)
-	require.Equal(t, ignition.FormatIgnition, ptr.Deref(format, ""))
+	data, _, err = getBootstrapData(context.Background(), machineScope)
 	require.Equal(t, []byte("notdata"), data)
 	require.Nil(t, err)
 }
@@ -232,7 +222,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 		},
 	}
 
-	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	cfg := &types.NetworkConfigData{Name: "net1"}
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
 	require.Error(t, err)
 }
@@ -249,7 +239,7 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 		},
 	}
 
-	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	cfg := &types.NetworkConfigData{Name: "net1"}
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
 	require.NoError(t, err)
 }
@@ -299,7 +289,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10")
 	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
 
-	cfg := &cloudinit.NetworkConfigData{Name: "net1"}
+	cfg := &types.NetworkConfigData{Name: "net1"}
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
 	require.Equal(t, "10.0.0.10/24", cfg.IPAddress)
 	require.Equal(t, "2001:db8::9/64", cfg.IPV6Address)
@@ -324,7 +314,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 			}},
 		},
 	}
-	networkConfigData := []cloudinit.NetworkConfigData{{}}
+	networkConfigData := []types.NetworkConfigData{{}}
 
 	cfg, err := getVirtualNetworkDevices(context.Background(), machineScope, networkSpec, networkConfigData)
 	require.Error(t, err)
@@ -346,7 +336,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
 	createIP6AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "2001:db8::2")
 
-	createBootstrapSecret(t, kubeClient, machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{}
 	}
@@ -398,7 +388,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	createIP6AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "2001:db8::2")
 	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10")
 	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
-	createBootstrapSecret(t, kubeClient, machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{}
 	}
@@ -443,7 +433,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
 	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10")
 
-	createBootstrapSecret(t, kubeClient, machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{}
 	}
@@ -489,7 +479,7 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
-	createBootstrapSecret(t, kubeClient, machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
@@ -499,15 +489,70 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition) == infrav1alpha1.WaitingForStaticIPAllocationReason)
 }
 
+func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTest(t)
+
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	vm.VirtualMachineConfig.SMBios1 = biosUUID
+	machineScope.SetVirtualMachine(vm)
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+	machineScope.SetVirtualMachine(vm)
+
+	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
+		return FakeISOInjector{}
+	}
+	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+
+	// test defaulting of format to cloud-config
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	data, format, err := getBootstrapData(context.Background(), machineScope)
+	require.Equal(t, cloudinit.FormatCloudConfig, ptr.Deref(format, ""))
+	require.Equal(t, []byte("data"), data)
+	require.Nil(t, err)
+}
+
+func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTest(t)
+
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	vm.VirtualMachineConfig.SMBios1 = biosUUID
+	machineScope.SetVirtualMachine(vm)
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.10.10.10")
+	createBootstrapSecret(t, kubeClient, machineScope, ignition.FormatIgnition)
+	machineScope.SetVirtualMachine(vm)
+
+	getIgnitionISOInjector = func(_ *proxmox.VirtualMachine, _ cloudinit.Renderer, _ *ignition.Enricher) isoInjector {
+		return FakeIgnitionISOInjector{}
+	}
+	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	data, format, err := getBootstrapData(context.Background(), machineScope)
+	require.Equal(t, ignition.FormatIgnition, ptr.Deref(format, ""))
+	require.Equal(t, []byte("{\"ignition\":{\"version\":\"2.3.0\"}}"), data)
+	require.Nil(t, err)
+}
+
 func TestDefaultISOInjector(t *testing.T) {
-	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test", true), cloudinit.NewNetworkConfig(nil))
+	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), cloudinit.NewNetworkConfig(nil))
 
 	require.NotEmpty(t, injector)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).BootstrapData)
 }
 
 func TestIgnitionISOInjector(t *testing.T) {
-	injector := ignitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test", true), &ignition.Enricher{
+	injector := defaultIgnitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), &ignition.Enricher{
 		BootstrapData: []byte("data"),
 		Hostname:      "test",
 	})

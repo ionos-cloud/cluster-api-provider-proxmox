@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 var (
@@ -110,7 +110,7 @@ Table=644
 
 func TestRenderNetworkConfigData(t *testing.T) {
 	type args struct {
-		nics []cloudinit.NetworkConfigData
+		nics []types.NetworkConfigData
 	}
 
 	type want struct {
@@ -126,7 +126,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfig": {
 			reason: "render valid networkd with static ip",
 			args: args{
-				nics: []cloudinit.NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:        "ethernet",
 						Name:        "eth0",
@@ -148,7 +148,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
 						Metric:     ptr.To(uint32(200)),
-						FIBRules: []cloudinit.FIBRuleData{{
+						FIBRules: []types.FIBRuleData{{
 							To:       "8.7.6.5/32",
 							From:     "1.1.1.1/32",
 							Priority: 100,
@@ -165,7 +165,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfigWithVRFPolicies": {
 			reason: "render valid networkd with static ip and VRF and policies",
 			args: args{
-				nics: []cloudinit.NetworkConfigData{
+				nics: []types.NetworkConfigData{
 					{
 						Type:        "ethernet",
 						Name:        "eth0",
@@ -194,12 +194,12 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						Table:      644,
 						Interfaces: []string{"eth1"},
-						Routes: []cloudinit.RoutingData{{
+						Routes: []types.RoutingData{{
 							To:     "3.4.5.6",
 							Via:    "10.0.1.1",
 							Metric: 100,
 						}},
-						FIBRules: []cloudinit.FIBRuleData{{
+						FIBRules: []types.FIBRuleData{{
 							To:       "8.7.6.5/32",
 							From:     "1.1.1.1/32",
 							Priority: 100,
@@ -216,7 +216,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 
 	for n, tc := range cases {
 		t.Run(n, func(t *testing.T) {
-			units, err := RenderNetworkConfigData(cloudinit.BaseCloudInitData{NetworkConfigData: tc.args.nics})
+			units, err := RenderNetworkConfigData(tc.args.nics)
 			require.ErrorIs(t, err, tc.want.err)
 			for k := range units {
 				require.Equal(t, tc.want.units[k], units[k])

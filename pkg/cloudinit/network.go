@@ -18,6 +18,8 @@ package cloudinit
 
 import (
 	"net/netip"
+
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -152,7 +154,7 @@ type NetworkConfig struct {
 }
 
 // NewNetworkConfig returns a new NetworkConfig object.
-func NewNetworkConfig(configs []NetworkConfigData) *NetworkConfig {
+func NewNetworkConfig(configs []types.NetworkConfigData) *NetworkConfig {
 	nc := new(NetworkConfig)
 	nc.data = BaseCloudInitData{
 		NetworkConfigData: configs,
@@ -249,7 +251,7 @@ func (r *NetworkConfig) validate() error {
 	return nil
 }
 
-func validRoutes(input []RoutingData) error {
+func validRoutes(input []types.RoutingData) error {
 	if len(input) == 0 {
 		return nil
 	}
@@ -273,7 +275,7 @@ func validRoutes(input []RoutingData) error {
 	return nil
 }
 
-func validFIBRules(input []FIBRuleData, isVrf bool) error {
+func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 	if len(input) == 0 {
 		return nil
 	}

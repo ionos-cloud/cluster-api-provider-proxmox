@@ -47,15 +47,17 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          load: ${{ github.event_name == 'pull_request' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Scan image
         if: github.event_name == 'pull_request'
-        uses: anchore/scan-action@v5
+        uses: aquasecurity/trivy-action@0.29.0
         id: scan
         with:
-          image: ${{ steps.meta.outputs.tags }}
-          add-cpes-if-none: true
-          output-format: table
+          scan-ref: ${{ steps.meta.outputs.tags }}
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
