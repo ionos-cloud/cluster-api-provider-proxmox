@@ -31,7 +31,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -46,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	clustererrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -265,8 +265,8 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(clusterScope *sco
 		if err != nil {
 			return errors.Wrap(err, "failed to init patch helper")
 		}
-		clusterScope.Cluster.Status.FailureMessage = nil
-		clusterScope.Cluster.Status.FailureReason = nil
+		// clusterScope.Cluster.Status.FailureMessage = nil
+		// clusterScope.Cluster.Status.FailureReason = nil
 		if err = cHelper.Patch(context.TODO(), clusterScope.Cluster); err != nil {
 			return err
 		}
