@@ -16,6 +16,11 @@ updates:
       - sigs.k8s.io/cluster-api
       - sigs.k8s.io/cluster-api/test
 
+- package-ecosystem: "gomod"
+  directory: "/hack/tools"
+  schedule:
+    interval: "daily"
+
 - package-ecosystem: "docker"
   directory: "/"
   schedule:
