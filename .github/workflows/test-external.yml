@@ -21,7 +21,7 @@ jobs:
           go-version-file: go.mod
       - run: "make verify"
       - run: "make test"
-      - uses: SonarSource/sonarcloud-github-action@v4.0.0
+      - uses: SonarSource/sonarqube-scan-action@v4.1.0
         with:
          args: >
            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
