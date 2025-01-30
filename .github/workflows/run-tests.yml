@@ -1,0 +1,65 @@
+name: Run tests
+on:
+  workflow_call:
+    inputs:
+      event_name:
+        required: true
+        type: string
+      pr:
+        required: false
+        type: number
+      repo:
+        required: false
+        type: string
+      ref:
+        required: false
+        type: string
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+     SONAR_TOKEN:
+        required: true
+
+jobs:
+  go_test:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: checkout PR ${{ inputs.pr }}
+        if: ${{ inputs.event_name == 'pull_request_target' }}
+        uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0 # for SonarQube
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.ref }}
+
+      - name: checkout
+        if: ${{ inputs.event_name == 'push' }}
+        uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0 # for SonarQube
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - run: "make verify"
+      - run: "make test"
+
+      - name: SonarQube for PR ${{ inputs.pr }}
+        if: ${{ inputs.event_name == 'pull_request_target' }}
+        uses: SonarSource/sonarqube-scan-action@v4.1.0
+        with:
+         args: >
+           -Dsonar.pullrequest.key=${{ inputs.pr }}
+           -Dsonar.scm.revision=${{ inputs.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarQube
+        if: ${{ inputs.event_name == 'push' }}
+        uses: SonarSource/sonarqube-scan-action@v4.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
