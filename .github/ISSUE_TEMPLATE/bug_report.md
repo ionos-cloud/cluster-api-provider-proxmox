@@ -19,6 +19,7 @@ labels: kind/bug
 
 **Environment:**
 
+- Proxmox version: 
 - Cluster-api-provider-proxmox version:
 - Kubernetes version: (use `kubectl version`):
-- OS (e.g. from `/etc/os-release`): 
+- OS (e.g. from `/etc/os-release`):
