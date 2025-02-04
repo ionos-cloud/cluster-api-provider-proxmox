@@ -155,6 +155,7 @@ const (
 	TargetStorageFormatVmdk  TargetFileStorageFormat = "vmdk"
 )
 
+// TemplateSource defines the source of the template VM.
 type TemplateSource struct {
 	// SourceNode is the initially selected proxmox node.
 	// This node will be used to locate the template VM, which will
