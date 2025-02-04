@@ -587,7 +587,7 @@ func (r *ProxmoxMachine) GetTemplateID() int32 {
 
 // GetTemplateSelectorTags get the tags, the desired vm template should have.
 func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
-	if r.Spec.TemplateSelector != nil && r.Spec.TemplateSelector.MatchTags != nil {
+	if r.Spec.TemplateSelector != nil {
 		return r.Spec.TemplateSelector.MatchTags
 	}
 	return nil
