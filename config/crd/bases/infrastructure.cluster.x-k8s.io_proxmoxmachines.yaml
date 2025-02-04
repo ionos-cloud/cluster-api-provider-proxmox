@@ -572,6 +572,12 @@ spec:
                   rule: self.end >= self.start
             type: object
             x-kubernetes-validations:
+            - message: sourceNode + templateSelector are mutually exclusive.
+              rule: '[has(self.sourceNode), has(self.templateSelector)].exists_one(c,
+                c)'
+            - message: templateID + templateSelector are mutually exclusive.
+              rule: '[has(self.templateID), has(self.templateSelector)].exists_one(c,
+                c)'
             - message: Must set full=true when specifying format
               rule: self.full && self.format != ''
           status:

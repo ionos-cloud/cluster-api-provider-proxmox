@@ -77,20 +77,6 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.AdditionalDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
-
-		It("should disallow machine with both sourceNode/templateID AND TemplateSelector", func() {
-			machine := validProxmoxMachine("test-machine")
-			machine.Spec.TemplateSelector = &infrav1.TemplateSelector{
-				MatchTags: []string{"foo", "bar"},
-			}
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("combination of spec.sourceNode and spec.templateID cannot be used with spec.templateSelector")))
-		})
-
-		It("should disallow machine without sourceNode/templateID OR TemplateSelector", func() {
-			machine := validProxmoxMachine("test-machine")
-			machine.Spec.VirtualMachineCloneSpec = infrav1.VirtualMachineCloneSpec{}
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("must define either spec.sourceNode and spec.templateID together, or spec.templateSelector")))
-		})
 	})
 
 	Context("update proxmox cluster", func() {
@@ -125,7 +111,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 		Spec: infrav1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				SourceNode: "pve",
-				TemplateID: ptr.To(int32(1337)),
+				TemplateID: ptr.To[int32](100),
 			},
 			NumSockets: 1,
 			NumCores:   1,

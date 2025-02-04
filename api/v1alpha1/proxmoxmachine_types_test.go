@@ -36,6 +36,10 @@ func defaultMachine() *ProxmoxMachine {
 		Spec: ProxmoxMachineSpec{
 			ProviderID:       ptr.To("proxmox://abcdef"),
 			VirtualMachineID: ptr.To[int64](100),
+			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
+				SourceNode: "pve1",
+				TemplateID: ptr.To[int32](100),
+			},
 			Disks: &Storage{
 				BootVolume: &DiskSize{
 					Disk:   "scsi0",
@@ -58,6 +62,12 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Full = ptr.To(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying format")))
+		})
+
+		It("Should not allow specifying TemplateSelector with SourceNode and/or TemplateID", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("mutually exclusive")))
 		})
 
 		It("Should not allow specifying TemplateSelector with empty MatchTags", func() {
