@@ -180,6 +180,7 @@ type TemplateSource struct {
 	// +optional
 	TemplateID *int32 `json:"templateID,omitempty"`
 
+	// TemplateSelector defines MatchTags for looking up VM templates.
 	// +optional
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty"`
 }
@@ -222,7 +223,7 @@ type VirtualMachineCloneSpec struct {
 	Target *string `json:"target,omitempty"`
 }
 
-// TemplateSelector defines tags for looking up images.
+// TemplateSelector defines MatchTags for looking up VM templates.
 type TemplateSelector struct {
 	// Specifies all tags to look for, when looking up the VM template.
 	//

@@ -560,8 +560,8 @@ spec:
                           format: int32
                           type: integer
                         templateSelector:
-                          description: TemplateSelector defines tags for looking up
-                            images.
+                          description: TemplateSelector defines MatchTags for looking
+                            up VM templates.
                           properties:
                             matchTags:
                               description: Specifies all tags to look for, when looking
