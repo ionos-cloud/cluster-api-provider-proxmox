@@ -595,10 +595,7 @@ func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
 
 // GetNode get the Proxmox node used to provision this machine.
 func (r *ProxmoxMachine) GetNode() string {
-	if r.Spec.SourceNode != "" {
-		return r.Spec.SourceNode
-	}
-	return ""
+	return r.Spec.SourceNode
 }
 
 // FormatSize returns the format required for the Proxmox API.
