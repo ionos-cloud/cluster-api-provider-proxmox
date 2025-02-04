@@ -18,9 +18,11 @@ package vmservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -187,6 +189,39 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
+}
+
+func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNotFound(t *testing.T) {
+	ctx := context.TODO()
+	vmTemplateTags := []string{"foo", "bar"}
+
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
+		},
+	}
+	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
+	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
+	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
+	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
+	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
+	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
+	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+
+	// Mock the behavior of FindVMTemplateByTags to simulate not finding a template
+	proxmoxClient.On("FindVMTemplateByTags", ctx, mock.Anything, mock.Anything).Return("", int32(-1), errors.New("VM template not found"))
+
+	// Call the createVM function to trigger the FindVMTemplateByTags logic
+	_, err := createVM(ctx, machineScope)
+
+	// Assert that the machine status is updated correctly and the error is returned
+	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureReason, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")))
+	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureMessage, ptr.To("VM template not found"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "VM template not found")
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
