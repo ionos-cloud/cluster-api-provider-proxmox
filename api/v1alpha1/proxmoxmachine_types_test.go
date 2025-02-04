@@ -66,10 +66,18 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying format")))
 		})
 
+		It("Should disallow absence of SourceNode, TemplateID and TemplateSelector", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSource.SourceNode = ""
+			dm.Spec.TemplateSource.TemplateID = nil
+			dm.Spec.TemplateSelector = nil
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("must define either SourceNode with TemplateID, OR TemplateSelector")))
+		})
+
 		It("Should not allow specifying TemplateSelector with SourceNode and/or TemplateID", func() {
 			dm := defaultMachine()
 			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}}
-			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("mutually exclusive")))
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("must define either SourceNode with TemplateID, OR TemplateSelector")))
 		})
 
 		It("Should not allow specifying TemplateSelector with empty MatchTags", func() {
