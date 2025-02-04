@@ -155,8 +155,7 @@ const (
 	TargetStorageFormatVmdk  TargetFileStorageFormat = "vmdk"
 )
 
-// VirtualMachineCloneSpec is information used to clone a virtual machine.
-type VirtualMachineCloneSpec struct {
+type TemplateSource struct {
 	// SourceNode is the initially selected proxmox node.
 	// This node will be used to locate the template VM, which will
 	// be used for cloning operations.
@@ -182,6 +181,11 @@ type VirtualMachineCloneSpec struct {
 
 	// +optional
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty"`
+}
+
+// VirtualMachineCloneSpec is information used to clone a virtual machine.
+type VirtualMachineCloneSpec struct {
+	TemplateSource `json:",inline"`
 
 	// Description for the new VM.
 	// +optional

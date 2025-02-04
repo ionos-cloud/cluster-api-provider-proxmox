@@ -150,8 +150,10 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
-		TemplateSelector: &infrav1alpha1.TemplateSelector{
-			MatchTags: vmTemplateTags,
+		TemplateSource: infrav1alpha1.TemplateSource{
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
 		},
 	}
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
