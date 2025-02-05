@@ -18,11 +18,9 @@ package vmservice
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -192,7 +190,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNotFound(t *testing.T) {
-	ctx := context.TODO()
+	ctx := context.Background()
 	vmTemplateTags := []string{"foo", "bar"}
 
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
@@ -211,17 +209,14 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
 	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
 
-	// Mock the behavior of FindVMTemplateByTags to simulate not finding a template
-	proxmoxClient.On("FindVMTemplateByTags", ctx, mock.Anything, mock.Anything).Return("", int32(-1), errors.New("VM template not found"))
+	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags).Return("", -1, goproxmox.ErrTemplateNotFound).Once()
 
-	// Call the createVM function to trigger the FindVMTemplateByTags logic
 	_, err := createVM(ctx, machineScope)
 
-	// Assert that the machine status is updated correctly and the error is returned
-	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureReason, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")))
-	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureMessage, ptr.To("VM template not found"))
+	require.Equal(t, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.FailureReason)
+	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.FailureMessage)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "VM template not found")
+	require.Contains(t, "VM template not found", err.Error())
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {

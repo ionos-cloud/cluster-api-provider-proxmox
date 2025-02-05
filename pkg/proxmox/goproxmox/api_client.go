@@ -181,7 +181,7 @@ func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []str
 	}
 
 	if n := len(vmTemplates); n != 1 {
-		return "", -1, fmt.Errorf("found %d VM templates with tags %q", n, strings.Join(templateTags, ";"))
+		return "", -1, fmt.Errorf("%w: found %d VM templates with tags %q", ErrTemplateNotFound, n, strings.Join(templateTags, ";"))
 	}
 
 	return vmTemplates[0].Node, int32(vmTemplates[0].VMID), nil
