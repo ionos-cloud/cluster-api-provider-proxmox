@@ -43,7 +43,7 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 
 	t, err := startVirtualMachine(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.PoweringOnFailedReason, clusterv1.ConditionSeverityInfo, err.Error())
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.PoweringOnFailedReason, clusterv1.ConditionSeverityInfo, "%s", err)
 		return false, err
 	}
 
