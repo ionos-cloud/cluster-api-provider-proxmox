@@ -532,8 +532,10 @@ spec:
                   templates.
                 properties:
                   matchTags:
-                    description: Specifies all tags to look for, when looking up the
-                      VM template.
+                    description: |-
+                      Specifies all tags to look for, when looking up the VM template.
+                      Passed tags must be an exact 1:1 match with the tags on the template you want to use.
+                      If multiple VM templates with the same set of tags are found, provisioning will fail.
                     items:
                       type: string
                     minItems: 1
