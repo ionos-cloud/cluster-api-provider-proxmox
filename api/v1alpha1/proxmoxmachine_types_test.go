@@ -74,7 +74,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("must define either SourceNode with TemplateID, OR TemplateSelector")))
 		})
 
-		It("Should not allow specifying TemplateSelector with SourceNode and/or TemplateID", func() {
+		It("Should not allow specifying TemplateSelector together with SourceNode and/or TemplateID", func() {
 			dm := defaultMachine()
 			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}}
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("must define either SourceNode with TemplateID, OR TemplateSelector")))
