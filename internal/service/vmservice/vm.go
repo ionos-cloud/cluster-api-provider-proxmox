@@ -393,7 +393,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
 				scope.SetFailureMessage(err)
 				scope.SetFailureReason(capierrors.MachineStatusError("VMTemplateNotFound"))
-				conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, err.Error())
+				conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
 			}
 			return proxmox.VMCloneResponse{}, err
 		}
