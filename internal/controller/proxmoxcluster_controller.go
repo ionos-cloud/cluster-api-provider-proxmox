@@ -233,7 +233,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	}
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
-		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, err.Error())
+		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, "%s", err)
 		if apierrors.IsNotFound(err) {
 			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
 			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
