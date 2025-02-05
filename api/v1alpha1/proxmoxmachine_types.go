@@ -226,7 +226,9 @@ type VirtualMachineCloneSpec struct {
 // TemplateSelector defines MatchTags for looking up VM templates.
 type TemplateSelector struct {
 	// Specifies all tags to look for, when looking up the VM template.
-	//
+	// Passed tags must be an exact 1:1 match with the tags on the template you want to use.
+	// If multiple VM templates with the same set of tags are found, provisioning will fail.
+	// 
 	// +kubebuilder:validation:MinItems=1
 	MatchTags []string `json:"matchTags"`
 }
