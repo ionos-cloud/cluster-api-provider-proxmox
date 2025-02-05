@@ -18,7 +18,7 @@ jobs:
           go-version-file: go.mod
       - run: "make verify"
       - run: "make test"
-      - uses: SonarSource/sonarqube-scan-action@v4.1.0
+      - uses: SonarSource/sonarqube-scan-action@v4.2.1
         if: ${{ github.event_name == 'push' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
