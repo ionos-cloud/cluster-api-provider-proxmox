@@ -412,6 +412,15 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			vmTemplateID:   201,
 		},
 		{
+			name:           "find-template-nil",
+			http:           []int{200, 200},
+			vmTags:         nil,
+			fails:          true,
+			err:            "VM template not found: found 0 VM templates with tags \"\"",
+			vmTemplateNode: "capmox01",
+			vmTemplateID:   201,
+		},
+		{
 			// Proxmox VM tags are always lowercase
 			name:           "find-template-uppercase",
 			http:           []int{200, 200},
