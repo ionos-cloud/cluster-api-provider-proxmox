@@ -77,6 +77,10 @@ issues:
     - (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)
     - (G104|G307)
   exclude-rules:
+    # This must be removed in v1alpha2, see issue #402
+    - linters:
+        - gosec
+      text: "G115: integer overflow conversion"
     - linters:
         - gosec
       text: "G108: Profiling endpoint is automatically exposed on /debug/pprof"
