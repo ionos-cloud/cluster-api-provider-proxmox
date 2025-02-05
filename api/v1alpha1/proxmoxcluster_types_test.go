@@ -92,7 +92,9 @@ func defaultCluster() *ProxmoxCluster {
 				ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
 					"controlPlane": {
 						VirtualMachineCloneSpec: VirtualMachineCloneSpec{
-							SourceNode: "pve1",
+							TemplateSource: TemplateSource{
+								SourceNode: "pve1",
+							},
 						},
 					},
 				},

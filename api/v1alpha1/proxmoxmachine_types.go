@@ -155,8 +155,8 @@ const (
 	TargetStorageFormatVmdk  TargetFileStorageFormat = "vmdk"
 )
 
-// VirtualMachineCloneSpec is information used to clone a virtual machine.
-type VirtualMachineCloneSpec struct {
+// TemplateSource defines the source of the template VM.
+type TemplateSource struct {
 	// SourceNode is the initially selected proxmox node.
 	// This node will be used to locate the template VM, which will
 	// be used for cloning operations.
@@ -173,11 +173,21 @@ type VirtualMachineCloneSpec struct {
 	// will be cloned onto the same node as SourceNode.
 	//
 	// +kubebuilder:validation:MinLength=1
-	SourceNode string `json:"sourceNode"`
+	// +optional
+	SourceNode string `json:"sourceNode,omitempty"`
 
 	// TemplateID the vm_template vmid used for cloning a new VM.
 	// +optional
 	TemplateID *int32 `json:"templateID,omitempty"`
+
+	// TemplateSelector defines MatchTags for looking up VM templates.
+	// +optional
+	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty"`
+}
+
+// VirtualMachineCloneSpec is information used to clone a virtual machine.
+type VirtualMachineCloneSpec struct {
+	TemplateSource `json:",inline"`
 
 	// Description for the new VM.
 	// +optional
@@ -211,6 +221,16 @@ type VirtualMachineCloneSpec struct {
 	// Target node. Only allowed if the original VM is on shared storage.
 	// +optional
 	Target *string `json:"target,omitempty"`
+}
+
+// TemplateSelector defines MatchTags for looking up VM templates.
+type TemplateSelector struct {
+	// Specifies all tags to look for, when looking up the VM template.
+	// Passed tags must be an exact 1:1 match with the tags on the template you want to use.
+	// If multiple VM templates with the same set of tags are found, provisioning will fail.
+	//
+	// +kubebuilder:validation:MinItems=1
+	MatchTags []string `json:"matchTags"`
 }
 
 // NetworkSpec defines the virtual machine's network configuration.
@@ -526,6 +546,8 @@ type ProxmoxMachine struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:XValidation:rule="[has(self.sourceNode), has(self.templateSelector)].exists_one(c, c)",message="must define either SourceNode with TemplateID, OR TemplateSelector"
+	// +kubebuilder:validation:XValidation:rule="[has(self.templateID), has(self.templateSelector)].exists_one(c, c)",message="must define either SourceNode with TemplateID, OR TemplateSelector."
 	// +kubebuilder:validation:XValidation:rule="self.full && self.format != ''",message="Must set full=true when specifying format"
 	Spec   ProxmoxMachineSpec   `json:"spec,omitempty"`
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
@@ -564,6 +586,14 @@ func (r *ProxmoxMachine) GetTemplateID() int32 {
 		return *r.Spec.TemplateID
 	}
 	return -1
+}
+
+// GetTemplateSelectorTags get the tags, the desired vm template should have.
+func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
+	if r.Spec.TemplateSelector != nil {
+		return r.Spec.TemplateSelector.MatchTags
+	}
+	return nil
 }
 
 // GetNode get the Proxmox node used to provision this machine.

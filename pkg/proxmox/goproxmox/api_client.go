@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -139,6 +140,51 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 	}
 
 	return nil, fmt.Errorf("unable to find VM with ID %d on any of the nodes", vmID)
+}
+
+// FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
+func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string) (string, int32, error) {
+	vmTemplates := make([]*proxmox.ClusterResource, 0)
+
+	sortedTags := make([]string, len(templateTags))
+	for i, tag := range templateTags {
+		// Proxmox VM tags are always lowercase
+		sortedTags[i] = strings.ToLower(tag)
+	}
+	slices.Sort(sortedTags)
+	uniqueTags := slices.Compact(sortedTags)
+
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return "", -1, fmt.Errorf("cannot get cluster status: %w", err)
+	}
+
+	vmResources, err := cluster.Resources(ctx, "vm")
+	if err != nil {
+		return "", -1, fmt.Errorf("could not list vm resources: %w", err)
+	}
+
+	for _, vm := range vmResources {
+		if vm.Template == 0 {
+			continue
+		}
+		if len(vm.Tags) == 0 {
+			continue
+		}
+
+		vmTags := strings.Split(vm.Tags, ";")
+		slices.Sort(vmTags)
+
+		if slices.Equal(vmTags, uniqueTags) {
+			vmTemplates = append(vmTemplates, vm)
+		}
+	}
+
+	if n := len(vmTemplates); n != 1 {
+		return "", -1, fmt.Errorf("%w: found %d VM templates with tags %q", ErrTemplateNotFound, n, strings.Join(templateTags, ";"))
+	}
+
+	return vmTemplates[0].Node, int32(vmTemplates[0].VMID), nil
 }
 
 // DeleteVM deletes a VM based on the nodeName and vmID.

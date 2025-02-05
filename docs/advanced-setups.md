@@ -176,6 +176,14 @@ This behaviour can be configured in the `ProxmoxCluster` CR through the field `.
 
 For example, setting it to `0` (zero), entirely disables scheduling based on memory. Alternatively, if you set it to any value greater than `0`, the scheduler will treat your host as it would have `${value}%` of memory. In real numbers that would mean, if you have a host with 64GB of memory and set the number to `300`, the scheduler would allow you to provision guests with a total of 192GB memory and therefore overprovision the host. (Use with caution! It's strongly suggested to have memory ballooning configured everywhere.). Or, if you were to set it to `95` for example, it would treat your host as it would only have 60,8GB of memory, and leave the remaining 3,2GB for the host.
 
+## Template lookup based on Proxmox tags
+
+Our provider is able to look up templates based on their attached tags, for `ProxmoxMachine` resources, that make use of an tag selector.
+
+For example, you can set the `TEMPLATE_TAGS="tag1,tag2"` environment variable. Your custom image will then be used when using the [auto-image](https://github.com/ionos-cloud/cluster-api-provider-ionoscloud/blob/main/templates/cluster-template-auto-image.yaml) template.
+
+Please note: Passed tags must be an exact 1:1 match with the tags on the template you want to use.  The matched result must be unique. If multiple templates are found, provisioning will fail.
+
 ## Proxmox RBAC with least privileges
 
 For the Proxmox API user/token you create for CAPMOX, these are the minimum required permissions.

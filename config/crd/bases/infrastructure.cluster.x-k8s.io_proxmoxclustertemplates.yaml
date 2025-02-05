@@ -600,6 +600,22 @@ spec:
                                     for cloning a new VM.
                                   format: int32
                                   type: integer
+                                templateSelector:
+                                  description: TemplateSelector defines MatchTags
+                                    for looking up VM templates.
+                                  properties:
+                                    matchTags:
+                                      description: |-
+                                        Specifies all tags to look for, when looking up the VM template.
+                                        Passed tags must be an exact 1:1 match with the tags on the template you want to use.
+                                        If multiple VM templates with the same set of tags are found, provisioning will fail.
+                                      items:
+                                        type: string
+                                      minItems: 1
+                                      type: array
+                                  required:
+                                  - matchTags
+                                  type: object
                                 virtualMachineID:
                                   description: VirtualMachineID is the Proxmox identifier
                                     for the ProxmoxMachine VM.
@@ -632,8 +648,6 @@ spec:
                                   - message: end should be greater than or equal to
                                       start
                                     rule: self.end >= self.start
-                              required:
-                              - sourceNode
                               type: object
                             type: object
                             x-kubernetes-validations:

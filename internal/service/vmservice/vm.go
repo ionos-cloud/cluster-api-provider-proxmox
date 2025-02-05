@@ -384,6 +384,20 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	templateID := scope.ProxmoxMachine.GetTemplateID()
+	if templateID == -1 {
+		var err error
+		templateSelectorTags := scope.ProxmoxMachine.GetTemplateSelectorTags()
+		options.Node, templateID, err = scope.InfraCluster.ProxmoxClient.FindVMTemplateByTags(ctx, templateSelectorTags)
+
+		if err != nil {
+			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
+				scope.SetFailureMessage(err)
+				scope.SetFailureReason(capierrors.MachineStatusError("VMTemplateNotFound"))
+				conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
+			}
+			return proxmox.VMCloneResponse{}, err
+		}
+	}
 	res, err := scope.InfraCluster.ProxmoxClient.CloneVM(ctx, int(templateID), options)
 	if err != nil {
 		return res, err
