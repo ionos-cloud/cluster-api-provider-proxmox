@@ -126,6 +126,10 @@ type ProxmoxMachineSpec struct {
 
 	// Tags is a list of tags to be applied to the virtual machine.
 	// +optional
+	// +immutable
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:Pattern=`^[a-zA-Z0-9-_]+$`
 	Tags []string `json:"tags,omitempty"`
 }
 
