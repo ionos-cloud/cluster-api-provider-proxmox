@@ -77,12 +77,6 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.AdditionalDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
-
-		It("should disallow invalid tags", func() {
-			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Tags = []string{"foo=bar"}
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid tag")))
-		})
 	})
 
 	Context("update proxmox cluster", func() {
@@ -99,16 +93,20 @@ var _ = Describe("Controller Test", func() {
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
 
-			machine.Spec.Tags = []string{"foo=bar"}
-			machine.Spec.Network.Default.VLAN = nil
-			machine.Spec.Network.Default.MTU = nil
-			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid tag")))
-
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &machine))).To(Succeed())
 			}).WithTimeout(time.Second * 10).
 				WithPolling(time.Second).
 				Should(Succeed())
+		})
+
+		It("should not allow updates on tags", func() {
+			machine := validProxmoxMachine("test-machine-tags")
+			machine.Spec.Tags = []string{"foo_bar"}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+
+			machine.Spec.Tags = []string{"foobar", "barfoo"}
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("tags are immutable")))
 		})
 	})
 })

@@ -43,9 +43,11 @@ const (
 	// See the following link for a list of available config options:
 	// https://pve.proxmox.com/pve-docs/api-viewer/index.html#/nodes/{node}/qemu/{vmid}/config
 
-	optionSockets = "sockets"
-	optionCores   = "cores"
-	optionMemory  = "memory"
+	optionSockets     = "sockets"
+	optionCores       = "cores"
+	optionMemory      = "memory"
+	optionTags        = "tags"
+	optionDescription = "description"
 )
 
 // ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmIDRange.
@@ -230,16 +232,6 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	vmConfig := machineScope.VirtualMachine.VirtualMachineConfig
 
 	//var vmOptions []proxmox.VirtualMachineOption
-	//// Description
-	//if machineScope.ProxmoxMachine.Spec.Description != nil {
-	//	if machineScope.VirtualMachine.VirtualMachineConfig.Description != *machineScope.ProxmoxMachine.Spec.Description {
-	//		vmOptions = append(vmConfig, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description})
-	//	}
-	//} else {
-	//	if machineScope.VirtualMachine.VirtualMachineConfig.Description != machineScope.ProxmoxMachine.GetName() {
-	//		vmConfig = append(vmConfig, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()})
-	//	}
-	//}
 
 	// CPU & Memory
 	var vmOptions []proxmox.VirtualMachineOption
@@ -253,6 +245,16 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: value})
 	}
 
+	// Description
+	if machineScope.ProxmoxMachine.Spec.Description != nil {
+		if machineScope.VirtualMachine.VirtualMachineConfig.Description != *machineScope.ProxmoxMachine.Spec.Description {
+			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description})
+		}
+	} else {
+		if machineScope.VirtualMachine.VirtualMachineConfig.Description != machineScope.ProxmoxMachine.GetName() {
+			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()})
+		}
+	}
 
 	// Network vmbrs.
 	if machineScope.ProxmoxMachine.Spec.Network != nil && shouldUpdateNetworkDevices(machineScope) {
@@ -279,15 +281,15 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	// custom tags
 	if machineScope.ProxmoxMachine.Spec.Tags != nil {
-		tags := strings.Split(machineScope.VirtualMachine.VirtualMachineConfig.Tags, ";")
-		length := len(tags)
+		machineScope.VirtualMachine.SplitTags()
+		length := len(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice)
 		for _, tag := range machineScope.ProxmoxMachine.Spec.Tags {
 			if !machineScope.VirtualMachine.HasTag(tag) {
-				tags = append(tags, tag)
+				machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice = append(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice, tag)
 			}
 		}
-		if len(tags) > length {
-			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionTags, Value: strings.Join(tags, ";")})
+		if len(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice) > length {
+			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionTags, Value: strings.Join(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice, ";")})
 		}
 	}
 

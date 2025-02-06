@@ -20,8 +20,7 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"regexp"
-
+	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -60,29 +59,26 @@ func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (
 		return warnings, err
 	}
 
-	err = validateTags(machine.Spec.Tags)
-	if err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot create proxmox machine %s", machine.GetName()))
-		return warnings, err
-	}
-
 	return warnings, nil
 }
 
 // ValidateUpdate implements the update validation function.
-func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (warnings admission.Warnings, err error) {
+func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, old, newObj runtime.Object) (warnings admission.Warnings, err error) {
 	newMachine, ok := newObj.(*infrav1.ProxmoxMachine)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", newObj))
 	}
 
-	err = validateNetworks(newMachine)
-	if err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot update proxmox machine %s", newMachine.GetName()))
-		return warnings, err
+	oldMachine, ok := old.(*infrav1.ProxmoxMachine)
+	if !ok {
+		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", old))
+	}
+	// tags are immutable
+	if !cmp.Equal(newMachine.Spec.Tags, oldMachine.Spec.Tags) {
+		return warnings, apierrors.NewBadRequest("tags are immutable")
 	}
 
-	err = validateTags(newMachine.Spec.Tags)
+	err = validateNetworks(newMachine)
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox machine %s", newMachine.GetName()))
 		return warnings, err
@@ -219,13 +215,13 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 	return nil
 }
 
-func validateTags(tags []string) error {
-	re := regexp.MustCompile(`^[a-zA-Z0-9-_]*$`)
-
-	for _, tag := range tags {
-		if !re.MatchString(tag) {
-			return fmt.Errorf("invalid tag: %s. A tag can only contain alphanumeric characters, hyphens, and underscores", tag)
-		}
-	}
-	return nil
-}
+//func validateTags(tags []string) error {
+//	re := regexp.MustCompile(`^[a-zA-Z0-9-_]*$`)
+//
+//	for _, tag := range tags {
+//		if !re.MatchString(tag) {
+//			return fmt.Errorf("invalid tag: %s. A tag can only contain alphanumeric characters, hyphens, and underscores", tag)
+//		}
+//	}
+//	return nil
+//}
