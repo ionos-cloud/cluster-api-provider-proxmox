@@ -231,8 +231,6 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	vmConfig := machineScope.VirtualMachine.VirtualMachineConfig
 
-	//var vmOptions []proxmox.VirtualMachineOption
-
 	// CPU & Memory
 	var vmOptions []proxmox.VirtualMachineOption
 	if value := machineScope.ProxmoxMachine.Spec.NumSockets; value > 0 && vmConfig.Sockets != int(value) {

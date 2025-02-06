@@ -20,11 +20,11 @@ package webhook
 import (
 	"context"
 	"fmt"
+
 	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -214,14 +214,3 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 
 	return nil
 }
-
-//func validateTags(tags []string) error {
-//	re := regexp.MustCompile(`^[a-zA-Z0-9-_]*$`)
-//
-//	for _, tag := range tags {
-//		if !re.MatchString(tag) {
-//			return fmt.Errorf("invalid tag: %s. A tag can only contain alphanumeric characters, hyphens, and underscores", tag)
-//		}
-//	}
-//	return nil
-//}

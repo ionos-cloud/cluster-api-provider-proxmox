@@ -129,7 +129,7 @@ type ProxmoxMachineSpec struct {
 	// +immutable
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:items:Pattern=`^[a-zA-Z0-9-_]+$`
+	// +kubebuilder:validation:items:Pattern=`^[a-zA-Z0-9-_+]+$`
 	Tags []string `json:"tags,omitempty"`
 }
 
