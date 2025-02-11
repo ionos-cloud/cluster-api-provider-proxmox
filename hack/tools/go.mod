@@ -3,7 +3,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 go 1.22.1
 
 require (
-	github.com/braydonk/yaml v0.7.0
+	github.com/braydonk/yaml v0.9.0
 	github.com/golangci/golangci-lint v1.63.4
 	github.com/google/yamlfmt v0.15.0
 	github.com/vektra/mockery/v2 v2.34.2
