@@ -569,9 +569,11 @@ spec:
                               Passed tags must be an exact 1:1 match with the tags on the template you want to use.
                               If multiple VM templates with the same set of tags are found, provisioning will fail.
                             items:
+                              pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                               type: string
                             minItems: 1
                             type: array
+                            x-kubernetes-list-type: set
                         required:
                         - matchTags
                         type: object
