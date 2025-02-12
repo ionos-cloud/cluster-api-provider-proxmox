@@ -21,10 +21,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -63,10 +63,19 @@ func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (
 }
 
 // ValidateUpdate implements the update validation function.
-func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (warnings admission.Warnings, err error) {
+func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, old, newObj runtime.Object) (warnings admission.Warnings, err error) {
 	newMachine, ok := newObj.(*infrav1.ProxmoxMachine)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", newObj))
+	}
+
+	oldMachine, ok := old.(*infrav1.ProxmoxMachine)
+	if !ok {
+		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", old))
+	}
+	// tags are immutable
+	if !cmp.Equal(newMachine.Spec.Tags, oldMachine.Spec.Tags) {
+		return warnings, apierrors.NewBadRequest("tags are immutable")
 	}
 
 	err = validateNetworks(newMachine)
