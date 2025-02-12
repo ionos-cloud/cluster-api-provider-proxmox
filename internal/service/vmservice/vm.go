@@ -248,10 +248,6 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		if machineScope.VirtualMachine.VirtualMachineConfig.Description != *machineScope.ProxmoxMachine.Spec.Description {
 			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description})
 		}
-	} else {
-		if machineScope.VirtualMachine.VirtualMachineConfig.Description != machineScope.ProxmoxMachine.GetName() {
-			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()})
-		}
 	}
 
 	// Network vmbrs.
