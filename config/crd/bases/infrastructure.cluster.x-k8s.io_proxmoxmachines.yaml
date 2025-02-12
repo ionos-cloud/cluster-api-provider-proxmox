@@ -529,7 +529,7 @@ spec:
               tags:
                 description: Tags is a list of tags to be applied to the virtual machine.
                 items:
-                  pattern: ^[a-zA-Z0-9-_+]+$
+                  pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                   type: string
                 minItems: 1
                 type: array

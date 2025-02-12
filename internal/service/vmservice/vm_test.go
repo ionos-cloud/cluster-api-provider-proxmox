@@ -455,6 +455,8 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 
 func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	// CASE: Multiple tags
 	machineScope.ProxmoxMachine.Spec.Tags = []string{"tag1", "tag2"}
 
 	vm := newStoppedVM()
@@ -469,6 +471,23 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
 
 	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+
+	// CASE: empty Tags
+	machineScope.ProxmoxMachine.Spec.Tags = []string{}
+	vm = newStoppedVM()
+	vm.VirtualMachineConfig.Tags = "tag0"
+	task = newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions = []interface{}{
+		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.GetName()},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err = reconcileVirtualMachineConfig(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
