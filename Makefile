@@ -309,7 +309,7 @@ $(GINKGO): ## Build ginkgo.
 	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo
 
 .PHONY: e2e-image
-e2e-image:
+e2e-image: ## Build the end-to-end test image.
 	docker build --tag="$(REPOSITORY):e2e" .
 
 .PHONY: test-e2e
