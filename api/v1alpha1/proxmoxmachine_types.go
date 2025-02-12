@@ -229,6 +229,8 @@ type TemplateSelector struct {
 	// Passed tags must be an exact 1:1 match with the tags on the template you want to use.
 	// If multiple VM templates with the same set of tags are found, provisioning will fail.
 	//
+	// +listType=set
+	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
 	// +kubebuilder:validation:MinItems=1
 	MatchTags []string `json:"matchTags"`
 }

@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"context"
+	"strconv"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -85,6 +86,57 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{}}
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should have at least 1 items")))
+		})
+
+		It("Should only allow valid MatchTags", func() {
+			testCases := []struct {
+				tag          string
+				expectErrror bool
+				errorMessage string
+			}{
+				// Valid Tags
+				{"valid_tag", false, ""},
+				{"Valid-Tag", false, ""},
+				{"valid.tag", false, ""},
+				{"VALID+TAG", false, ""},
+				{"123tag", false, ""},
+				{"tag123", false, ""},
+				{"tag_with-hyphen", false, ""},
+				{"tag.with.plus+_and-hyphen", false, ""},
+				{"_tag_with_underscore", false, ""},
+
+				// Invalid Tags
+				{"", true, "in body should match"},         // Empty string
+				{"-invalid", true, "in body should match"}, // Starts with a hyphen
+				{"+invalid", true, "in body should match"}, // Starts with a plus
+				{".invalid", true, "in body should match"}, // Starts with a dot
+				{" invalid", true, "in body should match"}, // Starts with a space
+				{"invalid!", true, "in body should match"}, // Contains an exclamation mark
+				{"invalid@", true, "in body should match"}, // Contains an at symbol
+				{"invalid#", true, "in body should match"}, // Contains a hash symbol
+				{"inval id", true, "in body should match"}, // Contains a whitespace
+			}
+
+			// Iterate through each test case
+			for i, testCase := range testCases {
+				// Create a new ProxmoxMachine object for each test case
+				dm := defaultMachine()
+
+				// Set the name of the machine to a unique value based on the test case index
+				dm.ObjectMeta.Name = "test-machine-" + strconv.Itoa(i)
+
+				// Set the template selector to match the tag from the test case
+				dm.Spec.TemplateSource.SourceNode = ""
+				dm.Spec.TemplateSource.TemplateID = nil
+				dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{testCase.tag}}
+
+				// Run test
+				if !testCase.expectErrror {
+					Expect(k8sClient.Create(context.Background(), dm)).To(Succeed())
+				} else {
+					Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring(testCase.errorMessage)))
+				}
+			}
 		})
 	})
 
