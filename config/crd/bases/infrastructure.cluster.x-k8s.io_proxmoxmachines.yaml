@@ -65,6 +65,19 @@ spec:
           spec:
             description: ProxmoxMachineSpec defines the desired state of a ProxmoxMachine.
             properties:
+              allowedNodes:
+                description: |-
+                  AllowedNodes specifies all Proxmox nodes which will be considered
+                  for operations. This implies that VMs can be cloned on different nodes from
+                  the node which holds the VM template.
+
+
+                  This field is optional and should only be set if you want to restrict
+                  the nodes where the VM can be cloned.
+                  If not set, the ProxmoxCluster will be used to determine the nodes.
+                items:
+                  type: string
+                type: array
               checks:
                 description: Checks defines possibles checks to skip.
                 properties:

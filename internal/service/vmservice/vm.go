@@ -368,9 +368,10 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		scope.InfraCluster.ProxmoxCluster.Status.NodeLocations = new(infrav1alpha1.NodeLocations)
 	}
 
-	// if no target was specified but we have a set of nodes defined in the cluster spec, we want to evenly distribute
+	// if no target was specified but we have a set of nodes defined in the spec, we want to evenly distribute
 	// the nodes across the cluster.
-	if scope.ProxmoxMachine.Spec.Target == nil && len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 {
+	if scope.ProxmoxMachine.Spec.Target == nil &&
+		(len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 || len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0) {
 		// select next node as a target
 		var err error
 		options.Target, err = selectNextNode(ctx, scope)

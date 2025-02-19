@@ -113,6 +113,16 @@ type ProxmoxMachineSpec struct {
 	// MetadataSettings defines the metadata settings for this machine's VM.
 	// +optional
 	MetadataSettings *MetadataSettings `json:"metadataSettings,omitempty"`
+
+	// AllowedNodes specifies all Proxmox nodes which will be considered
+	// for operations. This implies that VMs can be cloned on different nodes from
+	// the node which holds the VM template.
+	//
+	// This field is optional and should only be set if you want to restrict
+	// the nodes where the VM can be cloned.
+	// If not set, the ProxmoxCluster will be used to determine the nodes.
+	// +optional
+	AllowedNodes []string `json:"allowedNodes,omitempty"`
 }
 
 // Storage is the physical storage on the node.
