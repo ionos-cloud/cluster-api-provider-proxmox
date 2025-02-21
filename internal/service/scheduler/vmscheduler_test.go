@@ -22,8 +22,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
 type fakeResourceClient map[string]uint64
@@ -94,4 +105,102 @@ func TestSelectNode(t *testing.T) {
 		}
 		require.Equal(t, expectMem, availableMem)
 	})
+}
+
+func TestScheduleVM(t *testing.T) {
+	ctrlClient := setupClient()
+	require.NotNil(t, ctrlClient)
+
+	ipamHelper := &ipam.Helper{}
+
+	proxmoxCluster := infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "bar",
+		},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"pve1", "pve2", "pve3"},
+		},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{
+				ControlPlane: []infrav1.NodeLocation{},
+				Workers: []infrav1.NodeLocation{
+					{
+						Node: "pve1",
+						Machine: corev1.LocalObjectReference{
+							Name: "foo-machine",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := ctrlClient.Create(context.Background(), &proxmoxCluster)
+	require.NoError(t, err)
+
+	proxmoxMachine := &infrav1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo-machine",
+			Labels: map[string]string{
+				"cluster.x-k8s.io/cluster-name": "bar",
+			},
+		},
+		Spec: infrav1.ProxmoxMachineSpec{
+			MemoryMiB: 10,
+		},
+	}
+
+	fakeProxmoxClient := proxmoxtest.NewMockClient(t)
+
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "bar",
+			Namespace: "default",
+		},
+	}
+	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
+		Client: ctrlClient,
+		Machine: &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo-machine",
+				Namespace: "default",
+			},
+		},
+		Cluster: cluster,
+		InfraCluster: &scope.ClusterScope{
+			Cluster:        cluster,
+			ProxmoxCluster: &proxmoxCluster,
+			ProxmoxClient:  fakeProxmoxClient,
+		},
+		ProxmoxMachine: proxmoxMachine,
+		IPAMHelper:     ipamHelper,
+	})
+	require.NoError(t, err)
+
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", uint64(100)).Return(miBytes(60), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve2", uint64(100)).Return(miBytes(20), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", uint64(100)).Return(miBytes(20), nil)
+
+	node, err := ScheduleVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, "pve2", node)
+}
+
+func TestInsufficientMemoryError_Error(t *testing.T) {
+	err := InsufficientMemoryError{
+		node:      "pve1",
+		available: 10,
+		requested: 20,
+	}
+	require.Equal(t, "cannot reserve 20B of memory on node pve1: 10B available memory left", err.Error())
+}
+
+func setupClient() client.Client {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(infrav1.AddToScheme(scheme))
+	utilruntime.Must(infrav1.AddToScheme(scheme))
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	return fakeClient
 }

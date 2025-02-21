@@ -241,6 +241,29 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
 }
 
+func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1", "node2", "node3", "node4"}
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node1", "node2"}
+
+	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
+		return "node2", nil
+	}
+	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
+
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node2"}
+	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
+	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
+}
+
 func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1"}
