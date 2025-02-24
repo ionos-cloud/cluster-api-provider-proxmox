@@ -263,8 +263,8 @@ type NetworkSpec struct {
 	VirtualNetworkDevices `json:",inline"`
 }
 
-// InterfaceConfig contains all configurables a network interface can have.
-type InterfaceConfig struct {
+// IPPoolConfig defines the IPAM pool ref.
+type IPPoolConfig struct {
 	// IPv4PoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
 	// The network device will use an available IP address from the referenced pool.
 	// This can be combined with `IPv6PoolRef` in order to enable dual stack.
@@ -280,7 +280,10 @@ type InterfaceConfig struct {
 	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipv6PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
 	// +kubebuilder:validation:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipv6PoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
 	IPv6PoolRef *corev1.TypedLocalObjectReference `json:"ipv6PoolRef,omitempty"`
+}
 
+// InterfaceConfig contains all configurables a network interface can have.
+type InterfaceConfig struct {
 	// DNSServers contains information about nameservers to be used for this interface.
 	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
 	// +optional
@@ -396,6 +399,13 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=4094
 	VLAN *uint16 `json:"vlan,omitempty"`
+
+	// IPPoolConfig defines config for IP Pool ref.
+	// For default device 'net0' the IP pool is optional,
+	// If not set, the default IPAM pool will be used.
+	// For additional devices, the IP pool is required (IPV4/IPV6).
+	// +optional
+	IPPoolConfig `json:",inline"`
 }
 
 // MTU is the network device Maximum Transmission Unit. MTUs below 1280 break IPv6.
