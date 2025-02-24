@@ -104,7 +104,18 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	}
 
 	for i := range machine.Spec.Network.AdditionalDevices {
-		err := validateNetworkDeviceMTU(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
+		err := validateIPPoolRef(machine.Spec.Network.AdditionalDevices[i])
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "IPPoolConfig"), machine.Spec.Network.AdditionalDevices[i], err.Error()),
+				})
+		}
+
+		err = validateNetworkDeviceMTU(&machine.Spec.Network.AdditionalDevices[i].NetworkDevice)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
@@ -201,6 +212,14 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 		}
 
 		return fmt.Errorf("mtu must be at least 1280 or 1, but was %d", *device.MTU)
+	}
+
+	return nil
+}
+
+func validateIPPoolRef(net infrav1.AdditionalNetworkDevice) error {
+	if net.IPv4PoolRef == nil && net.IPv6PoolRef == nil {
+		return fmt.Errorf("at least one of IPv4PoolRef or IPv6PoolRef must be set")
 	}
 
 	return nil
