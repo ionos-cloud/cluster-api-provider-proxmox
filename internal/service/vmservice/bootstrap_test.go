@@ -209,21 +209,21 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), IPPoolConfig: infrav1alpha1.IPPoolConfig{
 					IPv4PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 						Kind:     "GlobalInClusterIPPool",
 						Name:     "net1-inet",
 					},
-				},
+				}},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0])
 	require.Error(t, err)
 }
 
@@ -240,7 +240,7 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	}
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0])
 	require.NoError(t, err)
 }
 
@@ -251,21 +251,23 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"),
+					IPPoolConfig: infrav1alpha1.IPPoolConfig{
+						IPv6PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "GlobalInClusterIPPool",
+							Name:     "net1-inet6",
+						},
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "GlobalInClusterIPPool",
+							Name:     "net1-inet",
+						},
+					}},
+				Name: "net1",
 				InterfaceConfig: infrav1alpha1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
-					IPv6PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "net1-inet6",
-					},
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "net1-inet",
-					},
-					LinkMTU: &MTU,
+					LinkMTU:    &MTU,
 					Routing: infrav1alpha1.Routing{
 						Routes: []infrav1alpha1.RouteSpec{
 							{To: "default", Via: "192.168.178.1"},
@@ -290,7 +292,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0])
 	require.Equal(t, "10.0.0.10/24", cfg.IPAddress)
 	require.Equal(t, "2001:db8::9/64", cfg.IPV6Address)
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
@@ -360,20 +362,22 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"),
+					IPPoolConfig: infrav1alpha1.IPPoolConfig{
+						IPv6PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "GlobalInClusterIPPool",
+							Name:     "sample",
+						},
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "InClusterIPPool",
+							Name:     "sample",
+						},
+					}},
+				Name: "net1",
 				InterfaceConfig: infrav1alpha1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
-					IPv6PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "sample",
-					},
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "sample",
-					},
 				},
 			},
 		},
@@ -414,15 +418,17 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 		},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"),
+					IPPoolConfig: infrav1alpha1.IPPoolConfig{
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "InClusterIPPool",
+							Name:     "sample",
+						}},
+				},
+				Name: "net1",
 				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"},
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "sample",
-					}},
+					DNSServers: []string{"1.2.3.4"}},
 			},
 		},
 	}
