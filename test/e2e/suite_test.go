@@ -32,8 +32,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 	"sigs.k8s.io/cluster-api/test/framework"
@@ -76,6 +78,11 @@ var (
 
 // Test suite global vars.
 var (
+	ctx = ctrl.SetupSignalHandler()
+
+	// watchesCtx is used in log streaming to be able to get canceled via cancelWatches after ending the test suite.
+	watchesCtx, cancelWatches = context.WithCancel(ctx)
+
 	// e2eConfig to be used for this test, read from configPath.
 	e2eConfig *clusterctl.E2EConfig
 
@@ -112,15 +119,8 @@ func TestE2E(t *testing.T) {
 
 	ctrl.SetLogger(klog.Background())
 
-	// If running in prow, make sure to use the artifacts folder that will be reported in test grid (ignoring the value provided by flag).
-	if prowArtifactFolder, exists := os.LookupEnv("ARTIFACTS"); exists {
-		artifactFolder = prowArtifactFolder
-	}
-
 	// ensure the artifacts folder exists
 	g.Expect(os.MkdirAll(artifactFolder, 0o755)).To(Succeed(), "Invalid test suite argument. Can't create e2e.artifacts-folder %q", artifactFolder) //nolint:gosec
-
-	RegisterFailHandler(Fail)
 
 	if alsoLogToFile {
 		w, err := ginkgoextensions.EnableFileLogging(filepath.Join(artifactFolder, "ginkgo-log.txt"))
@@ -128,6 +128,7 @@ func TestE2E(t *testing.T) {
 		defer w.Close()
 	}
 
+	RegisterFailHandler(Fail)
 	RunSpecs(t, "capmox-e2e")
 }
 
@@ -181,7 +182,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	kubeconfigPath := parts[3]
 
 	e2eConfig = loadE2EConfig(configPath)
-	bootstrapClusterProxy = framework.NewClusterProxy("bootstrap", kubeconfigPath, initScheme())
+	bootstrapClusterProxy = framework.NewClusterProxy("bootstrap", kubeconfigPath, initScheme(), framework.WithMachineLogCollector(framework.DockerLogCollector{}))
 })
 
 // Using a SynchronizedAfterSuite for controlling how to delete resources shared across ParallelNodes (~ginkgo threads).
@@ -208,7 +209,7 @@ func initScheme() *runtime.Scheme {
 }
 
 func loadE2EConfig(configPath string) *clusterctl.E2EConfig {
-	config := clusterctl.LoadE2EConfig(context.TODO(), clusterctl.LoadE2EConfigInput{ConfigPath: configPath})
+	config := clusterctl.LoadE2EConfig(ctx, clusterctl.LoadE2EConfigInput{ConfigPath: configPath})
 	Expect(config).ToNot(BeNil(), "Failed to load E2E config from %s", configPath)
 
 	return config
@@ -226,7 +227,7 @@ func createClusterctlLocalRepository(config *clusterctl.E2EConfig, repositoryFol
 	Expect(cniPath).To(BeAnExistingFile(), "The %s variable should resolve to an existing file", capi_e2e.CNIPath)
 	createRepositoryInput.RegisterClusterResourceSetConfigMapTransformation(cniPath, capi_e2e.CNIResources)
 
-	clusterctlConfig := clusterctl.CreateRepository(context.TODO(), createRepositoryInput)
+	clusterctlConfig := clusterctl.CreateRepository(ctx, createRepositoryInput)
 	Expect(clusterctlConfig).To(BeAnExistingFile(), "The clusterctl config file does not exists in the local repository %s", repositoryFolder)
 
 	return clusterctlConfig
@@ -236,10 +237,11 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme,
 	var clusterProvider bootstrap.ClusterProvider
 	kubeconfigPath := ""
 	if !useExistingCluster {
-		clusterProvider = bootstrap.CreateKindBootstrapClusterAndLoadImages(context.TODO(), bootstrap.CreateKindBootstrapClusterAndLoadImagesInput{
+		clusterProvider = bootstrap.CreateKindBootstrapClusterAndLoadImages(ctx, bootstrap.CreateKindBootstrapClusterAndLoadImagesInput{
 			Name:               config.ManagementClusterName,
 			RequiresDockerSock: config.HasDockerProvider(),
 			Images:             config.Images,
+			LogFolder:          filepath.Join(artifactFolder, "kind"),
 		})
 		Expect(clusterProvider).ToNot(BeNil(), "Failed to create a bootstrap cluster")
 
@@ -254,7 +256,7 @@ func setupBootstrapCluster(config *clusterctl.E2EConfig, scheme *runtime.Scheme,
 }
 
 func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *clusterctl.E2EConfig, clusterctlConfig, artifactFolder string) {
-	clusterctl.InitManagementClusterAndWatchControllerLogs(context.TODO(), clusterctl.InitManagementClusterAndWatchControllerLogsInput{
+	clusterctl.InitManagementClusterAndWatchControllerLogs(watchesCtx, clusterctl.InitManagementClusterAndWatchControllerLogsInput{
 		ClusterProxy:            bootstrapClusterProxy,
 		ClusterctlConfigPath:    clusterctlConfig,
 		InfrastructureProviders: config.InfrastructureProviders(),
@@ -264,10 +266,48 @@ func initBootstrapCluster(bootstrapClusterProxy framework.ClusterProxy, config *
 }
 
 func tearDown(bootstrapClusterProvider bootstrap.ClusterProvider, bootstrapClusterProxy framework.ClusterProxy) {
+	cancelWatches()
 	if bootstrapClusterProxy != nil {
 		bootstrapClusterProxy.Dispose(context.TODO())
 	}
 	if bootstrapClusterProvider != nil {
 		bootstrapClusterProvider.Dispose(context.TODO())
 	}
+}
+
+func dumpBootstrapClusterLogs() error {
+	if bootstrapClusterProxy == nil {
+		return nil
+	}
+	clusterLogCollector := bootstrapClusterProxy.GetLogCollector()
+	if clusterLogCollector == nil {
+		return nil
+	}
+
+	nodes, err := bootstrapClusterProxy.GetClientSet().CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get nodes for the bootstrap cluster: %w", err)
+	}
+
+	for i := range nodes.Items {
+		nodeName := nodes.Items[i].GetName()
+		err := clusterLogCollector.CollectMachineLog(
+			ctx,
+			bootstrapClusterProxy.GetClient(),
+			// The bootstrap cluster is not expected to be a CAPI cluster, so in order to reuse the logCollector,
+			// we create a fake machine that wraps the node.
+			// NOTE: This assumes a naming convention between machine and nodes, which e.g. applies to the bootstrap
+			// clusters generated with kind. This might not work if you are using an existing bootstrap cluster
+			// provided by other means
+			&clusterv1.Machine{
+				Spec:       clusterv1.MachineSpec{ClusterName: nodeName},
+				ObjectMeta: metav1.ObjectMeta{Name: nodeName},
+			},
+			filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName(), "machines", nodeName),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to get logs for the bootstrap cluster node %s: %w", nodeName, err)
+		}
+	}
+	return nil
 }
