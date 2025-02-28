@@ -192,6 +192,10 @@ var _ = SynchronizedAfterSuite(func() {
 	// After each ParallelNode.
 }, func() {
 	// After all ParallelNodes.
+	By("Dumping logs from the bootstrap cluster")
+	if err := dumpBootstrapClusterLogs(); err != nil {
+		GinkgoWriter.Printf("Failed to dump bootstrap cluster logs: %v", err)
+	}
 
 	By("Tearing down the management cluster")
 	if !skipCleanup {
