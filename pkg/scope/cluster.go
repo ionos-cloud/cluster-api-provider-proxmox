@@ -154,6 +154,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	token := string(secret.Data["token"])
 	tokenSecret := string(secret.Data["secret"])
 	url := string(secret.Data["url"])
+	calcOnlyRunning := string(secret.Data["reserveOnlyRunning"])
 
 	tlsInsecure, tlsInsecureSet := secret.Data["insecure"]
 	tlsRootCA := secret.Data["root_ca"]
@@ -176,10 +177,11 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	return goproxmox.NewAPIClient(ctx, *s.Logger, url,
-		proxmox.WithHTTPClient(httpClient),
-		proxmox.WithAPIToken(token, tokenSecret),
-	)
+	opts := []any{proxmox.WithHTTPClient(httpClient), proxmox.WithAPIToken(token, tokenSecret)}
+	if strings.ToLower(calcOnlyRunning) == "true" {
+		opts = append(opts, goproxmox.WithCalcOnlyRunning())
+	}
+	return goproxmox.NewAPIClient(ctx, *s.Logger, url, opts...)
 }
 
 // Name returns the CAPI cluster name.

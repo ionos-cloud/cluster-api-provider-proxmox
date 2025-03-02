@@ -39,18 +39,40 @@ var ErrVMIDFree = errors.New("VMID is free")
 // APIClient Proxmox API client object.
 type APIClient struct {
 	*proxmox.Client
-	logger logr.Logger
+	logger             logr.Logger
+	reserveOnlyRunning bool
+}
+
+type Option func(*APIClient)
+
+func WithCalcOnlyRunning() Option {
+	return func(c *APIClient) {
+		c.reserveOnlyRunning = true
+	}
 }
 
 // NewAPIClient initializes a Proxmox API client. If the client is misconfigured, an error is returned.
-func NewAPIClient(ctx context.Context, logger logr.Logger, baseURL string, options ...proxmox.Option) (*APIClient, error) {
+// options can be goproxmox.Option or proxmox.Option
+func NewAPIClient(ctx context.Context, logger logr.Logger, baseURL string, options ...any) (*APIClient, error) {
+	var pOpts []proxmox.Option
+	var apiOpts []Option
+	for _, option := range options {
+		switch o := option.(type) {
+		case proxmox.Option:
+			pOpts = append(pOpts, o)
+		case Option:
+			apiOpts = append(apiOpts, o)
+		default:
+			return nil, fmt.Errorf("invalid option %T", option)
+		}
+	}
 	proxmoxAPIURL, err := url.JoinPath(baseURL, "api2", "json")
 	if err != nil {
 		return nil, fmt.Errorf("invalid proxmox base URL %q: %w", baseURL, err)
 	}
 
-	options = append(options, proxmox.WithLogger(capmox.Logger{}))
-	upstreamClient := proxmox.NewClient(proxmoxAPIURL, options...)
+	pOpts = append(pOpts, proxmox.WithLogger(capmox.Logger{}))
+	upstreamClient := proxmox.NewClient(proxmoxAPIURL, pOpts...)
 	version, err := upstreamClient.Version(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize proxmox api client: %w", err)
@@ -58,10 +80,14 @@ func NewAPIClient(ctx context.Context, logger logr.Logger, baseURL string, optio
 	logger.Info("Proxmox client initialized")
 	logger.Info("Proxmox server", "version", version.Release)
 
-	return &APIClient{
+	ac := &APIClient{
 		Client: upstreamClient,
 		logger: logger,
-	}, nil
+	}
+	for _, o := range apiOpts {
+		o(ac)
+	}
+	return ac, nil
 }
 
 // CloneVM clones a VM based on templateID and VMCloneRequest.
@@ -273,6 +299,9 @@ func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName strin
 	for _, vm := range vms {
 		// Ignore VM Templates, as they can't be started.
 		if vm.Template {
+			continue
+		}
+		if !vm.IsRunning() && c.reserveOnlyRunning {
 			continue
 		}
 		if reservableMemory < vm.MaxMem {
