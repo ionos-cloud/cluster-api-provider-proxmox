@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
@@ -69,7 +70,8 @@ var (
 	// ProxmoxTokenID env variable that defines the Proxmox token id.
 	ProxmoxTokenID string
 	// ProxmoxSecret env variable that defines the Proxmox secret for the given token id.
-	ProxmoxSecret string
+	ProxmoxSecret             string
+	ProxmoxReserveOnlyRunning string
 
 	proxmoxInsecure     bool
 	proxmoxRootCertFile string
@@ -208,10 +210,12 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	return goproxmox.NewAPIClient(ctx, logger, ProxmoxURL,
-		proxmox.WithHTTPClient(httpClient),
-		proxmox.WithAPIToken(ProxmoxTokenID, ProxmoxSecret),
-	)
+	opts := []any{proxmox.WithHTTPClient(httpClient), proxmox.WithAPIToken(ProxmoxTokenID, ProxmoxSecret)}
+	if strings.ToLower(ProxmoxReserveOnlyRunning) == "true" {
+		opts = append(opts, goproxmox.WithCalcOnlyRunning())
+	}
+
+	return goproxmox.NewAPIClient(ctx, logger, ProxmoxURL, opts...)
 }
 
 func initFlagsAndEnv(fs *pflag.FlagSet) {
@@ -220,6 +224,7 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	ProxmoxURL = env.GetString("PROXMOX_URL", "")
 	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
 	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
+	ProxmoxReserveOnlyRunning = env.GetString("PROXMOX_RESERVE_ONLY_RUNNING", "")
 
 	fs.BoolVar(&proxmoxInsecure, "proxmox-insecure",
 		env.GetString("PROXMOX_INSECURE", "true") == "true",
