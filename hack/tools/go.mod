@@ -5,7 +5,7 @@ go 1.22.9
 require (
 	github.com/braydonk/yaml v0.9.0
 	github.com/golangci/golangci-lint v1.63.4
-	github.com/google/yamlfmt v0.15.0
+	github.com/google/yamlfmt v0.16.0
 	github.com/vektra/mockery/v2 v2.34.2
 	golang.org/x/tools v0.29.0
 )
