@@ -140,8 +140,14 @@ func handleIPAddressForDevice(ctx context.Context, machineScope *scope.MachineSc
 
 func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1alpha1.IPAddress) (bool, error) {
 	// default network device ipv4.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
-		ip, err := handleIPAddressForDevice(ctx, machineScope, infrav1alpha1.DefaultNetworkDevice, infrav1alpha1.IPV4Format, nil)
+	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil ||
+		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef != nil) {
+		var ipamRef *corev1.TypedLocalObjectReference
+		if machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef != nil {
+			ipamRef = machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef
+		}
+
+		ip, err := handleIPAddressForDevice(ctx, machineScope, infrav1alpha1.DefaultNetworkDevice, infrav1alpha1.IPV4Format, ipamRef)
 		if err != nil || ip == "" {
 			return true, err
 		}
@@ -151,8 +157,14 @@ func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, 
 	}
 
 	// default network device ipv6.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
-		ip, err := handleIPAddressForDevice(ctx, machineScope, infrav1alpha1.DefaultNetworkDevice, infrav1alpha1.IPV6Format, nil)
+	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil ||
+		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef != nil) {
+		var ipamRef *corev1.TypedLocalObjectReference
+		if machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef != nil {
+			ipamRef = machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef
+		}
+
+		ip, err := handleIPAddressForDevice(ctx, machineScope, infrav1alpha1.DefaultNetworkDevice, infrav1alpha1.IPV6Format, ipamRef)
 		if err != nil || ip == "" {
 			return true, err
 		}
@@ -184,9 +196,9 @@ func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineSco
 				return true, errors.Wrapf(err, "unable to handle IPAddress for device %s", net.Name)
 			}
 
-			addresses[net.Name] = infrav1alpha1.IPAddress{
-				IPV6: ip,
-			}
+			addr := addresses[net.Name]
+			addr.IPV6 = ip
+			addresses[net.Name] = addr
 		}
 	}
 

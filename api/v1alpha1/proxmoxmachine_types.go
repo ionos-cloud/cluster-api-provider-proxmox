@@ -284,12 +284,6 @@ type IPPoolConfig struct {
 
 // InterfaceConfig contains all configurables a network interface can have.
 type InterfaceConfig struct {
-	// DNSServers contains information about nameservers to be used for this interface.
-	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
-	// +optional
-	// +kubebuilder:validation:MinItems=1
-	DNSServers []string `json:"dnsServers,omitempty"`
-
 	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
 	Routing `json:",inline"`
 
@@ -399,6 +393,12 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=4094
 	VLAN *uint16 `json:"vlan,omitempty"`
+
+	// DNSServers contains information about nameservers to be used for this interface.
+	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
+	// +optional
+	// +kubebuilder:validation:MinItems=1
+	DNSServers []string `json:"dnsServers,omitempty"`
 
 	// IPPoolConfig defines config for IP Pool ref.
 	// For default device 'net0' the IP pool is optional,
