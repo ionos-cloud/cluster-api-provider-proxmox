@@ -60,7 +60,7 @@ var _ = Describe("Workload cluster creation", func() {
 		result = new(clusterctl.ApplyClusterTemplateAndWaitResult)
 
 		// We need to override clusterctl apply log folder to avoid getting our credentials exposed.
-		clusterctlLogFolder = filepath.Join(os.TempDir(), "clusters", bootstrapClusterProxy.GetName())
+		clusterctlLogFolder = filepath.Join(artifactFolder, "clusters", bootstrapClusterProxy.GetName())
 	})
 
 	AfterEach(func() {
