@@ -86,11 +86,9 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"},
-				},
+				NetworkDevice:   infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), DNSServers: []string{"1.2.3.4"}},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
@@ -263,11 +261,11 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 							Kind:     "GlobalInClusterIPPool",
 							Name:     "net1-inet",
 						},
-					}},
+					},
+					DNSServers: []string{"1.2.3.4"}},
 				Name: "net1",
 				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"},
-					LinkMTU:    &MTU,
+					LinkMTU: &MTU,
 					Routing: infrav1alpha1.Routing{
 						Routes: []infrav1alpha1.RouteSpec{
 							{To: "default", Via: "192.168.178.1"},
@@ -374,11 +372,10 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 							Kind:     "InClusterIPPool",
 							Name:     "sample",
 						},
-					}},
-				Name: "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"},
-				},
+					},
+					DNSServers: []string{"1.2.3.4"}},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
@@ -425,10 +422,10 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 							Kind:     "InClusterIPPool",
 							Name:     "sample",
 						}},
+					DNSServers: []string{"1.2.3.4"},
 				},
-				Name: "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"}},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
