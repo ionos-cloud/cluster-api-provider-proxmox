@@ -90,6 +90,16 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
+	if machine.Spec.Network != nil && machine.Spec.Network.Default == nil {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec", "network", "default"), machine.Spec.Network.Default, "default network device must be set when setting network spec"),
+			})
+	}
+
 	if machine.Spec.Network.Default != nil {
 		err := validateNetworkDeviceMTU(machine.Spec.Network.Default)
 		if err != nil {
