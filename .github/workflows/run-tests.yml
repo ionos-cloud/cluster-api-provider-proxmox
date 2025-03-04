@@ -17,7 +17,7 @@ on:
     secrets:
       GITHUB_TOKEN:
         required: true
-     SONAR_TOKEN:
+      SONAR_TOKEN:
         required: true
 
 jobs:
