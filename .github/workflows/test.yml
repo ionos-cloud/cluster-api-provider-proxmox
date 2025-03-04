@@ -8,26 +8,28 @@ on:
 jobs:
 
   pr-test:
-    if: ${{ github.event_name == 'pull_request_target' }}
-    environment: e2e # request confirmation
-    uses: ./.github/workflows/run-tests.yml
-    with:
-      inputs:
-        event_name: ${{ github.event_name }}
-        pr: ${{ inputs.event.pull_request.number }}
-        repo: ${{ github.event.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.pull_request.head.ref }}
-        sha: ${{ github.event.pull_request.head.sha }}
-      secrets:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps: 
+      - if: ${{ github.event_name == 'pull_request_target' }}
+        environment: e2e # request confirmation
+        uses: ./.github/workflows/run-tests.yml
+        with:
+          inputs:
+            event_name: ${{ github.event_name }}
+            pr: ${{ inputs.event.pull_request.number }}
+            repo: ${{ github.event.pull_request.head.repo.full_name }}
+            ref: ${{ github.event.pull_request.head.ref }}
+            sha: ${{ github.event.pull_request.head.sha }}
+          secrets:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   main-test:
-    if: ${{ github.event_name == 'push' }}
-    uses: ./.github/workflows/run-tests.yml
-    with:
-      inputs:
-        event_name: ${{ github.event_name }}
-      secrets:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - if: ${{ github.event_name == 'push' }}
+        uses: ./.github/workflows/run-tests.yml
+        with:
+          inputs:
+            event_name: ${{ github.event_name }}
+          secrets:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
