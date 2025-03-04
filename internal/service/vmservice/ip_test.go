@@ -40,6 +40,7 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0"},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{IPPoolConfig: infrav1alpha1.IPPoolConfig{IPv4PoolRef: &corev1.TypedLocalObjectReference{Kind: "InClusterIPPool", Name: "custom"}}}},
 		},
@@ -74,6 +75,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0"},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{Name: "net1",
 				NetworkDevice: infrav1alpha1.NetworkDevice{
@@ -97,6 +99,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0"},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{IPPoolConfig: infrav1alpha1.IPPoolConfig{IPv4PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "ipv4pool"}}}},
 			{Name: "net2", NetworkDevice: infrav1alpha1.NetworkDevice{IPPoolConfig: infrav1alpha1.IPPoolConfig{IPv6PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "ipv6pool"}}}},
@@ -135,6 +138,7 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 		Gateway:   "fe80::1",
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0"},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{Name: "net1", NetworkDevice: infrav1alpha1.NetworkDevice{IPPoolConfig: infrav1alpha1.IPPoolConfig{IPv4PoolRef: &corev1.TypedLocalObjectReference{Kind: "GlobalInClusterIPPool", Name: "custom"}}}},
 		},
