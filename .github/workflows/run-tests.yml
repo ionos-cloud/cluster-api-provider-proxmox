@@ -14,6 +14,9 @@ on:
       ref:
         required: false
         type: string
+      sha:
+        required: false
+        type: string
     secrets:
       GITHUB_TOKEN:
         required: true
