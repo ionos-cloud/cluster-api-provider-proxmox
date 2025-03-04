@@ -8,10 +8,11 @@ on:
 jobs:
 
   pr-test:
+    if: ${{ github.event_name == 'pull_request_target' }}
+    runs-on: ubuntu-latest
+    environment: e2e # request confirmation
     steps: 
-      - if: ${{ github.event_name == 'pull_request_target' }}
-        environment: e2e # request confirmation
-        uses: ./.github/workflows/run-tests.yml
+      - uses: ./.github/workflows/run-tests.yml
         with:
           inputs:
             event_name: ${{ github.event_name }}
@@ -24,9 +25,10 @@ jobs:
             SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   main-test:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
     steps:
-      - if: ${{ github.event_name == 'push' }}
-        uses: ./.github/workflows/run-tests.yml
+      - uses: ./.github/workflows/run-tests.yml
         with:
           inputs:
             event_name: ${{ github.event_name }}
