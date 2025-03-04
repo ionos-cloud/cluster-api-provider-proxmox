@@ -13,18 +13,18 @@ jobs:
     environment: e2e # request confirmation
     secrets: inherit
     uses: ./.github/workflows/run-tests.yml
-      with:
-        event_name: ${{ github.event_name }}
-        pr: ${{ github.event.pull_request.number }}
-        repo: ${{ github.event.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.pull_request.head.ref }}
-        sha: ${{ github.event.pull_request.head.sha }}
+    with:
+      event_name: ${{ github.event_name }}
+      pr: ${{ github.event.pull_request.number }}
+      repo: ${{ github.event.pull_request.head.repo.full_name }}
+      ref: ${{ github.event.pull_request.head.ref }}
+      sha: ${{ github.event.pull_request.head.sha }}
 
   main-test:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     secrets: inherit
     uses: ./.github/workflows/run-tests.yml
-      with:
-        event_name: ${{ github.event_name }}
+    with:
+      event_name: ${{ github.event_name }}
 
