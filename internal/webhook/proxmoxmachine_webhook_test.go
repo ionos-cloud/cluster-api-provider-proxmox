@@ -78,6 +78,28 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.AdditionalDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
+
+		It("should disallow machine with network spec but without Default device", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.Network = &infrav1.NetworkSpec{
+				AdditionalDevices: []infrav1.AdditionalNetworkDevice{
+					{
+						Name: "net1",
+						NetworkDevice: infrav1.NetworkDevice{
+							Bridge: "vmbr2",
+							IPPoolConfig: infrav1.IPPoolConfig{
+								IPv4PoolRef: &corev1.TypedLocalObjectReference{
+									APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+									Kind:     "InClusterIPPool",
+									Name:     "simple-pool",
+								},
+							},
+						},
+					},
+				},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("default network device must be set when setting network spec")))
+		})
 	})
 
 	Context("update proxmox cluster", func() {
