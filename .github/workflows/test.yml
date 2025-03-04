@@ -28,8 +28,6 @@ jobs:
     steps:
       - uses: ./.github/workflows/run-tests.yml
         with:
-          inputs:
-            event_name: ${{ github.event_name }}
-          secrets:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          event_name: ${{ github.event_name }}
+        secrets:
+          inherit
