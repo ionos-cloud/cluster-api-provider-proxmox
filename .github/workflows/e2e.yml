@@ -40,6 +40,14 @@ jobs:
       - name: Run e2e tests
         run: "make test-e2e GINKGO_SKIP=${{ env.SKIP_E2E }}"
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: logs
+          path: _artifacts
+          retention-days: 7
+
       - name: Cleanup kind clusters
         uses: gacts/run-and-post-run@v1
         with:
