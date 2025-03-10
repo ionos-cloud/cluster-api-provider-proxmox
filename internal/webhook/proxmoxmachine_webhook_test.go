@@ -99,6 +99,15 @@ var _ = Describe("Controller Test", func() {
 				WithPolling(time.Second).
 				Should(Succeed())
 		})
+
+		It("should not allow updates on tags", func() {
+			machine := validProxmoxMachine("test-machine-tags")
+			machine.Spec.Tags = []string{"foo_bar"}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+
+			machine.Spec.Tags = []string{"foobar", "barfoo"}
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("tags are immutable")))
+		})
 	})
 })
 

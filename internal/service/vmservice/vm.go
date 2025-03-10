@@ -20,6 +20,7 @@ package vmservice
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -42,9 +43,11 @@ const (
 	// See the following link for a list of available config options:
 	// https://pve.proxmox.com/pve-docs/api-viewer/index.html#/nodes/{node}/qemu/{vmid}/config
 
-	optionSockets = "sockets"
-	optionCores   = "cores"
-	optionMemory  = "memory"
+	optionSockets     = "sockets"
+	optionCores       = "cores"
+	optionMemory      = "memory"
+	optionTags        = "tags"
+	optionDescription = "description"
 )
 
 // ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmIDRange.
@@ -240,6 +243,13 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: value})
 	}
 
+	// Description
+	if machineScope.ProxmoxMachine.Spec.Description != nil {
+		if machineScope.VirtualMachine.VirtualMachineConfig.Description != *machineScope.ProxmoxMachine.Spec.Description {
+			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description})
+		}
+	}
+
 	// Network vmbrs.
 	if machineScope.ProxmoxMachine.Spec.Network != nil && shouldUpdateNetworkDevices(machineScope) {
 		// adding the default network device.
@@ -260,6 +270,20 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 				Name:  v.Name,
 				Value: formatNetworkDevice(*v.Model, v.Bridge, v.MTU, v.VLAN),
 			})
+		}
+	}
+
+	// custom tags
+	if machineScope.ProxmoxMachine.Spec.Tags != nil {
+		machineScope.VirtualMachine.SplitTags()
+		length := len(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice)
+		for _, tag := range machineScope.ProxmoxMachine.Spec.Tags {
+			if !machineScope.VirtualMachine.HasTag(tag) {
+				machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice = append(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice, tag)
+			}
+		}
+		if len(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice) > length {
+			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionTags, Value: strings.Join(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice, ";")})
 		}
 	}
 
