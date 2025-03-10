@@ -6,47 +6,60 @@ on:
     branches: ["main"]
 
 jobs:
-  go_test:
-    if: ${{ github.event_name == 'push' }}
+  confirm:
+    # check if confirmation is necessary
+    if: github.event_name == 'pull_request_target'
+    # request confirmation
+    environment: e2e
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - run: ":"
+
+  test:
+    # check the result of confirmation if necessary
+    # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#example-not-requiring-successful-dependent-jobs
+    # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#always
+    if: ${{ !cancelled() }}
+    needs: [confirm]
+
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: checkout PR ${{ github.event.pull_request.number }}
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4.1.1
         with:
-          fetch-depth: 0 # for sonarcloud
+          fetch-depth: 0 # for SonarQube
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: checkout
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0 # for SonarQube
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
       - run: "make verify"
       - run: "make test"
-      - uses: SonarSource/sonarqube-scan-action@v4.2.1
-        if: ${{ github.event_name == 'push' }}
+
+      - name: SonarQube for PR ${{ github.event.pull_request.number }}
+        if: github.event_name == 'pull_request_target'
+        uses: SonarSource/sonarqube-scan-action@v4.2.1
+        with:
+         args: >
+           -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+           -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  ext_pr:
-    if: ${{ github.event_name == 'pull_request_target' }}
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4.1.1
-        with:
-          fetch-depth: 2 # for diff
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: generate comment message
-        run: |
-          printf '%s\n%s\n\n' '### External PR' 'Test runs on external PRs require manual approval.' >"${{ runner.temp }}/msg"
-          git diff --name-only -z HEAD^1 HEAD | grep -Evz '\.go$|^docs/' | tr '\0' '\n' >"${{ runner.temp }}/diff"
-          if [ -s '${{ runner.temp }}'/diff ]; then
-            echo '**Note:** This PR changes the following non-go, non-docs files:' >>"${{ runner.temp }}/msg"
-            cat "${{ runner.temp }}/diff" >>"${{ runner.temp }}/msg"
-          fi
-
-      - uses: thollander/actions-comment-pull-request@v3
-        with:
-          comment_tag: test
-          mode: recreate
-          file-path: ${{ runner.temp }}/msg
+      - name: SonarQube
+        if: github.event_name == 'push'
+        uses: SonarSource/sonarqube-scan-action@v4.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
