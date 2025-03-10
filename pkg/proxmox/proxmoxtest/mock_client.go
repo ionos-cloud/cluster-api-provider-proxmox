@@ -28,6 +28,10 @@ func (_m *MockClient) EXPECT() *MockClient_Expecter {
 func (_m *MockClient) CheckID(ctx context.Context, vmID int64) (bool, error) {
 	ret := _m.Called(ctx, vmID)
 
+	if len(ret) == 0 {
+		panic("no return value specified for CheckID")
+	}
+
 	var r0 bool
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, int64) (bool, error)); ok {
@@ -80,6 +84,10 @@ func (_c *MockClient_CheckID_Call) RunAndReturn(run func(context.Context, int64)
 // CloneVM provides a mock function with given fields: ctx, templateID, clone
 func (_m *MockClient) CloneVM(ctx context.Context, templateID int, clone proxmox.VMCloneRequest) (proxmox.VMCloneResponse, error) {
 	ret := _m.Called(ctx, templateID, clone)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CloneVM")
+	}
 
 	var r0 proxmox.VMCloneResponse
 	var r1 error
@@ -134,6 +142,10 @@ func (_c *MockClient_CloneVM_Call) RunAndReturn(run func(context.Context, int, p
 // CloudInitStatus provides a mock function with given fields: ctx, vm
 func (_m *MockClient) CloudInitStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) (bool, error) {
 	ret := _m.Called(ctx, vm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CloudInitStatus")
+	}
 
 	var r0 bool
 	var r1 error
@@ -194,6 +206,10 @@ func (_m *MockClient) ConfigureVM(ctx context.Context, vm *go_proxmox.VirtualMac
 	_ca = append(_ca, ctx, vm)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ConfigureVM")
+	}
 
 	var r0 *go_proxmox.Task
 	var r1 error
@@ -258,6 +274,10 @@ func (_c *MockClient_ConfigureVM_Call) RunAndReturn(run func(context.Context, *g
 func (_m *MockClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, nodeName, vmID)
 
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVM")
+	}
+
 	var r0 *go_proxmox.Task
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*go_proxmox.Task, error)); ok {
@@ -314,6 +334,10 @@ func (_c *MockClient_DeleteVM_Call) RunAndReturn(run func(context.Context, strin
 func (_m *MockClient) FindVMResource(ctx context.Context, vmID uint64) (*go_proxmox.ClusterResource, error) {
 	ret := _m.Called(ctx, vmID)
 
+	if len(ret) == 0 {
+		panic("no return value specified for FindVMResource")
+	}
+
 	var r0 *go_proxmox.ClusterResource
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*go_proxmox.ClusterResource, error)); ok {
@@ -368,6 +392,10 @@ func (_c *MockClient_FindVMResource_Call) RunAndReturn(run func(context.Context,
 // FindVMTemplateByTags provides a mock function with given fields: ctx, templateTags
 func (_m *MockClient) FindVMTemplateByTags(ctx context.Context, templateTags []string) (string, int32, error) {
 	ret := _m.Called(ctx, templateTags)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindVMTemplateByTags")
+	}
 
 	var r0 string
 	var r1 int32
@@ -429,6 +457,10 @@ func (_c *MockClient_FindVMTemplateByTags_Call) RunAndReturn(run func(context.Co
 func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error) {
 	ret := _m.Called(ctx, nodeName, nodeMemoryAdjustment)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetReservableMemoryBytes")
+	}
+
 	var r0 uint64
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, uint64) (uint64, error)); ok {
@@ -482,6 +514,10 @@ func (_c *MockClient_GetReservableMemoryBytes_Call) RunAndReturn(run func(contex
 // GetTask provides a mock function with given fields: ctx, upID
 func (_m *MockClient) GetTask(ctx context.Context, upID string) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, upID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTask")
+	}
 
 	var r0 *go_proxmox.Task
 	var r1 error
@@ -537,6 +573,10 @@ func (_c *MockClient_GetTask_Call) RunAndReturn(run func(context.Context, string
 // GetVM provides a mock function with given fields: ctx, nodeName, vmID
 func (_m *MockClient) GetVM(ctx context.Context, nodeName string, vmID int64) (*go_proxmox.VirtualMachine, error) {
 	ret := _m.Called(ctx, nodeName, vmID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVM")
+	}
 
 	var r0 *go_proxmox.VirtualMachine
 	var r1 error
@@ -594,6 +634,10 @@ func (_c *MockClient_GetVM_Call) RunAndReturn(run func(context.Context, string, 
 func (_m *MockClient) QemuAgentStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) error {
 	ret := _m.Called(ctx, vm)
 
+	if len(ret) == 0 {
+		panic("no return value specified for QemuAgentStatus")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
 		r0 = rf(ctx, vm)
@@ -636,6 +680,10 @@ func (_c *MockClient_QemuAgentStatus_Call) RunAndReturn(run func(context.Context
 // ResizeDisk provides a mock function with given fields: ctx, vm, disk, size
 func (_m *MockClient) ResizeDisk(ctx context.Context, vm *go_proxmox.VirtualMachine, disk string, size string) error {
 	ret := _m.Called(ctx, vm, disk, size)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResizeDisk")
+	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine, string, string) error); ok {
@@ -681,6 +729,10 @@ func (_c *MockClient_ResizeDisk_Call) RunAndReturn(run func(context.Context, *go
 // ResumeVM provides a mock function with given fields: ctx, vm
 func (_m *MockClient) ResumeVM(ctx context.Context, vm *go_proxmox.VirtualMachine) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResumeVM")
+	}
 
 	var r0 *go_proxmox.Task
 	var r1 error
@@ -737,6 +789,10 @@ func (_c *MockClient_ResumeVM_Call) RunAndReturn(run func(context.Context, *go_p
 func (_m *MockClient) StartVM(ctx context.Context, vm *go_proxmox.VirtualMachine) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm)
 
+	if len(ret) == 0 {
+		panic("no return value specified for StartVM")
+	}
+
 	var r0 *go_proxmox.Task
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) (*go_proxmox.Task, error)); ok {
@@ -791,6 +847,10 @@ func (_c *MockClient_StartVM_Call) RunAndReturn(run func(context.Context, *go_pr
 // TagVM provides a mock function with given fields: ctx, vm, tag
 func (_m *MockClient) TagVM(ctx context.Context, vm *go_proxmox.VirtualMachine, tag string) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm, tag)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TagVM")
+	}
 
 	var r0 *go_proxmox.Task
 	var r1 error
@@ -847,6 +907,10 @@ func (_c *MockClient_TagVM_Call) RunAndReturn(run func(context.Context, *go_prox
 // UnmountCloudInitISO provides a mock function with given fields: ctx, vm, device
 func (_m *MockClient) UnmountCloudInitISO(ctx context.Context, vm *go_proxmox.VirtualMachine, device string) error {
 	ret := _m.Called(ctx, vm, device)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnmountCloudInitISO")
+	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine, string) error); ok {
