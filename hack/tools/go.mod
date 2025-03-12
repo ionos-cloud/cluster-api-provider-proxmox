@@ -6,7 +6,7 @@ require (
 	github.com/braydonk/yaml v0.9.0
 	github.com/golangci/golangci-lint v1.64.7
 	github.com/google/yamlfmt v0.16.0
-	github.com/vektra/mockery/v2 v2.53.1
+	github.com/vektra/mockery/v2 v2.53.2
 	golang.org/x/tools v0.31.0
 )
 
