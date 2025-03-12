@@ -4,7 +4,7 @@ go 1.23.7
 
 replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.9.5
 
-replace github.com/google/cel-go => github.com/google/cel-go v0.17.8
+replace github.com/google/cel-go => github.com/google/cel-go v0.20.1
 
 require (
 	github.com/flatcar/ignition v0.36.2
@@ -42,7 +42,7 @@ require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/ajeddeloh/go-json v0.0.0-20200220154158-5ae607161559 // indirect
 	github.com/alessio/shellescape v1.4.2 // indirect
-	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
