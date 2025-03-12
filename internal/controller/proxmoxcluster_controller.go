@@ -265,8 +265,6 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(clusterScope *sco
 		if err != nil {
 			return errors.Wrap(err, "failed to init patch helper")
 		}
-		// clusterScope.Cluster.Status.FailureMessage = nil
-		// clusterScope.Cluster.Status.FailureReason = nil
 		if err = cHelper.Patch(context.TODO(), clusterScope.Cluster); err != nil {
 			return err
 		}

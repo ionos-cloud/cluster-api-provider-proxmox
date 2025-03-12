@@ -289,7 +289,7 @@ Then, you can generate a cluster manifest with the following command:
 ```shell
 $ clusterctl generate cluster flatcar-quickstart \
     --infrastructure proxmox \
-    --kubernetes-version v1.30.5 \
+    --kubernetes-version v1.31.6 \
     --control-plane-machine-count 3 \
     --worker-machine-count 3 \
     --flavor flatcar > cluster.yaml
