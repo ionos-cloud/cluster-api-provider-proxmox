@@ -4,8 +4,6 @@ go 1.23.7
 
 replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.9.5
 
-replace github.com/google/cel-go => github.com/google/cel-go v0.20.1
-
 require (
 	github.com/flatcar/ignition v0.36.2
 	github.com/go-logr/logr v1.4.2
