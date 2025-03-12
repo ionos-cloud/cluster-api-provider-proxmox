@@ -31,7 +31,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
+	clustererrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
