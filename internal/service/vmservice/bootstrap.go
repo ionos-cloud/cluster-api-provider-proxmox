@@ -284,16 +284,21 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 	var config types.NetworkConfigData
 
 	// default network device ipv4.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
+	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil ||
+		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef != nil) {
 		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPV4)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPV4)
+		}
+		if machineScope.ProxmoxMachine.Spec.Network != nil && len(machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers) != 0 {
+			config.DNSServers = machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers
 		}
 		config = *conf
 	}
 
 	// default network device ipv6.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
+	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil ||
+		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef != nil) {
 		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPV6)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPV6)
@@ -308,6 +313,10 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 			config.IPV6Address = conf.IPV6Address
 			config.Gateway6 = conf.Gateway6
 			config.Metric6 = conf.Metric6
+		}
+
+		if machineScope.ProxmoxMachine.Spec.Network != nil && len(machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers) != 0 {
+			config.DNSServers = machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers
 		}
 	}
 
@@ -330,16 +339,16 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 	return []types.NetworkConfigData{config}, nil
 }
 
-func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha1.InterfaceConfig) error {
-	if len(ifconfig.DNSServers) != 0 {
-		ciconfig.DNSServers = ifconfig.DNSServers
+func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineScope, ciconfig *types.NetworkConfigData, nic infrav1alpha1.AdditionalNetworkDevice) error {
+	if len(nic.DNSServers) != 0 {
+		ciconfig.DNSServers = nic.DNSServers
 	}
-	ciconfig.Routes = *getRoutingData(ifconfig.Routing.Routes)
-	ciconfig.FIBRules = *getRoutingPolicyData(ifconfig.Routing.RoutingPolicy)
-	ciconfig.LinkMTU = ifconfig.LinkMTU
+	ciconfig.Routes = *getRoutingData(nic.InterfaceConfig.Routing.Routes)
+	ciconfig.FIBRules = *getRoutingPolicyData(nic.InterfaceConfig.Routing.RoutingPolicy)
+	ciconfig.LinkMTU = nic.InterfaceConfig.LinkMTU
 
 	// Only set IPAddresses if they haven't been set yet
-	if ippool := ifconfig.IPv4PoolRef; ippool != nil && ciconfig.IPAddress == "" {
+	if ippool := nic.NetworkDevice.IPv4PoolRef; ippool != nil && ciconfig.IPAddress == "" {
 		// retrieve IPAddress.
 		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix)
 		ipAddr, err := findIPAddress(ctx, machineScope, ifname)
@@ -355,7 +364,7 @@ func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineSc
 		ciconfig.Gateway = ipAddr.Spec.Gateway
 		ciconfig.Metric = metric
 	}
-	if ifconfig.IPv6PoolRef != nil && ciconfig.IPV6Address == "" {
+	if nic.NetworkDevice.IPv6PoolRef != nil && ciconfig.IPV6Address == "" {
 		var ifname = fmt.Sprintf("%s-%s", ciconfig.Name, infrav1alpha1.DefaultSuffix+"6")
 		ipAddr, err := findIPAddress(ctx, machineScope, ifname)
 		if err != nil {
@@ -436,7 +445,7 @@ func getAdditionalNetworkDevices(ctx context.Context, machineScope *scope.Machin
 			config.Gateway6 = conf.Gateway6
 		}
 
-		err := getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
+		err := getCommonInterfaceConfig(ctx, machineScope, config, nic)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
 		}

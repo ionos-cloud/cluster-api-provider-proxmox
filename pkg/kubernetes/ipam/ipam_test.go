@@ -246,9 +246,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
-		Name: "test-cluster-icip",
-	})
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", nil)
 	s.NoError(err)
 
 	// create a dummy IPAddress.
@@ -285,7 +283,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 	}, &globalPool))
 
 	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
-		Name:     "test-ippool-anontations",
+		Name:     "test-ippool-annotations",
 		Kind:     "GlobalInClusterIPPool",
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 	})
@@ -430,7 +428,8 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 	}, &pool))
 
 	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
-		Name: "test-cluster-icip",
+		Kind: "InClusterIPPool",
+		Name: "test-cluster-v4-icip",
 	})
 	s.NoError(err)
 

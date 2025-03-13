@@ -84,13 +84,15 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{
+			Bridge: "vmbr0",
+			Model:  ptr.To("virtio"),
+		},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"},
-				},
+				NetworkDevice:   infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), DNSServers: []string{"1.2.3.4"}},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
@@ -209,21 +211,21 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"), IPPoolConfig: infrav1alpha1.IPPoolConfig{
 					IPv4PoolRef: &corev1.TypedLocalObjectReference{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 						Kind:     "GlobalInClusterIPPool",
 						Name:     "net1-inet",
 					},
-				},
+				}},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0])
 	require.Error(t, err)
 }
 
@@ -240,7 +242,7 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	}
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0])
 	require.NoError(t, err)
 }
 
@@ -251,20 +253,22 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"),
+					IPPoolConfig: infrav1alpha1.IPPoolConfig{
+						IPv6PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "GlobalInClusterIPPool",
+							Name:     "net1-inet6",
+						},
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "GlobalInClusterIPPool",
+							Name:     "net1-inet",
+						},
+					},
+					DNSServers: []string{"1.2.3.4"}},
+				Name: "net1",
 				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"},
-					IPv6PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "net1-inet6",
-					},
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "net1-inet",
-					},
 					LinkMTU: &MTU,
 					Routing: infrav1alpha1.Routing{
 						Routes: []infrav1alpha1.RouteSpec{
@@ -290,7 +294,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0].InterfaceConfig)
+	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices[0])
 	require.Equal(t, "10.0.0.10/24", cfg.IPAddress)
 	require.Equal(t, "2001:db8::9/64", cfg.IPV6Address)
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
@@ -358,23 +362,28 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{
+			Bridge: "vmbr0",
+			Model:  ptr.To("virtio"),
+		},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
-					DNSServers: []string{"1.2.3.4"},
-					IPv6PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "sample",
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"),
+					IPPoolConfig: infrav1alpha1.IPPoolConfig{
+						IPv6PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "GlobalInClusterIPPool",
+							Name:     "sample",
+						},
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "InClusterIPPool",
+							Name:     "sample",
+						},
 					},
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "sample",
-					},
-				},
+					DNSServers: []string{"1.2.3.4"}},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
@@ -405,6 +414,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{Bridge: "vmbr0", Model: ptr.To("virtio")},
 		VirtualNetworkDevices: infrav1alpha1.VirtualNetworkDevices{
 			VRFs: []infrav1alpha1.VRFDevice{{
 				Interfaces: []string{"net1"},
@@ -414,15 +424,17 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 		},
 		AdditionalDevices: []infrav1alpha1.AdditionalNetworkDevice{
 			{
-				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio")},
-				Name:          "net1",
-				InterfaceConfig: infrav1alpha1.InterfaceConfig{
+				NetworkDevice: infrav1alpha1.NetworkDevice{Bridge: "vmbr1", Model: ptr.To("virtio"),
+					IPPoolConfig: infrav1alpha1.IPPoolConfig{
+						IPv4PoolRef: &corev1.TypedLocalObjectReference{
+							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							Kind:     "InClusterIPPool",
+							Name:     "sample",
+						}},
 					DNSServers: []string{"1.2.3.4"},
-					IPv4PoolRef: &corev1.TypedLocalObjectReference{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "sample",
-					}},
+				},
+				Name:            "net1",
+				InterfaceConfig: infrav1alpha1.InterfaceConfig{},
 			},
 		},
 	}
@@ -560,4 +572,39 @@ func TestIgnitionISOInjector(t *testing.T) {
 	require.NotEmpty(t, injector)
 	require.NotNil(t, injector.(*inject.ISOInjector).IgnitionEnricher)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).IgnitionEnricher.BootstrapData)
+}
+
+func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha1.NetworkSpec{
+		Default: &infrav1alpha1.NetworkDevice{
+			Bridge: "vmbr0",
+			Model:  ptr.To("virtio"),
+			IPPoolConfig: infrav1alpha1.IPPoolConfig{
+				IPv4PoolRef: &corev1.TypedLocalObjectReference{
+					APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+					Kind:     "GlobalInClusterIPPool",
+					Name:     "sample-shared-pool",
+				},
+			},
+		},
+	}
+
+	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	vm.VirtualMachineConfig.SMBios1 = biosUUID
+	machineScope.SetVirtualMachine(vm)
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.5.10.10"}}
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1alpha1.DefaultNetworkDevice, "10.5.10.10")
+
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
+		return FakeISOInjector{}
+	}
+	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+	require.False(t, conditions.Has(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition))
+	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
