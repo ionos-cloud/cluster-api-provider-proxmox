@@ -558,6 +558,15 @@ spec:
                       storage:
                         description: Storage for full clone.
                         type: string
+                      tags:
+                        description: Tags is a list of tags to be applied to the virtual
+                          machine.
+                        items:
+                          pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
+                          type: string
+                        minItems: 1
+                        type: array
+                        x-kubernetes-list-type: set
                       target:
                         description: Target node. Only allowed if the original VM
                           is on shared storage.

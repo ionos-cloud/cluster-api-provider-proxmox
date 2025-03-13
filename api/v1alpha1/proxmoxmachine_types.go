@@ -123,6 +123,14 @@ type ProxmoxMachineSpec struct {
 	// If not set, the ProxmoxCluster will be used to determine the nodes.
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
+
+	// Tags is a list of tags to be applied to the virtual machine.
+	// +optional
+	// +immutable
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
+	Tags []string `json:"tags,omitempty"`
 }
 
 // Storage is the physical storage on the node.
