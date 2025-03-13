@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	capierrors "sigs.k8s.io/cluster-api/errors"
+	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
@@ -409,6 +409,7 @@ func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
 func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
 	machineScope.SetVirtualMachine(vm)
 
 	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
@@ -418,6 +419,7 @@ func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
 
 func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
 	machineScope.ProxmoxMachine.Spec.NumSockets = 4
 	machineScope.ProxmoxMachine.Spec.NumCores = 4
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
@@ -438,6 +440,7 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
 		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
 		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},
+		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description},
 		proxmox.VirtualMachineOption{Name: "net0", Value: formatNetworkDevice("virtio", "vmbr0", ptr.To(uint16(1500)), nil)},
 		proxmox.VirtualMachineOption{Name: "net1", Value: formatNetworkDevice("virtio", "vmbr1", ptr.To(uint16(1500)), nil)},
 	}
@@ -445,6 +448,46 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
 
 	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+func TestReconcileVirtualMachineConfigTags(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	// CASE: Multiple tags
+	machineScope.ProxmoxMachine.Spec.Tags = []string{"tag1", "tag2"}
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Tags = "tag0"
+	task := newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions := []interface{}{
+		proxmox.VirtualMachineOption{Name: optionTags, Value: "tag0;tag1;tag2"},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+
+	// CASE: empty Tags
+	machineScope.ProxmoxMachine.Spec.Tags = []string{}
+	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
+	vm = newStoppedVM()
+	vm.VirtualMachineConfig.Tags = "tag0"
+	task = newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions = []interface{}{
+		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err = reconcileVirtualMachineConfig(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)

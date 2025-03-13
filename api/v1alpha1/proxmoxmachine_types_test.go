@@ -415,4 +415,32 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.vmIDRange.start in body should be greater than or equal to 100")))
 		})
 	})
+
+	Context("Tags", func() {
+		It("should disallow invalid tags", func() {
+			dm := defaultMachine()
+			dm.Spec.Tags = []string{"foo=bar"}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Invalid value")))
+
+			dm.Spec.Tags = []string{"foo$bar"}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Invalid value")))
+
+			dm.Spec.Tags = []string{"foo^bar"}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Invalid value")))
+
+			dm.Spec.Tags = []string{"foo bar"}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Invalid value")))
+
+			dm.Spec.Tags = []string{"foo "}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Invalid value")))
+		})
+
+		It("Should not allow duplicated tags", func() {
+			dm := defaultMachine()
+			dm.Spec.Tags = []string{"foo", "bar", "foo"}
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Duplicate value")))
+			dm.Spec.Tags = []string{"foo", "bar"}
+			Expect(k8sClient.Create(context.Background(), dm)).To(Succeed())
+		})
+	})
 })

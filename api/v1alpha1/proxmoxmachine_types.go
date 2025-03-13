@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterapierrors "sigs.k8s.io/cluster-api/errors"
+	clusterapierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 )
 
 const (
@@ -123,6 +123,14 @@ type ProxmoxMachineSpec struct {
 	// If not set, the ProxmoxCluster will be used to determine the nodes.
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
+
+	// Tags is a list of tags to be applied to the virtual machine.
+	// +optional
+	// +immutable
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
+	Tags []string `json:"tags,omitempty"`
 }
 
 // Storage is the physical storage on the node.
