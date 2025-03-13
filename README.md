@@ -16,6 +16,14 @@ Check out the [quickstart guide](./docs/Usage.md#quick-start) for launching a cl
 ## Compatibility with Cluster API and Kubernetes Versions
 This provider's versions are compatible with the following versions of Cluster API:
 
+### CAPMOX v1alpha2 (current)
+
+|                        | Cluster API v1beta1 (v1.8) | Cluster API v1beta1 (v1.9) |
+|------------------------|:--------------------------:|:--------------------------:|
+| CAPMOX v1alpha2 (v0.7) |             ✓              |             ✓              |
+
+### CAPMOX v1alpha1 (obsolete)
+
 |                        | Cluster API v1beta1 (v1.4) | Cluster API v1beta1 (v1.5) | Cluster API v1beta1 (v1.6) | Cluster API v1beta1 (v1.7) | Cluster API v1beta1 (v1.8) |
 |------------------------|:--------------------------:|:--------------------------:|:--------------------------:|:--------------------------:|:--------------------------:|
 | CAPMOX v1alpha1 (v0.1) |             ✓              |             ✓              |             ☓              |             ☓              |             ☓              |
