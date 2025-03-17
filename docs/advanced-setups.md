@@ -211,6 +211,51 @@ For the Proxmox API user/token you create for CAPMOX, these are the minimum requ
 * CAPMOX needs `PVEDataStoreAdmin` on a storage suitable for ISO images for cloud-init. Create a dedicated storage for this (you can use subdirectories in an existing network share for example).
 * CAPMOX needs `AllocateSpace` permissions on a storage suitable for disc images. This can be shared with other users as it is only accessed indirectly by cloning/deleting VMs.
 
+## Proxmox TLS communication
+
+The default behavior of the Proxmox API is to skip TLS verification when communicating with the Proxmox API,
+The `PROXMOX_INSECURE` environment variable is set to `true` by default in the CAPMOX manager, to skip the verification of the TLS certificate with the Proxmox API.
+```
+containers:
+  - name: manager
+    args:
+    - --leader-elect
+    - --feature-gates=ClusterTopology=true
+    - "--metrics-bind-address=localhost:8080"
+    - "--v=0"
+    env:
+    - name: PROXMOX_INSECURE
+      value: "true"
+```
+
+If you want to use a certificate for communication with the Proxmox API, you can set the `proxmox-root-cert-file` flag variable to the path of the certificate file, and
+set the `PROXMOX_INSECURE` environment variable to `false`.
+
+```yaml
+containers:
+  - name: manager
+    args:
+    - --leader-elect
+    - --feature-gates=ClusterTopology=true
+    - "--metrics-bind-address=localhost:8080"
+    - "--v=0"
+    - "--proxmox-root-cert-file=/var/lib/proxmox/certs/root-ca.pem"
+    env:
+    - name: PROXMOX_INSECURE
+      value: "false"  
+    volumeMounts:
+    - name: proxmox-root-cert
+      mountPath: /var/lib/proxmox/certs
+      readOnly: true
+
+volumes:
+  - name: proxmox-root-cert
+    secret:
+      secretName: proxmox-root-cert
+
+```
+
+
 ## Custom Allowed Nodes for ProxmoxMachine
 
 Previously, the Proxmox nodes that will host the Machines are defined in `ProxmoxCluster.spec.allowedNodes`, that config restrict us from placing some set of machines into some specific nodes.
