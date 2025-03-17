@@ -211,6 +211,58 @@ For the Proxmox API user/token you create for CAPMOX, these are the minimum requ
 * CAPMOX needs `PVEDataStoreAdmin` on a storage suitable for ISO images for cloud-init. Create a dedicated storage for this (you can use subdirectories in an existing network share for example).
 * CAPMOX needs `AllocateSpace` permissions on a storage suitable for disc images. This can be shared with other users as it is only accessed indirectly by cloning/deleting VMs.
 
+## Custom Allowed Nodes for ProxmoxMachine
+
+Previously, the Proxmox nodes that will host the Machines are defined in `ProxmoxCluster.spec.allowedNodes`, that config restrict us from placing some set of machines into some specific nodes.
+Now, you can also define and override the `allowedNodes` in the ProxmoxMachine, to do so:
+
+```diff
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: "test-control-plane"
+spec:
+  template:
+    spec:
+       sourceNode: "pve"
+       templateID: 1000
+       format: "qcow2"
+       full: true
++      allowedNodes: ["pve-1", "pve-3", "pve-4"]
+```
+
+With the following config, you can override what has been set in the Proxmox Cluster, and also you have more flexibility for example you can have a custom allowed Nodes per Machine Deployments.
+
+## Custom Default Network IP Pool for ProxmoxMachine
+
+Like the Allowed Nodes, in the past we couldn't set a custom IP Pool for the default network device, everything was tied to the ProxmoxCluster IP Config.
+Now, you can also customize the IP Pool for the default network device, just by setting the `ipv4PoolRef` and/or `ipv6PoolRef`.
+
+```diff
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: "test-control-plane"
+spec:
+  template:
+    spec:
+     sourceNode: "pve"
+     templateID: 1000
+     format: "qcow2"
+     full: true
+     network:
+       default:
+         bridge: ${BRIDGE}
+         model: virtio
++        ipv4PoolRef:
++          apiGroup: ipam.cluster.x-k8s.io
++          kind: GlobalInClusterIPPool
++          name: shared-inclusterippool
+```
+
+You can set either `ipv4PoolRef` or `ipv6PoolRef` or you can also set them both for dual-stack.
+It's up for you also to manage the IP Pool, you can choose a `GlobalInClusterIPPool` or an `InClusterIPPool`.
+
 ## Notes
 
 * Clusters with IPV6 only is supported.
