@@ -153,7 +153,6 @@ spec:
         owner: root:root
         permissions: "0700"
     preKubeadmCommands:
-      - echo "127.0.0.1   localhost kubernetes {{ ds.meta_data.hostname }}" >>/etc/hosts
       - /etc/kube-vip-prepare.sh
     initConfiguration:
       nodeRegistration:

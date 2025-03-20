@@ -82,7 +82,7 @@ providers:
       - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-flatcar.yaml"
 
 variables:
-  KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.31.6}"
+  KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.32.2}"
   CONTROL_PLANE_MACHINE_COUNT: "${CONTROL_PLANE_MACHINE_COUNT:-1}"
   WORKER_MACHINE_COUNT: "${WORKER_MACHINE_COUNT:-2}"
   EXP_CLUSTER_RESOURCE_SET: "true"
@@ -90,9 +90,9 @@ variables:
   CNI: "${PWD}/test/e2e/data/cni/calico.yaml"
 
   PROXMOX_SOURCENODE: "${PROXMOX_SOURCENODE:-stg-ceph01}"
-  TEMPLATE_VMID: "${TEMPLATE_VMID:-164}"
+  TEMPLATE_VMID: "${TEMPLATE_VMID:-187}"
   TEMPLATE_VMID_FLATCAR: "${TEMPLATE_VMID_FLATCAR:-202}"
-  VM_SSH_KEYS: ""
+  VM_SSH_KEYS: "ssh-ed25519 ..."
   NODE_IP_RANGES: "[10.4.18.104-10.4.18.125]"
   GATEWAY: "10.4.18.1"
   IP_PREFIX: "25"
