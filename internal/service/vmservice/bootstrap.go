@@ -102,7 +102,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
-		return errors.Wrap(err, "cloud-init iso inject failed")
+		return err
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 	injector := getIgnitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
 	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
-		return errors.Wrap(err, "ignition iso inject failed")
+		return err
 	}
 	return nil
 }
