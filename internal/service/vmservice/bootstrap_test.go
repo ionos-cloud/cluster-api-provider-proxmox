@@ -130,7 +130,7 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "cloud-init iso inject failed: bad FakeISOInjector")
+	require.Contains(t, err.Error(), "failed to inject bootstrap data: bad FakeISOInjector")
 	require.False(t, requeue)
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition))
 	require.Nil(t, machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
