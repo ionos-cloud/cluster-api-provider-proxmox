@@ -371,7 +371,7 @@ func TestProxmoxAPIClient_FindVMResource(t *testing.T) {
 	}
 }
 
-func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
+func TestProxmoxAPIClient_FindVMTemplatesByTags(t *testing.T) {
 	proxmoxClusterResources := proxmox.ClusterResources{
 		&proxmox.ClusterResource{VMID: 101, Name: "k8s-node01", Node: "capmox01", Tags: ""},
 		&proxmox.ClusterResource{VMID: 102, Name: "k8s-node02", Node: "capmox02", Tags: ""},
@@ -380,6 +380,8 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 		&proxmox.ClusterResource{VMID: 202, Name: "ubuntu-22.04-k8s-v1.30.2", Node: "capmox02", Tags: "capmox;template;v1.30.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 301, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 302, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 401, Name: "ubuntu-v1.28.3-1", Node: "capmox01", Tags: "ubuntu;capmox;v1.28.3", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 402, Name: "ubuntu-v1.28.3-2", Node: "capmox02", Tags: "ubuntu;capmox;v1.28.3", Template: uint64(1)},
 	}
 	tests := []struct {
 		name           string
@@ -387,8 +389,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 		vmTags         []string
 		fails          bool
 		err            string
-		vmTemplateNode string
-		vmTemplateID   int32
+		vmTemplateNode map[string]int32
 	}{
 		{
 			name:  "clusterstatus broken",
@@ -400,7 +401,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			name:  "resourcelisting broken",
 			http:  []int{200, 500},
 			fails: true,
-			err:   "could not list vm resources: 500",
+			err:   "could not list VM resources: 500",
 		},
 		{
 			name:           "find-template",
@@ -408,17 +409,15 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			vmTags:         []string{"template", "capmox", "v1.28.3"},
 			fails:          false,
 			err:            "",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			vmTemplateNode: map[string]int32{"capmox01": 201},
 		},
 		{
 			name:           "find-template-nil",
 			http:           []int{200, 200},
 			vmTags:         nil,
 			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"\"",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			err:            "VM template not found: no VM templates found with tags \"\"",
+			vmTemplateNode: map[string]int32{"capmox01": 201},
 		},
 		{
 			// Proxmox VM tags are always lowercase
@@ -427,8 +426,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			vmTags:         []string{"TEMPLATE", "CAPMOX", "v1.28.3"},
 			fails:          false,
 			err:            "",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			vmTemplateNode: map[string]int32{"capmox01": 201},
 		},
 		{
 			name:           "find-template-unordered",
@@ -436,8 +434,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			vmTags:         []string{"template", "capmox", "v1.30.2"},
 			fails:          false,
 			err:            "",
-			vmTemplateNode: "capmox02",
-			vmTemplateID:   202,
+			vmTemplateNode: map[string]int32{"capmox02": 202},
 		},
 		{
 			name:           "find-template-duplicate-tag",
@@ -445,26 +442,31 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			vmTags:         []string{"template", "capmox", "capmox", "v1.30.2"},
 			fails:          false,
 			err:            "",
-			vmTemplateNode: "capmox02",
-			vmTemplateID:   202,
+			vmTemplateNode: map[string]int32{"capmox02": 202},
 		},
 		{
 			name:           "find-multiple-templates",
 			http:           []int{200, 200},
 			vmTags:         []string{"template", "capmox"},
 			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"template;capmox\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			err:            "VM template not found: no VM templates found with tags \"template;capmox\"",
+			vmTemplateNode: map[string]int32{"nice": 69},
 		},
 		{
-			name:           "find-multiple-templates",
+			name:           "find-multiple-templates-same-node",
 			http:           []int{200, 200},
 			vmTags:         []string{"template", "capmox", "v1.29.2"},
 			fails:          true,
-			err:            "VM template not found: found 2 VM templates with tags \"template;capmox;v1.29.2\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			err:            "Multiple templates found: multiple VM templates found on node \"capmox02\" with tags \"template;capmox;v1.29.2\"",
+			vmTemplateNode: map[string]int32{"nice": 11},
+		},
+		{
+			name:           "find-multiple-templates-multiple-nodes",
+			http:           []int{200, 200},
+			vmTags:         []string{"ubuntu", "capmox", "v1.28.3"},
+			fails:          false,
+			err:            "",
+			vmTemplateNode: map[string]int32{"capmox01": 401, "capmox02": 402},
 		},
 	}
 
@@ -477,14 +479,13 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/resources`,
 				newJSONResponder(test.http[1], proxmoxClusterResources))
 
-			vmTemplateNode, vmTemplateID, err := client.FindVMTemplateByTags(context.Background(), test.vmTags)
+			vmTemplateNode, err := client.FindVMTemplatesByTags(context.Background(), test.vmTags)
 
 			if test.fails {
 				require.Error(t, err)
 				require.Equal(t, test.err, err.Error())
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, vmTemplateID, test.vmTemplateID)
 				require.Equal(t, vmTemplateNode, test.vmTemplateNode)
 			}
 		})
