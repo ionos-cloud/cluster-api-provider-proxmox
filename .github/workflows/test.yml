@@ -48,7 +48,7 @@ jobs:
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request_target'
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        uses: SonarSource/sonarqube-scan-action@v5.1.0
         with:
          args: >
            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
@@ -59,7 +59,7 @@ jobs:
 
       - name: SonarQube
         if: github.event_name == 'push'
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        uses: SonarSource/sonarqube-scan-action@v5.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
