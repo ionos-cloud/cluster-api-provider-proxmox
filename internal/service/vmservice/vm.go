@@ -413,6 +413,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		}
 	}
 
+	// if no target was specified but we have a set of nodes defined in the spec, we want to evenly distribute
 	// the nodes across the cluster.
 	if scope.ProxmoxMachine.Spec.Target == nil &&
 		(len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 || len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0) {
