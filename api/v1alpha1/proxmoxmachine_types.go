@@ -246,7 +246,8 @@ type VirtualMachineCloneSpec struct {
 type TemplateSelector struct {
 	// Specifies all tags to look for, when looking up the VM template.
 	// Passed tags must be an exact 1:1 match with the tags on the template you want to use.
-	// If multiple VM templates with the same set of tags are found, provisioning will fail.
+	// If multiple VM templates on same Proxmox node with the same set of tags are found, provisioning will fail.
+	// If multiple VM templates on different Proxmox nodes with the same set of tags are found, template on node where vm scheduled will be used.
 	//
 	// +listType=set
 	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
