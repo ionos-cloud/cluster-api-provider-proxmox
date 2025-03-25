@@ -58,7 +58,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: ## Run lint.
-	go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint run
+	go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
 
 # Package names to test
 WHAT ?= ./...
