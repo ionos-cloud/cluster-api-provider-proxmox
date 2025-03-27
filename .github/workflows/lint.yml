@@ -19,7 +19,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.0.1
+          version: v2.0.2
 
   yamllint:
     name: yamllint
