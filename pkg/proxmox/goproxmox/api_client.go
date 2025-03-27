@@ -142,9 +142,9 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 	return nil, fmt.Errorf("unable to find VM with ID %d on any of the nodes", vmID)
 }
 
-// FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
-func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string) (string, int32, error) {
-	vmTemplates := make([]*proxmox.ClusterResource, 0)
+// FindVMTemplatesByTags finds VM templates by tags across the whole cluster and ensures only one template per node.
+func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string) (map[string]int32, error) {
+	templates := make(map[string]int32)
 
 	sortedTags := make([]string, len(templateTags))
 	for i, tag := range templateTags {
@@ -156,19 +156,16 @@ func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []str
 
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
-		return "", -1, fmt.Errorf("cannot get cluster status: %w", err)
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
 	}
 
 	vmResources, err := cluster.Resources(ctx, "vm")
 	if err != nil {
-		return "", -1, fmt.Errorf("could not list vm resources: %w", err)
+		return nil, fmt.Errorf("could not list VM resources: %w", err)
 	}
 
 	for _, vm := range vmResources {
-		if vm.Template == 0 {
-			continue
-		}
-		if len(vm.Tags) == 0 {
+		if vm.Template == 0 || len(vm.Tags) == 0 {
 			continue
 		}
 
@@ -176,15 +173,18 @@ func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []str
 		slices.Sort(vmTags)
 
 		if slices.Equal(vmTags, uniqueTags) {
-			vmTemplates = append(vmTemplates, vm)
+			if _, exists := templates[vm.Node]; exists {
+				return nil, fmt.Errorf("%w: multiple VM templates found on node %q with tags %q", ErrMultipleTemplatesFound, vm.Node, strings.Join(templateTags, ";"))
+			}
+			templates[vm.Node] = int32(vm.VMID)
 		}
 	}
 
-	if n := len(vmTemplates); n != 1 {
-		return "", -1, fmt.Errorf("%w: found %d VM templates with tags %q", ErrTemplateNotFound, n, strings.Join(templateTags, ";"))
+	if len(templates) == 0 {
+		return nil, fmt.Errorf("%w: no VM templates found with tags %q", ErrTemplateNotFound, strings.Join(templateTags, ";"))
 	}
 
-	return vmTemplates[0].Node, int32(vmTemplates[0].VMID), nil
+	return templates, nil
 }
 
 // DeleteVM deletes a VM based on the nodeName and vmID.
