@@ -4,7 +4,7 @@ go 1.23.7
 
 require (
 	github.com/braydonk/yaml v0.9.0
-	github.com/golangci/golangci-lint/v2 v2.0.1
+	github.com/golangci/golangci-lint/v2 v2.0.2
 	github.com/google/yamlfmt v0.16.0
 	github.com/vektra/mockery/v2 v2.53.3
 	golang.org/x/tools v0.31.0
