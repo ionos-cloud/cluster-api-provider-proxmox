@@ -36,11 +36,11 @@ spec:
         addresses: [10.10.10.10-10.10.10.20]
         gateway: 10.10.10.1
         prefix: 24
-#   - name: ipv6Config
-#     value:
-#       addresses: [2001:db8:1::10-2001:db8:1::20]
-#       gateway: 2001:db8:1::1
-#       prefix: 64
+        #   - name: ipv6Config
+        #     value:
+        #       addresses: [2001:db8:1::10-2001:db8:1::20]
+        #       gateway: 2001:db8:1::1
+        #       prefix: 64
     - name: kubeProxy
       value:
         mode: iptables
@@ -51,70 +51,70 @@ spec:
             network:
               default:
                 bridge: vmbr0
-#             additionalDevices:
-#               - name: net1
-#                 model: virtio
-#                 ipv4PoolRef:
-#                   name: shared-inclusteripv4pool
-#                   apiGroup: ipam.cluster.x-k8s.io
-#                   kind: GlobalInClusterIPPool
-#                 ipv6PoolRef:
-#                   name: shared-inclusteripv6pool
-#                   apiGroup: ipam.cluster.x-k8s.io
-#                   kind: GlobalInClusterIPPool
-#                 bridge: vmbr1
-#           numSockets: 1
-#           numCores: 4
-#           memoryMiB: 4096
+                #             additionalDevices:
+                #               - name: net1
+                #                 model: virtio
+                #                 ipv4PoolRef:
+                #                   name: shared-inclusteripv4pool
+                #                   apiGroup: ipam.cluster.x-k8s.io
+                #                   kind: GlobalInClusterIPPool
+                #                 ipv6PoolRef:
+                #                   name: shared-inclusteripv6pool
+                #                   apiGroup: ipam.cluster.x-k8s.io
+                #                   kind: GlobalInClusterIPPool
+                #                 bridge: vmbr1
+                #           numSockets: 1
+                #           numCores: 4
+                #           memoryMiB: 4096
             sourceNode: pve1
             templateID: 100
           workerNode:
             network:
               default:
                 bridge: vmbr0
-#             additionalDevices:
-#               - name: net1
-#                 model: virtio
-#                 ipv4PoolRef:
-#                   name: shared-inclusteripv4pool
-#                   apiGroup: ipam.cluster.x-k8s.io
-#                   kind: GlobalInClusterIPPool
-#                 ipv6PoolRef:
-#                   name: shared-inclusteripv6pool
-#                   apiGroup: ipam.cluster.x-k8s.io
-#                   kind: GlobalInClusterIPPool
-#                 bridge: vmbr1
-#           numSockets: 1
-#           numCores: 4
-#           memoryMiB: 4096
+                #             additionalDevices:
+                #               - name: net1
+                #                 model: virtio
+                #                 ipv4PoolRef:
+                #                   name: shared-inclusteripv4pool
+                #                   apiGroup: ipam.cluster.x-k8s.io
+                #                   kind: GlobalInClusterIPPool
+                #                 ipv6PoolRef:
+                #                   name: shared-inclusteripv6pool
+                #                   apiGroup: ipam.cluster.x-k8s.io
+                #                   kind: GlobalInClusterIPPool
+                #                 bridge: vmbr1
+                #           numSockets: 1
+                #           numCores: 4
+                #           memoryMiB: 4096
             sourceNode: pve1
             templateID: 100
           loadBalancer:
             network:
               default:
                 bridge: vmbr0
-#             additionalDevices:
-#               - name: net1
-#                 model: virtio
-#                 ipv4PoolRef:
-#                   name: shared-inclusteripv4pool
-#                   apiGroup: ipam.cluster.x-k8s.io
-#                   kind: GlobalInClusterIPPool
-#                 ipv6PoolRef:
-#                   name: shared-inclusteripv6pool
-#                   apiGroup: ipam.cluster.x-k8s.io
-#                   kind: GlobalInClusterIPPool
-#                 bridge: vmbr1
-#             vrfs:
-#               - name: vrf-ext
-#                 interfaces:
-#                   - net1
-#                 table: 500
-#                 routingPolicy:
-#                   - from: 192.0.2.0/24
-#           numSockets: 1
-#           numCores: 2
-#           memoryMiB: 2048
+                #             additionalDevices:
+                #               - name: net1
+                #                 model: virtio
+                #                 ipv4PoolRef:
+                #                   name: shared-inclusteripv4pool
+                #                   apiGroup: ipam.cluster.x-k8s.io
+                #                   kind: GlobalInClusterIPPool
+                #                 ipv6PoolRef:
+                #                   name: shared-inclusteripv6pool
+                #                   apiGroup: ipam.cluster.x-k8s.io
+                #                   kind: GlobalInClusterIPPool
+                #                 bridge: vmbr1
+                #             vrfs:
+                #               - name: vrf-ext
+                #                 interfaces:
+                #                   - net1
+                #                 table: 500
+                #                 routingPolicy:
+                #                   - from: 192.0.2.0/24
+                #           numSockets: 1
+                #           numCores: 2
+                #           memoryMiB: 2048
             sourceNode: pve1
             templateID: 100
         sshAuthorizedKeys:
