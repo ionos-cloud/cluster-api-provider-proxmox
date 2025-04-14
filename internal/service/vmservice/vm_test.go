@@ -39,11 +39,12 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.SourceNode = firstNode
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = true
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
 
@@ -60,11 +61,13 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = true
+
+	machineScope.ProxmoxMachine.Spec.SourceNode = firstNode
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1alpha1.ProxmoxMachineChecks{
 		SkipQemuGuestAgent: ptr.To(true),
 	}
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(vm, nil).Once()
 	// proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
 
 	result, err := ReconcileVM(context.Background(), machineScope)
@@ -80,11 +83,12 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Spec.SourceNode = firstNode
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1alpha1.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 	}
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil)
 
 	result, err := ReconcileVM(context.Background(), machineScope)
@@ -100,20 +104,42 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Spec.SourceNode = firstNode
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1alpha1.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 		SkipQemuGuestAgent:  ptr.To(true),
 	}
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(vm, nil).Once()
 
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, infrav1alpha1.VirtualMachineStateReady, result.State)
 	require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
+func TestTargetNotSetWithLocalStorage(t *testing.T) {
+	ctx := context.Background()
+	localStorage := true
+
+	machineScope, _, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(localStorage)
+	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
+	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
+	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
+	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
+	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
+	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
+	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+
+	_, err := createVM(ctx, machineScope)
+
+	require.Equal(t, ptr.To("Localstorage does not allow usage of target/templateid/sourcenode"), machineScope.ProxmoxMachine.Status.FailureMessage)
+	require.Error(t, err)
+	require.Contains(t, "Localstorage does not allow usage of target/templateid/sourcenode", err.Error())
+}
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
+	ctx := context.Background()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
 	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
@@ -122,8 +148,10 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
 	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.TemplateID = ptr.To(int32(123))
+	machineScope.ProxmoxMachine.Spec.SourceNode = firstNode
 	expectedOptions := proxmox.VMCloneRequest{
-		Node:        "node1",
+		Node:        firstNode,
 		Name:        "test",
 		Description: "test vm",
 		Format:      "raw",
@@ -133,10 +161,17 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 		Storage:     "storage",
 		Target:      "node2",
 	}
-	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
-	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 
-	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	response := proxmox.VMCloneResponse{
+		NewID: 123,
+		Task:  newTask(),
+	}
+
+	proxmoxClient.EXPECT().CloneVM(ctx, 123, expectedOptions).Return(response, nil).Once()
+
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(ctx, "node2", uint64(100)).Return(uint64(5000), nil).Once()
+
+	requeue, err := ensureVirtualMachine(ctx, machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
 
@@ -145,26 +180,32 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
 }
 
-func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T) {
+func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_SharedStorage(t *testing.T) {
+	ctx := context.Background()
 	vmTemplateTags := []string{"foo", "bar"}
+	allowedNodes := []string{firstNode, "node2"}
 
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
 		TemplateSource: infrav1alpha1.TemplateSource{
+			LocalStorage: ptr.To(true),
 			TemplateSelector: &infrav1alpha1.TemplateSelector{
 				MatchTags: vmTemplateTags,
 			},
 		},
 	}
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(false)
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
 	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
 	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
-	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(true)
+	// we do not set allowedNodes from spec, we use node discovery
+	// machineScope.ProxmoxMachine.Spec.AllowedNodes = allowedNodes
 	expectedOptions := proxmox.VMCloneRequest{
-		Node:        "node2",
+		Node:        firstNode,
 		Name:        "test",
 		Description: "test vm",
 		Format:      "raw",
@@ -172,19 +213,105 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 		Pool:        "pool",
 		SnapName:    "snap",
 		Storage:     "storage",
-		Target:      "node2",
+		Target:      firstNode,
 	}
 
-	proxmoxClient.EXPECT().FindVMTemplatesByTags(context.Background(), vmTemplateTags).Return(map[string]int32{"node2": int32(123)}, nil).Once()
+	proxmoxClient.EXPECT().
+		GetAllNodeNames(ctx).
+		Return(allowedNodes, nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		GetReservableMemoryBytes(ctx, firstNode, uint64(100)).
+		Return(uint64(5000), nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		GetReservableMemoryBytes(ctx, "node2", uint64(100)).
+		Return(uint64(5000), nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(ctx, vmTemplateTags, allowedNodes, true).
+		Return(map[string]int32{firstNode: int32(123), "node2": int32(124)}, nil).
+		Once()
 
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
-	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+	proxmoxClient.EXPECT().
+		CloneVM(ctx, 123, expectedOptions).
+		Return(response, nil).
+		Once()
 
-	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	requeue, err := ensureVirtualMachine(ctx, machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
 
-	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
+	require.Equal(t, firstNode, *machineScope.ProxmoxMachine.Status.ProxmoxNode)
+	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
+}
+
+func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_LocalStorage(t *testing.T) {
+	ctx := context.Background()
+	vmTemplateTags := []string{"foo", "bar"}
+	allowedNodes := []string{firstNode, "node2"}
+
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			LocalStorage: ptr.To(false),
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
+		},
+	}
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(false)
+	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
+	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
+	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
+	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
+	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
+	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(false)
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = allowedNodes
+	expectedOptions := proxmox.VMCloneRequest{
+		Node:        firstNode,
+		Name:        "test",
+		Description: "test vm",
+		Format:      "raw",
+		Full:        1,
+		Pool:        "pool",
+		SnapName:    "snap",
+		Storage:     "storage",
+		Target:      firstNode,
+	}
+
+	proxmoxClient.EXPECT().
+		GetReservableMemoryBytes(ctx, firstNode, uint64(100)).
+		Return(uint64(5000), nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		GetReservableMemoryBytes(ctx, "node2", uint64(100)).
+		Return(uint64(5000), nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(ctx, vmTemplateTags, allowedNodes, false).
+		Return(map[string]int32{firstNode: int32(123), "node2": int32(124)}, nil).
+		Once()
+
+	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
+	proxmoxClient.EXPECT().
+		CloneVM(ctx, 123, expectedOptions).
+		Return(response, nil).
+		Once()
+
+	requeue, err := ensureVirtualMachine(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.Equal(t, firstNode, *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
 }
@@ -192,6 +319,8 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNotFound(t *testing.T) {
 	ctx := context.Background()
 	vmTemplateTags := []string{"foo", "bar"}
+	localStorage := true
+	allowedNodes := []string{firstNode, "node2"}
 
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
@@ -201,15 +330,16 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 			},
 		},
 	}
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
 	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
 	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
-	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = allowedNodes
 
-	proxmoxClient.EXPECT().FindVMTemplatesByTags(context.Background(), vmTemplateTags).Return(map[string]int32{"": -1}, goproxmox.ErrTemplateNotFound).Once()
+	proxmoxClient.EXPECT().FindVMTemplatesByTags(context.Background(), vmTemplateTags, allowedNodes, localStorage).Return(map[string]int32{}, goproxmox.ErrTemplateNotFound).Once()
 
 	_, err := createVM(ctx, machineScope)
 
@@ -219,18 +349,47 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	require.Contains(t, "VM template not found", err.Error())
 }
 
+// localstorage false.
 func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1", "node2", "node3"}
+	vmTemplateTags := []string{"foo", "bar"}
+	localStorage := false
+	allowedNodes := []string{"node3"}
 
-	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
-		return "node3", nil
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
+		},
+	}
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = allowedNodes
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(localStorage)
+
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(context.Background(), vmTemplateTags, allowedNodes, localStorage).
+		Return(map[string]int32{firstNode: 123}, nil).
+		Once()
+
+	selectNextNode = func(context.Context, *scope.MachineScope, map[string]int32, []string) (string, int32, error) {
+		return "node3", 0, nil
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node3"}
-	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
-	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+	expectedOptions := proxmox.VMCloneRequest{
+		Node:   firstNode,
+		Name:   "test",
+		Target: "node3",
+	}
+
+	response := proxmox.VMCloneResponse{
+		NewID: 123,
+		Task:  newTask(),
+	}
+	proxmoxClient.EXPECT().
+		CloneVM(context.Background(), 123, expectedOptions).
+		Return(response, nil).
+		Once()
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -241,17 +400,78 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
 }
 
-func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1", "node2", "node3", "node4"}
-	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node1", "node2"}
+func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes_SharedStorage(t *testing.T) {
+	clusterAllowedNodes := []string{firstNode, "node2", "node3", "node4"}
+	proxmoxMachineAllowedNodes := []string{firstNode, "node2"}
 
-	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
-		return "node2", nil
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = clusterAllowedNodes
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = proxmoxMachineAllowedNodes
+	// we need to search for templates, as we cannot do node scheduling without them
+	vmTemplateTags := []string{"foo", "bar"}
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(false)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			LocalStorage: ptr.To(false),
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
+		},
+	}
+	templateMap := map[string]int32{firstNode: int32(122)}
+
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(context.Background(), vmTemplateTags, proxmoxMachineAllowedNodes, false).
+		Return(templateMap, nil).
+		Once()
+
+	selectNextNode = func(context.Context, *scope.MachineScope, map[string]int32, []string) (string, int32, error) {
+		return "node2", 123, nil
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node2"}
+	expectedOptions := proxmox.VMCloneRequest{Node: firstNode, Name: "test", Target: "node2"}
+	response := proxmox.VMCloneResponse{NewID: 122, Task: newTask()}
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 122, expectedOptions).Return(response, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.Contains(t, []string{"node2", firstNode}, *machineScope.ProxmoxMachine.Status.ProxmoxNode)
+	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition)
+}
+
+func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes_LocalStorage(t *testing.T) {
+	clusterAllowedNodes := []string{firstNode, "node2", "node3", "node4"}
+	proxmoxMachineAllowedNodes := []string{firstNode, "node2"}
+	vmTemplateTags := []string{"foo", "bar"}
+
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = clusterAllowedNodes
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = proxmoxMachineAllowedNodes
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(true)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			LocalStorage: ptr.To(true),
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
+		},
+	}
+
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(context.Background(), vmTemplateTags, proxmoxMachineAllowedNodes, true).
+		Return(map[string]int32{firstNode: int32(122), "node2": int32(123)}, nil).
+		Once()
+
+	selectNextNode = func(context.Context, *scope.MachineScope, map[string]int32, []string) (string, int32, error) {
+		return "node2", 123, nil
+	}
+	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
+
+	expectedOptions := proxmox.VMCloneRequest{Node: "node2", Name: "test", Target: "node2"}
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 
@@ -265,11 +485,24 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTest(t)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1"}
+	allowedNodes := []string{firstNode}
+	vmTemplateTags := []string{"foo"}
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = allowedNodes
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
+		},
+	}
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(context.Background(), vmTemplateTags, allowedNodes, false).
+		Return(map[string]int32{firstNode: int32(122)}, nil).
+		Once()
 
-	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
-		return "", fmt.Errorf("error: %w", scheduler.InsufficientMemoryError{})
+	selectNextNode = func(context.Context, *scope.MachineScope, map[string]int32, []string) (string, int32, error) {
+		return "", 0, fmt.Errorf("error: %w", scheduler.InsufficientMemoryError{})
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 
@@ -282,16 +515,37 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
+	vmTemplateTags := []string{"foo"}
+	allowedNodes := []string{firstNode}
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = allowedNodes
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: vmTemplateTags,
+			},
+		},
+	}
 	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1alpha1.VMIDRange{
 		Start: 1000,
 		End:   1002,
 	}
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1001, Name: "test"}
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(context.Background(), vmTemplateTags, allowedNodes, false).
+		Return(map[string]int32{firstNode: int32(123)}, nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		GetReservableMemoryBytes(context.Background(), firstNode, uint64(100)).
+		Return(uint64(5000), nil).
+		Once()
+
+	expectedOptions := proxmox.VMCloneRequest{Node: firstNode, NewID: 1001, Name: "test", Target: firstNode}
 	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(1001)}
 	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1000)).Return(false, nil)
 	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(true, nil)
+
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
@@ -342,6 +596,13 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 			VirtualMachineID: ptr.To(int64(1000)),
 		},
 	}
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			TemplateSelector: &infrav1alpha1.TemplateSelector{
+				MatchTags: []string{"foo"},
+			},
+		},
+	}
 	machine := clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "vm1000",
@@ -367,7 +628,22 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 	_, err = ensureVirtualMachine(context.Background(), machineScopeVMThousand)
 	require.NoError(t, err)
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1002, Name: "test"}
+	proxmoxClient.EXPECT().
+		GetAllNodeNames(context.Background()).
+		Return([]string{firstNode}, nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		FindVMTemplatesByTags(context.Background(), []string{"foo"}, []string{firstNode}, false).
+		Return(map[string]int32{firstNode: int32(123)}, nil).
+		Once()
+
+	proxmoxClient.EXPECT().
+		GetReservableMemoryBytes(context.Background(), firstNode, uint64(100)).
+		Return(uint64(5000), nil).
+		Once()
+
+	expectedOptions := proxmox.VMCloneRequest{Node: firstNode, NewID: 1002, Name: "test", Target: firstNode}
 	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(1002)}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(false, nil).Once()
@@ -382,10 +658,17 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 func TestEnsureVirtualMachine_FindVM(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.SetVirtualMachineID(123)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			SourceNode: firstNode,
+			TemplateID: ptr.To[int32](123),
+		},
+	}
+
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.SMBios1 = "uuid=56603c36-46b9-4608-90ae-c731c15eae64"
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(vm, nil).Once()
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -398,8 +681,13 @@ func TestEnsureVirtualMachine_FindVM(t *testing.T) {
 func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.SetVirtualMachineID(123)
-
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(nil, fmt.Errorf("not found")).Once()
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			SourceNode: firstNode,
+			TemplateID: ptr.To[int32](123),
+		},
+	}
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(nil, fmt.Errorf("not found")).Once()
 	proxmoxClient.EXPECT().FindVMResource(context.Background(), uint64(123)).Return(nil, fmt.Errorf("unavailalbe")).Once()
 
 	_, err := ensureVirtualMachine(context.Background(), machineScope)
@@ -622,8 +910,14 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			SourceNode: firstNode,
+			TemplateID: ptr.To[int32](123),
+		},
+	}
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, goproxmox.ErrCloudInitFailed).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
 
@@ -640,8 +934,14 @@ func TestReconcileVM_CloudInitRunning(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1alpha1.VirtualMachineCloneSpec{
+		TemplateSource: infrav1alpha1.TemplateSource{
+			SourceNode: firstNode,
+			TemplateID: ptr.To[int32](123),
+		},
+	}
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), firstNode, int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(true, nil).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
 

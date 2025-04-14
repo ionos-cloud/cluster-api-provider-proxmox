@@ -142,10 +142,18 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 	return nil, fmt.Errorf("unable to find VM with ID %d on any of the nodes", vmID)
 }
 
+func isNotInAllowedNodes(allowedNodes []string, node string) bool {
+	return !slices.Contains(allowedNodes, node)
+}
+
 // FindVMTemplatesByTags finds VM templates by tags across the whole cluster and ensures only one template per node.
-func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string) (map[string]int32, error) {
+func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool) (map[string]int32, error) {
 	templates := make(map[string]int32)
 
+	// if for some reason there is not tags, we fail early and return error
+	if len(templateTags) == 0 {
+		return nil, fmt.Errorf("%w: no template tags defined", ErrTemplateNotFound)
+	}
 	sortedTags := make([]string, len(templateTags))
 	for i, tag := range templateTags {
 		// Proxmox VM tags are always lowercase
@@ -172,7 +180,13 @@ func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []st
 		vmTags := strings.Split(vm.Tags, ";")
 		slices.Sort(vmTags)
 
+		// if localstorage template should be on all allowed nodes
+		if localStorage && isNotInAllowedNodes(allowedNodes, vm.Node) {
+			continue
+		}
+
 		if slices.Equal(vmTags, uniqueTags) {
+			// check if we have multiple templates per node
 			if _, exists := templates[vm.Node]; exists {
 				return nil, fmt.Errorf("%w: multiple VM templates found on node %q with tags %q", ErrMultipleTemplatesFound, vm.Node, strings.Join(templateTags, ";"))
 			}
@@ -180,8 +194,14 @@ func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []st
 		}
 	}
 
-	if len(templates) == 0 {
-		return nil, fmt.Errorf("%w: no VM templates found with tags %q", ErrTemplateNotFound, strings.Join(templateTags, ";"))
+	if (len(templates) != len(allowedNodes)) && localStorage {
+		return nil, fmt.Errorf("found %d templates on allowedNodes %q with tags %q", len(templates), strings.Join(allowedNodes, ","), strings.Join(templateTags, ";"))
+	}
+
+	if !localStorage {
+		if n := len(templates); n != 1 {
+			return nil, fmt.Errorf("%s: found %d VM templates with tags %q", "ErrTemplateNotFound", n, strings.Join(templateTags, ";"))
+		}
 	}
 
 	return templates, nil
@@ -228,6 +248,32 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 	}
 
 	return task, nil
+}
+
+// GetAllNodeNames get all nodes in cluster against which we are authenticated.
+func (c *APIClient) GetAllNodeNames(ctx context.Context) ([]string, error) {
+	cluster, err := c.Client.Cluster(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
+	}
+	err = cluster.Status(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
+	}
+	var nodes []string
+	for _, node := range cluster.Nodes {
+		nodes = appendIfMissing(nodes, node.Name)
+	}
+
+	return nodes, nil
+}
+
+// appendIfMissing make sure we add only uniq items to the slice.
+func appendIfMissing(slice []string, item string) []string {
+	if slices.Contains(slice, item) {
+		return slice
+	}
+	return append(slice, item)
 }
 
 // CheckID checks if the vmid is available on the cluster.

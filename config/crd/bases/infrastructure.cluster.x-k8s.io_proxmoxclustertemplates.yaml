@@ -97,12 +97,13 @@ spec:
                                 allowedNodes:
                                   description: |-
                                     AllowedNodes specifies all Proxmox nodes which will be considered
-                                    for operations. This implies that VMs can be cloned on different nodes from
-                                    the node which holds the VM template.
+                                    for operations. This implies that VMs can be cloned on different nodes.
 
                                     This field is optional and should only be set if you want to restrict
                                     the nodes where the VM can be cloned.
-                                    If not set, the ProxmoxCluster will be used to determine the nodes.
+
+                                    if set overrides ProxmoxCluster.spec.AllowedNodes
+                                    if not set node discovery will be used
                                   items:
                                     type: string
                                   type: array
@@ -172,6 +173,12 @@ spec:
                                     Full Create a full copy of all disks.
                                     This is always done when you clone a normal VM.
                                     Create a Full clone by default.
+                                  type: boolean
+                                localStorage:
+                                  default: false
+                                  description: |-
+                                    LocalStorage defines whether the VM template stored on local storage.
+                                    Combination of (TemplateID, SourceNode, Target) and Localstorage is mutually exclusive.
                                   type: boolean
                                 memoryMiB:
                                   description: |-
@@ -654,8 +661,7 @@ spec:
                                 sourceNode:
                                   description: |-
                                     SourceNode is the initially selected proxmox node.
-                                    This node will be used to locate the template VM, which will
-                                    be used for cloning operations.
+                                    SourceNode should be used together with TemplateID.
 
                                     Cloning will be performed according to the configuration.
                                     Setting the `Target` field will tell Proxmox to clone the
@@ -682,8 +688,10 @@ spec:
                                   type: array
                                   x-kubernetes-list-type: set
                                 target:
-                                  description: Target node. Only allowed if the original
-                                    VM is on shared storage.
+                                  description: |-
+                                    Target node. Only allowed if the template is on shared storage.
+                                    Requires templateID and sourceNode to be set.
+                                    LocalStorage must be set to false.
                                   type: string
                                 templateID:
                                   description: TemplateID the vm_template vmid used
