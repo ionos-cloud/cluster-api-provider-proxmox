@@ -50,6 +50,7 @@ func miBytes(in int32) uint64 {
 
 func TestSelectNode(t *testing.T) {
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
+	templateMap := map[string]int32{}
 	var locations []infrav1.NodeLocation
 	var requestMiB = int32(8)
 	availableMem := map[string]uint64{
@@ -75,7 +76,7 @@ func TestSelectNode(t *testing.T) {
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, templateMap)
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
@@ -95,7 +96,7 @@ func TestSelectNode(t *testing.T) {
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, templateMap)
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 
@@ -111,6 +112,7 @@ func TestSelectNode(t *testing.T) {
 func TestSelectNodeEvenlySpread(t *testing.T) {
 	// Verify that VMs are scheduled evenly across nodes when memory allows
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
+	templateMap := map[string]int32{}
 	var locations []infrav1.NodeLocation
 	var requestMiB = int32(8)
 	availableMem := map[string]uint64{
@@ -138,7 +140,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, templateMap)
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
@@ -158,7 +160,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, templateMap)
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 
@@ -176,6 +178,8 @@ func TestScheduleVM(t *testing.T) {
 	require.NotNil(t, ctrlClient)
 
 	ipamHelper := &ipam.Helper{}
+	templateMap := map[string]int32{}
+	allowedNodes := []string{"pve1", "pve2", "pve3"}
 
 	proxmoxCluster := infrav1.ProxmoxCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -245,7 +249,7 @@ func TestScheduleVM(t *testing.T) {
 	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve2", int64(100)).Return(miBytes(20), nil)
 	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", int64(100)).Return(miBytes(20), nil)
 
-	node, err := ScheduleVM(context.Background(), machineScope)
+	node, _, err := ScheduleVM(context.Background(), machineScope, templateMap, allowedNodes)
 	require.NoError(t, err)
 	require.Equal(t, "pve2", node)
 }

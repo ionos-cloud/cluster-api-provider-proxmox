@@ -153,15 +153,6 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 				"cluster.x-k8s.io/cluster-name": "test",
 			},
 		},
-		Spec: infrav1.ProxmoxMachineSpec{
-			Network: ptr.To(infrav1.NetworkSpec{}),
-			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
-				TemplateSource: infrav1.TemplateSource{
-					SourceNode: ptr.To("node1"),
-					TemplateID: ptr.To[int32](123),
-				},
-			},
-		},
 	}
 
 	scheme := runtime.NewScheme()
@@ -419,7 +410,7 @@ func isDefaultPool(machineScope *scope.MachineScope, pool corev1.TypedLocalObjec
 func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneRef {
 	cluster := machineScope.InfraCluster.ProxmoxCluster
 
-	zone := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.Zone, "default")
+	zone := ptr.Deref(ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).Zone, "default")
 	zoneIndex := slices.IndexFunc(cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
 		return zone == *z.Zone
 	})

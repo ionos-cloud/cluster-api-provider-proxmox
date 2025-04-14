@@ -389,9 +389,9 @@ func (_c *MockClient_FindVMResource_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
-// FindVMTemplatesByTags provides a mock function with given fields: ctx, templateTags
-func (_m *MockClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string) (map[string]int32, error) {
-	ret := _m.Called(ctx, templateTags)
+// FindVMTemplatesByTags provides a mock function with given fields: ctx, templateTags, allowedNodes, localStorage
+func (_m *MockClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool) (map[string]int32, error) {
+	ret := _m.Called(ctx, templateTags, allowedNodes, localStorage)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindVMTemplatesByTags")
@@ -399,19 +399,19 @@ func (_m *MockClient) FindVMTemplatesByTags(ctx context.Context, templateTags []
 
 	var r0 map[string]int32
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string) (map[string]int32, error)); ok {
-		return rf(ctx, templateTags)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, []string, bool) (map[string]int32, error)); ok {
+		return rf(ctx, templateTags, allowedNodes, localStorage)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []string) map[string]int32); ok {
-		r0 = rf(ctx, templateTags)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, []string, bool) map[string]int32); ok {
+		r0 = rf(ctx, templateTags, allowedNodes, localStorage)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]int32)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
-		r1 = rf(ctx, templateTags)
+	if rf, ok := ret.Get(1).(func(context.Context, []string, []string, bool) error); ok {
+		r1 = rf(ctx, templateTags, allowedNodes, localStorage)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -427,13 +427,15 @@ type MockClient_FindVMTemplatesByTags_Call struct {
 // FindVMTemplatesByTags is a helper method to define mock.On call
 //   - ctx context.Context
 //   - templateTags []string
-func (_e *MockClient_Expecter) FindVMTemplatesByTags(ctx interface{}, templateTags interface{}) *MockClient_FindVMTemplatesByTags_Call {
-	return &MockClient_FindVMTemplatesByTags_Call{Call: _e.mock.On("FindVMTemplatesByTags", ctx, templateTags)}
+//   - allowedNodes []string
+//   - localStorage bool
+func (_e *MockClient_Expecter) FindVMTemplatesByTags(ctx interface{}, templateTags interface{}, allowedNodes interface{}, localStorage interface{}) *MockClient_FindVMTemplatesByTags_Call {
+	return &MockClient_FindVMTemplatesByTags_Call{Call: _e.mock.On("FindVMTemplatesByTags", ctx, templateTags, allowedNodes, localStorage)}
 }
 
-func (_c *MockClient_FindVMTemplatesByTags_Call) Run(run func(ctx context.Context, templateTags []string)) *MockClient_FindVMTemplatesByTags_Call {
+func (_c *MockClient_FindVMTemplatesByTags_Call) Run(run func(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool)) *MockClient_FindVMTemplatesByTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([]string))
+		run(args[0].(context.Context), args[1].([]string), args[2].([]string), args[3].(bool))
 	})
 	return _c
 }
@@ -443,7 +445,65 @@ func (_c *MockClient_FindVMTemplatesByTags_Call) Return(_a0 map[string]int32, _a
 	return _c
 }
 
-func (_c *MockClient_FindVMTemplatesByTags_Call) RunAndReturn(run func(context.Context, []string) (map[string]int32, error)) *MockClient_FindVMTemplatesByTags_Call {
+func (_c *MockClient_FindVMTemplatesByTags_Call) RunAndReturn(run func(context.Context, []string, []string, bool) (map[string]int32, error)) *MockClient_FindVMTemplatesByTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllNodeNames provides a mock function with given fields: ctx
+func (_m *MockClient) GetAllNodeNames(ctx context.Context) ([]string, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllNodeNames")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_GetAllNodeNames_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllNodeNames'
+type MockClient_GetAllNodeNames_Call struct {
+	*mock.Call
+}
+
+// GetAllNodeNames is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockClient_Expecter) GetAllNodeNames(ctx interface{}) *MockClient_GetAllNodeNames_Call {
+	return &MockClient_GetAllNodeNames_Call{Call: _e.mock.On("GetAllNodeNames", ctx)}
+}
+
+func (_c *MockClient_GetAllNodeNames_Call) Run(run func(ctx context.Context)) *MockClient_GetAllNodeNames_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockClient_GetAllNodeNames_Call) Return(_a0 []string, _a1 error) *MockClient_GetAllNodeNames_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_GetAllNodeNames_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockClient_GetAllNodeNames_Call {
 	_c.Call.Return(run)
 	return _c
 }

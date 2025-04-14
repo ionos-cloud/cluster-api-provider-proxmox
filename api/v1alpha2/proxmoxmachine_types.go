@@ -122,12 +122,12 @@ type ProxmoxMachineSpec struct {
 	MetadataSettings *MetadataSettings `json:"metadataSettings,omitempty,omitzero"`
 
 	// allowedNodes specifies all Proxmox nodes which will be considered
-	// for operations. This implies that VMs can be cloned on different nodes from
-	// the node which holds the VM template.
+	// for operations. This implies that VMs can be cloned on different nodes.
 	//
 	// This field is optional and should only be set if you want to restrict
 	// the nodes where the VM can be cloned.
-	// If not set, the ProxmoxCluster will be used to determine the nodes.
+	// If set, this overrides ProxmoxCluster.spec.AllowedNodes, otherwise
+	// node discovery will be used.
 	// +optional
 	// +listType=set
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
@@ -187,8 +187,7 @@ const (
 // TemplateSource defines the source of the template VM.
 type TemplateSource struct {
 	// sourceNode is the initially selected proxmox node.
-	// This node will be used to locate the template VM, which will
-	// be used for cloning operations.
+	// SourceNode should be used together with TemplateID.
 	//
 	// Cloning will be performed according to the configuration.
 	// Setting the `Target` field will tell Proxmox to clone the
@@ -212,6 +211,12 @@ type TemplateSource struct {
 	// templateSelector defines MatchTags for looking up VM templates.
 	// +optional
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty,omitzero"`
+
+	// LocalStorage defines whether the VM template stored on local storage.
+	// Combination of (TemplateID, SourceNode, Target) and Localstorage is mutually exclusive.
+	// +kubebuilder:default=false
+	// +optional
+	LocalStorage *bool `json:"localStorage,omitempty"`
 }
 
 // VirtualMachineCloneSpec is information used to clone a virtual machine.
@@ -653,12 +658,20 @@ func (r *ProxmoxMachine) GetVirtualMachineID() int64 {
 	return -1
 }
 
-// GetTemplateID get the Proxmox template "vmid" used to provision this machine.
-func (r *ProxmoxMachine) GetTemplateID() int32 {
-	if r.Spec.TemplateID != nil {
-		return *r.Spec.TemplateID
+// GetTemplateMap get the Proxmox template "sourceNode:vmid" used to provision this machine.
+func (r *ProxmoxMachine) GetTemplateMap() map[string]int32 {
+	if r.Spec.TemplateID != nil && r.Spec.SourceNode != nil {
+		return map[string]int32{*r.Spec.SourceNode: *r.Spec.TemplateID}
 	}
-	return -1
+	return nil
+}
+
+// GetLocalStorage get the Proxmox local storage used to provision this machine.
+func (r *ProxmoxMachine) GetLocalStorage() bool {
+	if r.Spec.LocalStorage != nil {
+		return *r.Spec.LocalStorage
+	}
+	return false
 }
 
 // GetTemplateSelectorTags get the tags, the desired vm template should have.
