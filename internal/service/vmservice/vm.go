@@ -346,7 +346,8 @@ func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress,
 	return addresses, nil
 }
 
-func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) {
+// TODO: split function to avoid gocyclo.
+func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) { //nolint: gocyclo
 	vmid, err := getVMID(ctx, scope)
 	if err != nil {
 		if errors.Is(err, ErrNoVMIDInRangeFree) {
@@ -392,37 +393,92 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		scope.InfraCluster.ProxmoxCluster.Status.NodeLocations = new(infrav1alpha1.NodeLocations)
 	}
 
-	// if no target was specified but we have a set of nodes defined in the spec, we want to evenly distribute
-	// the nodes across the cluster.
-	if scope.ProxmoxMachine.Spec.Target == nil &&
-		(len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 || len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0) {
-		// select next node as a target
-		var err error
-		options.Target, err = selectNextNode(ctx, scope)
+	// check if localstorage is set
+	localStorage := scope.ProxmoxMachine.GetLocalStorage()
+	// we fail if localstorage is set and any of target/templateid/sourcenode is set as we cannot use those in case of localstorage
+	if localStorage &&
+		(scope.ProxmoxMachine.Spec.Target != nil || scope.ProxmoxMachine.Spec.TemplateID != nil || scope.ProxmoxMachine.Spec.SourceNode != "") {
+		err := goproxmox.ErrWrongLocalStorageConfig
+		scope.SetFailureMessage(err)
+		conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
+		return proxmox.VMCloneResponse{}, err
+	}
+
+	allowedNodes := scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
+	// if ProxmoxMachine defines allowedNodes use them instead
+	if len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
+		allowedNodes = scope.ProxmoxMachine.Spec.AllowedNodes
+	}
+
+	if len(allowedNodes) == 0 && scope.ProxmoxMachine.Spec.Target != nil {
+		allowedNodes = append(allowedNodes, *scope.ProxmoxMachine.Spec.Target)
+	}
+
+	// if we do not have a target node or allowedNodes is empty, we need to get the nodes from the cluster
+	if len(allowedNodes) == 0 && scope.ProxmoxMachine.Spec.Target == nil {
+		// We have no Node list to try to schedule on. Let's try to use all nodes in cluster.
+		allowedNodes, err = scope.InfraCluster.ProxmoxClient.GetAllNodeNames(ctx)
 		if err != nil {
-			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
-				scope.SetFailureMessage(err)
-				scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
-			}
+			scope.SetFailureMessage(err)
+			scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
 			return proxmox.VMCloneResponse{}, err
 		}
 	}
+	// we first try to find templates, so we can use those during scheduling
+	var templateID int32
 
-	templateID := scope.ProxmoxMachine.GetTemplateID()
-	if templateID == -1 {
-		var err error
+	// return template if it's .spec.TemplateID and .spec.SourceNode
+	templateMap := scope.ProxmoxMachine.GetTemplateMap()
+
+	// and only if templateMap is nil (which means TemplateSelector should be used)
+	if templateMap == nil {
+		// get templateSelectorTags from the spec
 		templateSelectorTags := scope.ProxmoxMachine.GetTemplateSelectorTags()
-		options.Node, templateID, err = scope.InfraCluster.ProxmoxClient.FindVMTemplateByTags(ctx, templateSelectorTags)
 
+		// find templates based on tags and allowed nodes
+		templateMap, err = scope.InfraCluster.ProxmoxClient.FindVMTemplatesByTags(ctx, templateSelectorTags, allowedNodes, localStorage)
+
+		// fail if templates are not found or multiple templates found if localstorage is false
 		if err != nil {
+			scope.SetFailureMessage(err)
 			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
-				scope.SetFailureMessage(err)
 				scope.SetFailureReason(capierrors.MachineStatusError("VMTemplateNotFound"))
-				conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
+			} else if errors.Is(err, goproxmox.ErrMultipleTemplatesFound) {
+				scope.SetFailureReason(capierrors.MachineStatusError("MultipleTemplatesFound"))
 			}
+			conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
 			return proxmox.VMCloneResponse{}, err
 		}
 	}
+
+	// when we got templateMap and allowedNodes we do node scheduling
+	options.Target, templateID, err = selectNextNode(ctx, scope, templateMap, allowedNodes)
+	if err != nil {
+		if errors.As(err, &scheduler.InsufficientMemoryError{}) {
+			scope.SetFailureMessage(err)
+			scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
+		}
+		return proxmox.VMCloneResponse{}, err
+	}
+
+	// if localStorage use options.Target as options.Node
+	if localStorage {
+		options.Node = options.Target
+	}
+	// if there is no options.Node, and templateMap has only one entry,
+	// we set the options.Node and templateID to the only entry in templateMap
+	if options.Node == "" {
+		for i, k := range templateMap {
+			options.Node = i
+			templateID = k
+			break
+		}
+	}
+	if templateID == 0 {
+		templateID = templateMap[options.Node]
+	}
+
+	// at last clone machine
 	res, err := scope.InfraCluster.ProxmoxClient.CloneVM(ctx, int(templateID), options)
 	if err != nil {
 		return res, err
