@@ -697,6 +697,11 @@ spec:
                         - message: end should be greater than or equal to start
                           rule: self.end >= self.start
                     type: object
+                    x-kubernetes-validations:
+                    - message: Must set full=true when specifying format
+                      rule: self.full || !has(self.format)
+                    - message: Must set full=true when specifying storage
+                      rule: self.full || !has(self.storage)
                 required:
                 - spec
                 type: object
