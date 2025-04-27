@@ -159,7 +159,6 @@ spec:
                                         rule: self == oldSelf
                                   type: object
                                 format:
-                                  default: raw
                                   description: Format for file storage. Only valid
                                     for full clone.
                                   enum:

@@ -215,7 +215,6 @@ type VirtualMachineCloneSpec struct {
 
 	// Format for file storage. Only valid for full clone.
 	// +kubebuilder:validation:Enum=raw;qcow2;vmdk
-	// +kubebuilder:default=raw
 	// +optional
 	Format *TargetFileStorageFormat `json:"format,omitempty"`
 
