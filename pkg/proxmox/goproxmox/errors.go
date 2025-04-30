@@ -11,7 +11,4 @@ var (
 
 	// ErrMultipleTemplatesFound is returned when multiple VM templates are found.
 	ErrMultipleTemplatesFound = errors.New("Multiple templates found")
-
-	// ErrNoNode is returned when no target or alowedNodes is specified.
-	ErrNoNode = errors.New("No target or allowedNodes specified")
 )
