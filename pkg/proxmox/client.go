@@ -39,8 +39,6 @@ type Client interface {
 
 	DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error)
 
-	GetAllNodeNames(ctx context.Context) ([]string, error)
-
 	GetTask(ctx context.Context, upID string) (*proxmox.Task, error)
 
 	GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error)

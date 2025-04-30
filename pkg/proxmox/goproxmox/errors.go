@@ -12,6 +12,6 @@ var (
 	// ErrMultipleTemplatesFound is returned when multiple VM templates are found.
 	ErrMultipleTemplatesFound = errors.New("Multiple templates found")
 
-	// ErrWrongLocalStorageConfig Wrong combination of local storage configuration.
-	ErrWrongLocalStorageConfig = errors.New("Localstorage does not allow usage of target/templateid/sourcenode")
+	// ErrNoNode is returned when no target or alowedNodes is specified.
+	ErrNoNode = errors.New("No target or allowedNodes specified")
 )
