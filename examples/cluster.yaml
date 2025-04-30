@@ -3,7 +3,7 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   labels:
-    cluster.x-k8s.io/proxmox-cluster-cni: 
+    cluster.x-k8s.io/proxmox-cluster-cni:
   name: capmox-cluster
 spec:
   topology:
