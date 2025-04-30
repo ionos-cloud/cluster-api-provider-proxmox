@@ -105,14 +105,13 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 	}
 	apiServer := env.ControlPlane.GetAPIServer()
 	apiServer.Configure().Set("disable-admission-plugins", "NamespaceLifecycle")
-
 	if setupWebhook {
 		env.WebhookInstallOptions = envtest.WebhookInstallOptions{
 			Paths: []string{filepath.Join(root, "..", "..", "config", "webhook")},
 		}
 	}
-
 	if _, err := env.Start(); err != nil {
+		fmt.Println(err)
 		err = kerrors.NewAggregate([]error{err, env.Stop()})
 		panic(err)
 	}

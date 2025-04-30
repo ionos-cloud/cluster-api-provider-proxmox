@@ -120,8 +120,8 @@ type ProxmoxMachineSpec struct {
 	// This field is optional and should only be set if you want to restrict
 	// the nodes where the VM can be cloned.
 	//
-	// if set overrides ProxmoxCluster.spec.AllowedNodes
-	// if not set node discovery will be used
+	// If not set, the ProxmoxCluster will be used to determine the nodes.
+	//
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
@@ -203,7 +203,7 @@ type TemplateSource struct {
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty"`
 
 	// LocalStorage defines whether the VM template stored on local storage.
-	// Combination of (TemplateID, SourceNode, Target) and Localstorage is mutually exclusive.
+	// Combination of (TemplateID, SourceNode) and LocalStorage is mutually exclusive.
 	// +kubebuilder:default=false
 	// +optional
 	LocalStorage *bool `json:"localStorage,omitempty"`
@@ -242,12 +242,6 @@ type VirtualMachineCloneSpec struct {
 	// Storage for full clone.
 	// +optional
 	Storage *string `json:"storage,omitempty"`
-
-	// Target node. Only allowed if the template is on shared storage.
-	// Requires templateID and sourceNode to be set.
-	// LocalStorage must be set to false.
-	// +optional
-	Target *string `json:"target,omitempty"`
 }
 
 // TemplateSelector defines MatchTags for looking up VM templates.

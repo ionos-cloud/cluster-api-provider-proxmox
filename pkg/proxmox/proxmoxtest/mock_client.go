@@ -450,64 +450,6 @@ func (_c *MockClient_FindVMTemplatesByTags_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// GetAllNodeNames provides a mock function with given fields: ctx
-func (_m *MockClient) GetAllNodeNames(ctx context.Context) ([]string, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAllNodeNames")
-	}
-
-	var r0 []string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = rf(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockClient_GetAllNodeNames_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllNodeNames'
-type MockClient_GetAllNodeNames_Call struct {
-	*mock.Call
-}
-
-// GetAllNodeNames is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *MockClient_Expecter) GetAllNodeNames(ctx interface{}) *MockClient_GetAllNodeNames_Call {
-	return &MockClient_GetAllNodeNames_Call{Call: _e.mock.On("GetAllNodeNames", ctx)}
-}
-
-func (_c *MockClient_GetAllNodeNames_Call) Run(run func(ctx context.Context)) *MockClient_GetAllNodeNames_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
-	})
-	return _c
-}
-
-func (_c *MockClient_GetAllNodeNames_Call) Return(_a0 []string, _a1 error) *MockClient_GetAllNodeNames_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockClient_GetAllNodeNames_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockClient_GetAllNodeNames_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetReservableMemoryBytes provides a mock function with given fields: ctx, nodeName, nodeMemoryAdjustment
 func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error) {
 	ret := _m.Called(ctx, nodeName, nodeMemoryAdjustment)
