@@ -80,8 +80,7 @@ spec:
                             This field is optional and should only be set if you want to restrict
                             the nodes where the VM can be cloned.
 
-                            if set overrides ProxmoxCluster.spec.AllowedNodes
-                            if not set node discovery will be used
+                            If not set, the ProxmoxCluster will be used to determine the nodes.
                           items:
                             type: string
                           type: array
@@ -154,7 +153,7 @@ spec:
                           default: false
                           description: |-
                             LocalStorage defines whether the VM template stored on local storage.
-                            Combination of (TemplateID, SourceNode, Target) and Localstorage is mutually exclusive.
+                            Combination of (TemplateID, SourceNode) and LocalStorage is mutually exclusive.
                           type: boolean
                         memoryMiB:
                           description: |-
@@ -646,12 +645,6 @@ spec:
                           minItems: 1
                           type: array
                           x-kubernetes-list-type: set
-                        target:
-                          description: |-
-                            Target node. Only allowed if the template is on shared storage.
-                            Requires templateID and sourceNode to be set.
-                            LocalStorage must be set to false.
-                          type: string
                         templateID:
                           description: TemplateID the vm_template vmid used for cloning
                             a new VM.
