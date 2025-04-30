@@ -357,7 +357,6 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	options := proxmox.VMCloneRequest{
-		Node:  scope.ProxmoxMachine.GetNode(),
 		NewID: int(vmid),
 		Name:  scope.ProxmoxMachine.GetName(),
 	}
@@ -434,19 +433,13 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	// if localStorage use same node for Template as Target
 	if localStorage {
 		options.Node = options.Target
-	}
-
-	// if there is no options.Node, and templateMap has only one entry,
-	// we set the options.Node and templateID to the only entry in templateMap
-	if options.Node == "" {
+	} else {
+		// we use first and only template to set options.Node and templateID
 		for i, k := range templateMap {
 			options.Node = i
 			templateID = k
 			break
 		}
-	}
-	if templateID == 0 {
-		templateID = templateMap[options.Node]
 	}
 
 	// at last clone machine
