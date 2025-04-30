@@ -59,6 +59,12 @@ func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", obj))
 	}
 
+	err = validateLocalStorage(machine)
+	if err != nil {
+		warnings = append(warnings, "localStorage is mutually exclusive with templateID/sourceNode")
+		return warnings, apierrors.NewBadRequest("localStorage is mutually exclusive with templateID/sourceNode")
+	}
+
 	err = validateNetworks(machine)
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot create proxmox machine %s", machine.GetName()))
@@ -84,6 +90,12 @@ func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, old, newObj runtime.O
 		return warnings, apierrors.NewBadRequest("tags are immutable")
 	}
 
+	err = validateLocalStorage(newMachine)
+	if err != nil {
+		warnings = append(warnings, "localStorage is mutually exclusive with templateID/sourceNode")
+		return warnings, apierrors.NewBadRequest("localStorage is mutually exclusive with templateID/sourceNode")
+	}
+
 	err = validateNetworks(newMachine)
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox machine %s", newMachine.GetName()))
@@ -106,6 +118,24 @@ func b2i(b *bool) int {
 		return 1
 	}
 	return 0
+}
+
+func validateLocalStorage(machine *infrav1.ProxmoxMachine) error {
+	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
+
+	// if localStorage is set to true, then templateid/sourcenode must be nil
+	if machine.Spec.LocalStorage != nil && *machine.Spec.LocalStorage {
+		if machine.Spec.TemplateID != nil || machine.Spec.SourceNode != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "localStorage"), machine.Spec.LocalStorage, "localStorage is mutually exclusive with templateID/sourceNode"),
+				})
+		}
+	}
+	return nil
 }
 
 func validateNetworks(machine *infrav1.ProxmoxMachine) error {

@@ -44,6 +44,12 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.networkDevices[0].vlan: Invalid value")))
 		})
 
+		It("should disallow use templateID/sourceNode if localStorage", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.LocalStorage = ptr.To(true)
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("localStorage is mutually exclusive with templateID/sourceNode")))
+		})
+
 		It("should disallow invalid network mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
 			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(1000))

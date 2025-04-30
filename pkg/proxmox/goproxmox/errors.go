@@ -28,7 +28,4 @@ var (
 	// ErrMultipleTemplatesFound is returned when multiple templates are
 	// found by a TemplateSelector.
 	ErrMultipleTemplatesFound = errors.New("Multiple templates found")
-
-	// ErrWrongLocalStorageConfig Wrong combination of local storage configuration.
-	ErrWrongLocalStorageConfig = errors.New("Localstorage does not allow usage of target/templateid/sourcenode")
 )

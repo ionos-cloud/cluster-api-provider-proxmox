@@ -28,19 +28,15 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
-const (
-	firstNode = "node1"
-)
-
 func TestFindVM_FindByNodeAndID(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 	// this is used in LocateProxmoxNode function cannot be empty.
-	machineScope.ProxmoxMachine.Spec.SourceNode = ptr.To(firstNode)
+	machineScope.ProxmoxMachine.Spec.SourceNode = ptr.To("node1")
 
-	proxmoxClient.EXPECT().GetVM(ctx, firstNode, int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	_, err := FindVM(ctx, machineScope)
 	require.NoError(t, err)
@@ -106,7 +102,7 @@ func TestUpdateVMLocation_MissingName(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
-	proxmoxClient.EXPECT().GetVM(ctx, firstNode, int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 }
@@ -122,7 +118,7 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
-	proxmoxClient.EXPECT().GetVM(ctx, firstNode, int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
@@ -142,7 +138,7 @@ func TestUpdateVMLocation_UpdateNode(t *testing.T) {
 	}, false)
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
-	proxmoxClient.EXPECT().GetVM(ctx, firstNode, int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.NoError(t, updateVMLocation(ctx, machineScope))
 	require.Equal(t, vmr.Node, *machineScope.ProxmoxMachine.Status.ProxmoxNode)
@@ -171,7 +167,7 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.TaskRef = nil
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
-	proxmoxClient.EXPECT().GetVM(ctx, firstNode, int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
