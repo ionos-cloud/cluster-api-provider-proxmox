@@ -142,7 +142,7 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 	return nil, fmt.Errorf("unable to find VM with ID %d on any of the nodes", vmID)
 }
 
-// FindVMTemplatesByTags finds VM templates by tags across the whole cluster and ensures only one template per node.
+// FindVMTemplatesByTags finds VM templates by tags across the whole cluster.
 func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool) (map[string]int32, error) {
 	templates := make(map[string]int32)
 
@@ -176,7 +176,7 @@ func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []st
 		vmTags := strings.Split(vm.Tags, ";")
 		slices.Sort(vmTags)
 
-		// if localstorage template should be on all allowed nodes
+		// if localstorage - template should be on all allowed nodes
 		if localStorage && !slices.Contains(allowedNodes, vm.Node) {
 			continue
 		}

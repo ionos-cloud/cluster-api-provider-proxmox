@@ -465,6 +465,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	return res, scope.InfraCluster.PatchObject()
 }
 
+// use ProxmoxCluster allowedNodes if ProxmoxMachine does not define them
 func setAllowedNodes(scope *scope.MachineScope) []string {
 
 	// defaults to ProxmoxCluster allowedNodes
