@@ -398,7 +398,13 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	templateMap := scope.ProxmoxMachine.GetTemplateMap()
 
 	// set allowedNodes (we need to use this in scheduler and template search)
-	allowedNodes := setAllowedNodes(scope)
+	// defaults to ProxmoxCluster allowedNodes
+	allowedNodes := scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
+
+	// if ProxmoxMachine defines allowedNodes use them instead
+	if len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
+		allowedNodes = scope.ProxmoxMachine.Spec.AllowedNodes
+	}
 
 	// TemplateSelector should be used
 	if templateMap == nil {
@@ -463,20 +469,6 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}, util.IsControlPlaneMachine(scope.Machine))
 
 	return res, scope.InfraCluster.PatchObject()
-}
-
-// use ProxmoxCluster allowedNodes if ProxmoxMachine does not define them
-func setAllowedNodes(scope *scope.MachineScope) []string {
-
-	// defaults to ProxmoxCluster allowedNodes
-	allowedNodes := scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
-
-	// if ProxmoxMachine defines allowedNodes use them instead
-	if len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
-		allowedNodes = scope.ProxmoxMachine.Spec.AllowedNodes
-	}
-
-	return allowedNodes
 }
 
 func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
