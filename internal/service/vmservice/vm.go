@@ -392,15 +392,14 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	// get localStorage
 	localStorage := scope.ProxmoxMachine.GetLocalStorage()
 
-	// set allowedNodes (we need to use this in scheduler)
-	// if Target is set ProxmoxNode still can be out of memory)
-	allowedNodes := setAllowedNodes(scope)
-
 	// we first try to find templates, so we can use those during scheduling
 	var templateID int32
 
 	// return templateMap if TemplateID and SourceNode used
 	templateMap := scope.ProxmoxMachine.GetTemplateMap()
+
+	// set allowedNodes (we need to use this in scheduler and template search)
+	allowedNodes := setAllowedNodes(scope)
 
 	// TemplateSelector should be used
 	if templateMap == nil {
