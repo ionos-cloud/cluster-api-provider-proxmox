@@ -62,9 +62,27 @@ var _ = Describe("ProxmoxMachine Test", func() {
 	Context("VirtualMachineCloneSpec", func() {
 		It("Should not allow specifying format if full clone is disabled", func() {
 			dm := defaultMachine()
+			dm.Spec.Format = ptr.To(TargetStorageFormatRaw)
 			dm.Spec.Full = ptr.To(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying format")))
+		})
+
+		It("Should not allow specifying storage if full clone is disabled", func() {
+			dm := defaultMachine()
+			dm.Spec.Storage = ptr.To("local")
+			dm.Spec.Full = ptr.To(false)
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying storage")))
+		})
+
+		It("Should allow disabling full clone in absence of format and storage", func() {
+			dm := defaultMachine()
+			dm.Spec.Format = nil
+			dm.Spec.Storage = nil
+			dm.Spec.Full = ptr.To(false)
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		})
 
 		It("Should disallow absence of SourceNode, TemplateID and TemplateSelector", func() {

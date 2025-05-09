@@ -127,7 +127,6 @@ spec:
                       rule: self == oldSelf
                 type: object
               format:
-                default: raw
                 description: Format for file storage. Only valid for full clone.
                 enum:
                 - raw
@@ -664,7 +663,9 @@ spec:
               rule: '[has(self.templateID), has(self.templateSelector)].exists_one(c,
                 c)'
             - message: Must set full=true when specifying format
-              rule: self.full && self.format != ''
+              rule: self.full || !has(self.format)
+            - message: Must set full=true when specifying storage
+              rule: self.full || !has(self.storage)
           status:
             description: ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
             properties:

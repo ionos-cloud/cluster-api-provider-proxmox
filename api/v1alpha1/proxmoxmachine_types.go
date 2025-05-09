@@ -204,6 +204,8 @@ type TemplateSource struct {
 }
 
 // VirtualMachineCloneSpec is information used to clone a virtual machine.
+// +kubebuilder:validation:XValidation:rule="self.full || !has(self.format)",message="Must set full=true when specifying format"
+// +kubebuilder:validation:XValidation:rule="self.full || !has(self.storage)",message="Must set full=true when specifying storage"
 type VirtualMachineCloneSpec struct {
 	TemplateSource `json:",inline"`
 
@@ -213,7 +215,6 @@ type VirtualMachineCloneSpec struct {
 
 	// Format for file storage. Only valid for full clone.
 	// +kubebuilder:validation:Enum=raw;qcow2;vmdk
-	// +kubebuilder:default=raw
 	// +optional
 	Format *TargetFileStorageFormat `json:"format,omitempty"`
 
@@ -578,7 +579,6 @@ type ProxmoxMachine struct {
 
 	// +kubebuilder:validation:XValidation:rule="[has(self.sourceNode), has(self.templateSelector)].exists_one(c, c)",message="must define either SourceNode with TemplateID, OR TemplateSelector"
 	// +kubebuilder:validation:XValidation:rule="[has(self.templateID), has(self.templateSelector)].exists_one(c, c)",message="must define either SourceNode with TemplateID, OR TemplateSelector."
-	// +kubebuilder:validation:XValidation:rule="self.full && self.format != ''",message="Must set full=true when specifying format"
 	Spec   ProxmoxMachineSpec   `json:"spec,omitempty"`
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
 }
