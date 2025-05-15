@@ -91,6 +91,12 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// Emit deprecation warning if .spec.Target is set
+	if proxmoxMachine.Spec.Target != nil {
+		logger.Info("DEPRECATION NOTICE: .spec.Target is deprecated and will be removed in a future release. Use .spec.AllowedNodes instead.",
+			"ProxmoxMachine", req.NamespacedName)
+	}
+
 	// Fetch the Machine.
 	machine, err := util.GetOwnerMachine(ctx, r.Client, proxmoxMachine.ObjectMeta)
 	if err != nil {
