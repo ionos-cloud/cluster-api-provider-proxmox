@@ -187,7 +187,7 @@ For example, you can set the `TEMPLATE_TAGS="tag1,tag2"` environment variable. Y
 ### localStorage
 
 `false` (default)
-* Shared storage is assumed.
+* Shared storage is assumed for template.
 * The template must be accessible from any node.
 * Only one template with the matching tags should exist in the entire cluster.
 * If multiple templates found, the operation fails.

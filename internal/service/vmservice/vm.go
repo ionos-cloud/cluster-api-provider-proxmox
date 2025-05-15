@@ -405,6 +405,11 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	if len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
 		allowedNodes = scope.ProxmoxMachine.Spec.AllowedNodes
 	}
+	// set .spec.Target as allowedNodes (we use this in scheduler)
+	if scope.ProxmoxMachine.Spec.Target != nil &&
+		(len(scope.ProxmoxMachine.Spec.AllowedNodes) == 0 || len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) == 0) {
+		allowedNodes = []string{*scope.ProxmoxMachine.Spec.Target}
+	}
 
 	// TemplateSelector should be used
 	if templateMap == nil {

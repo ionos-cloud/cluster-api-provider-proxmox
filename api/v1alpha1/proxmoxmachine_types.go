@@ -242,6 +242,11 @@ type VirtualMachineCloneSpec struct {
 	// Storage for full clone.
 	// +optional
 	Storage *string `json:"storage,omitempty"`
+
+	// Target node. Only allowed if the original VM is on shared storage.
+	// +optional
+	// Deprecated: Use `AllowedNodes`` instead.
+	Target *string `json:"target,omitempty"`
 }
 
 // TemplateSelector defines MatchTags for looking up VM templates.
