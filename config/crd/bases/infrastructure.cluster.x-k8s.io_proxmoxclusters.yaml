@@ -643,6 +643,8 @@ spec:
                             Target node. Only allowed if the template is on shared storage.
                             Requires templateID and sourceNode to be set.
                             LocalStorage must be set to false.
+
+                            Deprecated: Use `AllowedNodes` instead.
                           type: string
                         templateID:
                           description: TemplateID the vm_template vmid used for cloning

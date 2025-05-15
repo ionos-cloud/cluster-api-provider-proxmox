@@ -254,6 +254,9 @@ type VirtualMachineCloneSpec struct {
 	Storage *string `json:"storage,omitempty"`
 
 	// target node. Only allowed if the original VM is on shared storage.
+	//
+	// Deprecated: Use `AllowedNodes` instead.
+	//
 	// +optional
 	Target *string `json:"target,omitempty"`
 }

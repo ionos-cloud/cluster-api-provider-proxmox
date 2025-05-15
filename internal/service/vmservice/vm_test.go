@@ -459,10 +459,9 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes_LocalStora
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	allowedNodes := []string{"node1"}
 	vmTemplateTags := []string{"foo"}
-	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = allowedNodes
 	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1.VirtualMachineCloneSpec{
 		TemplateSource: infrav1.TemplateSource{
@@ -487,7 +486,6 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	require.True(t, machineScope.HasFailed())
-
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
@@ -508,7 +506,6 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
 		},
 	}
 
-	//expectedOptions := proxmox.VMCloneRequest{Node: firstNode, NewID: 1001, Name: "test", Target: firstNode}
 	proxmoxClient.EXPECT().
 		FindVMTemplatesByTags(context.Background(), vmTemplateTags, allowedNodes, false).
 		Return(map[string]int32{"node1": int32(123)}, nil).

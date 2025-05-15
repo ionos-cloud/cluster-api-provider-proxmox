@@ -247,6 +247,9 @@ type VirtualMachineCloneSpec struct {
 	// Target node. Only allowed if the template is on shared storage.
 	// Requires templateID and sourceNode to be set.
 	// LocalStorage must be set to false.
+	//
+	// Deprecated: Use `AllowedNodes` instead.
+	//
 	// +optional
 	Target *string `json:"target,omitempty"`
 }
