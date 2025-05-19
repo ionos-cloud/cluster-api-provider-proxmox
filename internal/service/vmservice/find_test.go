@@ -34,7 +34,7 @@ func TestFindVM_FindByNodeAndID(t *testing.T) {
 	vm := newRunningVM()
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 	// this is used in LocateProxmoxNode function cannot be empty.
-	machineScope.ProxmoxMachine.Spec.SourceNode = "node1"
+	machineScope.ProxmoxMachine.Spec.SourceNode = "node1" //nolint:goconst
 
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
