@@ -218,7 +218,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// when a Cluster is marked failed cause the Proxmox client is nil.
 	// the cluster doesn't reconcile the failed state if we restart the controller.
 	// so we need to check if the ProxmoxClient is not nil and the ProxmoxCluster has a failure reason.
-	err := r.reconcileFailedClusterState(clusterScope)
+	err := r.reconcileFailedClusterState(ctx, clusterScope)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -248,28 +248,28 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	return ctrl.Result{}, nil
 }
 
-func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(clusterScope *scope.ClusterScope) error {
+//nolint:staticcheck
+func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Context, clusterScope *scope.ClusterScope) error {
 	if clusterScope.ProxmoxClient != nil &&
-		clusterScope.ProxmoxCluster.Status.FailureReason != nil &&
-		clusterScope.ProxmoxCluster.Status.FailureMessage != nil &&
-		ptr.Deref(clusterScope.ProxmoxCluster.Status.FailureReason, "") == clustererrors.InvalidConfigurationClusterError &&
-		strings.Contains(ptr.Deref(clusterScope.ProxmoxCluster.Status.FailureMessage, ""), "No credentials found") {
-		// clear the failure reason
+		ptr.Deref(clusterScope.Cluster.Status.FailureReason, "") == clustererrors.InvalidConfigurationClusterError &&
+		strings.Contains(ptr.Deref(clusterScope.Cluster.Status.FailureMessage, ""), "No credentials found") {
+		// Clear the failure reason and patch the proxmox cluster.
 		clusterScope.ProxmoxCluster.Status.FailureMessage = nil
 		clusterScope.ProxmoxCluster.Status.FailureReason = nil
-		if err := clusterScope.Close(); err != nil {
+		if err := clusterScope.PatchObject(); err != nil {
 			return err
 		}
 
-		cHelper, err := patch.NewHelper(clusterScope.Cluster, r.Client)
+		// Clear the failure reason and patch the root cluster.
+		newCluster := clusterScope.Cluster.DeepCopy()
+		newCluster.Status.FailureMessage = nil //nolint:staticcheck
+		newCluster.Status.FailureReason = nil  //nolint:staticcheck
+
+		err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
 		if err != nil {
-			return errors.Wrap(err, "failed to init patch helper")
+			return errors.Wrapf(err, "failed to patch cluster %s/%s", newCluster.Namespace, newCluster.Name)
 		}
-		clusterScope.Cluster.Status.FailureMessage = nil //nolint:staticcheck
-		clusterScope.Cluster.Status.FailureReason = nil  //nolint:staticcheck
-		if err = cHelper.Patch(context.TODO(), clusterScope.Cluster); err != nil {
-			return err
-		}
+
 		return errors.New("reconciling cluster failure state")
 	}
 
