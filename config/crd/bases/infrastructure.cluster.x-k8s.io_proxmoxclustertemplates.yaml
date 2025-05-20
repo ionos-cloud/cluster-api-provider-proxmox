@@ -689,7 +689,7 @@ spec:
                                 target:
                                   description: |-
                                     Target node. Only allowed if the original VM is on shared storage.
-                                    Deprecated: Use `AllowedNodes`` instead..
+                                    Deprecated: Use `AllowedNodes`` instead.
                                   type: string
                                 templateID:
                                   description: TemplateID the vm_template vmid used
