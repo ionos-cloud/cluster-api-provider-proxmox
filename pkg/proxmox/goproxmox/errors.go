@@ -8,4 +8,7 @@ var (
 
 	// ErrTemplateNotFound is returned when a VM template is not found.
 	ErrTemplateNotFound = errors.New("VM template not found")
+
+	// ErrMultipleTemplatesFound is returned when multiple VM templates are found.
+	ErrMultipleTemplatesFound = errors.New("Multiple templates found")
 )
