@@ -35,6 +35,16 @@ jobs:
         with:
           images: ghcr.io/${{ env.REPO }}
 
+      - name: Enable docker containerd store
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
