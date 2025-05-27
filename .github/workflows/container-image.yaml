@@ -35,16 +35,6 @@ jobs:
         with:
           images: ghcr.io/${{ env.REPO }}
 
-      - name: Enable docker containerd store
-        uses: docker/setup-docker-action@v4
-        with:
-          daemon-config: |
-            {
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -59,17 +49,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push amd64 Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           load: ${{ github.event_name == 'pull_request' }}
           push: ${{ github.event_name != 'pull_request' }}
-          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Scan image
+      - name: Scan amd64 image
         if: github.event_name == 'pull_request'
         uses: aquasecurity/trivy-action@0.30.0
         id: scan
@@ -78,3 +67,12 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
+
+      - name: Build and push multiplatform Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
