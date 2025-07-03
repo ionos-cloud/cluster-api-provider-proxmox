@@ -1,0 +1,36 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: ProxmoxClusterTemplateGeneral
+    description: "Configure Cluster"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxClusterTemplate
+          matchResources:
+            infrastructureCluster: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/allowedNodes
+            valueFrom:
+              variable: allowedNodes
+          - op: add
+            path: /spec/template/spec/controlPlaneEndpoint/host
+            valueFrom:
+              variable: controlPlaneEndpoint.host
+          - op: add
+            path: /spec/template/spec/controlPlaneEndpoint/port
+            valueFrom:
+              variable: controlPlaneEndpoint.port
+          - op: replace
+            path: /spec/template/spec/dnsServers
+            valueFrom:
+              variable: dnsServers
+          - op: replace
+            path: /spec/template/spec/cloneSpec/sshAuthorizedKeys
+            valueFrom:
+              variable: cloneSpec.sshAuthorizedKeys
+          - op: replace
+            path: /spec/template/spec/cloneSpec/virtualIPNetworkInterface
+            valueFrom:
+              variable: cloneSpec.virtualIPNetworkInterface

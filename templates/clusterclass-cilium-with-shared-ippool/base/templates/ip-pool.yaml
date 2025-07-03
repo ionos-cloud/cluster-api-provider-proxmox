@@ -1,0 +1,11 @@
+# as a reference should be added in the overlay
+# the name must be the same as the one here
+apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+kind: InClusterIPPool
+metadata:
+  name: clusterclass-ipv4
+spec:
+  addresses:
+  - 10.10.10.2-10.10.10.10
+  gateway: 10.10.10.1
+  prefix: 24

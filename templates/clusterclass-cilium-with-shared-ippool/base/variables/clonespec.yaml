@@ -1,0 +1,226 @@
+- op: add
+  path: /spec/variables/-
+  value: 
+    name: cloneSpec
+    required: false
+    schema:
+      openAPIV3Schema:
+        type: object
+        required:
+        - vmTemplate
+        properties:
+          sshAuthorizedKeys:
+            type: array
+            items:
+              type: string
+            default: []
+            example: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 example@capmox","ssh-rsa ..."]
+          virtualIPNetworkInterface:
+            type: string
+            default: ""
+            example: "vmbr0"
+          vmTemplate:
+            type: object
+            required:
+            - sourceNode
+            - templateID
+            properties:
+              sourceNode:
+                type: string
+                example: pve1
+              templateID:
+                type: integer
+                example: 100
+          machineSpec:
+            type: object
+            properties:
+              controlPlane: &machineSpec
+                type: object
+                properties:
+                  disks:
+                    type: object
+                    properties:
+                      bootVolume:
+                        type: object
+                        properties:
+                          disk:
+                            type: string
+                      sizeGb:
+                        type: integer
+                        minimum: 5
+                        format: int32
+                    required:
+                    - disk
+                    - sizeGb
+                  format:
+                    type: string
+                    enum: [raw, qcow2, vmdk]
+                  network:
+                    type: object
+                    properties:
+                      additionalDevices:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            bridge:
+                              type: string
+                            dnsServers:
+                              type: array
+                              items:
+                                type: string
+                            ipv4PoolRef:
+                              type: object
+                              properties:
+                                apiGroup:
+                                  default: ipam.cluster.x-k8s.io
+                                  type: string
+                                kind:
+                                  default: GlobalInClusterIPPool
+                                  type: string
+                                name:
+                                  default: shared-inclusteripv4pool
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                            ipv6PoolRef:
+                              type: object
+                              properties:
+                                apiGroup:
+                                  default: ipam.cluster.x-k8s.io
+                                  type: string
+                                kind:
+                                  default: GlobalInClusterIPPool
+                                  type: string
+                                name:
+                                  default: shared-inclusteripv6pool
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                            model:
+                              type: string
+                              default: virtio
+                              enum: [e1000, virtio, rtl8139, vmxnet3]
+                            name:
+                              minLength: 1
+                              type: string
+                        required:
+                        - bridge
+                        - name
+                      default:
+                        type: object
+                        properties:
+                          bridge:
+                            type: string
+                          model:
+                            type: string
+                            default: virtio
+                            enum: [e1000, virtio, rtl8139, vmxnet3]
+                        required:
+                        - bridge
+                      vrfs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            dnsServers:
+                              type: array
+                              items:
+                                type: string
+                            interfaces:
+                              type: array
+                              items:
+                                type: string
+                              description: parent interfaces of a vrf device
+                            ipv4PoolRef:
+                              type: object
+                              properties:
+                                apiGroup:
+                                  default: ipam.cluster.x-k8s.io
+                                  type: string
+                                kind:
+                                  default: GlobalInClusterIPPool
+                                  type: string
+                                name:
+                                  default: shared-inclusterippool
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                            ipv6PoolRef:
+                              type: object
+                              properties:
+                                apiGroup:
+                                  default: ipam.cluster.x-k8s.io
+                                  type: string
+                                kind:
+                                  default: GlobalInClusterIPPool
+                                  type: string
+                                name:
+                                  default: shared-inclusteripv4pool
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                            name:
+                              minLength: 1
+                              type: string
+                            routes:
+                              type: array
+                              minItems: 1
+                              items:
+                                type: object
+                                properties:
+                                  metric:
+                                    format: int32
+                                    type: integer
+                                  table:
+                                    format: int32
+                                    type: integer
+                                  to:
+                                    type: string
+                                  via:
+                                    type: string
+                            routingPolicy:
+                              type: array
+                              minItems: 1
+                              items:
+                                type: object
+                                properties:
+                                  from:
+                                    type: string
+                                  priority:
+                                    type: integer
+                                    format: int32
+                              table:
+                                format: int32
+                                type: integer
+                              to:
+                                type: string
+                            table:
+                              format: int32
+                              type: integer
+                          required:
+                          - name
+                          - table
+                    required:
+                    - default
+                  memoryMiB:
+                    type: integer
+                    example: 2048
+                  numCores:
+                    type: integer
+                    example: 1
+                  numSockets:
+                    type: integer
+                    example: 1
+                  sourceNode:
+                    type: string
+                    example: pve1
+                  templateID:
+                    type: integer
+                    example: 100
+              workerNode: *machineSpec
+              loadBalancer: *machineSpec

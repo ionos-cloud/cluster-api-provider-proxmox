@@ -1,0 +1,17 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: ClusterIPv4Config
+    description: "Configure Cluster IPv4 config"
+    enabledIf: "{{ if .ipv4Config }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxClusterTemplate
+          matchResources:
+            infrastructureCluster: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/ipv4Config
+            valueFrom:
+              variable: ipv4Config

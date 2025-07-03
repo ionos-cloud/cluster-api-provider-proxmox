@@ -1,0 +1,20 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: WorkerNodeMem
+    description: "Configure WorkerNode Memory"
+    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.memoryMiB }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/memoryMiB
+            valueFrom:
+              variable: cloneSpec.machineSpec.workerNode.memoryMiB

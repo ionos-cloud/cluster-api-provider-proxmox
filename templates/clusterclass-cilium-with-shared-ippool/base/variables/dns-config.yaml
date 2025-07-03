@@ -1,0 +1,13 @@
+- op: add
+  path: /spec/variables/-
+  value:  
+    name: dnsServers
+    required: false
+    schema:
+      openAPIV3Schema:
+        type: array
+        minItems: 1
+        items:
+          type: string
+        default: [8.8.8.8, 1.1.1.1]
+        example: [8.8.8.8, 1.1.1.1]

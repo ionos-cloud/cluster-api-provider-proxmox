@@ -1,0 +1,15 @@
+- op: add
+  path: /spec/variables/-
+  value:
+    name: controlPlaneEndpoint
+    required: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          host:
+            example: 10.10.10.9
+            type: string
+          port:
+            type: integer
+            default: 6443

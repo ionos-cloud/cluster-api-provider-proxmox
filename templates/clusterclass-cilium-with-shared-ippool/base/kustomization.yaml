@@ -1,0 +1,80 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: caprox-kubernetes-engine
+resources:
+  - ns.yaml
+  - cilium-clusterclass.yaml
+  - templates/helmchartproxy-cilium.yaml
+  - templates/kubeadm-config-template.yaml
+  - templates/kubeadm-control-plane-template.yaml
+  - templates/proxmox-cluster-template.yaml
+  - templates/proxmox-machine-template-cp.yaml
+  - templates/proxmox-machine-template-worker.yaml
+#  - templates/ip-pool.yaml - configure this in your overlay
+
+patches:
+  # Variables for ClusterClass
+  - path: variables/allowed-nodes.yaml
+    target:
+      kind: ClusterClass
+  - path: variables/clonespec.yaml
+    target:
+      kind: ClusterClass
+  - path: variables/control-plane-endpoint.yaml
+    target:
+      kind: ClusterClass
+  - path: variables/dns-config.yaml
+    target:
+      kind: ClusterClass
+  - path: variables/ipv4-config.yaml
+    target:
+      kind: ClusterClass
+  - path: variables/ipv6-config.yaml
+    target:
+      kind: ClusterClass
+  - path: variables/kube-proxy.yaml
+    target:
+      kind: ClusterClass
+  # Patches for ClusterClass
+  - path: patches/KubeadmConfigTemplate/WorkerNodeSetup.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/KubeadmControlPlaneTemplate/ControlPlaneSetup.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/KubeadmControlPlaneTemplate/kube-proxy-setup.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxClusterTemplate/ClusterIPv4Config.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxClusterTemplate/ClusterIPv6Config.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxClusterTemplate/ProxmoxClusterTemplateGeneral.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/ControlPlaneCloneDiskFormat.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/ControlPlaneDefaultNetwork.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/ControlPlaneMem.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/ControlPlaneNodeSockets.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/WorkerNodeCores.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/WorkerNodeDefaultNetwork.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/WorkerNodeMem.yaml
+    target:
+      kind: ClusterClass
+  - path: patches/ProxmoxMachineTemplate/WorkerNodeSockets.yaml
+    target:
+      kind: ClusterClass

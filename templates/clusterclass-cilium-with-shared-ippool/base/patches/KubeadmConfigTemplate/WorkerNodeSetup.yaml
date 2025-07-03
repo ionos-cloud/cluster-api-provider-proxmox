@@ -1,0 +1,37 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: WorkerNodeSetup
+    description: "Configure Worker Node Initialisation"
+    definitions:
+      - selector:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          matchResources:
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/users
+            valueFrom:
+              template: |
+                - name: root
+                  sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+        jsonPatches:
+          - op: replace
+            path: /spec/template/spec/sourceNode
+            valueFrom:
+              variable: cloneSpec.vmTemplate.sourceNode
+          - op: replace
+            path: /spec/template/spec/templateID
+            valueFrom:
+              variable: cloneSpec.vmTemplate.templateID

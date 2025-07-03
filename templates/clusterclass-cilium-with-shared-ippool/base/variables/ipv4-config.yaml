@@ -1,0 +1,18 @@
+- op: add
+  path: /spec/variables/-
+  value: 
+    name: ipv4Config
+    required: false
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          addresses:
+            minItems: 1
+            type: array
+            items:
+              type: string
+          prefix:
+            type: integer
+          gateway:
+            type: string

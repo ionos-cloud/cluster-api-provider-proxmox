@@ -1,0 +1,12 @@
+- op: add
+  path: /spec/variables/-
+  value: 
+    name: allowedNodes
+    required: false
+    schema:
+      openAPIV3Schema:
+        type: array
+        items:
+          type: string
+        default: []
+        example: ["pve1", "pve2", "pve3"]

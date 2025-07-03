@@ -1,0 +1,25 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxClusterTemplate
+metadata:
+  name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
+spec:
+  template:
+    spec:
+      schedulerHints:
+        memoryAdjustment: 0
+      controlPlaneEndpoint:
+        host: 10.10.10.9
+        port: 6443
+      dnsServers: [8.8.8.8, 8.8.4.4]
+      ipv4Config:
+        # this is only a placebo - because the api needs it
+        # but we are using our own ip pool and not the created by the proxmoxcluster
+        addresses: [10.10.10.2-10.10.10.10]
+        prefix: 24
+        gateway: 10.10.10.1
+      cloneSpec:
+        virtualIPNetworkInterface: ""
+        sshAuthorizedKeys: []
+        machineSpec:
+          controlPlane:
+            sourceNode: pve1
