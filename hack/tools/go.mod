@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
-go 1.23.8
+go 1.24.0
 
 require (
 	github.com/braydonk/yaml v0.9.0
