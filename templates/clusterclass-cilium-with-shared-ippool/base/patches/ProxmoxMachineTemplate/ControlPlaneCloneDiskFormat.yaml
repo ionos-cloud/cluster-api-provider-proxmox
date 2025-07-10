@@ -1,0 +1,17 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: ControlPlaneCloneDiskFormat
+    description: "Configure ControlPlane Qemu Disk Format"
+    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.format }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: replace
+            path: /spec/template/spec/format
+            valueFrom:
+              variable: cloneSpec.machineSpec.controlPlane.format

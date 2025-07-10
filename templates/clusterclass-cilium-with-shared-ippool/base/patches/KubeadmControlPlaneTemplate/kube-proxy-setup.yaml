@@ -1,0 +1,33 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: kube-proxy-setup
+    description: "kube-proxy configuration"
+    enabledIf: "{{ if eq .kubeProxy.mode \"ipvs\" }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+          kind: KubeadmControlPlaneTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/kubeadmConfigSpec/files/-
+            valueFrom:
+              template: |
+                content: |
+                  #/bin/sh
+                  cat >> /run/kubeadm/kubeadm.yaml <<EOF
+                  ---
+                  apiVersion: kubeproxy.config.k8s.io/v1alpha1
+                  kind: KubeProxyConfiguration
+                  mode: "ipvs"
+                  ipvs:
+                    strictARP: true
+                  EOF
+                owner: root:root
+                permissions: "0755"
+                path: /tmp/kube-proxy.sh
+          - op: add
+            path: /spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-
+            value: /tmp/kube-proxy.sh

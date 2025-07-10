@@ -1,0 +1,17 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: ClusterIPv6Config
+    description: "Configure Cluster IPv6 config"
+    enabledIf: "{{ if .ipv6Config }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxClusterTemplate
+          matchResources:
+            infrastructureCluster: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/ipv6Config
+            valueFrom:
+              variable: ipv6Config

@@ -1,0 +1,13 @@
+apiVersion: addons.cluster.x-k8s.io/v1alpha1
+kind: HelmChartProxy
+metadata:
+  name: cilium
+spec:
+  clusterSelector:
+    matchLabels:
+      caprox.eu/cni: cilium-v1.17.4
+  releaseName: cilium
+  version: 1.17.4
+  repoURL: https://helm.cilium.io/
+  chartName: cilium
+  namespace: kube-system

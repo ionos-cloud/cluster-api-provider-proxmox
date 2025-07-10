@@ -1,0 +1,19 @@
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+metadata:
+  name: proxmox-clusterclass-v0.1.0-workertemplate
+spec:
+  template:
+    spec:
+      sourceNode: pve1
+      templateID: 100
+      format: qcow2
+      full: true
+      network:
+        default:
+          bridge: vmbr0
+          model: virtio
+          ipv4PoolRef:
+            kind: InClusterIPPool
+            apiGroup: ipam.cluster.x-k8s.io
+            name: clusterclass-ipv4

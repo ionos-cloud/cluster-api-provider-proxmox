@@ -1,0 +1,17 @@
+- op: add
+  path: /spec/patches/-
+  value:
+    name: ControlPlaneNodeSockets
+    description: "Configure Control Plane Sockets"
+    enabledIf: "{{ if .cloneSpec.machineSpecs.controlPlane.numSockets }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/numSockets
+            valueFrom:
+              variable: cloneSpec.machineSpec.controlPlane.numSockets

@@ -1,0 +1,13 @@
+- op: add
+  path: /spec/variables/-
+  value:
+    name: kubeProxy
+    required: false
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          mode:
+            type: string
+            default: "iptables"
+            enum: ["ipvs","iptables"]

@@ -1,0 +1,64 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: ClusterClass
+metadata:
+  name: proxmox-clusterclass-cilium-v0.1.0
+spec:
+  controlPlane:
+    namingStrategy:
+      template: "{{ .cluster.name }}-control-plane-{{ .random }}"
+    ref:
+      apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+      kind: KubeadmControlPlaneTemplate
+      name: proxmox-clusterclass-v0.1.0-control-plane
+    machineInfrastructure:
+      ref:
+        kind: ProxmoxMachineTemplate
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        name: proxmox-clusterclass-v0.1.0-control-plane-template
+    machineHealthCheck:
+      maxUnhealthy: 100%
+      nodeStartupTimeout: 15m
+      unhealthyConditions:
+        - type: Ready
+          status: Unknown
+          timeout: 300s
+        - type: Ready
+          status: "False"
+          timeout: 300s
+  infrastructure:
+    ref:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      kind: ProxmoxClusterTemplate
+      name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
+  workers:
+    machineDeployments:
+      - class: proxmox-worker
+        template:
+          bootstrap:
+            ref:
+              apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+              kind: KubeadmConfigTemplate
+              name: proxmox-clusterclass-v0.1.0-workertemplate
+          infrastructure:
+            ref:
+              apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+              kind: ProxmoxMachineTemplate
+              name: proxmox-clusterclass-v0.1.0-workertemplate
+          metadata:
+            labels:
+              node-role.kubernetes.io/node: ""
+        machineHealthCheck:
+          maxUnhealthy: 33%
+          nodeStartupTimeout: 15m
+          unhealthyConditions:
+            - type: Ready
+              status: Unknown
+              timeout: 300s
+            - type: Ready
+              status: "False"
+              timeout: 300s
+        namingStrategy:
+           template: "{{ .cluster.name }}-worker-{{ .random }}"
+  variables: []
+  patches: []
