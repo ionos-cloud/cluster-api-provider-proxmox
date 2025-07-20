@@ -66,6 +66,10 @@ spec:
 #           numSockets: 1
 #           numCores: 4
 #           memoryMiB: 4096
+#           disks:
+#            bootVolume:
+#              disk: scsi0
+#              sizeGb: 20
             sourceNode: pve1
             templateID: 100
           workerNode:
@@ -87,6 +91,10 @@ spec:
 #           numSockets: 1
 #           numCores: 4
 #           memoryMiB: 4096
+#           disks:
+#            bootVolume:
+#              disk: scsi0
+#              sizeGb: 20
             sourceNode: pve1
             templateID: 100
           loadBalancer:
@@ -115,6 +123,10 @@ spec:
 #           numSockets: 1
 #           numCores: 2
 #           memoryMiB: 2048
+#           disks:
+#            bootVolume:
+#              disk: scsi0
+#              sizeGb: 20
             sourceNode: pve1
             templateID: 100
         sshAuthorizedKeys:
