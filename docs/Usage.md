@@ -333,13 +333,50 @@ to be set in your capi controller and in the environment of clusterctl.
 
 We provide the following ClusterClasses:
 
-| Flavor         | Template File                                   | CRS File                      | Example Cluster Manifest     |
-|----------------| ----------------------------------------------- |-------------------------------|-------------------------------
-| cilium         | templates/cluster-class-cilium.yaml             | templates/crs/cni/cilium.yaml | examples/cluster-cilium.yaml |
-| calico         | templates/cluster-class-calico.yaml             | templates/crs/cni/calico.yaml | examples/cluster-calico.yaml |
-| default        | templates/cluster-class.yaml                    | -                             | examples/cluster.yaml        |
+| Flavor         | Template File                          | Example Cluster Manifest     |
+|----------------|---------------------------------------|-----------------------------|
+| cilium         | templates/cluster-class-cilium.yaml    | examples/cluster-cilium.yaml|
+| calico         | templates/cluster-class-calico.yaml    | examples/cluster-calico.yaml|
+| default        | templates/cluster-class.yaml           | examples/cluster.yaml       |
+
+> **Note:**  
+> The provided templates and example manifests assume that clusters are created in the `default` namespace.  
+> If you wish to create clusters in a different namespace, you must update the template to change the `namespace` field of the `ClusterResourceSet` and ensure that the CNI manifests (ConfigMaps) are created in the same namespace.
+
+> **Note:**  
+> To use Cilium or Calico with ClusterResourceSet, you need to generate and apply a ConfigMap for the CNI manifest.
+
+<details>
+<summary><strong>Cilium</strong></summary>
+
+Generate and apply a ConfigMap for **Cilium**:
+
+```bash
+helm template cilium cilium/cilium --version 1.17.6 --namespace kube-system > cilium.yaml
+kubectl create configmap cilium --from-file=cilium.yaml="cilium.yaml" --dry-run=client -o yaml > cilium-configmap.yaml
+kubectl apply -f cilium-configmap.yaml
+```
+
+</details>
+
+<details>
+<summary><strong>Calico</strong></summary>
+
+Generate and apply a ConfigMap for **Calico**:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/projectcalico/calico/v3.30.2/manifests/calico.yaml" -o calico.yaml
+kubectl create configmap calico --from-file=calico.yaml=calico.yaml --dry-run=client -o yaml > calico-configmap.yaml
+kubectl apply -f calico-configmap.yaml
+```
+
+</details>
+
 
 ### Creating a cluster from a ClusterClass
+
+
+
 1. Choose a ClusterClass
 All ClusterClasses provide the same features except for the CNI they refer to. The base ClusterClass
 also does not provide MachineHealthChecks as those can not be successful until a CNI is deployed.
