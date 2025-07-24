@@ -188,11 +188,11 @@ func TestProxmoxAPIClient_CloneVM(t *testing.T) {
 		err   string
 	}{
 		{name: "no node", http: []int{500, 200, 200, 200, 200, 200}, fails: true,
-			err: "cannot find node with name test: 500"},
+			err: "cannot find node with name test: 500 Internal Server Error"},
 		{name: "no template", http: []int{200, 200, 403, 200, 200, 200}, fails: true,
 			err: "unable to find vm template: not authorized to access endpoint"},
 		{name: "clone fails", http: []int{200, 200, 200, 200, 500, 200}, fails: true,
-			err: "unable to create new vm: 500"},
+			err: "unable to create new vm: 500 Internal Server Error"},
 		{name: "no node", http: []int{200, 200, 200, 200, 200, 200}, fails: false,
 			err: ""},
 	}
@@ -296,9 +296,9 @@ func TestProxmoxAPIClient_GetVM(t *testing.T) {
 	}{
 		{name: "get", node: "test", vmID: 101, fails: false, err: ""},
 		{name: "node not found", node: "enoent", vmID: 101, fails: true,
-			err: "cannot find node with name enoent: 500"},
+			err: "cannot find node with name enoent: 500 Internal Server Error"},
 		{name: "vm not found", node: "test", vmID: 102, fails: true,
-			err: "cannot find vm with id 102: 500"},
+			err: "cannot find vm with id 102: 500 Internal Server Error"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -342,9 +342,9 @@ func TestProxmoxAPIClient_FindVMResource(t *testing.T) {
 	}{
 		{name: "find", http: []int{200, 200}, vmID: 101, fails: false, err: ""},
 		{name: "clusterstatus broken", http: []int{500, 200}, vmID: 101, fails: true,
-			err: "cannot get cluster status: 500"},
+			err: "cannot get cluster status: 500 Internal Server Error"},
 		{name: "resourcelisting broken", http: []int{200, 500}, vmID: 102, fails: true,
-			err: "could not list vm resources: 500"},
+			err: "could not list vm resources: 500 Internal Server Error"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -394,13 +394,13 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			name:  "clusterstatus broken",
 			http:  []int{500, 200},
 			fails: true,
-			err:   "cannot get cluster status: 500",
+			err:   "cannot get cluster status: 500 Internal Server Error",
 		},
 		{
 			name:  "resourcelisting broken",
 			http:  []int{200, 500},
 			fails: true,
-			err:   "could not list vm resources: 500",
+			err:   "could not list vm resources: 500 Internal Server Error",
 		},
 		{
 			name:           "find-template",
@@ -501,7 +501,7 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 	}{
 		{name: "delete", node: "test", vmID: 101, fails: false, err: ""},
 		{name: "node not found", node: "enoent", vmID: 101, fails: true,
-			err: "cannot find node with name enoent: 500"},
+			err: "cannot find node with name enoent: 500 Internal Server Error"},
 		{name: "delete fails", node: "test", vmID: 102, fails: true,
 			err: "cannot delete vm with id 102: not authorized to access endpoint"},
 	}
@@ -558,7 +558,7 @@ func TestProxmoxAPIClient_GetTask(t *testing.T) {
 		err   string
 	}{
 		{name: "get", fails: false, err: ""},
-		{name: "get fails", fails: true, err: fmt.Sprintf("cannot get task with UPID %s: 501", upid2)},
+		{name: "get fails", fails: true, err: fmt.Sprintf("cannot get task with UPID %s: 501 Not Implemented", upid2)},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

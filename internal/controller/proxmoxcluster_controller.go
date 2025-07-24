@@ -248,7 +248,6 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	return ctrl.Result{}, nil
 }
 
-//nolint:staticcheck
 func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Context, clusterScope *scope.ClusterScope) error {
 	if clusterScope.ProxmoxClient != nil &&
 		ptr.Deref(clusterScope.Cluster.Status.FailureReason, "") == clustererrors.InvalidConfigurationClusterError &&
@@ -262,8 +261,8 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Conte
 
 		// Clear the failure reason and patch the root cluster.
 		newCluster := clusterScope.Cluster.DeepCopy()
-		newCluster.Status.FailureMessage = nil //nolint:staticcheck
-		newCluster.Status.FailureReason = nil  //nolint:staticcheck
+		newCluster.Status.FailureMessage = nil
+		newCluster.Status.FailureReason = nil
 
 		err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
 		if err != nil {

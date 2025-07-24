@@ -51,7 +51,6 @@ var _ = Describe("ProxmoxMachineReconciler", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result.RequeueAfter).To(BeZero())
-			Expect(result.Requeue).To(BeFalse())
 		})
 	})
 })

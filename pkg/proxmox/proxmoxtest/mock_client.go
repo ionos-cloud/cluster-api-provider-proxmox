@@ -678,21 +678,33 @@ func (_c *MockClient_QemuAgentStatus_Call) RunAndReturn(run func(context.Context
 }
 
 // ResizeDisk provides a mock function with given fields: ctx, vm, disk, size
-func (_m *MockClient) ResizeDisk(ctx context.Context, vm *go_proxmox.VirtualMachine, disk string, size string) error {
+func (_m *MockClient) ResizeDisk(ctx context.Context, vm *go_proxmox.VirtualMachine, disk string, size string) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm, disk, size)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResizeDisk")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine, string, string) error); ok {
+	var r0 *go_proxmox.Task
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine, string, string) (*go_proxmox.Task, error)); ok {
+		return rf(ctx, vm, disk, size)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine, string, string) *go_proxmox.Task); ok {
 		r0 = rf(ctx, vm, disk, size)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*go_proxmox.Task)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine, string, string) error); ok {
+		r1 = rf(ctx, vm, disk, size)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockClient_ResizeDisk_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResizeDisk'
@@ -716,12 +728,12 @@ func (_c *MockClient_ResizeDisk_Call) Run(run func(ctx context.Context, vm *go_p
 	return _c
 }
 
-func (_c *MockClient_ResizeDisk_Call) Return(_a0 error) *MockClient_ResizeDisk_Call {
-	_c.Call.Return(_a0)
+func (_c *MockClient_ResizeDisk_Call) Return(_a0 *go_proxmox.Task, _a1 error) *MockClient_ResizeDisk_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockClient_ResizeDisk_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine, string, string) error) *MockClient_ResizeDisk_Call {
+func (_c *MockClient_ResizeDisk_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine, string, string) (*go_proxmox.Task, error)) *MockClient_ResizeDisk_Call {
 	_c.Call.Return(run)
 	return _c
 }

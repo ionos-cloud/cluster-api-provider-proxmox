@@ -299,7 +299,7 @@ func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName strin
 }
 
 // ResizeDisk resizes a VM disk to the specified size.
-func (c *APIClient) ResizeDisk(ctx context.Context, vm *proxmox.VirtualMachine, disk, size string) error {
+func (c *APIClient) ResizeDisk(ctx context.Context, vm *proxmox.VirtualMachine, disk, size string) (*proxmox.Task, error) {
 	return vm.ResizeDisk(ctx, disk, size)
 }
 
