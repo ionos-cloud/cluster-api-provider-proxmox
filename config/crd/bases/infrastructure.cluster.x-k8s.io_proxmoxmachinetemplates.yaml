@@ -109,6 +109,34 @@ spec:
                           Disks contains a set of disk configuration options,
                           which will be applied before the first startup.
                         properties:
+                          additionalVolumes:
+                            description: |-
+                              which will be added to the node.
+                              AdditionalVolumes defines additional volumes to be added to the virtual machine.
+                            items:
+                              description: DiskSpec is contains values for the disk
+                                device and size.
+                              properties:
+                                disk:
+                                  description: |-
+                                    Disk is the name of the disk device, that should be resized.
+                                    Example values are: ide[0-3], scsi[0-30], sata[0-5].
+                                  type: string
+                                sizeGb:
+                                  description: |-
+                                    Size defines the size in gigabyte.
+
+                                    As Proxmox does not support shrinking, the size
+                                    must be bigger than the already configured size in the
+                                    template.
+                                  format: int32
+                                  minimum: 5
+                                  type: integer
+                              required:
+                              - disk
+                              - sizeGb
+                              type: object
+                            type: array
                           bootVolume:
                             description: |-
                               BootVolume defines the storage size for the boot volume.
