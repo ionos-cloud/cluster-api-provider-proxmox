@@ -102,6 +102,12 @@ linters:
         text: (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)
       - path: (.+)\.go$
         text: (G104|G307)
+      - linters:
+          - staticcheck
+        text: 'SA1019: .*\.Status\.(FailureMessage|FailureReason) is deprecated: .*'
+      - linters:
+          - revive
+        text: 'var-naming: avoid meaningless package names'
     paths:
       - zz_generated.*\.go$
       - .*conversion.*\.go$

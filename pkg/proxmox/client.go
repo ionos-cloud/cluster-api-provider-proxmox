@@ -42,7 +42,7 @@ type Client interface {
 
 	GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error)
 
-	ResizeDisk(ctx context.Context, vm *proxmox.VirtualMachine, disk, size string) error
+	ResizeDisk(ctx context.Context, vm *proxmox.VirtualMachine, disk, size string) (*proxmox.Task, error)
 
 	ResumeVM(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error)
 

@@ -511,7 +511,8 @@ func TestReconcileDisks_ResizeDisk(t *testing.T) {
 	vm := newStoppedVM()
 	machineScope.SetVirtualMachine(vm)
 
-	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "ide0", machineScope.ProxmoxMachine.Spec.Disks.BootVolume.FormatSize()).Return(nil)
+	task := newTask()
+	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "ide0", machineScope.ProxmoxMachine.Spec.Disks.BootVolume.FormatSize()).Return(task, nil)
 
 	require.NoError(t, reconcileDisks(context.Background(), machineScope))
 }

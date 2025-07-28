@@ -214,7 +214,7 @@ func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) error
 	}
 
 	if bv := disks.BootVolume; bv != nil {
-		if err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize()); err != nil {
+		if _, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize()); err != nil {
 			machineScope.Error(err, "unable to set disk size", "vm", machineScope.VirtualMachine.VMID)
 			return err
 		}
