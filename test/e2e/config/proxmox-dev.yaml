@@ -14,8 +14,8 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: v1.9.5
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.9.5/core-components.yaml
+      - name: v1.10.4
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.4/core-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -27,8 +27,8 @@ providers:
   - name: kubeadm
     type: BootstrapProvider
     versions:
-      - name: v1.9.5
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.9.5/bootstrap-components.yaml
+      - name: v1.10.4
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.4/bootstrap-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -40,8 +40,8 @@ providers:
   - name: kubeadm
     type: ControlPlaneProvider
     versions:
-      - name: v1.9.5
-        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.9.5/control-plane-components.yaml
+      - name: v1.10.4
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.4/control-plane-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/v1beta1/metadata.yaml"
@@ -53,8 +53,8 @@ providers:
   - name: in-cluster
     type: IPAMProvider
     versions:
-      - name: v1.0.0
-        value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v0.1.0/ipam-components.yaml
+      - name: v1.0.2
+        value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v1.0.2/ipam-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/ipam/metadata.yaml"
