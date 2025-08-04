@@ -11,7 +11,9 @@ Cluster API Provider for Proxmox VE is a concrete implementation of Cluster API 
 
 ## Launching a Kubernetes cluster on Proxmox VE
 
-Check out the [quickstart guide](./docs/Usage.md#quick-start) for launching a cluster on Proxmox VE. For a more opinionated walkthrough, have a look at the [Examples](#examples).
+Check out the [quickstart guide](./docs/Usage.md#quick-start) for launching a cluster on Proxmox VE. 
+
+For a more opinionated walkthrough, have a look at the [Examples](#examples).
 
 ## Compatibility with Cluster API and Kubernetes Versions
 This provider's versions are compatible with the following versions of Cluster API:
