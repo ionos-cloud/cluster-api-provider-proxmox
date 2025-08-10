@@ -1,0 +1,25 @@
+name: Vulnerability Check
+on: [ pull_request ]
+
+jobs:
+  govulncheck:
+    name: vulncheck
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - id: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: go.mod
+          go-package: ./...
+          repo-checkout: true
+          output-format: text
+          output-file: govulncheck.out
+
+      - name: PR comment with file
+        uses: thollander/actions-comment-pull-request@v2
+        if: github.event_name == 'pull_request'
+        with:
+          filePath: govulncheck.out
+          comment_tag: Vulnerability Check
+          mode: "recreate"
