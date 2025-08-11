@@ -19,7 +19,7 @@ import (
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrastructurev1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 )
 
@@ -29,7 +29,7 @@ func TestSetupReconcilers(t *testing.T) {
 	s := runtime.NewScheme()
 	require.NoError(t, clientgoscheme.AddToScheme(s))
 	require.NoError(t, clusterv1.AddToScheme(s))
-	require.NoError(t, infrastructurev1alpha1.AddToScheme(s))
+	require.NoError(t, infrastructurev1alpha2.AddToScheme(s))
 	require.NoError(t, ipamicv1.AddToScheme(s))
 	require.NoError(t, ipamv1.AddToScheme(s))
 
