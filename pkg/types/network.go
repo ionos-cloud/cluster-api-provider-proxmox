@@ -35,6 +35,7 @@ type NetworkConfigData struct {
 	VRF        string        // linux VRF name // only used in networkd config.
 }
 
+// IPConfig stores IP configuration.
 type IPConfig struct {
 	IPAddress string
 	Gateway   string

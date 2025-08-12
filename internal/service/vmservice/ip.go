@@ -134,6 +134,7 @@ func machineHasIPAddress(machine *infrav1alpha2.ProxmoxMachine) bool {
 	return machine.Status.IPAddresses[infrav1alpha2.DefaultNetworkDevice] != nil
 }
 
+/*
 func handleIPAddressForDevice(ctx context.Context, machineScope *scope.MachineScope, device, format string, ipamRef *corev1.TypedLocalObjectReference) (string, error) {
 	suffix := infrav1alpha2.DefaultSuffix
 	if format == infrav1alpha2.IPV6Format {
@@ -175,6 +176,7 @@ func handleIPAddressForDevice(ctx context.Context, machineScope *scope.MachineSc
 
 	return ip, nil
 }
+*/
 
 /*
 func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1alpha2.IPAddress) (bool, error) {
