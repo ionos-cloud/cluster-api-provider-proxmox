@@ -1042,7 +1042,6 @@ spec:
                                         rule: self == oldSelf
                                   type: object
                                 format:
-                                  default: raw
                                   description: Format for file storage. Only valid
                                     for full clone.
                                   enum:
@@ -1471,6 +1470,11 @@ spec:
                                       start
                                     rule: self.end >= self.start
                               type: object
+                              x-kubernetes-validations:
+                              - message: Must set full=true when specifying format
+                                rule: self.full || !has(self.format)
+                              - message: Must set full=true when specifying storage
+                                rule: self.full || !has(self.storage)
                             type: object
                             x-kubernetes-validations:
                             - message: Cowardly refusing to deploy cluster without
