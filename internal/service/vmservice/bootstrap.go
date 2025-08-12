@@ -102,6 +102,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		return err
 	}
 	return nil
 }
@@ -122,6 +123,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 	injector := getIgnitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
 	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		return err
 	}
 	return nil
 }
@@ -334,7 +336,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 }
 */
 
-func getCommonInterfaceConfig(ctx context.Context, machineScope *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha2.InterfaceConfig) error {
+func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha2.InterfaceConfig) error { //nolint:unparam
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
