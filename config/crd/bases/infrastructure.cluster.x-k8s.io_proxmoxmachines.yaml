@@ -1497,7 +1497,7 @@ spec:
               ipAddresses:
                 additionalProperties:
                   description: IPAddresses stores the IP addresses of a network interface.
-                    Used for status
+                    Used for status.
                   properties:
                     ipv4:
                       description: IPV4 is the IPv4 address.

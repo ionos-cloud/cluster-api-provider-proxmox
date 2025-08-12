@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterapierrors "sigs.k8s.io/cluster-api/errors"
+	clusterapierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 )
 
 const (
@@ -490,8 +490,8 @@ type ProxmoxMachineStatus struct {
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
-// IPAddresses stores the IP addresses of a network interface. Used for status
-// TODO: Unfuck machine status
+// IPAddresses stores the IP addresses of a network interface. Used for status.
+// TODO: Unfuck machine status.
 type IPAddresses struct {
 	// IPV4 is the IPv4 address.
 	// +optional
@@ -606,5 +606,5 @@ func (d *DiskSize) FormatSize() string {
 }
 
 func init() {
-	SchemeBuilder.Register(&ProxmoxMachine{}, &ProxmoxMachineList{})
+	objectTypes = append(objectTypes, &ProxmoxMachine{}, &ProxmoxMachineList{})
 }

@@ -303,6 +303,7 @@ func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 	return nil
 }
 
+/*
 func validIPAddress(input string) error {
 	if input == "" {
 		return ErrMissingIPAddress
@@ -313,3 +314,4 @@ func validIPAddress(input string) error {
 	}
 	return nil
 }
+*/

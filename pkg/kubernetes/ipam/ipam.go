@@ -224,8 +224,8 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 	return annotations, err
 }
 
-// TODO: remove
 // CreateIPAddressClaim creates an IPAddressClaim for a given object.
+// TODO: remove.
 func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, device, format, clusterNameLabel string, ref *corev1.TypedLocalObjectReference) error {
 	var gvk schema.GroupVersionKind
 	key := client.ObjectKey{
@@ -297,7 +297,7 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 	return err
 }
 
-// CreateIPAddressClaim creates an IPAddressClaim for a given object.
+// CreateIPAddressClaimV2 creates an IPAddressClaim for a given object.
 func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object, device string, poolNum int, clusterNameLabel string, ref *corev1.TypedLocalObjectReference) error {
 	var gvk schema.GroupVersionKind
 	key := client.ObjectKey{
@@ -370,7 +370,7 @@ func (h *Helper) GetIPAddress(ctx context.Context, key client.ObjectKey) (*ipamv
 	return out, nil
 }
 
-// GetIPAddressByPool attempts to retrieve all IPAddresses belonging to a pool
+// GetIPAddressByPool attempts to retrieve all IPAddresses belonging to a pool.
 func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {
 	addresses := &ipamv1.IPAddressList{}
 
