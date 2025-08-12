@@ -963,7 +963,6 @@ spec:
                       rule: self == oldSelf
                 type: object
               format:
-                default: raw
                 description: Format for file storage. Only valid for full clone.
                 enum:
                 - raw
@@ -1356,14 +1355,16 @@ spec:
                   rule: self.end >= self.start
             type: object
             x-kubernetes-validations:
-            - message: must define either SourceNode with TemplateID, OR TemplateSelector
+            - message: must define either a SourceNode with a TemplateID or a TemplateSelector
               rule: '[has(self.sourceNode), has(self.templateSelector)].exists_one(c,
                 c)'
-            - message: must define either SourceNode with TemplateID, OR TemplateSelector.
+            - message: must define either a SourceNode with a TemplateID or a TemplateSelector
               rule: '[has(self.templateID), has(self.templateSelector)].exists_one(c,
                 c)'
             - message: Must set full=true when specifying format
-              rule: self.full && self.format != ''
+              rule: self.full || !has(self.format)
+            - message: Must set full=true when specifying storage
+              rule: self.full || !has(self.storage)
           status:
             description: ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
             properties:
