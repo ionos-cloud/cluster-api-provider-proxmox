@@ -67,17 +67,15 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 
 	// update the status.IpAddr.
 
-	// TODO: Unfuck
-	statusAddresses := make(map[string]*infrav1alpha2.IPAddresses)
-
+	statusAddresses := make(map[string]*infrav1alpha2.IPAddresses, len(addresses))
 	for k, v := range addresses {
 		if _, e := statusAddresses[k]; !e {
 			statusAddresses[k] = new(infrav1alpha2.IPAddresses)
 		}
-		if strings.Contains("::", v) {
-			statusAddresses[k].IPV6 = append(statusAddresses[k].IPV6, v)
-		} else {
+		if isIPV4(v) {
 			statusAddresses[k].IPV4 = append(statusAddresses[k].IPV4, v)
+		} else {
+			statusAddresses[k].IPV6 = append(statusAddresses[k].IPV6, v)
 		}
 	}
 	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
@@ -94,7 +92,7 @@ func findIPAddress(ctx context.Context, machineScope *scope.MachineScope, device
 	return machineScope.IPAMHelper.GetIPAddress(ctx, key)
 }
 
-// findIPAddressesByPool attempts to return all ip addresses belonging to a device
+// findIPAddressesByPool attempts to return all ip addresses belonging to a device.
 func findIPAddressesByPool(ctx context.Context, machineScope *scope.MachineScope, device string, poolRef corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {
 	addresses, err := machineScope.IPAMHelper.GetIPAddressByPool(ctx, poolRef)
 	if err != nil {

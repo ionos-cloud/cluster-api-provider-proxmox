@@ -490,8 +490,8 @@ type ProxmoxMachineStatus struct {
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
-// TODO: Unfuck machine status
 // IPAddresses stores the IP addresses of a network interface. Used for status
+// TODO: Unfuck machine status
 type IPAddresses struct {
 	// IPV4 is the IPv4 address.
 	// +optional

@@ -30,6 +30,7 @@ import (
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
+
 	// +kubebuilder:scaffold:imports
 
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
