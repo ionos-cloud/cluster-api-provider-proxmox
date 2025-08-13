@@ -232,6 +232,11 @@ func getRoutingPolicyData(rules []infrav1alpha2.RoutingPolicySpec) *[]types.FIBR
 }
 
 func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string, ipPoolRefs []corev1.TypedLocalObjectReference) (*types.NetworkConfigData, error) {
+	if device == "" {
+		// this should never happen outwith tests
+		return nil, errors.New("empty device name")
+	}
+
 	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
 	// For nics supporting multiple IP addresses, we need to cut the '-inet' or '-inet6' part,
 	// to retrieve the correct MAC address.
