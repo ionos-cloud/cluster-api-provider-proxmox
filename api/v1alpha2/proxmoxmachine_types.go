@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	"fmt"
@@ -260,39 +260,30 @@ type NetworkSpec struct {
 	// which will be used for the primary network interface.
 	// net0 is always the default network device.
 	// +optional
-	Default *NetworkDevice `json:"default,omitempty"`
-
-	// AdditionalDevices defines additional network devices bound to the virtual machine.
-	// +optional
 	// +listType=map
 	// +listMapKey=name
-	AdditionalDevices []AdditionalNetworkDevice `json:"additionalDevices,omitempty"`
+	NetworkDevices []NetworkDevice `json:"NetworkDevices,omitempty"`
 
 	// VirtualNetworkDevices defines virtual network devices (e.g. bridges, vlans ...).
 	VirtualNetworkDevices `json:",inline"`
 }
 
-// IPPoolConfig defines the IPAM pool ref.
-type IPPoolConfig struct {
-	// IPv4PoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
+// InterfaceConfig contains all configurables a network interface can have.
+type InterfaceConfig struct {
+	// IPPoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
 	// The network device will use an available IP address from the referenced pool.
 	// This can be combined with `IPv6PoolRef` in order to enable dual stack.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipv4PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
-	// +kubebuilder:validation:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipv4PoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
-	IPv4PoolRef *corev1.TypedLocalObjectReference `json:"ipv4PoolRef,omitempty"`
+	// +kubebuilder:validation:items:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipPoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
+	// +kubebuilder:validation:items:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipPoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
+	IPPoolRef []corev1.TypedLocalObjectReference `json:"ipPoolRef,omitempty"`
 
-	// IPv6PoolRef is a reference to an IPAM pool resource, which exposes IPv6 addresses.
-	// The network device will use an available IP address from the referenced pool.
-	// this can be combined with `IPv4PoolRef` in order to enable dual stack.
+	// DNSServers contains information about nameservers to be used for this interface.
+	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipv6PoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
-	// +kubebuilder:validation:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipv6PoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
-	IPv6PoolRef *corev1.TypedLocalObjectReference `json:"ipv6PoolRef,omitempty"`
-}
+	// +kubebuilder:validation:MinItems=1
+	DNSServers []string `json:"dnsServers,omitempty"`
 
-// InterfaceConfig contains all configurables a network interface can have.
-type InterfaceConfig struct {
 	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
 	Routing `json:",inline"`
 
@@ -341,7 +332,6 @@ type RoutingPolicySpec struct {
 	From string `json:"from,omitempty"`
 
 	// Table is the routing table ID.
-	// when used in the networks, the value should be the VRF Table.
 	// +optional
 	Table *uint32 `json:"table,omitempty"`
 
@@ -403,40 +393,18 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Maximum=4094
 	VLAN *uint16 `json:"vlan,omitempty"`
 
-	// DNSServers contains information about nameservers to be used for this interface.
-	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
-	// +optional
-	// +kubebuilder:validation:MinItems=1
-	DNSServers []string `json:"dnsServers,omitempty"`
-
-	// IPPoolConfig defines config for IP Pool ref.
-	// For default device 'net0' the IP pool is optional,
-	// If not set, the default IPAM pool will be used.
-	// For additional devices, the IP pool is required (IPV4/IPV6).
-	// +optional
-	IPPoolConfig `json:",inline"`
-}
-
-// MTU is the network device Maximum Transmission Unit. MTUs below 1280 break IPv6.
-// +optional
-// +kubebuilder:validation:XValidation:rule="self == 1 || ( self >= 576 && self <= 65520)",message="invalid MTU value"
-type MTU *uint16
-
-// AdditionalNetworkDevice the definition of a Proxmox network device.
-// +kubebuilder:validation:XValidation:rule="self.ipv4PoolRef != null || self.ipv6PoolRef != null",message="at least one pool reference must be set, either ipv4PoolRef or ipv6PoolRef"
-type AdditionalNetworkDevice struct {
-	NetworkDevice `json:",inline"`
-
 	// Name is the network device name.
-	// Must be unique within the virtual machine and different from the primary device 'net0'.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:XValidation:rule="self != 'net0'",message="additional network devices doesn't allow net0"
 	Name string `json:"name"`
 
 	// InterfaceConfig contains all configurables a network interface can have.
 	// +optional
 	InterfaceConfig `json:",inline"`
 }
+
+// MTU is the network device Maximum Transmission Unit. MTUs below 1280 break IPv6.
+// +optional
+// +kubebuilder:validation:XValidation:rule="self == 1 || ( self >= 576 && self <= 65520)",message="invalid MTU value"
+type MTU *uint16
 
 // ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
 type ProxmoxMachineStatus struct {
@@ -458,7 +426,7 @@ type ProxmoxMachineStatus struct {
 
 	// IPAddresses are the IP addresses used to access the virtual machine.
 	// +optional
-	IPAddresses map[string]IPAddress `json:"ipAddresses,omitempty"`
+	IPAddresses map[string]*IPAddresses `json:"ipAddresses,omitempty"`
 
 	// Network returns the network status for each of the machine's configured.
 	// network interfaces.
@@ -523,15 +491,16 @@ type ProxmoxMachineStatus struct {
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
-// IPAddress defines the IP addresses of a network interface.
-type IPAddress struct {
+// IPAddresses stores the IP addresses of a network interface. Used for status.
+// TODO: Unfuck machine status.
+type IPAddresses struct {
 	// IPV4 is the IPv4 address.
 	// +optional
-	IPV4 string `json:"ipv4,omitempty"`
+	IPV4 []string `json:"ipv4,omitempty"`
 
 	// IPV6 is the IPv6 address.
 	// +optional
-	IPV6 string `json:"ipv6,omitempty"`
+	IPV6 []string `json:"ipv6,omitempty"`
 }
 
 // VMIDRange defines the range of VMIDs to use for VMs.
@@ -563,6 +532,7 @@ type MetadataSettings struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxmachines,scope=Namespaced,categories=cluster-api;proxmox,shortName=moxm
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this ProxmoxMachine belongs"
@@ -576,8 +546,8 @@ type ProxmoxMachine struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// +kubebuilder:validation:XValidation:rule="[has(self.sourceNode), has(self.templateSelector)].exists_one(c, c)",message="must define either SourceNode with TemplateID, OR TemplateSelector"
-	// +kubebuilder:validation:XValidation:rule="[has(self.templateID), has(self.templateSelector)].exists_one(c, c)",message="must define either SourceNode with TemplateID, OR TemplateSelector."
+	// +kubebuilder:validation:XValidation:rule="[has(self.sourceNode), has(self.templateSelector)].exists_one(c, c)",message="must define either a SourceNode with a TemplateID or a TemplateSelector"
+	// +kubebuilder:validation:XValidation:rule="[has(self.templateID), has(self.templateSelector)].exists_one(c, c)",message="must define either a SourceNode with a TemplateID or a TemplateSelector"
 	Spec   ProxmoxMachineSpec   `json:"spec,omitempty"`
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
 }

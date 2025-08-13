@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
@@ -77,39 +77,39 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		},
 	}
 
-	infraCluster := &infrav1alpha1.ProxmoxCluster{
+	infraCluster := &infrav1alpha2.ProxmoxCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.ClusterFinalizer,
+				infrav1alpha2.ClusterFinalizer,
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxClusterSpec{
-			IPv4Config: &infrav1alpha1.IPConfigSpec{
+		Spec: infrav1alpha2.ProxmoxClusterSpec{
+			IPv4Config: &infrav1alpha2.IPConfigSpec{
 				Addresses: []string{"10.0.0.10-10.0.0.20"},
 				Prefix:    24,
 				Gateway:   "10.0.0.1",
 			},
 			DNSServers: []string{"1.2.3.4"},
 		},
-		Status: infrav1alpha1.ProxmoxClusterStatus{
-			NodeLocations: &infrav1alpha1.NodeLocations{},
+		Status: infrav1alpha2.ProxmoxClusterStatus{
+			NodeLocations: &infrav1alpha2.NodeLocations{},
 		},
 	}
-	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1alpha1.IPV4Format)}}
+	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1alpha2.IPV4Format)}}
 
-	infraMachine := &infrav1alpha1.ProxmoxMachine{
+	infraMachine := &infrav1alpha2.ProxmoxMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.MachineFinalizer,
+				infrav1alpha2.MachineFinalizer,
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxMachineSpec{
-			VirtualMachineCloneSpec: infrav1alpha1.VirtualMachineCloneSpec{
-				TemplateSource: infrav1alpha1.TemplateSource{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{
+			VirtualMachineCloneSpec: infrav1alpha2.VirtualMachineCloneSpec{
+				TemplateSource: infrav1alpha2.TemplateSource{
 					SourceNode: "node1",
 					TemplateID: ptr.To[int32](123),
 				},
@@ -122,11 +122,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	require.NoError(t, clusterv1.AddToScheme(scheme))
 	require.NoError(t, ipamv1.AddToScheme(scheme))
 	require.NoError(t, ipamicv1.AddToScheme(scheme))
-	require.NoError(t, infrav1alpha1.AddToScheme(scheme))
+	require.NoError(t, infrav1alpha2.AddToScheme(scheme))
 	kubeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(cluster, machine, infraCluster, infraMachine).
-		WithStatusSubresource(&infrav1alpha1.ProxmoxCluster{}, &infrav1alpha1.ProxmoxMachine{}).
+		WithStatusSubresource(&infrav1alpha2.ProxmoxCluster{}, &infrav1alpha2.ProxmoxMachine{}).
 		Build()
 
 	ipamHelper := ipam.NewHelper(kubeClient, infraCluster)
@@ -161,7 +161,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 }
 
 func getIPSuffix(addr string) string {
-	suffix := infrav1alpha1.DefaultSuffix
+	suffix := infrav1alpha2.DefaultSuffix
 	ip := netip.MustParseAddr(addr)
 	if ip.Is6() {
 		suffix += "6"
@@ -202,22 +202,19 @@ func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope
 }
 
 func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineScope) {
-	for _, dev := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
-		poolRef := dev.IPv4PoolRef
-		if poolRef == nil {
-			poolRef = dev.IPv6PoolRef
+	for _, dev := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
+		for _, poolRef := range dev.IPPoolRef {
+			var obj client.Object
+			switch poolRef.Kind {
+			case "InClusterIPPool":
+				obj = &ipamicv1.InClusterIPPool{}
+				obj.SetNamespace(machineScope.Namespace())
+			case "GlobalInClusterIPPool":
+				obj = &ipamicv1.GlobalInClusterIPPool{}
+			}
+			obj.SetName(poolRef.Name)
+			require.NoError(t, c.Create(context.Background(), obj))
 		}
-
-		var obj client.Object
-		switch poolRef.Kind {
-		case "InClusterIPPool":
-			obj = &ipamicv1.InClusterIPPool{}
-			obj.SetNamespace(machineScope.Namespace())
-		case "GlobalInClusterIPPool":
-			obj = &ipamicv1.GlobalInClusterIPPool{}
-		}
-		obj.SetName(poolRef.Name)
-		require.NoError(t, c.Create(context.Background(), obj))
 	}
 }
 
