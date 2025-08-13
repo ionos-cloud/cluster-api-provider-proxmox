@@ -40,6 +40,12 @@ const (
 	biosUUID = "uuid=41ec1197-580f-460b-b41b-1dfefabe6e32"
 )
 
+var defaultNic = infrav1alpha2.NetworkDevice{
+	Bridge: "vmbr0",
+	Model:  ptr.To("virtio"),
+	Name:   "net0",
+}
+
 func TestReconcileBootstrapData_MissingIPAddress(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
@@ -85,10 +91,8 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
+			defaultNic,
 			{
-				Bridge: "vmbr0",
-				Model:  ptr.To("virtio"),
-			}, {
 				Bridge: "vmbr1",
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
@@ -217,10 +221,8 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
+			defaultNic,
 			{
-				Bridge: "vmbr0",
-				Model:  ptr.To("virtio"),
-			}, {
 				Bridge: "vmbr1",
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
@@ -379,10 +381,8 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
+			defaultNic,
 			{
-				Bridge: "vmbr0",
-				Model:  ptr.To("virtio"),
-			}, {
 				Bridge: "vmbr1",
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
