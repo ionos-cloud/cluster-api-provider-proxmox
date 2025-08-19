@@ -24,7 +24,7 @@ import (
 
 const (
 	/* network-config template. */
-	networkConfigTPl = `network:
+	networkConfigTpl = `network:
   version: 2
   renderer: networkd
   ethernets:
@@ -86,41 +86,42 @@ const (
 {{- end -}}
 
 {{- define "routes" }}
-    {{- range $ipconfig := .IPConfigs }}
-    {{- if .Gateway }}
+    {{- if or .IPConfigs .Routes }}
       routes:
+      {{- range $ipconfig := .IPConfigs }}
+      {{- if .Gateway }}
        {{- if .Gateway }}
+        {{- if is6 .IPAddress }}
+        - to: '::/0'
+        {{- else }}
         - to: 0.0.0.0/0
+        {{- end -}}
           {{- if .Metric }}
           metric: {{ .Metric }}
           {{- end }}
           via: {{ .Gateway }}
        {{- end }}
-    {{- else }}
-      {{- if .Routes }}
-      routes:
       {{- end -}}
-    {{- end -}}
-    {{- end -}}
-    {{- range $index, $route := .Routes }}
+      {{- end -}}
+      {{- if .Routes }}
+        {{- range $index, $route := .Routes }}
         - {
         {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
         {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
         {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
         {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
+        {{- end -}}
+        {{- end -}}
     {{- end -}}
 {{- end -}}
 
 {{- define "ipAddresses" }}
-    {{- if or .IPAddress .IPV6Address }}
+    {{- if .IPConfigs }}
       addresses:
-      {{- if .IPAddress }}
+        {{- range $ipconfig := .IPConfigs }}
         - {{ .IPAddress }}
-      {{- end }}
-      {{- if .IPV6Address }}
-        - '{{ .IPV6Address }}'
-      {{- end }}
-    {{- end }}
+        {{- end }}
+    {{- end -}}
 {{- end -}}
 
 {{- define "mtu" }}
@@ -164,7 +165,7 @@ func (r *NetworkConfig) Render() ([]byte, error) {
 	}
 
 	// render network-config
-	return render("network-config", networkConfigTPl, r.data)
+	return render("network-config", networkConfigTpl, r.data)
 }
 
 func (r *NetworkConfig) validate() error {
@@ -172,12 +173,10 @@ func (r *NetworkConfig) validate() error {
 		return ErrMissingNetworkConfigData
 	}
 	// TODO: Fix validation
-	/*
-		metrics := make(map[uint32]*struct {
-			ipv4 bool
-			ipv6 bool
-		})
-	*/
+	metrics := make(map[uint32]*struct {
+		ipv4 bool
+		ipv6 bool
+	})
 
 	// for i, d := range r.data.NetworkConfigData {
 	for _, d := range r.data.NetworkConfigData {
@@ -201,52 +200,41 @@ func (r *NetworkConfig) validate() error {
 		if d.MacAddress == "" {
 			return ErrMissingMacAddress
 		}
-		/*
-			if !d.DHCP4 && len(d.IPConfigs) > 0 {
-				err := validIPAddress(d.IPAddress)
+
+		for _, c := range d.IPConfigs {
+			var is6 bool
+			var err error
+
+			if !d.DHCP4 || !d.DHCP6 {
+				is6, err = validIPAddress(c.IPAddress)
 				if err != nil {
 					return err
 				}
-				if d.Gateway == "" && i == 0 {
+				if c.Gateway == "" /*&& i == 0*/ {
 					return ErrMissingGateway
 				}
 			}
 
-			if !d.DHCP6 && len(d.IPConfigs) > 0 {
-				err6 := validIPAddress(d.IPV6Address)
-				if err6 != nil {
-					return err6
-				}
-				if d.Gateway6 == "" && i == 0 {
-					return ErrMissingGateway
-				}
-			}
-			if d.Metric != nil {
-				if _, exists := metrics[*d.Metric]; !exists {
-					metrics[*d.Metric] = new(struct {
+			if c.Metric != nil {
+				if _, exists := metrics[*c.Metric]; !exists {
+					metrics[*c.Metric] = new(struct {
 						ipv4 bool
 						ipv6 bool
 					})
 				}
-				if metrics[*d.Metric].ipv4 {
+				if !is6 && metrics[*c.Metric].ipv4 {
 					return ErrConflictingMetrics
 				}
-				metrics[*d.Metric].ipv4 = true
-			}
-			if d.Metric6 != nil {
-				if _, exists := metrics[*d.Metric6]; !exists {
-					metrics[*d.Metric6] = new(struct {
-						ipv4 bool
-						ipv6 bool
-					})
-				}
-
-				if metrics[*d.Metric6].ipv6 {
+				if is6 && metrics[*c.Metric].ipv6 {
 					return ErrConflictingMetrics
 				}
-				metrics[*d.Metric6].ipv6 = true
+				if !is6 {
+					metrics[*c.Metric].ipv4 = true
+				} else {
+					metrics[*c.Metric].ipv6 = true
+				}
 			}
-		*/
+		}
 	}
 	return nil
 }
@@ -303,15 +291,13 @@ func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 	return nil
 }
 
-/*
-func validIPAddress(input string) error {
+func validIPAddress(input string) (bool, error) {
 	if input == "" {
-		return ErrMissingIPAddress
+		return false, ErrMissingIPAddress
 	}
-	_, err := netip.ParsePrefix(input)
+	p, err := netip.ParsePrefix(input)
 	if err != nil {
-		return ErrMalformedIPAddress
+		return false, ErrMalformedIPAddress
 	}
-	return nil
+	return p.Addr().Is6(), nil
 }
-*/
