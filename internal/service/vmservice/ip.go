@@ -47,6 +47,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	addresses := make(map[string]string)
 
 	if machineScope.ProxmoxMachine.Spec.Network != nil {
+		//fmt.Println( handleDevices(ctx, machineScope, addresses))
 		if requeue, err = handleDevices(ctx, machineScope, addresses); err != nil || requeue {
 			return true, errors.Wrap(err, "unable to handle network devices")
 		}
@@ -262,10 +263,12 @@ func handleIPAddress(ctx context.Context, machineScope *scope.MachineScope, devi
 func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]string) (bool, error) {
 	// additional network devices.
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
+		fmt.Println(net)
 		for i, ipPool := range net.InterfaceConfig.IPPoolRef {
 			// TODO: Unfuck this
 			ip, err := handleIPAddress(ctx, machineScope, net.Name, i, &ipPool)
 			if err != nil || ip == "" {
+				fmt.Println("handleDevices", "err", err, "ip", ip)
 				return true, errors.Wrapf(err, "unable to handle IPAddress for device %s, pool %s", net.Name, ipPool.Name)
 			}
 

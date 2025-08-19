@@ -36,12 +36,12 @@ var _ = Describe("Controller Test", func() {
 	Context("create proxmox machine", func() {
 		It("should disallow invalid network mtu", func() {
 			machine := invalidMTUProxmoxMachine("test-machine")
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].mtu: Invalid value")))
 		})
 
 		It("should disallow invalid network vlan", func() {
 			machine := invalidVLANProxmoxMachine("test-machine")
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].vlan: Invalid value")))
 		})
 
 		It("should disallow invalid network mtu for additional device", func() {
@@ -75,7 +75,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow routing policy without table", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy[0].Table = nil
+			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
 	})
@@ -89,10 +89,10 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&machine), &machine)).To(Succeed())
 			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(uint16(50))
 
-			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.mtu: Invalid value")))
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].mtu: Invalid value")))
 			machine.Spec.Network.NetworkDevices[0].VLAN = ptr.To(uint16(0))
 
-			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].vlan: Invalid value")))
 
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &machine))).To(Succeed())

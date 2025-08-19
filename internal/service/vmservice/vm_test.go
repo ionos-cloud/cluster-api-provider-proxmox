@@ -425,7 +425,7 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
-			{Bridge: "vmbr0", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
+			{Name: "net0", Bridge: "vmbr0", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
 			{Name: "net1", Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
 		},
 	}
@@ -574,7 +574,7 @@ func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
-			{Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
+			{Name: "net0", Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
 			{Name: "net1", Bridge: "vmbr1", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
 		},
 	}
