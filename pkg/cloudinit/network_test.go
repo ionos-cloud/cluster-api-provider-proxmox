@@ -130,14 +130,14 @@ const (
       dhcp6: false
       addresses:
         - 10.10.10.12/24
-        - '2001:db8::1/64'
+        - 2001:db8::1/64
       routes:
         - to: 0.0.0.0/0
           metric: 100
           via: 10.10.10.1
         - to: '::/0'
           metric: 100
-          via: '2001:db8::1'
+          via: 2001:db8::1
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -153,11 +153,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '2001:db8::1/64'
+        - 2001:db8::1/64
       routes:
         - to: '::/0'
           metric: 100
-          via: '2001:db8::1'
+          via: 2001:db8::1
       nameservers:
         addresses:
           - '8.8.8.8'

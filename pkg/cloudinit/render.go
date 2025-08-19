@@ -18,13 +18,19 @@ package cloudinit
 
 import (
 	"bytes"
+	"net/netip"
 	"text/template"
 
 	"github.com/pkg/errors"
 )
 
+func is6(addr string) bool {
+	return netip.MustParsePrefix(addr).Addr().Is6()
+}
+
 func render(name string, tpl string, data BaseCloudInitData) ([]byte, error) {
-	mt, err := template.New(name).Parse(tpl)
+	f := map[string]any{"is6": is6}
+	mt, err := template.New(name).Funcs(f).Parse(tpl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s template", name)
 	}
