@@ -13,35 +13,31 @@ var (
 	expectedValidNetworkConfig = map[string][]byte{
 		"00-eth0.network": []byte(`[Match]
 MACAddress=E2:B8:FE:E7:50:75
-
 [Network]
 DNS=10.0.1.1
 [Address]
 Address=10.0.0.98/25
-[Address]
-Address=2001:db8:1::10/64
-
 [Route]
 Destination=0.0.0.0/0
 Gateway=10.0.0.1
 Metric=100
+[Address]
+Address=2001:db8:1::10/64
 [Route]
 Destination=::/0
 Gateway=2001:db8:1::1
+Metric=100
 `),
 		"01-eth1.network": []byte(`[Match]
 MACAddress=E2:8E:95:1F:EB:36
-
 [Network]
 DNS=10.0.1.1
 [Address]
 Address=10.0.1.84/25
-
 [Route]
 Destination=0.0.0.0/0
 Gateway=10.0.1.1
 Metric=200
-
 [RoutingPolicyRule]
 To=8.7.6.5/32
 From=1.1.1.1/32
@@ -54,37 +50,33 @@ Table=500
 		"00-vrf0.netdev": []byte(`[NetDev]
 Name=vrf0
 Kind=vrf
-
 [VRF]
 Table=644
 `),
 		"00-eth0.network": []byte(`[Match]
 MACAddress=E2:B8:FE:E7:50:75
-
 [Network]
 DNS=10.0.1.1
 [Address]
 Address=10.0.0.98/25
-[Address]
-Address=2001:db8:1::10/64
-
 [Route]
 Destination=0.0.0.0/0
 Gateway=10.0.0.1
 Metric=100
+[Address]
+Address=2001:db8:1::10/64
 [Route]
 Destination=::/0
 Gateway=2001:db8:1::1
+Metric=100
 `),
 		"01-eth1.network": []byte(`[Match]
 MACAddress=E2:8E:95:1F:EB:36
-
 [Network]
 VRF=vrf0
 DNS=10.0.1.1
 [Address]
 Address=10.0.1.84/25
-
 [Route]
 Destination=0.0.0.0/0
 Gateway=10.0.1.1
@@ -93,12 +85,10 @@ Metric=200
 
 		"02-vrf2.network": []byte(`[Match]
 Name=vrf0
-
 [Route]
 Destination=3.4.5.6
 Gateway=10.0.1.1
 Metric=100
-
 [RoutingPolicyRule]
 To=8.7.6.5/32
 From=1.1.1.1/32

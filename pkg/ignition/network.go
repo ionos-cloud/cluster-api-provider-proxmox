@@ -3,6 +3,7 @@ package ignition
 import (
 	"bytes"
 	"fmt"
+	"net/netip"
 	"text/template"
 
 	"github.com/pkg/errors"
@@ -14,19 +15,17 @@ const (
 	networkTypeEthernet = "ethernet"
 	networkTypeVRF      = "vrf"
 
-	// networkConfigTPlNetworkd is a Go template to generate systemd-networkd unit files
+	// networkConfigTplNetworkd is a Go template to generate systemd-networkd unit files
 	// based on the data schema provided for network-config v2.
-	networkConfigTPlNetworkd = `{{- $element := . -}}
+	networkConfigTplNetworkd = `{{- $element := . -}}
 {{- $type := $element.Type -}}
 {{ if eq $type "ethernet" -}}
 [Match]
 MACAddress={{ $element.MacAddress }}
-
 {{- if .LinkMTU }}
 [Link]
 MTUBytes={{ .LinkMTU }}
 {{- end }}
-
 [Network]
 {{- if .VRF }}
 VRF={{ .VRF }}
@@ -38,49 +37,34 @@ DHCP=ipv4
 {{- else if $element.DHCP6 }}
 DHCP=ipv6
 {{- end }}
-
 {{- template "dns" . }}
-
-{{- if $element.IPAddress }}
+{{- range $ipconfig := $element.IPConfigs -}}
+{{ if .IPAddress }}
 [Address]
-Address={{ $element.IPAddress }}
-{{- end }}
-
-{{- if $element.IPV6Address }}
-[Address]
-Address={{ $element.IPV6Address }}
-{{- end }}
-
-{{ if or .Gateway .Gateway6 }}
-{{- if .Gateway -}}
+Address={{ .IPAddress }}
+{{- end -}}
+{{- if .Gateway }}
 [Route]
+{{- if is6 .IPAddress }}
+Destination=::/0
+{{- else }}
 Destination=0.0.0.0/0
+{{- end }}
 Gateway={{ .Gateway }}
 {{- if .Metric }}
 Metric={{ .Metric }}
-{{- end }}
-{{- end }}
-
-{{- if .Gateway6 }}
-[Route]
-Destination=::/0
-Gateway={{ .Gateway6 }}
-{{- if .Metric6 }}
-Metric={{ .Metric6 }}
 {{- end }}
 {{- end }}
 {{- end }}
 {{ template "routes" . -}}
 {{ template "rules" . -}}
 {{- end -}}
-
 {{- if eq $type "vrf" -}}
 [Match]
 Name={{ $element.Name }}
 {{ template "routes" . -}}
 {{- template "rules" . -}}
 {{- end -}}
-
 {{- define "dns" }}
 {{- if .DNSServers }}
 {{- range $dnsServer := .DNSServers }}
@@ -88,12 +72,11 @@ DNS={{ $dnsServer }}
 {{- end }}
 {{- end }}
 {{- end }}
-
 {{- define "rules" }}
-{{- if .FIBRules }}
+{{- if .FIBRules -}}
 {{- $type := .Type }}
 {{- $table := .Table }}
-{{- range $index, $rule := .FIBRules }}
+{{- range $index, $rule := .FIBRules -}}
 [RoutingPolicyRule]
 {{ if $rule.To }}To={{$rule.To}}{{- end }}
 {{ if $rule.From }}From={{$rule.From}}{{- end }}
@@ -105,10 +88,9 @@ DNS={{ $dnsServer }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
-
 {{- define "routes" }}
 {{- if .Routes }}
-{{- range $index, $route := .Routes }}
+{{- range $index, $route := .Routes -}}
 [Route]
 {{ if $route.To }}Destination={{$route.To}}{{- end }}
 {{ if $route.Via }}Gateway={{$route.Via}}{{- end }}
@@ -124,7 +106,6 @@ DNS={{ $dnsServer }}
 [NetDev]
 Name={{ $element.Name }}
 Kind={{ $element.Type }}
-
 [VRF]
 Table={{ $element.Table }}
 {{- end }}
@@ -158,7 +139,7 @@ func RenderNetworkConfigData(data []types.NetworkConfigData) (map[string][]byte,
 	}
 
 	for i, networkConfig := range data {
-		config, err := render(fmt.Sprintf("%d-%s", i, networkConfig.Type), networkConfigTPlNetworkd, networkConfig)
+		config, err := render(fmt.Sprintf("%d-%s", i, networkConfig.Type), networkConfigTplNetworkd, networkConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -177,8 +158,12 @@ func RenderNetworkConfigData(data []types.NetworkConfigData) (map[string][]byte,
 	return configs, nil
 }
 
+func is6(addr string) bool {
+	return netip.MustParsePrefix(addr).Addr().Is6()
+}
+
 func render(name string, tpl string, data types.NetworkConfigData) ([]byte, error) {
-	mt, err := template.New(name).Parse(tpl)
+	mt, err := template.New(name).Funcs(map[string]any{"is6": is6}).Parse(tpl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s template", name)
 	}
