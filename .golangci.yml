@@ -114,6 +114,9 @@ linters:
       - linters:
           - revive
         text: 'var-naming: avoid meaningless package names'
+      - path: api/v1alpha1
+        linters:
+          - kubeapilinter
     paths:
       - zz_generated.*\.go$
       - .*conversion.*\.go$
