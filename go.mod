@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
-go 1.24.5
+go 1.24.6
 
 replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.10.4
 
