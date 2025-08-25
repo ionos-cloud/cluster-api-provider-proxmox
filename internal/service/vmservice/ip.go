@@ -47,7 +47,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	addresses := make(map[string]string)
 
 	if machineScope.ProxmoxMachine.Spec.Network != nil {
-		//fmt.Println( handleDevices(ctx, machineScope, addresses))
+		// fmt.Println( handleDevices(ctx, machineScope, addresses))
 		if requeue, err = handleDevices(ctx, machineScope, addresses); err != nil || requeue {
 			return true, errors.Wrap(err, "unable to handle network devices")
 		}
