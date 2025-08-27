@@ -125,10 +125,10 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		// Instead of directly requeuing the failed task, wait for the RetryAfter duration to pass
 		// before resetting the taskRef from the ProxmoxMachine status.
 		if scope.ProxmoxMachine.Status.RetryAfter.IsZero() {
-			scope.ProxmoxMachine.Status.RetryAfter = metav1.Time{Time: time.Now().Add(1 * time.Minute)}
+			scope.ProxmoxMachine.Status.RetryAfter = &metav1.Time{Time: time.Now().Add(1 * time.Minute)}
 		} else {
 			scope.ProxmoxMachine.Status.TaskRef = nil
-			scope.ProxmoxMachine.Status.RetryAfter = metav1.Time{}
+			scope.ProxmoxMachine.Status.RetryAfter = nil
 		}
 		return true, nil
 	default:

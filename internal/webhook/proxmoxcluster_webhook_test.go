@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -91,7 +92,7 @@ var _ = Describe("Controller Test", func() {
 			cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 				Addresses: []string{"invalid"},
 				Prefix:    64,
-				Gateway:   "2001:db8::1",
+				Gateway:   ptr.To("2001:db8::1"),
 			}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided addresses are not valid IP addresses, ranges or CIDRs")))
 		})
@@ -102,7 +103,7 @@ var _ = Describe("Controller Test", func() {
 			cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 				Addresses: []string{"2001:db8::/64"},
 				Prefix:    64,
-				Gateway:   "2001:db8::1",
+				Gateway:   ptr.To("2001:db8::1"),
 			}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("addresses may not contain the endpoint IP")))
 		})
@@ -143,7 +144,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 				Addresses: []string{
 					"10.10.10.2-10.10.10.10",
 				},
-				Gateway: "10.10.10.1",
+				Gateway: ptr.To("10.10.10.1"),
 				Prefix:  24,
 			},
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},

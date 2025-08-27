@@ -87,10 +87,10 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 
 	s.Len(pool.Spec.Addresses, 1)
 	s.ElementsMatch(ipamConfig.Addresses, pool.Spec.Addresses)
-	s.Equal(ipamConfig.Gateway, pool.Spec.Gateway)
+	s.Equal(*ipamConfig.Gateway, pool.Spec.Gateway)
 	s.Equal(pool.Spec.Prefix, 24)
 
-	s.cluster.Spec.IPv4Config.Gateway = "10.11.0.0"
+	s.cluster.Spec.IPv4Config.Gateway = ptr.To("10.11.0.0")
 	s.cluster.Spec.IPv4Config.Metric = ptr.To(uint32(123))
 
 	ipamConfig = s.cluster.Spec.IPv4Config
@@ -102,7 +102,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	s.Equal(ipamConfig.Gateway, pool.Spec.Gateway)
+	s.Equal(*ipamConfig.Gateway, pool.Spec.Gateway)
 	s.Equal(pool.ObjectMeta.Annotations["metric"], fmt.Sprint(*ipamConfig.Metric))
 
 	// test deletion
@@ -119,7 +119,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   "2001:db8::1",
+		Gateway:   ptr.To("2001:db8::1"),
 		Metric:    ptr.To(uint32(123)),
 	}
 
@@ -158,7 +158,7 @@ func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
 	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   "2001:db8::1",
+		Gateway:   ptr.To("2001:db8::1"),
 	}
 
 	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
@@ -404,7 +404,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   "2001:db8::1",
+		Gateway:   ptr.To("2001:db8::1"),
 	}
 	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
 
@@ -457,7 +457,7 @@ func getCluster() *infrav1.ProxmoxCluster {
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{"10.10.0.1/24"},
-				Gateway:   "10.0.0.0",
+				Gateway:   ptr.To("10.0.0.0"),
 				Prefix:    24,
 			},
 		},

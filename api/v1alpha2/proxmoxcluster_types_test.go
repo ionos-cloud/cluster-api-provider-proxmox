@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -84,8 +85,8 @@ func defaultCluster() *ProxmoxCluster {
 			IPv4Config: &IPConfigSpec{
 				Addresses: []string{"10.0.0.0/24"},
 				Prefix:    24,
-				Gateway:   "10.0.0.254",
-				Metric:    func() *uint32 { var a uint32 = 123; return &a }(),
+				Gateway:   ptr.To("10.0.0.254"),
+				Metric:    ptr.To(uint32(123)),
 			},
 			DNSServers: []string{"1.2.3.4"},
 			CloneSpec: &ProxmoxClusterCloneSpec{
@@ -93,7 +94,7 @@ func defaultCluster() *ProxmoxCluster {
 					"controlPlane": {
 						VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 							TemplateSource: TemplateSource{
-								SourceNode: "pve1",
+								SourceNode: ptr.To("pve1"),
 							},
 						},
 					},
@@ -176,7 +177,6 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			dc.Spec.IPv6Config = &IPConfigSpec{
 				Addresses: []string{},
 				Prefix:    0,
-				Gateway:   "",
 			}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("IPv6Config addresses must be provided")))
 		})
@@ -186,7 +186,6 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			dc.Spec.IPv6Config = &IPConfigSpec{
 				Addresses: []string{},
 				Prefix:    129,
-				Gateway:   "",
 			}
 
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be less than or equal to 128")))

@@ -89,7 +89,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			IPv4Config: &infrav1alpha2.IPConfigSpec{
 				Addresses: []string{"10.0.0.10-10.0.0.20"},
 				Prefix:    24,
-				Gateway:   "10.0.0.1",
+				Gateway:   ptr.To("10.0.0.1"),
 			},
 			DNSServers: []string{"1.2.3.4"},
 		},
@@ -110,7 +110,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		Spec: infrav1alpha2.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1alpha2.VirtualMachineCloneSpec{
 				TemplateSource: infrav1alpha2.TemplateSource{
-					SourceNode: "node1",
+					SourceNode: ptr.To("node1"),
 					TemplateID: ptr.To[int32](123),
 				},
 			},

@@ -233,14 +233,17 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	// CPU & Memory
 	var vmOptions []proxmox.VirtualMachineOption
-	if value := machineScope.ProxmoxMachine.Spec.NumSockets; value > 0 && vmConfig.Sockets != int(value) {
-		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionSockets, Value: value})
+	sockets := ptr.Deref(machineScope.ProxmoxMachine.Spec.NumSockets, 0)
+	cores := ptr.Deref(machineScope.ProxmoxMachine.Spec.NumCores, 0)
+	memory := ptr.Deref(machineScope.ProxmoxMachine.Spec.MemoryMiB, 0)
+	if sockets > 0 && vmConfig.Sockets != int(sockets) {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionSockets, Value: sockets})
 	}
-	if value := machineScope.ProxmoxMachine.Spec.NumCores; value > 0 && vmConfig.Cores != int(value) {
-		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCores, Value: value})
+	if cores > 0 && vmConfig.Cores != int(cores) {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCores, Value: cores})
 	}
-	if value := machineScope.ProxmoxMachine.Spec.MemoryMiB; value > 0 && int32(vmConfig.Memory) != value {
-		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: value})
+	if memory > 0 && int(vmConfig.Memory) != int(memory) {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: memory})
 	}
 
 	// Description

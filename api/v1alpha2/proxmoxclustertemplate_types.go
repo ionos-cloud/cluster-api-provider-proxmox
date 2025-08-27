@@ -31,8 +31,8 @@ type ProxmoxClusterTemplateResource struct {
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"`
-	Spec       ProxmoxClusterSpec   `json:"spec"`
+	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
+	Spec       ProxmoxClusterSpec    `json:"spec"`
 }
 
 // +kubebuilder:object:root=true

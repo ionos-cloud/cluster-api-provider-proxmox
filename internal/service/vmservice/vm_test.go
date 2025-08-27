@@ -420,9 +420,9 @@ func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
 func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
-	machineScope.ProxmoxMachine.Spec.NumSockets = 4
-	machineScope.ProxmoxMachine.Spec.NumCores = 4
-	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
+	machineScope.ProxmoxMachine.Spec.NumSockets = ptr.To(int32(4))
+	machineScope.ProxmoxMachine.Spec.NumCores = ptr.To(int32(4))
+	machineScope.ProxmoxMachine.Spec.MemoryMiB = ptr.To(int32(16 * 1024))
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			{Name: "net0", Bridge: "vmbr0", Model: ptr.To("virtio"), MTU: ptr.To(uint16(1500))},
@@ -434,9 +434,9 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	task := newTask()
 	machineScope.SetVirtualMachine(vm)
 	expectedOptions := []interface{}{
-		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
-		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
-		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},
+		proxmox.VirtualMachineOption{Name: optionSockets, Value: *machineScope.ProxmoxMachine.Spec.NumSockets},
+		proxmox.VirtualMachineOption{Name: optionCores, Value: *machineScope.ProxmoxMachine.Spec.NumCores},
+		proxmox.VirtualMachineOption{Name: optionMemory, Value: *machineScope.ProxmoxMachine.Spec.MemoryMiB},
 		proxmox.VirtualMachineOption{Name: optionDescription, Value: machineScope.ProxmoxMachine.Spec.Description},
 		proxmox.VirtualMachineOption{Name: "net0", Value: formatNetworkDevice("virtio", "vmbr0", ptr.To(uint16(1500)), nil)},
 		proxmox.VirtualMachineOption{Name: "net1", Value: formatNetworkDevice("virtio", "vmbr1", ptr.To(uint16(1500)), nil)},
@@ -533,7 +533,7 @@ func TestReconcileMachineAddresses_IPV6(t *testing.T) {
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha2.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   "2001:db8::1",
+		Gateway:   ptr.To("2001:db8::1"),
 	}
 
 	vm := newRunningVM()
@@ -552,7 +552,7 @@ func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha2.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   "2001:db8::1",
+		Gateway:   ptr.To("2001:db8::1"),
 	}
 
 	vm := newRunningVM()
@@ -569,9 +569,9 @@ func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 
 func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.ProxmoxMachine.Spec.NumSockets = 4
-	machineScope.ProxmoxMachine.Spec.NumCores = 4
-	machineScope.ProxmoxMachine.Spec.MemoryMiB = 16 * 1024
+	machineScope.ProxmoxMachine.Spec.NumSockets = ptr.To(int32(4))
+	machineScope.ProxmoxMachine.Spec.NumCores = ptr.To(int32(4))
+	machineScope.ProxmoxMachine.Spec.MemoryMiB = ptr.To(int32(16 * 1024))
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			{Name: "net0", Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))},
@@ -583,9 +583,9 @@ func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
 	task := newTask()
 	machineScope.SetVirtualMachine(vm)
 	expectedOptions := []interface{}{
-		proxmox.VirtualMachineOption{Name: optionSockets, Value: machineScope.ProxmoxMachine.Spec.NumSockets},
-		proxmox.VirtualMachineOption{Name: optionCores, Value: machineScope.ProxmoxMachine.Spec.NumCores},
-		proxmox.VirtualMachineOption{Name: optionMemory, Value: machineScope.ProxmoxMachine.Spec.MemoryMiB},
+		proxmox.VirtualMachineOption{Name: optionSockets, Value: *machineScope.ProxmoxMachine.Spec.NumSockets},
+		proxmox.VirtualMachineOption{Name: optionCores, Value: *machineScope.ProxmoxMachine.Spec.NumCores},
+		proxmox.VirtualMachineOption{Name: optionMemory, Value: *machineScope.ProxmoxMachine.Spec.MemoryMiB},
 		proxmox.VirtualMachineOption{Name: "net0", Value: formatNetworkDevice("virtio", "vmbr0", nil, ptr.To(uint16(100)))},
 		proxmox.VirtualMachineOption{Name: "net1", Value: formatNetworkDevice("virtio", "vmbr1", nil, ptr.To(uint16(100)))},
 	}
