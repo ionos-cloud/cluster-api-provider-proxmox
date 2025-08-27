@@ -19,7 +19,6 @@ package vmservice
 import (
 	"context"
 	"testing"
-	// "fmt"
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"

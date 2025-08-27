@@ -70,7 +70,7 @@ func TestMachineScope_Role(t *testing.T) {
 
 func TestMachineScope_GetProviderID(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{},
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -84,7 +84,7 @@ func TestMachineScope_GetProviderID(t *testing.T) {
 
 func TestMachineScope_GetVirtualMachineID(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{},
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -98,22 +98,22 @@ func TestMachineScope_GetVirtualMachineID(t *testing.T) {
 
 func TestMachineScope_SetReady(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{},
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
 	}
 
 	scope.SetReady()
-	require.True(t, scope.ProxmoxMachine.Status.Ready)
+	require.True(t, *scope.ProxmoxMachine.Status.Ready)
 
 	scope.SetNotReady()
-	require.False(t, scope.ProxmoxMachine.Status.Ready)
+	require.False(t, *scope.ProxmoxMachine.Status.Ready)
 }
 
 func TestMachineScope_HasFailed(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{},
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -124,11 +124,11 @@ func TestMachineScope_HasFailed(t *testing.T) {
 
 func TestMachineScope_SkipQemuCheckEnabled(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{
 			Checks: &infrav1alpha2.ProxmoxMachineChecks{
 				SkipCloudInitStatus: ptr.To(true),
 			},
-		},
+		}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -139,7 +139,7 @@ func TestMachineScope_SkipQemuCheckEnabled(t *testing.T) {
 
 func TestMachineScope_SkipQemuCheck(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{},
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -150,11 +150,11 @@ func TestMachineScope_SkipQemuCheck(t *testing.T) {
 
 func TestMachineScope_SkipCloudInitCheckEnabled(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{
 			Checks: &infrav1alpha2.ProxmoxMachineChecks{
 				SkipCloudInitStatus: ptr.To(true),
 			},
-		},
+		}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -165,7 +165,7 @@ func TestMachineScope_SkipCloudInitCheckEnabled(t *testing.T) {
 
 func TestMachineScope_SkipCloudInit(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{},
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -176,11 +176,11 @@ func TestMachineScope_SkipCloudInit(t *testing.T) {
 
 func TestMachineScope_SkipQemuDisablesCloudInitCheck(t *testing.T) {
 	p := infrav1alpha2.ProxmoxMachine{
-		Spec: infrav1alpha2.ProxmoxMachineSpec{
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{
 			Checks: &infrav1alpha2.ProxmoxMachineChecks{
 				SkipQemuGuestAgent: ptr.To(true),
 			},
-		},
+		}),
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -193,7 +193,7 @@ func TestMachineScope_GetBootstrapSecret(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
 	p := infrav1alpha2.ProxmoxMachine{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},
-		Spec:       infrav1alpha2.ProxmoxMachineSpec{},
+		Spec:       ptr.To(infrav1alpha2.ProxmoxMachineSpec{}),
 	}
 	m := clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},

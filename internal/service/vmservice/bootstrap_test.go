@@ -41,7 +41,7 @@ const (
 )
 
 var defaultNic = infrav1alpha2.NetworkDevice{
-	Bridge: "vmbr0",
+	Bridge: ptr.To("vmbr0"),
 	Model:  ptr.To("virtio"),
 	Name:   infrav1alpha2.DefaultNetworkDevice,
 }
@@ -93,7 +93,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			defaultNic,
 			{
-				Bridge: "vmbr1",
+				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
 				InterfaceConfig: infrav1alpha2.InterfaceConfig{
@@ -223,7 +223,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			defaultNic,
 			{
-				Bridge: "vmbr1",
+				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
 				InterfaceConfig: infrav1alpha2.InterfaceConfig{
@@ -243,13 +243,14 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 }
 */
 
+/* getCommonInterfaceConfig cannot fail
 func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			{
-				Bridge: "vmbr1",
+				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
 			},
@@ -260,15 +261,16 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
 	require.NoError(t, err)
 }
+*/
 
 func TestGetCommonInterfaceConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 
-	var MTU uint16 = 9000
+	var MTU int32 = 9000
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			{
-				Bridge: "vmbr1",
+				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
 				InterfaceConfig: infrav1alpha2.InterfaceConfig{
@@ -285,12 +287,12 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 					LinkMTU: &MTU,
 					Routing: infrav1alpha2.Routing{
 						Routes: []infrav1alpha2.RouteSpec{
-							{To: "default", Via: "192.168.178.1"},
-							{To: "172.24.16.0/24", Via: "192.168.178.1", Table: 100},
+							{To: ptr.To("default"), Via: ptr.To("192.168.178.1")},
+							{To: ptr.To("172.24.16.0/24"), Via: ptr.To("192.168.178.1"), Table: ptr.To(int32(100))},
 						},
 						RoutingPolicy: []infrav1alpha2.RoutingPolicySpec{
-							{To: "10.10.10.0/24", Table: ptr.To(uint32(100))},
-							{From: "172.24.16.0/24", Table: ptr.To(uint32(100))},
+							{To: ptr.To("10.10.10.0/24"), Table: ptr.To(int32(100))},
+							{From: ptr.To("172.24.16.0/24"), Table: ptr.To(int32(100))},
 						},
 					},
 				},
@@ -307,14 +309,14 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
+	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
 	// TODO: not meaningful anylonger
 	/*
 		require.Equal(t, "10.0.0.10/24", cfg.IPConfigs[0].IPAddress)
 		require.Equal(t, "2001:db8::9/64", cfg.IPConfigs[1].IPAddress)
 	*/
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
-	require.Equal(t, "default", cfg.Routes[0].To)
+	require.Equal(t, "default", *cfg.Routes[0].To)
 	/*
 		require.Equal(t, "172.24.16.0/24", cfg.Routes[1].To)
 	*/
@@ -384,7 +386,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			defaultNic,
 			{
-				Bridge: "vmbr1",
+				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
 				InterfaceConfig: infrav1alpha2.InterfaceConfig{
@@ -440,7 +442,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 		},
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			{
-				Bridge: "vmbr1",
+				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
 				Name:   "net1",
 				InterfaceConfig: infrav1alpha2.InterfaceConfig{
@@ -598,7 +600,7 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{{
-			Bridge: "vmbr0",
+			Bridge: ptr.To("vmbr0"),
 			Model:  ptr.To("virtio"),
 			Name:   infrav1alpha2.DefaultNetworkDevice,
 			InterfaceConfig: infrav1alpha2.InterfaceConfig{

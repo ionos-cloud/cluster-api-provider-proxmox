@@ -79,30 +79,30 @@ func extractNetworkBridge(input string) string {
 }
 
 // extractNetworkMTU returns the mtu out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500.
-func extractNetworkMTU(input string) uint16 {
+func extractNetworkMTU(input string) int32 {
 	re := regexp.MustCompile(`mtu=(\d+)`)
 	match := re.FindStringSubmatch(input)
 	if len(match) > 1 {
-		mtu, err := strconv.ParseUint(match[1], 10, 16)
+		mtu, err := strconv.ParseInt(match[1], 10, 32)
 		if err != nil {
 			return 0
 		}
-		return uint16(mtu)
+		return int32(mtu)
 	}
 
 	return 0
 }
 
 // extractNetworkVLAN returns the vlan out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100.
-func extractNetworkVLAN(input string) uint16 {
+func extractNetworkVLAN(input string) int32 {
 	re := regexp.MustCompile(`tag=(\d+)`)
 	match := re.FindStringSubmatch(input)
 	if len(match) > 1 {
-		vlan, err := strconv.ParseUint(match[1], 10, 16)
+		vlan, err := strconv.ParseInt(match[1], 10, 32)
 		if err != nil {
 			return 0
 		}
-		return uint16(vlan)
+		return int32(vlan)
 	}
 
 	return 0
@@ -163,7 +163,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 		bridge := extractNetworkBridge(net)
 
 		// current is different from the desired spec.
-		if model != *v.Model || bridge != v.Bridge {
+		if model != *v.Model || bridge != *v.Bridge {
 			return true
 		}
 
@@ -189,7 +189,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 // formatNetworkDevice formats a network device config
 // example 'virtio,bridge=vmbr0,tag=100'.
-func formatNetworkDevice(model, bridge string, mtu *uint16, vlan *uint16) string {
+func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32) string {
 	var components = []string{model, fmt.Sprintf("bridge=%s", bridge)}
 
 	if mtu != nil {

@@ -89,7 +89,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 			},
 			Spec: ipamicv1.InClusterIPPoolSpec{
 				Addresses: ipv4Config.Addresses,
-				Prefix:    ipv4Config.Prefix,
+				Prefix:    int(ipv4Config.Prefix),
 				Gateway:   ipv4Config.Gateway,
 			},
 		}
@@ -131,7 +131,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 			},
 			Spec: ipamicv1.InClusterIPPoolSpec{
 				Addresses: h.cluster.Spec.IPv6Config.Addresses,
-				Prefix:    h.cluster.Spec.IPv6Config.Prefix,
+				Prefix:    int(h.cluster.Spec.IPv6Config.Prefix),
 				Gateway:   h.cluster.Spec.IPv6Config.Gateway,
 			},
 		}

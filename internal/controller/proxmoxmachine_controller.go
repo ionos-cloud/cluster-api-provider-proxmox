@@ -209,7 +209,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		machineScope.Logger.Error(err, "error reconciling VM")
 		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile VM")
 	}
-	machineScope.ProxmoxMachine.Status.VMStatus = vm.State
+	machineScope.ProxmoxMachine.Status.VMStatus = &vm.State
 
 	// Do not proceed until the backend VM is marked ready.
 	if vm.State != infrav1alpha2.VirtualMachineStateReady {

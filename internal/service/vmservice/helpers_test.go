@@ -107,14 +107,14 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 				infrav1alpha2.MachineFinalizer,
 			},
 		},
-		Spec: infrav1alpha2.ProxmoxMachineSpec{
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1alpha2.VirtualMachineCloneSpec{
 				TemplateSource: infrav1alpha2.TemplateSource{
-					SourceNode: "node1",
+					SourceNode: ptr.To("node1"),
 					TemplateID: ptr.To[int32](123),
 				},
 			},
-		},
+		}),
 	}
 
 	scheme := runtime.NewScheme()
