@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -39,18 +40,18 @@ import (
 
 type fakeResourceClient map[string]uint64
 
-func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string, _ uint64) (uint64, error) {
+func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string, _ int64) (uint64, error) {
 	return c[nodeName], nil
 }
 
-func miBytes(in uint64) uint64 {
-	return in * 1024 * 1024
+func miBytes(in int32) uint64 {
+	return uint64(in) * 1024 * 1024
 }
 
 func TestSelectNode(t *testing.T) {
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
 	var locations []infrav1.NodeLocation
-	const requestMiB = 8
+	var requestMiB = int32(8)
 	availableMem := map[string]uint64{
 		"pve1": miBytes(20),
 		"pve2": miBytes(30),
@@ -68,7 +69,7 @@ func TestSelectNode(t *testing.T) {
 		t.Run(fmt.Sprintf("round %d", i+1), func(t *testing.T) {
 			proxmoxMachine := &infrav1.ProxmoxMachine{
 				Spec: infrav1.ProxmoxMachineSpec{
-					MemoryMiB: requestMiB,
+					MemoryMiB: &requestMiB,
 				},
 			}
 
@@ -88,7 +89,7 @@ func TestSelectNode(t *testing.T) {
 	t.Run("out of memory", func(t *testing.T) {
 		proxmoxMachine := &infrav1.ProxmoxMachine{
 			Spec: infrav1.ProxmoxMachineSpec{
-				MemoryMiB: requestMiB,
+				MemoryMiB: &requestMiB,
 			},
 		}
 
@@ -146,7 +147,7 @@ func TestScheduleVM(t *testing.T) {
 			},
 		},
 		Spec: infrav1.ProxmoxMachineSpec{
-			MemoryMiB: 10,
+			MemoryMiB: ptr.To(int32(10)),
 		},
 	}
 
@@ -177,9 +178,9 @@ func TestScheduleVM(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", uint64(100)).Return(miBytes(60), nil)
-	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve2", uint64(100)).Return(miBytes(20), nil)
-	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", uint64(100)).Return(miBytes(20), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", int64(100)).Return(miBytes(60), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve2", int64(100)).Return(miBytes(20), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", int64(100)).Return(miBytes(20), nil)
 
 	node, err := ScheduleVM(context.Background(), machineScope)
 	require.NoError(t, err)

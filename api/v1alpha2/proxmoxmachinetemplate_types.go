@@ -41,11 +41,11 @@ type ProxmoxMachineTemplate struct {
 
 // ProxmoxMachineTemplateResource defines the spec and metadata for ProxmoxMachineTemplate supported by capi.
 type ProxmoxMachineTemplateResource struct {
-	// Standard object's metadata.
+	// metadata is the standard object metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"`
-	Spec       ProxmoxMachineSpec   `json:"spec"`
+	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
+	Spec       ProxmoxMachineSpec    `json:"spec"`
 }
 
 //+kubebuilder:object:root=true

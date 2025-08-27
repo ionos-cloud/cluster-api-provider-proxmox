@@ -17,6 +17,8 @@ limitations under the License.
 // Package types provides common types used in cloudinit & ignition.
 package types
 
+import infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+
 // NetworkConfigData is used to render network-config.
 type NetworkConfigData struct {
 	ProxName   string // Device name in Proxmox
@@ -31,7 +33,7 @@ type NetworkConfigData struct {
 	Table      uint32   // linux routing table number for VRF.
 	Routes     []RoutingData
 	FIBRules   []FIBRuleData // Forwarding information block for routing.
-	LinkMTU    *uint16       // linux network device MTU
+	LinkMTU    infrav1.MTU   // linux network device MTU
 	VRF        string        // linux VRF name // only used in networkd config.
 }
 
@@ -43,17 +45,7 @@ type IPConfig struct {
 }
 
 // RoutingData stores routing configuration.
-type RoutingData struct {
-	To     string
-	Via    string
-	Metric uint32
-	Table  uint32
-}
+type RoutingData = infrav1.RouteSpec
 
 // FIBRuleData stores forward information base rules (routing policies).
-type FIBRuleData struct {
-	To       string
-	From     string
-	Priority uint32
-	Table    uint32
-}
+type FIBRuleData = infrav1.RoutingPolicySpec
