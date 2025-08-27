@@ -107,7 +107,7 @@ var _ = Describe("Controller Test", func() {
 
 				config := cl.Spec.IPv4Config
 				g.Expect(pool.Spec.Addresses).To(ConsistOf(config.Addresses))
-				g.Expect(config.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
+				g.Expect(*config.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
 				g.Expect(pool.Spec.Prefix).To(BeEquivalentTo(24))
 
 				// check if status was updated
@@ -123,7 +123,7 @@ var _ = Describe("Controller Test", func() {
 			cl.Spec.IPv6Config = &infrav1.IPConfigSpec{
 				Addresses: []string{"2001:db8::/64"},
 				Prefix:    64,
-				Gateway:   "2001:db8::1",
+				Gateway:   ptr.To("2001:db8::1"),
 			}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
 
@@ -139,7 +139,7 @@ var _ = Describe("Controller Test", func() {
 
 				config := cl.Spec.IPv6Config
 				g.Expect(pool.Spec.Addresses).To(ConsistOf(config.Addresses))
-				g.Expect(config.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
+				g.Expect(*config.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
 				g.Expect(pool.Spec.Prefix).To(BeEquivalentTo(64))
 
 				// check if status was updated
@@ -166,7 +166,7 @@ var _ = Describe("Controller Test", func() {
 
 				config := cl.Spec.IPv4Config
 				g.Expect(pool.Spec.Addresses).To(ConsistOf(config.Addresses))
-				g.Expect(config.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
+				g.Expect(*config.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
 				g.Expect(pool.Spec.Prefix).To(BeEquivalentTo(24))
 
 				g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&cl), &cl)).To(Succeed())
@@ -360,7 +360,7 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 					"10.10.10.100-10.10.10.125",
 					"10.10.10.192/64",
 				},
-				Gateway: "10.10.10.1",
+				Gateway: ptr.To("10.10.10.1"),
 				Prefix:  24,
 			},
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
@@ -439,7 +439,7 @@ func createProxmoxCluster() *infrav1.ProxmoxCluster {
 					"10.10.10.100-10.10.10.125",
 					"10.10.10.192/64",
 				},
-				Gateway: "10.10.10.1",
+				Gateway: ptr.To("10.10.10.1"),
 				Prefix:  24,
 			},
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},

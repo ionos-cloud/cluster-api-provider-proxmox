@@ -121,13 +121,13 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 		Spec: infrav1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
-					SourceNode: "pve",
-					TemplateID: ptr.To[int32](100),
+					SourceNode: ptr.To("pve"),
+					TemplateID: ptr.To(int32(100)),
 				},
 			},
-			NumSockets: 1,
-			NumCores:   1,
-			MemoryMiB:  1024,
+			NumSockets: ptr.To(int32(1)),
+			NumCores:   ptr.To(int32(1)),
+			MemoryMiB:  ptr.To(int32(1024)),
 			Disks: &infrav1.Storage{
 				BootVolume: &infrav1.DiskSize{
 					Disk:   "scsi[0]",

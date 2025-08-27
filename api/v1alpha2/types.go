@@ -33,36 +33,36 @@ const (
 
 // VirtualMachine represents data about a Proxmox virtual machine object.
 type VirtualMachine struct {
-	// Node is the VM node.
+	// node is the VM node.
 	Node string `json:"node"`
 
-	// Name is the VM's name.
+	// name is the VM's name.
 	Name string `json:"name"`
 
-	// VMID is the VM's ID.
+	// vmID is the VM's ID.
 	VMID uint64 `json:"vmID"`
 
-	// State is the VM's state.
+	// state is the VM's state.
 	State VirtualMachineState `json:"state"`
 
-	// Network is the status of the VM's network devices.
+	// network is the status of the VM's network devices.
 	Network []NetworkStatus `json:"network"`
 }
 
 // NetworkStatus provides information about one of a VM's networks.
 type NetworkStatus struct {
-	// Connected is a flag that indicates whether this network is currently
+	// connected is a flag that indicates whether this network is currently
 	// connected to the VM.
 	Connected bool `json:"connected,omitempty"`
 
-	// IPAddrs is one or more IP addresses reported by vm-tools.
+	// ipAddrs is one or more IP addresses reported by vm-tools.
 	// +optional
 	IPAddrs []string `json:"ipAddrs,omitempty"`
 
-	// MACAddr is the MAC address of the network device.
+	// macAddr is the MAC address of the network device.
 	MACAddr string `json:"macAddr"`
 
-	// NetworkName is the name of the network.
+	// networkName is the name of the network.
 	// +optional
-	NetworkName string `json:"networkName,omitempty"`
+	NetworkName *string `json:"networkName,omitempty"`
 }

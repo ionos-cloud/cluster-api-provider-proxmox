@@ -201,36 +201,6 @@ func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope)
 	return networkConfigData, nil
 }
 
-func getRoutingData(routes []infrav1alpha2.RouteSpec) *[]types.RoutingData {
-	routingData := make([]types.RoutingData, 0, len(routes))
-	for _, route := range routes {
-		routeSpec := types.RoutingData{}
-		routeSpec.To = route.To
-		routeSpec.Via = route.Via
-		routeSpec.Metric = route.Metric
-		routeSpec.Table = route.Table
-		routingData = append(routingData, routeSpec)
-	}
-
-	return &routingData
-}
-
-func getRoutingPolicyData(rules []infrav1alpha2.RoutingPolicySpec) *[]types.FIBRuleData {
-	routingPolicyData := make([]types.FIBRuleData, 0, len(rules))
-	for _, rule := range rules {
-		ruleSpec := types.FIBRuleData{}
-		ruleSpec.To = rule.To
-		ruleSpec.From = rule.From
-		ruleSpec.Priority = rule.Priority
-		if rule.Table != nil {
-			ruleSpec.Table = *rule.Table
-		}
-		routingPolicyData = append(routingPolicyData, ruleSpec)
-	}
-
-	return &routingPolicyData
-}
-
 func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string, ipPoolRefs []corev1.TypedLocalObjectReference) (*types.NetworkConfigData, error) {
 	if device == "" {
 		// this should never happen outwith tests
@@ -345,8 +315,8 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
-	ciconfig.Routes = *getRoutingData(ifconfig.Routing.Routes)
-	ciconfig.FIBRules = *getRoutingPolicyData(ifconfig.Routing.RoutingPolicy)
+	ciconfig.Routes = ifconfig.Routing.Routes
+	ciconfig.FIBRules = ifconfig.Routing.RoutingPolicy
 	ciconfig.LinkMTU = ifconfig.LinkMTU
 
 	return nil
@@ -410,8 +380,8 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 			}
 		}
 
-		config.Routes = *getRoutingData(device.Routing.Routes)
-		config.FIBRules = *getRoutingPolicyData(device.Routing.RoutingPolicy)
+		config.Routes = device.Routing.Routes
+		config.FIBRules = device.Routing.RoutingPolicy
 		networkConfigData = append(networkConfigData, *config)
 	}
 	return networkConfigData, nil

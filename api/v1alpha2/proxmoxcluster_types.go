@@ -37,41 +37,41 @@ const (
 
 // ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.
 type ProxmoxClusterSpec struct {
-	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
+	// controlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.port > 0 && self.port < 65536",message="port must be within 1-65535"
-	ControlPlaneEndpoint *clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
+	ControlPlaneEndpoint *clusterv1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
 
-	// ExternalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
+	// externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
 	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
 	ExternalManagedControlPlane bool `json:"externalManagedControlPlane,omitempty"`
 
-	// AllowedNodes specifies all Proxmox nodes which will be considered
+	// allowedNodes specifies all Proxmox nodes which will be considered
 	// for operations. This implies that VMs can be cloned on different nodes from
 	// the node which holds the VM template.
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
-	// SchedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
+	// schedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
 	// to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
 	// +optional
 	SchedulerHints *SchedulerHints `json:"schedulerHints,omitempty"`
 
-	// IPv4Config contains information about available IPV4 address pools and the gateway.
+	// ipv4Config contains information about available IPV4 address pools and the gateway.
 	// This can be combined with ipv6Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
 	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
 
-	// IPv6Config contains information about available IPV6 address pools and the gateway.
+	// ipv6Config contains information about available IPV6 address pools and the gateway.
 	// This can be combined with ipv4Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
 	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
 
-	// DNSServers contains information about nameservers used by the machines.
+	// dnsServers contains information about nameservers used by the machines.
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
 
@@ -80,7 +80,7 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
 
-	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
+	// credentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
 	// supplied then the credentials of the controller will be used.
 	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
 	// +optional
@@ -93,37 +93,36 @@ type ProxmoxClusterCloneSpec struct {
 	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"
 	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
 
-	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
+	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +optional
 	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
 
-	// VirtualIPNetworkInterface is the interface the k8s control plane binds to.
+	// virtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
-	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface,omitempty"`
+	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty"`
 }
 
 // IPConfigSpec contains information about available IP config.
 type IPConfigSpec struct {
-	// Addresses is a list of IP addresses that can be assigned. This set of
+	// addresses is a list of IP addresses that can be assigned. This set of
 	// addresses can be non-contiguous.
 	Addresses []string `json:"addresses"`
 
-	// Prefix is the network prefix to use.
+	// prefix is the network prefix to use.
 	// +kubebuilder:validation:Maximum=128
 	Prefix int `json:"prefix"`
 
 	// Gateway
-	// +optional
-	Gateway string `json:"gateway,omitempty"`
+	Gateway *string `json:"gateway,omitempty"`
 
-	// Metric is the route priority applied to the default gateway
+	// metric is the route priority applied to the default gateway
 	// +kubebuilder:default=100
 	Metric *uint32 `json:"metric"`
 }
 
 // SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.
 type SchedulerHints struct {
-	// MemoryAdjustment allows to adjust a node's memory by a given percentage.
+	// memoryAdjustment allows to adjust a node's memory by a given percentage.
 	// For example, setting it to 300 allows to allocate 300% of a host's memory for VMs,
 	// and setting it to 95 limits memory allocation to 95% of a host's memory.
 	// Setting it to 0 entirely disables scheduling memory constraints.
@@ -145,21 +144,20 @@ func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
 
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
 type ProxmoxClusterStatus struct {
-	// Ready indicates that the cluster is ready.
-	// +optional
+	// ready indicates that the cluster is ready.
 	// +kubebuilder:default=false
-	Ready bool `json:"ready"`
+	Ready bool `json:"ready,omitempty"`
 
-	// InClusterIPPoolRef is the reference to the created in-cluster IP pool.
+	// inClusterIpPoolRef is the reference to the created in-cluster IP pool.
 	// +optional
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
 
-	// NodeLocations keeps track of which nodes have been selected
+	// nodeLocations keeps track of which nodes have been selected
 	// for different machines.
 	// +optional
 	NodeLocations *NodeLocations `json:"nodeLocations,omitempty"`
 
-	// FailureReason will be set in the event that there is a terminal problem
+	// failureReason will be set in the event that there is a terminal problem
 	// reconciling the Machine and will contain a succinct value suitable
 	// for machine interpretation.
 	//
@@ -178,7 +176,7 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	FailureReason *errors.ClusterStatusError `json:"failureReason,omitempty"`
 
-	// FailureMessage will be set in the event that there is a terminal problem
+	// failureMessage will be set in the event that there is a terminal problem
 	// reconciling the Machine and will contain a more verbose string suitable
 	// for logging and human consumption.
 	//
@@ -197,19 +195,18 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
 
-	// Conditions defines current service state of the ProxmoxCluster.
-	// +optional
+	// conditions defines current service state of the ProxmoxCluster.
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
 // NodeLocations holds information about the deployment state of
 // control plane and worker nodes in Proxmox.
 type NodeLocations struct {
-	// ControlPlane contains all deployed control plane nodes.
+	// controlPlane contains all deployed control plane nodes.
 	// +optional
 	ControlPlane []NodeLocation `json:"controlPlane,omitempty"`
 
-	// Workers contains all deployed worker nodes.
+	// workers contains all deployed worker nodes.
 	// +optional
 	Workers []NodeLocation `json:"workers,omitempty"`
 }
@@ -217,10 +214,10 @@ type NodeLocations struct {
 // NodeLocation holds information about a single VM
 // in Proxmox.
 type NodeLocation struct {
-	// Machine is the reference to the ProxmoxMachine.
+	// machine is the reference to the ProxmoxMachine.
 	Machine corev1.LocalObjectReference `json:"machine"`
 
-	// Node is the Proxmox node.
+	// node is the Proxmox node.
 	Node string `json:"node"`
 }
 
