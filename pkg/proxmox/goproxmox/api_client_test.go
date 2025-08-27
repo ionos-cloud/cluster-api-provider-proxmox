@@ -54,7 +54,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		name                 string
 		maxMem               uint64 // memory size of already provisioned guest
 		expect               uint64 // expected available memory of the host
-		nodeMemoryAdjustment uint64 // factor like 1.0 to multiply host memory with for overprovisioning
+		nodeMemoryAdjustment int64  // factor like 100 to multiply host memory with for overprovisioning
 	}{
 		{
 			name:                 "under zero - no overprovisioning",

@@ -33,36 +33,53 @@ const (
 
 // VirtualMachine represents data about a Proxmox virtual machine object.
 type VirtualMachine struct {
-	// Node is the VM node.
-	Node string `json:"node"`
+	// node is the VM node.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Node string `json:"node,omitempty"`
 
-	// Name is the VM's name.
-	Name string `json:"name"`
+	// name is the VM's name.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name,omitempty"`
 
-	// VMID is the VM's ID.
-	VMID uint64 `json:"vmID"`
+	// vmID is the VM's ID.
+	// +required
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:ExclusiveMinimum=false
+	VMID int64 `json:"vmID,omitempty"`
 
-	// State is the VM's state.
-	State VirtualMachineState `json:"state"`
+	// state is the VM's state.
+	// +required
+	// +kubebuilder:validation:Enum=notfound;pending;ready
+	State VirtualMachineState `json:"state,omitempty"`
 
-	// Network is the status of the VM's network devices.
-	Network []NetworkStatus `json:"network"`
+	// network is the status of the VM's network devices.
+	// +required
+	// +listType=atomic
+	Network []NetworkStatus `json:"network,omitempty"`
 }
 
 // NetworkStatus provides information about one of a VM's networks.
 type NetworkStatus struct {
-	// Connected is a flag that indicates whether this network is currently
+	// connected is a flag that indicates whether this network is currently
 	// connected to the VM.
-	Connected bool `json:"connected,omitempty"`
+	// +required
+	Connected *bool `json:"connected,omitempty"`
 
-	// IPAddrs is one or more IP addresses reported by vm-tools.
+	// ipAddrs is one or more IP addresses reported by vm-tools.
+	// +listType=set
 	// +optional
 	IPAddrs []string `json:"ipAddrs,omitempty"`
 
-	// MACAddr is the MAC address of the network device.
-	MACAddr string `json:"macAddr"`
+	// macAddr is the MAC address of the network device.
+	// +required
+	// +kubebuilder:validation:Pattern=`^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$`
+	// +kubebuilder:validation:MinLength=17
+	// +kubebuilder:validation:MaxLength=17
+	MACAddr string `json:"macAddr,omitempty"`
 
-	// NetworkName is the name of the network.
+	// networkName is the name of the network.
 	// +optional
-	NetworkName string `json:"networkName,omitempty"`
+	NetworkName *string `json:"networkName,omitempty"`
 }

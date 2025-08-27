@@ -96,7 +96,7 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 	// Skipping the validation of the Control Plane endpoint in case of externally managed Control Plane:
 	// the Cluster API Control Plane provider will eventually provide the LB.
-	if cluster.Spec.ExternalManagedControlPlane {
+	if *cluster.Spec.ExternalManagedControlPlane {
 		return nil
 	}
 

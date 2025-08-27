@@ -378,7 +378,7 @@ func assertClusterIsReady(ctx context.Context, g Gomega, clusterName string) {
 			Name:      clusterName,
 		}, &res)).To(Succeed())
 
-		g.Expect(res.Status.Ready).To(BeTrue())
+		g.Expect(ptr.Deref(res.Status.Ready, false)).To(BeTrue())
 	}).WithTimeout(time.Second * 20).
 		WithPolling(time.Second).
 		Should(Succeed())

@@ -82,7 +82,7 @@ func selectNode(
 
 	sort.Sort(byMemory)
 
-	requestedMemory := uint64(machine.Spec.MemoryMiB) * 1024 * 1024 // convert to bytes
+	requestedMemory := uint64(*machine.Spec.MemoryMiB) * 1024 * 1024 // convert to bytes
 	if requestedMemory > byMemory[0].AvailableMemory {
 		// no more space on the node with the highest amount of available memory
 		return "", InsufficientMemoryError{
@@ -131,7 +131,7 @@ func selectNode(
 }
 
 type resourceClient interface {
-	GetReservableMemoryBytes(context.Context, string, uint64) (uint64, error)
+	GetReservableMemoryBytes(context.Context, string, int64) (uint64, error)
 }
 
 type nodeInfo struct {

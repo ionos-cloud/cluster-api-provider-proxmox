@@ -175,7 +175,7 @@ func (r *NetworkConfig) validate() error {
 		return ErrMissingNetworkConfigData
 	}
 	// TODO: Fix validation
-	metrics := make(map[uint32]*struct {
+	metrics := make(map[int32]*struct {
 		ipv4 bool
 		ipv6 bool
 	})
@@ -247,16 +247,16 @@ func validRoutes(input []types.RoutingData) error {
 	}
 	// No support for blackhole, etc.pp. Add iff you require this.
 	for _, route := range input {
-		if route.To != "default" {
+		if ptr.Deref(route.To, "") != "default" {
 			// An IP address is a valid route (implicit smallest subnet)
-			_, errPrefix := netip.ParsePrefix(route.To)
-			_, errAddr := netip.ParseAddr(route.To)
+			_, errPrefix := netip.ParsePrefix(ptr.Deref(route.To, ""))
+			_, errAddr := netip.ParseAddr(ptr.Deref(route.To, ""))
 			if errPrefix != nil && errAddr != nil {
 				return ErrMalformedRoute
 			}
 		}
-		if route.Via != "" {
-			_, err := netip.ParseAddr(route.Via)
+		if ptr.Deref(route.Via, "") != "" {
+			_, err := netip.ParseAddr(ptr.Deref(route.Via, ""))
 			if err != nil {
 				return ErrMalformedRoute
 			}
@@ -272,19 +272,19 @@ func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 
 	for _, rule := range input {
 		// We only support To/From and we require a table if we're not a vrf
-		if (rule.To == "" && rule.From == "") || (rule.Table == 0 && !isVrf) {
+		if (ptr.Deref(rule.To, "") == "" && ptr.Deref(rule.From, "") == "") || (ptr.Deref(rule.Table, 0) == 0 && !isVrf) {
 			return ErrMalformedFIBRule
 		}
-		if rule.To != "" {
-			_, errPrefix := netip.ParsePrefix(rule.To)
-			_, errAddr := netip.ParseAddr(rule.To)
+		if ptr.Deref(rule.To, "") != "" {
+			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.To, ""))
+			_, errAddr := netip.ParseAddr(ptr.Deref(rule.To, ""))
 			if errPrefix != nil && errAddr != nil {
 				return ErrMalformedFIBRule
 			}
 		}
-		if rule.From != "" {
-			_, errPrefix := netip.ParsePrefix(rule.From)
-			_, errAddr := netip.ParseAddr(rule.From)
+		if ptr.Deref(rule.From, "") != "" {
+			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.From, ""))
+			_, errAddr := netip.ParseAddr(ptr.Deref(rule.From, ""))
 			if errPrefix != nil && errAddr != nil {
 				return ErrMalformedFIBRule
 			}

@@ -728,15 +728,14 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxmoxMachineTemplateSpec defines the desired state of ProxmoxMachineTemplate.
+            description: spec is the machine template spec.
             properties:
               template:
-                description: ProxmoxMachineTemplateResource defines the spec and metadata
-                  for ProxmoxMachineTemplate supported by capi.
+                description: template is the Proxmox machine template resource.
                 properties:
                   metadata:
                     description: |-
-                      Standard object's metadata.
+                      metadata is the standard object metadata.
                       More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                     properties:
                       annotations:
@@ -759,12 +758,11 @@ spec:
                         type: object
                     type: object
                   spec:
-                    description: ProxmoxMachineSpec defines the desired state of a
-                      ProxmoxMachine.
+                    description: spec is the Proxmox machine spec.
                     properties:
                       allowedNodes:
                         description: |-
-                          AllowedNodes specifies all Proxmox nodes which will be considered
+                          allowedNodes specifies all Proxmox nodes which will be considered
                           for operations. This implies that VMs can be cloned on different nodes from
                           the node which holds the VM template.
 
@@ -774,41 +772,44 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: set
                       checks:
-                        description: Checks defines possibles checks to skip.
+                        description: checks defines possibles checks to skip.
                         properties:
                           skipCloudInitStatus:
-                            description: Skip checking CloudInit which can be very
-                              useful for specific Operating Systems like TalOS
+                            description: skipCloudInitStatus skip checking CloudInit
+                              status which can be useful with specific Operating Systems
+                              like TalOS
                             type: boolean
                           skipQemuGuestAgent:
-                            description: Skip checking QEMU Agent readiness which
-                              can be very useful for specific Operating Systems like
-                              TalOS
+                            description: skipQemuGuestAgent skips checking QEMU Agent
+                              readiness which can be useful with specific Operating
+                              Systems like TalOS
                             type: boolean
                         type: object
                       description:
-                        description: Description for the new VM.
+                        description: description for the new VM.
                         type: string
                       disks:
                         description: |-
-                          Disks contains a set of disk configuration options,
+                          disks contains a set of disk configuration options,
                           which will be applied before the first startup.
                         properties:
                           bootVolume:
                             description: |-
-                              BootVolume defines the storage size for the boot volume.
+                              bootVolume defines the storage size for the boot volume.
                               This field is optional, and should only be set if you want
                               to change the size of the boot volume.
                             properties:
                               disk:
                                 description: |-
-                                  Disk is the name of the disk device, that should be resized.
+                                  disk is the name of the disk device that should be resized.
                                   Example values are: ide[0-3], scsi[0-30], sata[0-5].
+                                minLength: 1
                                 type: string
                               sizeGb:
                                 description: |-
-                                  Size defines the size in gigabyte.
+                                  sizeGb defines the size in gigabytes.
 
                                   As Proxmox does not support shrinking, the size
                                   must be bigger than the already configured size in the
@@ -825,7 +826,7 @@ spec:
                               rule: self == oldSelf
                         type: object
                       format:
-                        description: Format for file storage. Only valid for full
+                        description: format for file storage. Only valid for full
                           clone.
                         enum:
                         - raw
@@ -835,56 +836,58 @@ spec:
                       full:
                         default: true
                         description: |-
-                          Full Create a full copy of all disks.
+                          full Create a full copy of all disks.
                           This is always done when you clone a normal VM.
                           Create a Full clone by default.
                         type: boolean
                       memoryMiB:
                         description: |-
-                          MemoryMiB is the size of a virtual machine's memory, in MiB.
+                          memoryMiB is the size of a virtual machine's memory, in MiB.
                           Defaults to the property value in the template from which the virtual machine is cloned.
                         format: int32
                         multipleOf: 8
                         type: integer
                       metadataSettings:
-                        description: MetadataSettings defines the metadata settings
+                        description: metadataSettings defines the metadata settings
                           for this machine's VM.
                         properties:
                           providerIDInjection:
                             description: |-
-                              ProviderIDInjection enables the injection of the `providerID` into the cloudinit metadata.
+                              providerIDInjection enables the injection of the `providerID` into the cloudinit metadata.
                               this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
                             type: boolean
+                        required:
+                        - providerIDInjection
                         type: object
                       network:
-                        description: Network is the network configuration for this
+                        description: network is the network configuration for this
                           machine's VM.
                         properties:
-                          NetworkDevices:
+                          networkDevices:
                             description: |-
-                              Default is the default network device,
-                              which will be used for the primary network interface.
-                              net0 is always the default network device.
+                              networkDevices lists network devices.
+                              net0 is always the default device.
                             items:
                               description: NetworkDevice defines the required details
                                 of a virtual machine network device.
                               properties:
                                 bridge:
-                                  description: Bridge is the network bridge to attach
+                                  description: bridge is the network bridge to attach
                                     to the machine.
                                   minLength: 1
                                   type: string
                                 dnsServers:
                                   description: |-
-                                    DNSServers contains information about nameservers to be used for this interface.
+                                    dnsServers contains information about nameservers to be used for this interface.
                                     If this field is not set, it will use the default dns servers from the ProxmoxCluster.
                                   items:
                                     type: string
                                   minItems: 1
                                   type: array
+                                  x-kubernetes-list-type: set
                                 ipPoolRef:
                                   description: |-
-                                    IPPoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
+                                    ipPoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
                                     The network device will use an available IP address from the referenced pool.
                                     This can be combined with `IPv6PoolRef` in order to enable dual stack.
                                   items:
@@ -920,9 +923,11 @@ spec:
                                       rule: self.kind == 'InClusterIPPool' || self.kind
                                         == 'GlobalInClusterIPPool'
                                   type: array
+                                  x-kubernetes-list-type: atomic
                                 linkMtu:
-                                  description: LinkMTU is the network device Maximum
+                                  description: linkMtu is the network device Maximum
                                     Transmission Unit.
+                                  format: int32
                                   type: integer
                                   x-kubernetes-validations:
                                   - message: invalid MTU value
@@ -931,7 +936,7 @@ spec:
                                     rule: self == 1 || ( self >= 576 && self <= 65520)
                                 model:
                                   default: virtio
-                                  description: Model is the network device model.
+                                  description: model is the network device model.
                                   enum:
                                   - e1000
                                   - virtio
@@ -940,8 +945,9 @@ spec:
                                   type: string
                                 mtu:
                                   description: |-
-                                    MTU is the network device Maximum Transmission Unit.
+                                    mtu is the network device Maximum Transmission Unit.
                                     When set to 1, virtio devices inherit the MTU value from the underlying bridge.
+                                  format: int32
                                   type: integer
                                   x-kubernetes-validations:
                                   - message: invalid MTU value
@@ -949,36 +955,39 @@ spec:
                                   - message: invalid MTU value
                                     rule: self == 1 || ( self >= 576 && self <= 65520)
                                 name:
-                                  description: Name is the network device name.
+                                  description: name is the network device name.
+                                  minLength: 1
                                   type: string
                                 routes:
-                                  description: Routes are the routes associated with
+                                  description: routes are the routes associated with
                                     this interface.
                                   items:
                                     description: RouteSpec describes an IPv4/IPv6
                                       Route.
                                     properties:
                                       metric:
-                                        description: Metric is the priority of the
+                                        description: metric is the priority of the
                                           route in the routing table.
                                         format: int32
+                                        minimum: 0
                                         type: integer
                                       table:
-                                        description: Table is the routing table used
+                                        description: table is the routing table used
                                           for this route.
                                         format: int32
                                         type: integer
                                       to:
-                                        description: To is the subnet to be routed.
+                                        description: to is the subnet to be routed.
                                         type: string
                                       via:
-                                        description: Via is the gateway to the subnet.
+                                        description: via is the gateway to the subnet.
                                         type: string
                                     type: object
                                   minItems: 1
                                   type: array
+                                  x-kubernetes-list-type: atomic
                                 routingPolicy:
-                                  description: RoutingPolicy is an interface-specific
+                                  description: routingPolicy is an interface-specific
                                     policy inserted into FIB (forwarding information
                                     base).
                                   items:
@@ -986,12 +995,12 @@ spec:
                                       rule.
                                     properties:
                                       from:
-                                        description: From is the subnet of the source.
+                                        description: from is the subnet of the source.
                                         type: string
                                       priority:
-                                        description: Priority is the position in the
+                                        description: priority is the position in the
                                           ip rule FIB table.
-                                        format: int32
+                                        format: int64
                                         maximum: 4294967295
                                         type: integer
                                         x-kubernetes-validations:
@@ -1000,22 +1009,24 @@ spec:
                                           rule: (self > 0 && self < 32765) || (self
                                             > 32766)
                                       table:
-                                        description: Table is the routing table ID.
+                                        description: table is the routing table ID.
                                         format: int32
                                         type: integer
                                       to:
-                                        description: To is the subnet of the target.
+                                        description: to is the subnet of the target.
                                         type: string
                                     type: object
                                   minItems: 1
                                   type: array
+                                  x-kubernetes-list-type: atomic
                                 vlan:
-                                  description: VLAN is the network L2 VLAN.
+                                  description: vlan is the network L2 VLAN.
+                                  format: int32
                                   maximum: 4094
                                   minimum: 1
                                   type: integer
                               required:
-                              - bridge
+                              - linkMtu
                               - name
                               type: object
                             type: array
@@ -1023,51 +1034,54 @@ spec:
                             - name
                             x-kubernetes-list-type: map
                           vrfs:
-                            description: Definition of a VRF Device.
+                            description: vrfs defines VRF Devices.
                             items:
                               description: VRFDevice defines Virtual Routing Flow
                                 devices.
                               properties:
                                 interfaces:
-                                  description: Interfaces is the list of proxmox network
+                                  description: interfaces is the list of proxmox network
                                     devices managed by this virtual device.
                                   items:
                                     type: string
                                   type: array
+                                  x-kubernetes-list-type: set
                                 name:
                                   description: |-
-                                    Name is the virtual network device name.
+                                    name is the virtual network device name.
                                     Must be unique within the virtual machine.
                                   minLength: 3
                                   type: string
                                 routes:
-                                  description: Routes are the routes associated with
+                                  description: routes are the routes associated with
                                     this interface.
                                   items:
                                     description: RouteSpec describes an IPv4/IPv6
                                       Route.
                                     properties:
                                       metric:
-                                        description: Metric is the priority of the
+                                        description: metric is the priority of the
                                           route in the routing table.
                                         format: int32
+                                        minimum: 0
                                         type: integer
                                       table:
-                                        description: Table is the routing table used
+                                        description: table is the routing table used
                                           for this route.
                                         format: int32
                                         type: integer
                                       to:
-                                        description: To is the subnet to be routed.
+                                        description: to is the subnet to be routed.
                                         type: string
                                       via:
-                                        description: Via is the gateway to the subnet.
+                                        description: via is the gateway to the subnet.
                                         type: string
                                     type: object
                                   minItems: 1
                                   type: array
+                                  x-kubernetes-list-type: atomic
                                 routingPolicy:
-                                  description: RoutingPolicy is an interface-specific
+                                  description: routingPolicy is an interface-specific
                                     policy inserted into FIB (forwarding information
                                     base).
                                   items:
@@ -1075,12 +1089,12 @@ spec:
                                       rule.
                                     properties:
                                       from:
-                                        description: From is the subnet of the source.
+                                        description: from is the subnet of the source.
                                         type: string
                                       priority:
-                                        description: Priority is the position in the
+                                        description: priority is the position in the
                                           ip rule FIB table.
-                                        format: int32
+                                        format: int64
                                         maximum: 4294967295
                                         type: integer
                                         x-kubernetes-validations:
@@ -1089,26 +1103,30 @@ spec:
                                           rule: (self > 0 && self < 32765) || (self
                                             > 32766)
                                       table:
-                                        description: Table is the routing table ID.
+                                        description: table is the routing table ID.
                                         format: int32
                                         type: integer
                                       to:
-                                        description: To is the subnet of the target.
+                                        description: to is the subnet of the target.
                                         type: string
                                     type: object
                                   minItems: 1
                                   type: array
+                                  x-kubernetes-list-type: atomic
                                 table:
-                                  description: Table is the ID of the routing table
+                                  description: table is the ID of the routing table
                                     used for the l3mdev vrf device.
                                   format: int32
                                   maximum: 4294967295
+                                  minimum: 1
                                   type: integer
                                   x-kubernetes-validations:
                                   - message: Cowardly refusing to insert l3mdev rules
                                       into kernel tables
                                     rule: (self > 0 && self < 254) || (self > 255)
                               required:
+                              - ""
+                              - interfaces
                               - name
                               - table
                               type: object
@@ -1119,32 +1137,32 @@ spec:
                         type: object
                       numCores:
                         description: |-
-                          NumCores is the number of cores per CPU socket in a virtual machine.
+                          numCores is the number of cores per CPU socket in a virtual machine.
                           Defaults to the property value in the template from which the virtual machine is cloned.
                         format: int32
                         minimum: 1
                         type: integer
                       numSockets:
                         description: |-
-                          NumSockets is the number of CPU sockets in a virtual machine.
+                          numSockets is the number of CPU sockets in a virtual machine.
                           Defaults to the property value in the template from which the virtual machine is cloned.
                         format: int32
                         minimum: 1
                         type: integer
                       pool:
-                        description: Pool Add the new VM to the specified pool.
+                        description: pool Add the new VM to the specified pool.
                         type: string
                       providerID:
                         description: |-
-                          ProviderID is the virtual machine BIOS UUID formatted as
+                          providerID is the virtual machine BIOS UUID formatted as
                           proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
                         type: string
                       snapName:
-                        description: SnapName The name of the snapshot.
+                        description: snapName The name of the snapshot.
                         type: string
                       sourceNode:
                         description: |-
-                          SourceNode is the initially selected proxmox node.
+                          sourceNode is the initially selected proxmox node.
                           This node will be used to locate the template VM, which will
                           be used for cloning operations.
 
@@ -1161,10 +1179,10 @@ spec:
                         minLength: 1
                         type: string
                       storage:
-                        description: Storage for full clone.
+                        description: storage for full clone.
                         type: string
                       tags:
-                        description: Tags is a list of tags to be applied to the virtual
+                        description: tags is a list of tags to be applied to the virtual
                           machine.
                         items:
                           pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
@@ -1173,21 +1191,21 @@ spec:
                         type: array
                         x-kubernetes-list-type: set
                       target:
-                        description: Target node. Only allowed if the original VM
+                        description: target node. Only allowed if the original VM
                           is on shared storage.
                         type: string
                       templateID:
-                        description: TemplateID the vm_template vmid used for cloning
+                        description: templateID the vm_template vmid used for cloning
                           a new VM.
                         format: int32
                         type: integer
                       templateSelector:
-                        description: TemplateSelector defines MatchTags for looking
+                        description: templateSelector defines MatchTags for looking
                           up VM templates.
                         properties:
                           matchTags:
                             description: |-
-                              Specifies all tags to look for, when looking up the VM template.
+                              matchTags specifies all tags to look for when looking up the VM template.
                               Passed tags must be an exact 1:1 match with the tags on the template you want to use.
                               If multiple VM templates with the same set of tags are found, provisioning will fail.
                             items:
@@ -1200,24 +1218,24 @@ spec:
                         - matchTags
                         type: object
                       virtualMachineID:
-                        description: VirtualMachineID is the Proxmox identifier for
+                        description: virtualMachineID is the Proxmox identifier for
                           the ProxmoxMachine VM.
                         format: int64
                         type: integer
                       vmIDRange:
-                        description: VMIDRange is the range of VMIDs to use for VMs.
+                        description: vmIDRange is the range of VMIDs to use for VMs.
                         properties:
                           end:
                             description: |-
-                              VMIDRangeEnd is the end of the VMID range to use for VMs.
+                              end is the end of the VMID range to use for VMs.
                               Only used if VMIDRangeStart is set.
                             format: int64
                             maximum: 999999999
                             minimum: 100
                             type: integer
                           start:
-                            description: VMIDRangeStart is the start of the VMID range
-                              to use for VMs.
+                            description: start is the start of the VMID range to use
+                              for VMs.
                             format: int64
                             maximum: 999999999
                             minimum: 100
@@ -1241,6 +1259,8 @@ spec:
             required:
             - template
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

@@ -91,7 +91,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	s.Equal(pool.Spec.Prefix, 24)
 
 	s.cluster.Spec.IPv4Config.Gateway = "10.11.0.0"
-	s.cluster.Spec.IPv4Config.Metric = ptr.To(uint32(123))
+	s.cluster.Spec.IPv4Config.Metric = ptr.To(int32(123))
 
 	ipamConfig = s.cluster.Spec.IPv4Config
 
@@ -120,7 +120,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
-		Metric:    ptr.To(uint32(123)),
+		Metric:    ptr.To(int32(123)),
 	}
 
 	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))

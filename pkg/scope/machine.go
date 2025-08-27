@@ -169,12 +169,12 @@ func (m *MachineScope) SetVirtualMachineID(vmID int64) {
 
 // SetReady sets the ProxmoxMachine Ready Status.
 func (m *MachineScope) SetReady() {
-	m.ProxmoxMachine.Status.Ready = true
+	m.ProxmoxMachine.Status.Ready = ptr.To(true)
 }
 
 // SetNotReady sets the ProxmoxMachine Ready Status to false.
 func (m *MachineScope) SetNotReady() {
-	m.ProxmoxMachine.Status.Ready = false
+	m.ProxmoxMachine.Status.Ready = ptr.To(false)
 }
 
 // SetFailureMessage sets the ProxmoxMachine status failure message.
