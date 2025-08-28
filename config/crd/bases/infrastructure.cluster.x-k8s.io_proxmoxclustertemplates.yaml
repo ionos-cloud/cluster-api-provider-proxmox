@@ -976,6 +976,7 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: set
                       cloneSpec:
                         description: |-
                           NodeCloneSpec is the configuration pertaining to all items configurable
@@ -1495,6 +1496,7 @@ spec:
                             items:
                               type: string
                             type: array
+                            x-kubernetes-list-type: set
                           virtualIPNetworkInterface:
                             description: virtualIPNetworkInterface is the interface
                               the k8s control plane binds to.
@@ -1565,7 +1567,7 @@ spec:
                               type: string
                             type: array
                           gateway:
-                            description: Gateway
+                            description: gateway
                             type: string
                           metric:
                             default: 100
@@ -1575,7 +1577,9 @@ spec:
                             type: integer
                           prefix:
                             description: prefix is the network prefix to use.
+                            format: int32
                             maximum: 128
+                            minimum: 0
                             type: integer
                         required:
                         - addresses
@@ -1599,7 +1603,7 @@ spec:
                               type: string
                             type: array
                           gateway:
-                            description: Gateway
+                            description: gateway
                             type: string
                           metric:
                             default: 100
@@ -1609,7 +1613,9 @@ spec:
                             type: integer
                           prefix:
                             description: prefix is the network prefix to use.
+                            format: int32
                             maximum: 128
+                            minimum: 0
                             type: integer
                         required:
                         - addresses
@@ -1632,10 +1638,12 @@ spec:
                               Setting it to 0 entirely disables scheduling memory constraints.
                               By default 100% of a node's memory will be used for allocation.
                             format: int64
+                            minimum: 0
                             type: integer
                         type: object
                     required:
                     - dnsServers
+                    - externalManagedControlPlane
                     type: object
                 required:
                 - spec
