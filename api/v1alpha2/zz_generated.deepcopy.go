@@ -970,7 +970,7 @@ func (in *SchedulerHints) DeepCopyInto(out *SchedulerHints) {
 	*out = *in
 	if in.MemoryAdjustment != nil {
 		in, out := &in.MemoryAdjustment, &out.MemoryAdjustment
-		*out = new(uint64)
+		*out = new(int64)
 		**out = **in
 	}
 }

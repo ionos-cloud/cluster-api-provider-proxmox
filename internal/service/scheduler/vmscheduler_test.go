@@ -40,7 +40,7 @@ import (
 
 type fakeResourceClient map[string]uint64
 
-func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string, _ uint64) (uint64, error) {
+func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string, _ int64) (uint64, error) {
 	return c[nodeName], nil
 }
 
@@ -178,9 +178,9 @@ func TestScheduleVM(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", uint64(100)).Return(miBytes(60), nil)
-	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve2", uint64(100)).Return(miBytes(20), nil)
-	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", uint64(100)).Return(miBytes(20), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", int64(100)).Return(miBytes(60), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve2", int64(100)).Return(miBytes(20), nil)
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", int64(100)).Return(miBytes(20), nil)
 
 	node, err := ScheduleVM(context.Background(), machineScope)
 	require.NoError(t, err)

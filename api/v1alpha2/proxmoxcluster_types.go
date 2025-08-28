@@ -44,11 +44,12 @@ type ProxmoxClusterSpec struct {
 
 	// externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
 	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
-	ExternalManagedControlPlane bool `json:"externalManagedControlPlane,omitempty"`
+	ExternalManagedControlPlane bool `json:"externalManagedControlPlane"`
 
 	// allowedNodes specifies all Proxmox nodes which will be considered
 	// for operations. This implies that VMs can be cloned on different nodes from
 	// the node which holds the VM template.
+	// +listType=set
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
@@ -94,6 +95,7 @@ type ProxmoxClusterCloneSpec struct {
 	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
 
 	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
+	// +listType=set
 	// +optional
 	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
 
@@ -109,10 +111,11 @@ type IPConfigSpec struct {
 	Addresses []string `json:"addresses"`
 
 	// prefix is the network prefix to use.
+	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=128
-	Prefix int `json:"prefix"`
+	Prefix int32 `json:"prefix"`
 
-	// Gateway
+	// gateway
 	Gateway *string `json:"gateway,omitempty"`
 
 	// metric is the route priority applied to the default gateway
@@ -127,13 +130,14 @@ type SchedulerHints struct {
 	// and setting it to 95 limits memory allocation to 95% of a host's memory.
 	// Setting it to 0 entirely disables scheduling memory constraints.
 	// By default 100% of a node's memory will be used for allocation.
+	// +kubebuilder:validation:Minimum=0
 	// +optional
-	MemoryAdjustment *uint64 `json:"memoryAdjustment,omitempty"`
+	MemoryAdjustment *int64 `json:"memoryAdjustment,omitempty"`
 }
 
 // GetMemoryAdjustment returns the memory adjustment percentage to use within the scheduler.
-func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
-	memoryAdjustment := uint64(100)
+func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
+	memoryAdjustment := int64(100)
 
 	if sh != nil {
 		memoryAdjustment = ptr.Deref(sh.MemoryAdjustment, 100)

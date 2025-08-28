@@ -128,7 +128,7 @@ func selectNode(
 }
 
 type resourceClient interface {
-	GetReservableMemoryBytes(context.Context, string, uint64) (uint64, error)
+	GetReservableMemoryBytes(context.Context, string, int64) (uint64, error)
 }
 
 type nodeInfo struct {
