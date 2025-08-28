@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,13 +31,14 @@ type ProxmoxClusterTemplateResource struct {
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"`
-	Spec       ProxmoxClusterSpec   `json:"spec"`
+	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
+	Spec       ProxmoxClusterSpec    `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxclustertemplates,scope=Namespaced,categories=cluster-api,shortName=pct
+// +kubebuilder:storageversion
 
 // ProxmoxClusterTemplate is the Schema for the proxmoxclustertemplates API.
 type ProxmoxClusterTemplate struct {
@@ -47,7 +48,8 @@ type ProxmoxClusterTemplate struct {
 	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // ProxmoxClusterTemplateList contains a list of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateList struct {

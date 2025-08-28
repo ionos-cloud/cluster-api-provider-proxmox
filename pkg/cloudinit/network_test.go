@@ -130,14 +130,14 @@ const (
       dhcp6: false
       addresses:
         - 10.10.10.12/24
-        - '2001:db8::1/64'
+        - 2001:db8::1/64
       routes:
         - to: 0.0.0.0/0
           metric: 100
           via: 10.10.10.1
         - to: '::/0'
           metric: 100
-          via: '2001:db8::1'
+          via: 2001:db8::1
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -153,11 +153,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '2001:db8::1/64'
+        - 2001:db8::1/64
       routes:
         - to: '::/0'
           metric: 100
-          via: '2001:db8::1'
+          via: 2001:db8::1
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -442,9 +442,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -462,9 +464,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						LinkMTU:    ptr.To(uint16(9001)),
 					},
@@ -484,9 +488,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -505,9 +511,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -526,24 +534,28 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					}, {
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c3",
-						IPAddress:  "10.10.11.12/24",
-						Gateway:    "10.10.11.1",
-						Metric:     ptr.To(uint32(200)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.11.12/24",
+							Gateway:   "10.10.11.1",
+							Metric:    ptr.To(uint32(200)),
+						}},
 						Routes: []types.RoutingData{{
-							To:     "172.16.24.1/24",
-							Metric: 50,
-							Via:    "10.10.10.254",
+							To:     ptr.To("172.16.24.1/24"),
+							Metric: ptr.To(uint32(50)),
+							Via:    ptr.To("10.10.10.254"),
 						}, {
-							To:  "2002::/64",
-							Via: "2001:db8::1",
+							To:  ptr.To("2002::/64"),
+							Via: ptr.To("2001:db8::1"),
 						},
 						},
 					},
@@ -563,22 +575,26 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					}, {
-						Type:       "ethernet",
-						Name:       "eth1",
-						IPAddress:  "10.10.11.12/24",
-						Gateway:    "10.10.11.1",
-						Metric:     ptr.To(uint32(200)),
+						Type: "ethernet",
+						Name: "eth1",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.11.12/24",
+							Gateway:   "10.10.11.1",
+							Metric:    ptr.To(uint32(200)),
+						}},
 						MacAddress: "92:60:a0:5b:22:c3",
 						FIBRules: []types.FIBRuleData{{
-							To:       "0.0.0.0/0",
-							From:     "192.168.178.1/24",
-							Priority: 999,
-							Table:    100,
+							To:       ptr.To("0.0.0.0/0"),
+							From:     ptr.To("192.168.178.1/24"),
+							Priority: ptr.To(uint32(999)),
+							Table:    ptr.To(uint32(100)),
 						},
 						},
 					},
@@ -597,8 +613,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							Gateway: "10.10.10.1",
+							Metric:  ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -616,9 +634,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -636,9 +656,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.115",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.115",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -656,8 +678,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12/24",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -672,11 +696,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 			args: args{
 				nics: []types.NetworkConfigData{
 					{
-						Type:       "ethernet",
-						Name:       "eth0",
-						IPAddress:  "10.10.10.11/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						Type: "ethernet",
+						Name: "eth0",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.11/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -694,17 +720,21 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.11/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.11/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					}, {
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c5",
-						IPAddress:  "10.10.11.11/24",
-						Gateway:    "10.10.11.254",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.11.11/24",
+							Gateway:   "10.10.11.254",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -722,9 +752,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 					},
 				},
 			},
@@ -741,18 +773,22 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
-						IPAddress:  "196.168.100.124/24",
-						Gateway:    "196.168.100.254",
-						Metric:     ptr.To(uint32(200)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "196.168.100.124/24",
+							Gateway:   "196.168.100.254",
+							Metric:    ptr.To(uint32(200)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
@@ -777,16 +813,19 @@ func TestNetworkConfig_Render(t *testing.T) {
 			args: args{
 				nics: []types.NetworkConfigData{
 					{
-						Type:        "ethernet",
-						Name:        "eth0",
-						MacAddress:  "92:60:a0:5b:22:c2",
-						IPAddress:   "10.10.10.12/24",
-						IPV6Address: "2001:db8::1/64",
-						Gateway6:    "2001:db8::1",
-						Metric6:     ptr.To(uint32(100)),
-						Gateway:     "10.10.10.1",
-						Metric:      ptr.To(uint32(100)),
-						DNSServers:  []string{"8.8.8.8", "8.8.4.4"},
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}, {
+							IPAddress: "2001:db8::1/64",
+							Gateway:   "2001:db8::1",
+							Metric:    ptr.To(uint32(100)),
+						}},
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
 			},
@@ -800,13 +839,15 @@ func TestNetworkConfig_Render(t *testing.T) {
 			args: args{
 				nics: []types.NetworkConfigData{
 					{
-						Type:        "ethernet",
-						Name:        "eth0",
-						MacAddress:  "92:60:a0:5b:22:c2",
-						IPV6Address: "2001:db8::1/64",
-						Gateway6:    "2001:db8::1",
-						Metric6:     ptr.To(uint32(100)),
-						DNSServers:  []string{"8.8.8.8", "8.8.4.4"},
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "2001:db8::1/64",
+							Gateway:   "2001:db8::1",
+							Metric:    ptr.To(uint32(100)),
+						}},
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 				},
 			},
@@ -880,18 +921,22 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
-						IPAddress:  "196.168.100.124/24",
-						Gateway:    "196.168.100.254",
-						Metric:     ptr.To(uint32(200)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "196.168.100.124/24",
+							Gateway:   "196.168.100.254",
+							Metric:    ptr.To(uint32(200)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
@@ -900,20 +945,20 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Table:      500,
 						Interfaces: []string{"eth0", "eth1"},
 						Routes: []types.RoutingData{{
-							To:     "default",
-							Via:    "192.168.178.1",
-							Metric: 100,
-							Table:  100,
+							To:     ptr.To("default"),
+							Via:    ptr.To("192.168.178.1"),
+							Metric: ptr.To(uint32(100)),
+							Table:  ptr.To(uint32(100)),
 						}, {
-							To:     "10.10.10.0/24",
-							Via:    "192.168.178.254",
-							Metric: 100,
+							To:     ptr.To("10.10.10.0/24"),
+							Via:    ptr.To("192.168.178.254"),
+							Metric: ptr.To(uint32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
-							To:       "0.0.0.0/0",
-							From:     "192.168.178.1/24",
-							Priority: 999,
-							Table:    100,
+							To:       ptr.To("0.0.0.0/0"),
+							From:     ptr.To("192.168.178.1/24"),
+							Priority: ptr.To(uint32(999)),
+							Table:    ptr.To(uint32(100)),
 						}},
 					},
 				},
@@ -931,52 +976,56 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPAddress:  "10.10.10.12/24",
-						Gateway:    "10.10.10.1",
-						Metric:     ptr.To(uint32(100)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "10.10.10.12/24",
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(uint32(100)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
-						IPAddress:  "196.168.100.124/24",
-						Gateway:    "196.168.100.254",
-						Metric:     ptr.To(uint32(200)),
+						IPConfigs: []types.IPConfig{{
+							IPAddress: "196.168.100.124/24",
+							Gateway:   "196.168.100.254",
+							Metric:    ptr.To(uint32(200)),
+						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
 					{
 						Type:       "vrf",
 						Name:       "vrf-blue",
-						Table:      500,
+						Table:      uint32(500),
 						Interfaces: []string{"eth0"},
 						Routes: []types.RoutingData{{
-							To:     "default",
-							Via:    "192.168.178.1",
-							Metric: 100,
-							Table:  100,
+							To:     ptr.To("default"),
+							Via:    ptr.To("192.168.178.1"),
+							Metric: ptr.To(uint32(100)),
+							Table:  ptr.To(uint32(100)),
 						}, {
-							To:     "10.10.10.0/24",
-							Via:    "192.168.178.254",
-							Metric: 100,
+							To:     ptr.To("10.10.10.0/24"),
+							Via:    ptr.To("192.168.178.254"),
+							Metric: ptr.To(uint32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
-							To:       "0.0.0.0/0",
-							From:     "192.168.178.1/24",
-							Priority: 999,
-							Table:    100,
+							To:       ptr.To("0.0.0.0/0"),
+							From:     ptr.To("192.168.178.1/24"),
+							Priority: ptr.To(uint32(999)),
+							Table:    ptr.To(uint32(100)),
 						}},
 					},
 					{
 						Type:       "vrf",
 						Name:       "vrf-red",
-						Table:      501,
+						Table:      uint32(501),
 						Interfaces: []string{"eth1"},
 						FIBRules: []types.FIBRuleData{{
-							To:       "0.0.0.0/0",
-							From:     "192.168.100.0/24",
-							Priority: 999,
-							Table:    101,
+							To:       ptr.To("0.0.0.0/0"),
+							From:     ptr.To("192.168.100.0/24"),
+							Priority: ptr.To(uint32(999)),
+							Table:    ptr.To(uint32(101)),
 						}},
 					},
 				},
@@ -993,9 +1042,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 					{
 						Type:  "vrf",
 						Name:  "vrf-blue",
-						Table: 500,
+						Table: uint32(500),
 						FIBRules: []types.FIBRuleData{{
-							From: "10.10.0.0/16",
+							From: ptr.To("10.10.0.0/16"),
 						}},
 					},
 				},
@@ -1012,10 +1061,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 					{
 						Type:       "vrf",
 						Name:       "vrf-blue",
-						Table:      500,
+						Table:      uint32(500),
 						Interfaces: []string{"eth0", "eth1"},
 						Routes: []types.RoutingData{{
-							Table: 100,
+							Table: ptr.To(uint32(100)),
 						}},
 					},
 				},

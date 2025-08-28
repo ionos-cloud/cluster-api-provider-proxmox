@@ -28,7 +28,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -39,13 +39,13 @@ func TestNewMachineScope_MissingParams(t *testing.T) {
 		name   string
 		params MachineScopeParams
 	}{
-		{"missing client", MachineScopeParams{Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha1.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing machine", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha1.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing cluster", MachineScopeParams{Client: client, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha1.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing client", MachineScopeParams{Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha2.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing machine", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha2.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing cluster", MachineScopeParams{Client: client, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha2.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
 		{"missing proxmox machine", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing proxmox cluster", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, ProxmoxMachine: &infrav1alpha1.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
-		{"missing ipam helper", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha1.ProxmoxMachine{}}},
-		{"missing scheme", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha1.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing proxmox cluster", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, ProxmoxMachine: &infrav1alpha2.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
+		{"missing ipam helper", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha2.ProxmoxMachine{}}},
+		{"missing scheme", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1alpha2.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
 	}
 
 	for _, test := range tests {
@@ -69,8 +69,8 @@ func TestMachineScope_Role(t *testing.T) {
 }
 
 func TestMachineScope_GetProviderID(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{},
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{},
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -83,8 +83,8 @@ func TestMachineScope_GetProviderID(t *testing.T) {
 }
 
 func TestMachineScope_GetVirtualMachineID(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{},
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{},
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -97,8 +97,8 @@ func TestMachineScope_GetVirtualMachineID(t *testing.T) {
 }
 
 func TestMachineScope_SetReady(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{},
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{},
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -112,8 +112,8 @@ func TestMachineScope_SetReady(t *testing.T) {
 }
 
 func TestMachineScope_HasFailed(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{},
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{},
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -123,9 +123,9 @@ func TestMachineScope_HasFailed(t *testing.T) {
 }
 
 func TestMachineScope_SkipQemuCheckEnabled(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{
-			Checks: &infrav1alpha1.ProxmoxMachineChecks{
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{
+			Checks: &infrav1alpha2.ProxmoxMachineChecks{
 				SkipCloudInitStatus: ptr.To(true),
 			},
 		},
@@ -138,8 +138,8 @@ func TestMachineScope_SkipQemuCheckEnabled(t *testing.T) {
 }
 
 func TestMachineScope_SkipQemuCheck(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{},
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{},
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -149,9 +149,9 @@ func TestMachineScope_SkipQemuCheck(t *testing.T) {
 }
 
 func TestMachineScope_SkipCloudInitCheckEnabled(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{
-			Checks: &infrav1alpha1.ProxmoxMachineChecks{
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{
+			Checks: &infrav1alpha2.ProxmoxMachineChecks{
 				SkipCloudInitStatus: ptr.To(true),
 			},
 		},
@@ -164,8 +164,8 @@ func TestMachineScope_SkipCloudInitCheckEnabled(t *testing.T) {
 }
 
 func TestMachineScope_SkipCloudInit(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{},
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{},
 	}
 	scope := MachineScope{
 		ProxmoxMachine: &p,
@@ -175,9 +175,9 @@ func TestMachineScope_SkipCloudInit(t *testing.T) {
 }
 
 func TestMachineScope_SkipQemuDisablesCloudInitCheck(t *testing.T) {
-	p := infrav1alpha1.ProxmoxMachine{
-		Spec: infrav1alpha1.ProxmoxMachineSpec{
-			Checks: &infrav1alpha1.ProxmoxMachineChecks{
+	p := infrav1alpha2.ProxmoxMachine{
+		Spec: infrav1alpha2.ProxmoxMachineSpec{
+			Checks: &infrav1alpha2.ProxmoxMachineChecks{
 				SkipQemuGuestAgent: ptr.To(true),
 			},
 		},
@@ -191,9 +191,9 @@ func TestMachineScope_SkipQemuDisablesCloudInitCheck(t *testing.T) {
 
 func TestMachineScope_GetBootstrapSecret(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
-	p := infrav1alpha1.ProxmoxMachine{
+	p := infrav1alpha2.ProxmoxMachine{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},
-		Spec:       infrav1alpha1.ProxmoxMachineSpec{},
+		Spec:       infrav1alpha2.ProxmoxMachineSpec{},
 	}
 	m := clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},

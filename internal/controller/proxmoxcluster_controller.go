@@ -45,7 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -67,10 +67,10 @@ type ProxmoxClusterReconciler struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrav1alpha1.ProxmoxCluster{}).
+		For(&infrav1alpha2.ProxmoxCluster{}).
 		WithEventFilter(predicates.ResourceNotPaused(r.Scheme, ctrl.LoggerFrom(ctx))).
 		Watches(&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1alpha1.GroupVersion.WithKind(infrav1alpha1.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha1.ProxmoxCluster{})),
+			handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1alpha2.GroupVersion.WithKind(infrav1alpha2.ProxmoxClusterKind), mgr.GetClient(), &infrav1alpha2.ProxmoxCluster{})),
 			builder.WithPredicates(predicates.ClusterUnpaused(r.Scheme, ctrl.LoggerFrom(ctx)))).
 		WithEventFilter(predicates.ResourceIsNotExternallyManaged(r.Scheme, ctrl.LoggerFrom(ctx))).
 		Complete(r)
@@ -96,7 +96,7 @@ func (r *ProxmoxClusterReconciler) SetupWithManager(ctx context.Context, mgr ctr
 func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	logger := log.FromContext(ctx)
 
-	proxmoxCluster := &infrav1alpha1.ProxmoxCluster{}
+	proxmoxCluster := &infrav1alpha2.ProxmoxCluster{}
 	if err := r.Client.Get(ctx, req.NamespacedName, proxmoxCluster); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -173,7 +173,7 @@ func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterS
 	// Requeue if there are one or more machines left.
 	if len(machines) > 0 {
 		clusterScope.Info("waiting for machines to be deleted", "remaining", len(machines))
-		return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+		return ctrl.Result{RequeueAfter: infrav1alpha2.DefaultReconcilerRequeue}, nil
 	}
 
 	if err := r.reconcileDeleteCredentialsSecret(ctx, clusterScope); err != nil {
@@ -181,7 +181,7 @@ func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterS
 	}
 
 	clusterScope.Info("cluster deleted successfully")
-	ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
+	ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1alpha2.ClusterFinalizer)
 	return ctrl.Result{}, nil
 }
 
@@ -189,27 +189,27 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	clusterScope.Logger.Info("Reconciling ProxmoxCluster")
 
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
-	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1alpha1.ClusterFinalizer)
+	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1alpha2.ClusterFinalizer)
 
 	if clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane {
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint == nil {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
 
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint")
+			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha2.ProxmoxClusterReady, infrav1alpha2.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint")
 
 			return ctrl.Result{Requeue: true}, nil
 		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host == "" {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
 
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host")
+			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha2.ProxmoxClusterReady, infrav1alpha2.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host")
 
 			return ctrl.Result{Requeue: true}, nil
 		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Port == 0 {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint port")
 
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port")
+			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha2.ProxmoxClusterReady, infrav1alpha2.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port")
 
 			return ctrl.Result{Requeue: true}, nil
 		}
@@ -233,7 +233,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	}
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
-		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, "%s", err)
+		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha2.ProxmoxClusterReady, infrav1alpha2.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, "%s", err)
 		if apierrors.IsNotFound(err) {
 			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
 			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
@@ -241,7 +241,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		return reconcile.Result{}, err
 	}
 
-	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady)
+	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha2.ProxmoxClusterReady)
 
 	clusterScope.ProxmoxCluster.Status.Ready = true
 
@@ -285,10 +285,10 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 	}
 
 	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil {
-		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV4Format)
+		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha2.IPV4Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+				return ctrl.Result{RequeueAfter: infrav1alpha2.DefaultReconcilerRequeue}, nil
 			}
 
 			return ctrl.Result{}, err
@@ -296,10 +296,10 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolV4)
 	}
 	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil {
-		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha1.IPV6Format)
+		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1alpha2.IPV6Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				return ctrl.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+				return ctrl.Result{RequeueAfter: infrav1alpha2.DefaultReconcilerRequeue}, nil
 			}
 
 			return ctrl.Result{}, err
@@ -334,7 +334,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.
 	// Ensure the ProxmoxCluster is an owner and that the APIVersion is up-to-date.
 	secret.SetOwnerReferences(clusterutil.EnsureOwnerRef(secret.GetOwnerReferences(),
 		metav1.OwnerReference{
-			APIVersion: infrav1alpha1.GroupVersion.String(),
+			APIVersion: infrav1alpha2.GroupVersion.String(),
 			Kind:       "ProxmoxCluster",
 			Name:       proxmoxCluster.Name,
 			UID:        proxmoxCluster.UID,
@@ -342,8 +342,8 @@ func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.
 	))
 
 	// Ensure the finalizer is added.
-	if !ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
-		ctrlutil.AddFinalizer(secret, infrav1alpha1.SecretFinalizer)
+	if !ctrlutil.ContainsFinalizer(secret, infrav1alpha2.SecretFinalizer) {
+		ctrlutil.AddFinalizer(secret, infrav1alpha2.SecretFinalizer)
 	}
 
 	return helper.Patch(ctx, secret)
@@ -376,7 +376,7 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 	}
 
 	ownerRef := metav1.OwnerReference{
-		APIVersion: infrav1alpha1.GroupVersion.String(),
+		APIVersion: infrav1alpha2.GroupVersion.String(),
 		Kind:       "ProxmoxCluster",
 		Name:       proxmoxCluster.Name,
 		UID:        proxmoxCluster.UID,
@@ -385,20 +385,20 @@ func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.
 	if len(secret.GetOwnerReferences()) > 1 {
 		// Remove the ProxmoxCluster from the OwnerRef.
 		secret.SetOwnerReferences(clusterutil.RemoveOwnerRef(secret.GetOwnerReferences(), ownerRef))
-	} else if clusterutil.HasOwnerRef(secret.GetOwnerReferences(), ownerRef) && ctrlutil.ContainsFinalizer(secret, infrav1alpha1.SecretFinalizer) {
+	} else if clusterutil.HasOwnerRef(secret.GetOwnerReferences(), ownerRef) && ctrlutil.ContainsFinalizer(secret, infrav1alpha2.SecretFinalizer) {
 		// There is only one OwnerRef, the current ProxmoxCluster. Remove the Finalizer (if present).
-		logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha1.SecretFinalizer), "Secret", klog.KObj(secret))
-		ctrlutil.RemoveFinalizer(secret, infrav1alpha1.SecretFinalizer)
+		logger.Info(fmt.Sprintf("Removing finalizer %s", infrav1alpha2.SecretFinalizer), "Secret", klog.KObj(secret))
+		ctrlutil.RemoveFinalizer(secret, infrav1alpha2.SecretFinalizer)
 	}
 
 	return helper.Patch(ctx, secret)
 }
 
-func hasCredentialsRef(proxmoxCluster *infrav1alpha1.ProxmoxCluster) bool {
+func hasCredentialsRef(proxmoxCluster *infrav1alpha2.ProxmoxCluster) bool {
 	return proxmoxCluster != nil && proxmoxCluster.Spec.CredentialsRef != nil
 }
 
-func getNamespaceFromProxmoxCluster(proxmoxCluster *infrav1alpha1.ProxmoxCluster) string {
+func getNamespaceFromProxmoxCluster(proxmoxCluster *infrav1alpha2.ProxmoxCluster) string {
 	namespace := proxmoxCluster.Spec.CredentialsRef.Namespace
 	if len(namespace) == 0 {
 		namespace = proxmoxCluster.GetNamespace()
