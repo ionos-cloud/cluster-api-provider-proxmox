@@ -140,15 +140,17 @@ type Storage struct {
 	// to change the size of the boot volume.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +optional
-	BootVolume *DiskSize `json:"bootVolume,omitempty"`
+	BootVolume *DiskSpec `json:"bootVolume,omitempty"`
 
 	// TODO Intended to add handling for additional volumes,
 	// which will be added to the node.
-	// e.g. AdditionalVolumes []DiskSize.
+	// AdditionalVolumes defines additional volumes to be added to the virtual machine.
+	// +optional
+	AdditionalVolumes []DiskSpec `json:"additionalVolumes,omitempty"`
 }
 
-// DiskSize is contains values for the disk device and size.
-type DiskSize struct {
+// DiskSpec is contains values for the disk device and size.
+type DiskSpec struct {
 	// Disk is the name of the disk device, that should be resized.
 	// Example values are: ide[0-3], scsi[0-30], sata[0-5].
 	Disk string `json:"disk"`
@@ -583,7 +585,7 @@ type ProxmoxMachine struct {
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxMachineList contains a list of ProxmoxMachine.
 type ProxmoxMachineList struct {
@@ -632,7 +634,7 @@ func (r *ProxmoxMachine) GetNode() string {
 }
 
 // FormatSize returns the format required for the Proxmox API.
-func (d *DiskSize) FormatSize() string {
+func (d *DiskSpec) FormatSize() string {
 	return fmt.Sprintf("%dG", d.SizeGB)
 }
 
