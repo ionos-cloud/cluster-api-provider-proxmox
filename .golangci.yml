@@ -114,7 +114,7 @@ linters:
       - linters:
           - revive
         text: 'var-naming: avoid meaningless package names'
-      - path: api/v1alpha1
+      - path-except: api/v1alpha2
         linters:
           - kubeapilinter
     paths:
