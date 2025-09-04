@@ -40,7 +40,9 @@ type VirtualMachine struct {
 	Name string `json:"name"`
 
 	// vmID is the VM's ID.
-	VMID uint64 `json:"vmID"`
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:ExclusiveMinimum=false
+	VMID int64 `json:"vmID"`
 
 	// state is the VM's state.
 	State VirtualMachineState `json:"state"`
