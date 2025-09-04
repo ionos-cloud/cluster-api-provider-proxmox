@@ -66,7 +66,7 @@ func (in *IPConfigSpec) DeepCopyInto(out *IPConfigSpec) {
 	}
 	if in.Metric != nil {
 		in, out := &in.Metric, &out.Metric
-		*out = new(uint32)
+		*out = new(int32)
 		**out = **in
 	}
 }

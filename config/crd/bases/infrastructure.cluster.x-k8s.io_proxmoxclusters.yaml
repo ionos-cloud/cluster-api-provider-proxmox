@@ -1095,7 +1095,7 @@ spec:
                 x-kubernetes-list-type: set
               cloneSpec:
                 description: |-
-                  NodeCloneSpec is the configuration pertaining to all items configurable
+                  cloneSpec is the configuration pertaining to all items configurable
                   in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
                 properties:
                   machineSpec:
@@ -1557,15 +1557,15 @@ spec:
                           properties:
                             end:
                               description: |-
-                                VMIDRangeEnd is the end of the VMID range to use for VMs.
+                                end is the end of the VMID range to use for VMs.
                                 Only used if VMIDRangeStart is set.
                               format: int64
                               maximum: 999999999
                               minimum: 100
                               type: integer
                             start:
-                              description: VMIDRangeStart is the start of the VMID
-                                range to use for VMs.
+                              description: start is the start of the VMID range to
+                                use for VMs.
                               format: int64
                               maximum: 999999999
                               minimum: 100
@@ -1663,13 +1663,14 @@ spec:
                       type: string
                     type: array
                   gateway:
-                    description: gateway
+                    description: gateway is the network gateway
                     type: string
                   metric:
                     default: 100
                     description: metric is the route priority applied to the default
                       gateway
                     format: int32
+                    minimum: 0
                     type: integer
                   prefix:
                     description: prefix is the network prefix to use.
@@ -1699,13 +1700,14 @@ spec:
                       type: string
                     type: array
                   gateway:
-                    description: gateway
+                    description: gateway is the network gateway
                     type: string
                   metric:
                     default: 100
                     description: metric is the route priority applied to the default
                       gateway
                     format: int32
+                    minimum: 0
                     type: integer
                   prefix:
                     description: prefix is the network prefix to use.
@@ -1857,6 +1859,7 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
+                x-kubernetes-list-type: set
               nodeLocations:
                 description: |-
                   nodeLocations keeps track of which nodes have been selected

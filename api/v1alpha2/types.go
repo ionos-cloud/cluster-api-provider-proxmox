@@ -58,6 +58,7 @@ type NetworkStatus struct {
 	Connected bool `json:"connected,omitempty"`
 
 	// ipAddrs is one or more IP addresses reported by vm-tools.
+	// +listType=set
 	// +optional
 	IPAddrs []string `json:"ipAddrs,omitempty"`
 

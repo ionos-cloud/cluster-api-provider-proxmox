@@ -76,7 +76,7 @@ type ProxmoxClusterSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers"`
 
-	// NodeCloneSpec is the configuration pertaining to all items configurable
+	// cloneSpec is the configuration pertaining to all items configurable
 	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
 	// +optional
 	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
@@ -115,12 +115,13 @@ type IPConfigSpec struct {
 	// +kubebuilder:validation:Maximum=128
 	Prefix int32 `json:"prefix"`
 
-	// gateway
+	// gateway is the network gateway
 	Gateway *string `json:"gateway,omitempty"`
 
 	// metric is the route priority applied to the default gateway
 	// +kubebuilder:default=100
-	Metric *uint32 `json:"metric"`
+	// +kubebuilder:validation:Minimum=0
+	Metric *int32 `json:"metric"`
 }
 
 // SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.
@@ -153,6 +154,7 @@ type ProxmoxClusterStatus struct {
 	Ready bool `json:"ready,omitempty"`
 
 	// inClusterIpPoolRef is the reference to the created in-cluster IP pool.
+	// +listType=set
 	// +optional
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
 

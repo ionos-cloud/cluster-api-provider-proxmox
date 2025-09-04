@@ -86,7 +86,7 @@ func defaultCluster() *ProxmoxCluster {
 				Addresses: []string{"10.0.0.0/24"},
 				Prefix:    24,
 				Gateway:   ptr.To("10.0.0.254"),
-				Metric:    ptr.To(uint32(123)),
+				Metric:    ptr.To(int32(123)),
 			},
 			DNSServers: []string{"1.2.3.4"},
 			CloneSpec: &ProxmoxClusterCloneSpec{
