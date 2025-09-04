@@ -1339,15 +1339,14 @@ spec:
                 properties:
                   end:
                     description: |-
-                      VMIDRangeEnd is the end of the VMID range to use for VMs.
+                      end is the end of the VMID range to use for VMs.
                       Only used if VMIDRangeStart is set.
                     format: int64
                     maximum: 999999999
                     minimum: 100
                     type: integer
                   start:
-                    description: VMIDRangeStart is the start of the VMID range to
-                      use for VMs.
+                    description: start is the start of the VMID range to use for VMs.
                     format: int64
                     maximum: 999999999
                     minimum: 100
@@ -1505,11 +1504,13 @@ spec:
                       items:
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     ipv6:
                       description: ipv6 is the IPv6 address.
                       items:
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                   type: object
                 description: ipAddresses are the IP addresses used to access the virtual
                   machine.
@@ -1533,6 +1534,7 @@ spec:
                       items:
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     macAddr:
                       description: macAddr is the MAC address of the network device.
                       type: string

@@ -490,17 +490,19 @@ type ProxmoxMachineStatus struct {
 // TODO: Unfuck machine status.
 type IPAddresses struct {
 	// ipv4 is the IPv4 address.
+	// +listType=set
 	// +optional
 	IPV4 []string `json:"ipv4,omitempty"`
 
 	// ipv6 is the IPv6 address.
+	// +listType=set
 	// +optional
 	IPV6 []string `json:"ipv6,omitempty"`
 }
 
 // VMIDRange defines the range of VMIDs to use for VMs.
 type VMIDRange struct {
-	// VMIDRangeStart is the start of the VMID range to use for VMs.
+	// start is the start of the VMID range to use for VMs.
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:ExclusiveMinimum=false
 	// +kubebuilder:validation:Maximum=999999999
@@ -508,7 +510,7 @@ type VMIDRange struct {
 	// +required
 	Start int64 `json:"start,omitempty"`
 
-	// VMIDRangeEnd is the end of the VMID range to use for VMs.
+	// end is the end of the VMID range to use for VMs.
 	// Only used if VMIDRangeStart is set.
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:ExclusiveMinimum=false
