@@ -19,10 +19,9 @@ package webhook
 import (
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,6 +41,12 @@ var _ = Describe("Controller Test", func() {
 		It("should disallow invalid network vlan", func() {
 			machine := invalidVLANProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.default.vlan: Invalid value")))
+		})
+
+		It("should disallow use templateID/sourceNode if localStorage", func() {
+			machine := validProxmoxMachine("test-machine")
+			machine.Spec.LocalStorage = ptr.To(true)
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("localStorage is mutually exclusive with templateID/sourceNode")))
 		})
 
 		It("should disallow invalid network mtu for additional device", func() {
