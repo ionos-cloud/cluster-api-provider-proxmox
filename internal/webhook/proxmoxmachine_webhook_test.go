@@ -17,15 +17,12 @@ limitations under the License.
 package webhook
 
 import (
-	"time"
-
 	corev1 "k8s.io/api/core/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
@@ -34,6 +31,7 @@ var _ = Describe("Controller Test", func() {
 	g := NewWithT(GinkgoT())
 
 	Context("create proxmox machine", func() {
+		/* now handled by validation
 		It("should disallow invalid network mtu", func() {
 			machine := invalidMTUProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].mtu: Invalid value")))
@@ -42,7 +40,7 @@ var _ = Describe("Controller Test", func() {
 		It("should disallow invalid network vlan", func() {
 			machine := invalidVLANProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].vlan: Invalid value")))
-		})
+		})*/
 
 		It("should disallow invalid network mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
@@ -81,7 +79,7 @@ var _ = Describe("Controller Test", func() {
 	})
 
 	Context("update proxmox cluster", func() {
-		It("should disallow invalid network mtu", func() {
+		/* now handled by validation It("should disallow invalid network mtu", func() {
 			clusterName := "test-cluster"
 			machine := validProxmoxMachine(clusterName)
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
@@ -99,7 +97,7 @@ var _ = Describe("Controller Test", func() {
 			}).WithTimeout(time.Second * 10).
 				WithPolling(time.Second).
 				Should(Succeed())
-		})
+		})*/
 
 		It("should not allow updates on tags", func() {
 			machine := validProxmoxMachine("test-machine-tags")

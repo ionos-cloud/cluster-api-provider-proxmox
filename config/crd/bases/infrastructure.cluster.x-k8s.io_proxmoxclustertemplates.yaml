@@ -1004,14 +1004,14 @@ spec:
                                     skip.
                                   properties:
                                     skipCloudInitStatus:
-                                      description: Skip checking CloudInit which can
-                                        be very useful for specific Operating Systems
-                                        like TalOS
+                                      description: skipCloudInitStatus skip checking
+                                        CloudInit status which can be useful with
+                                        specific Operating Systems like TalOS
                                       type: boolean
                                     skipQemuGuestAgent:
-                                      description: Skip checking QEMU Agent readiness
-                                        which can be very useful for specific Operating
-                                        Systems like TalOS
+                                      description: skipQemuGuestAgent skips checking
+                                        QEMU Agent readiness which can be useful with
+                                        specific Operating Systems like TalOS
                                       type: boolean
                                   type: object
                                 description:
@@ -1087,11 +1087,10 @@ spec:
                                   description: network is the network configuration
                                     for this machine's VM.
                                   properties:
-                                    NetworkDevices:
+                                    networkDevices:
                                       description: |-
-                                        Default is the default network device,
-                                        which will be used for the primary network interface.
-                                        net0 is always the default network device.
+                                        networkDevices lists network devices.
+                                        net0 is always the default device.
                                       items:
                                         description: NetworkDevice defines the required
                                           details of a virtual machine network device.
