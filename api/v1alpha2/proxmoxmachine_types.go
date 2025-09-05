@@ -53,10 +53,10 @@ const (
 
 // ProxmoxMachineChecks defines possibibles checks to skip.
 type ProxmoxMachineChecks struct {
-	// Skip checking CloudInit which can be very useful for specific Operating Systems like TalOS
+	// skipCloudInitStatus skip checking CloudInit status which can be useful with specific Operating Systems like TalOS
 	// +optional
 	SkipCloudInitStatus *bool `json:"skipCloudInitStatus,omitempty"`
-	// Skip checking QEMU Agent readiness which can be very useful for specific Operating Systems like TalOS
+	// skipQemuGuestAgent skips checking QEMU Agent readiness which can be useful with specific Operating Systems like TalOS
 	// +optional
 	SkipQemuGuestAgent *bool `json:"skipQemuGuestAgent,omitempty"`
 }
@@ -257,13 +257,12 @@ type TemplateSelector struct {
 
 // NetworkSpec defines the virtual machine's network configuration.
 type NetworkSpec struct {
-	// Default is the default network device,
-	// which will be used for the primary network interface.
-	// net0 is always the default network device.
+	// networkDevices lists network devices.
+	// net0 is always the default device.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
-	NetworkDevices []NetworkDevice `json:"NetworkDevices,omitempty"`
+	NetworkDevices []NetworkDevice `json:"networkDevices,omitempty"`
 
 	// VirtualNetworkDevices defines virtual network devices (e.g. bridges, vlans ...).
 	VirtualNetworkDevices `json:",inline"`
