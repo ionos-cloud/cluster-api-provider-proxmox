@@ -264,7 +264,7 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 func TestGetCommonInterfaceConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
 
-	var MTU uint16 = 9000
+	var MTU int32 = 9000
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
 			{

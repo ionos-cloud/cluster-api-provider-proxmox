@@ -389,7 +389,7 @@ type NetworkDevice struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=4094
-	VLAN *uint16 `json:"vlan,omitempty"`
+	VLAN *int32 `json:"vlan,omitempty"`
 
 	// name is the network device name.
 	Name string `json:"name"`
@@ -401,7 +401,7 @@ type NetworkDevice struct {
 
 // MTU is the network device Maximum Transmission Unit. MTUs below 1280 break IPv6.
 // +kubebuilder:validation:XValidation:rule="self == 1 || ( self >= 576 && self <= 65520)",message="invalid MTU value"
-type MTU *uint16
+type MTU *int32
 
 // ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
 type ProxmoxMachineStatus struct {

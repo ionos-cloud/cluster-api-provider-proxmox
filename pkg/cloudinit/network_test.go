@@ -470,7 +470,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Metric:    ptr.To(uint32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-						LinkMTU:    ptr.To(uint16(9001)),
+						LinkMTU:    ptr.To(int32(9001)),
 					},
 				},
 			},

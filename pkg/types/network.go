@@ -33,7 +33,7 @@ type NetworkConfigData struct {
 	Table      uint32   // linux routing table number for VRF.
 	Routes     []RoutingData
 	FIBRules   []FIBRuleData // Forwarding information block for routing.
-	LinkMTU    *uint16       // linux network device MTU
+	LinkMTU    infrav1.MTU   // linux network device MTU
 	VRF        string        // linux VRF name // only used in networkd config.
 }
 

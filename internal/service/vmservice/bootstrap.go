@@ -311,7 +311,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 }
 */
 
-func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha2.InterfaceConfig) error { //nolint:unparam
+func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha2.InterfaceConfig) error {
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}

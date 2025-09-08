@@ -1062,6 +1062,7 @@ spec:
                         linkMtu:
                           description: linkMtu is the network device Maximum Transmission
                             Unit.
+                          format: int32
                           type: integer
                           x-kubernetes-validations:
                           - message: invalid MTU value
@@ -1081,6 +1082,7 @@ spec:
                           description: |-
                             mtu is the network device Maximum Transmission Unit.
                             When set to 1, virtio devices inherit the MTU value from the underlying bridge.
+                          format: int32
                           type: integer
                           x-kubernetes-validations:
                           - message: invalid MTU value
@@ -1146,6 +1148,7 @@ spec:
                           type: array
                         vlan:
                           description: vlan is the network L2 VLAN.
+                          format: int32
                           maximum: 4094
                           minimum: 1
                           type: integer

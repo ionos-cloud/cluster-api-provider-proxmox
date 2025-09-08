@@ -249,7 +249,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
 					Bridge: "vmbr0",
-					MTU:    ptr.To(uint16(0)),
+					MTU:    ptr.To(int32(0)),
 				}},
 			}
 
@@ -261,7 +261,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
 					Bridge: "vmbr0",
-					MTU:    ptr.To(uint16(65521)),
+					MTU:    ptr.To(int32(65521)),
 				}},
 			}
 
@@ -306,7 +306,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
 					Bridge: "vmbr0",
-					VLAN:   ptr.To(uint16(0)),
+					VLAN:   ptr.To(int32(0)),
 				}},
 			}
 
@@ -318,7 +318,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
 					Bridge: "vmbr0",
-					VLAN:   ptr.To(uint16(4095)),
+					VLAN:   ptr.To(int32(4095)),
 				}},
 			}
 

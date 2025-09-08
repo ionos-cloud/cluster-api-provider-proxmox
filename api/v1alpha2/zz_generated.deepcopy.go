@@ -99,7 +99,7 @@ func (in *InterfaceConfig) DeepCopyInto(out *InterfaceConfig) {
 	in.Routing.DeepCopyInto(&out.Routing)
 	if in.LinkMTU != nil {
 		in, out := &in.LinkMTU, &out.LinkMTU
-		*out = new(uint16)
+		*out = new(int32)
 		**out = **in
 	}
 }
@@ -139,12 +139,12 @@ func (in *NetworkDevice) DeepCopyInto(out *NetworkDevice) {
 	}
 	if in.MTU != nil {
 		in, out := &in.MTU, &out.MTU
-		*out = new(uint16)
+		*out = new(int32)
 		**out = **in
 	}
 	if in.VLAN != nil {
 		in, out := &in.VLAN, &out.VLAN
-		*out = new(uint16)
+		*out = new(int32)
 		**out = **in
 	}
 	in.InterfaceConfig.DeepCopyInto(&out.InterfaceConfig)

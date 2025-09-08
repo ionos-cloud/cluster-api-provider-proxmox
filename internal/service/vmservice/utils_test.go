@@ -126,7 +126,7 @@ func TestExtractNetworkBridge(t *testing.T) {
 func TestExtractNetworkMTU(t *testing.T) {
 	type match struct {
 		test     string
-		expected uint16
+		expected int32
 	}
 
 	goodstrings := []match{
@@ -151,7 +151,7 @@ func TestExtractNetworkMTU(t *testing.T) {
 
 	for _, s := range badstrings {
 		mtu := extractNetworkMTU(s)
-		require.Equal(t, uint16(0), mtu)
+		require.Equal(t, int32(0), mtu)
 	}
 }
 
@@ -223,7 +223,7 @@ func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 func TestExtractNetworkVLAN(t *testing.T) {
 	type match struct {
 		test     string
-		expected uint16
+		expected int32
 	}
 
 	goodstrings := []match{
@@ -248,14 +248,14 @@ func TestExtractNetworkVLAN(t *testing.T) {
 
 	for _, s := range badstrings {
 		vlan := extractNetworkVLAN(s)
-		require.Equal(t, uint16(0), vlan)
+		require.Equal(t, int32(0), vlan)
 	}
 }
 
 func TestShouldUpdateNetworkDevices_VLANChanged(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
-		NetworkDevices: []infrav1alpha2.NetworkDevice{{Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(uint16(100))}},
+		NetworkDevices: []infrav1alpha2.NetworkDevice{{Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(int32(100))}},
 	}
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0,tag=101"))
 
