@@ -1550,7 +1550,9 @@ spec:
                           type: string
                         minItems: 1
                         type: array
+                        x-kubernetes-list-type: set
                       externalManagedControlPlane:
+                        default: false
                         description: |-
                           externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
                           Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
@@ -1647,7 +1649,6 @@ spec:
                         type: object
                     required:
                     - dnsServers
-                    - externalManagedControlPlane
                     type: object
                 required:
                 - spec

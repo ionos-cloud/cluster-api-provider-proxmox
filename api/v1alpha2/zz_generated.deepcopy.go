@@ -348,6 +348,11 @@ func (in *ProxmoxClusterSpec) DeepCopyInto(out *ProxmoxClusterSpec) {
 		*out = new(v1beta1.APIEndpoint)
 		**out = **in
 	}
+	if in.ExternalManagedControlPlane != nil {
+		in, out := &in.ExternalManagedControlPlane, &out.ExternalManagedControlPlane
+		*out = new(bool)
+		**out = **in
+	}
 	if in.AllowedNodes != nil {
 		in, out := &in.AllowedNodes, &out.AllowedNodes
 		*out = make([]string, len(*in))

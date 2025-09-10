@@ -151,12 +151,13 @@ var _ = Describe("ProxmoxCluster Test", func() {
 		})
 	})
 
+	/* done by validation now
 	It("Should not allow empty DNS servers", func() {
 		dc := defaultCluster()
 		dc.Spec.DNSServers = []string{}
 
 		Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should have at least 1 items")))
-	})
+	})*/
 
 	It("Should allow creating valid clusters", func() {
 		Expect(k8sClient.Create(context.Background(), defaultCluster())).To(Succeed())

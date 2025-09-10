@@ -44,7 +44,9 @@ type ProxmoxClusterSpec struct {
 
 	// externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
 	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
-	ExternalManagedControlPlane bool `json:"externalManagedControlPlane"`
+	// +optional
+	// +kubebuilder:default=false
+	ExternalManagedControlPlane *bool `json:"externalManagedControlPlane,omitempty"`
 
 	// allowedNodes specifies all Proxmox nodes which will be considered
 	// for operations. This implies that VMs can be cloned on different nodes from
@@ -73,8 +75,10 @@ type ProxmoxClusterSpec struct {
 	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
 
 	// dnsServers contains information about nameservers used by the machines.
+	// +required
+	// +listType=set
 	// +kubebuilder:validation:MinItems=1
-	DNSServers []string `json:"dnsServers"`
+	DNSServers []string `json:"dnsServers,omitempty"`
 
 	// cloneSpec is the configuration pertaining to all items configurable
 	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
