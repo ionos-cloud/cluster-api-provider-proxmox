@@ -174,6 +174,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	}
 }
 
+/*
 func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
@@ -195,3 +196,4 @@ func invalidVLANProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	}}
 	return machine
 }
+*/

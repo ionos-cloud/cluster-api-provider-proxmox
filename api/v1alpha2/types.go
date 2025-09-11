@@ -34,20 +34,25 @@ const (
 // VirtualMachine represents data about a Proxmox virtual machine object.
 type VirtualMachine struct {
 	// node is the VM node.
+	// +required
 	Node string `json:"node"`
 
 	// name is the VM's name.
+	// +required
 	Name string `json:"name"`
 
 	// vmID is the VM's ID.
+	// +required
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:ExclusiveMinimum=false
 	VMID int64 `json:"vmID"`
 
 	// state is the VM's state.
+	// +required
 	State VirtualMachineState `json:"state"`
 
 	// network is the status of the VM's network devices.
+	// +required
 	Network []NetworkStatus `json:"network"`
 }
 
@@ -55,7 +60,8 @@ type VirtualMachine struct {
 type NetworkStatus struct {
 	// connected is a flag that indicates whether this network is currently
 	// connected to the VM.
-	Connected bool `json:"connected,omitempty"`
+	// +required
+	Connected *bool `json:"connected,omitempty"`
 
 	// ipAddrs is one or more IP addresses reported by vm-tools.
 	// +listType=set
@@ -63,7 +69,11 @@ type NetworkStatus struct {
 	IPAddrs []string `json:"ipAddrs,omitempty"`
 
 	// macAddr is the MAC address of the network device.
-	MACAddr string `json:"macAddr"`
+	// +required
+	// +kubebuilder:validation:Pattern=`^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$`
+	// +kubebuilder:validation:MinLength=17
+	// +kubebuilder:validation:MaxLength=17
+	MACAddr string `json:"macAddr,omitempty"`
 
 	// networkName is the name of the network.
 	// +optional

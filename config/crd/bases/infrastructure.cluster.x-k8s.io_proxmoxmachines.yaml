@@ -1539,11 +1539,15 @@ spec:
                       x-kubernetes-list-type: set
                     macAddr:
                       description: macAddr is the MAC address of the network device.
+                      maxLength: 17
+                      minLength: 17
+                      pattern: ^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$
                       type: string
                     networkName:
                       description: networkName is the name of the network.
                       type: string
                   required:
+                  - connected
                   - macAddr
                   type: object
                 type: array

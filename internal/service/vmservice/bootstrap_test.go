@@ -243,6 +243,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 }
 */
 
+/* getCommonInterfaceConfig cannot fail
 func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
@@ -260,6 +261,7 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
 	require.NoError(t, err)
 }
+*/
 
 func TestGetCommonInterfaceConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
@@ -307,7 +309,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
+	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
 	// TODO: not meaningful anylonger
 	/*
 		require.Equal(t, "10.0.0.10/24", cfg.IPConfigs[0].IPAddress)
@@ -320,7 +322,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	*/
 	require.Equal(t, "10.10.10.0/24", *cfg.FIBRules[0].To)
 	require.Equal(t, "172.24.16.0/24", *cfg.FIBRules[1].From)
-	require.NoError(t, err)
+	//require.NoError(t, err)
 }
 
 func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {

@@ -311,15 +311,13 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 }
 */
 
-func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha2.InterfaceConfig) error {
+func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha2.InterfaceConfig) {
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
 	ciconfig.Routes = ifconfig.Routing.Routes
 	ciconfig.FIBRules = ifconfig.Routing.RoutingPolicy
 	ciconfig.LinkMTU = ifconfig.LinkMTU
-
-	return nil
 }
 
 func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha2.NetworkSpec) ([]types.NetworkConfigData, error) {
@@ -339,10 +337,7 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 		}
 		config = conf
 
-		err = getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
-		}
+		getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
 
 		config.Name = fmt.Sprintf("eth%d", i)
 		config.Type = "ethernet"
