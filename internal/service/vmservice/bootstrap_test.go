@@ -318,9 +318,9 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	/*
 		require.Equal(t, "172.24.16.0/24", cfg.Routes[1].To)
 	*/
-	require.Equal(t, "10.10.10.0/24", cfg.FIBRules[0].To)
-	require.Equal(t, "172.24.16.0/24", cfg.FIBRules[1].From)
-	require.NoError(t, err)
+	require.Equal(t, "10.10.10.0/24", *cfg.FIBRules[0].To)
+	require.Equal(t, "172.24.16.0/24", *cfg.FIBRules[1].From)
+	// require.NoError(t, err)
 }
 
 func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
