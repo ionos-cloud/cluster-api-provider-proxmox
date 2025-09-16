@@ -19,6 +19,8 @@ package cloudinit
 import (
 	"net/netip"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
