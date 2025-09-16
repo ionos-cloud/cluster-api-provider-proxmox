@@ -25,6 +25,7 @@ import (
 	ignition "github.com/flatcar/ignition/config/v2_3"
 	ignitionTypes "github.com/flatcar/ignition/config/v2_3/types"
 	"github.com/pkg/errors"
+	"inet.af/netaddr"
 	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
@@ -113,11 +114,22 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 
 func (e *Enricher) getProxmoxEnvContent() string {
 	content := fmt.Sprintf("COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s", e.Hostname, e.InstanceID, e.ProviderID)
-	if len(e.Network) > 0 && e.Network[0].IPAddress != "" {
-		content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", e.Network[0].IPAddress)
-	}
-	if len(e.Network) > 0 && e.Network[0].IPV6Address != "" {
-		content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", e.Network[0].IPV6Address)
+	// TODO: consider adding a kube-vip config field to NetworkConfigData
+	// TODO: consider having an ip address type (maybe just inet.af/netaddr.IP) instead of string
+	var seen4, seen6 bool
+	if len(e.Network) > 0 {
+		for _, ipconfig := range e.Network[0].IPConfigs {
+			if ip, err := netaddr.ParseIP(ipconfig.IPAddress); err != nil {
+				if !seen4 && ip.Is4() {
+					content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", ipconfig.IPAddress)
+					seen4 = true
+				}
+				if !seen6 && ip.Is6() {
+					content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", ipconfig.IPAddress)
+					seen6 = true
+				}
+			}
+		}
 	}
 	return url.PathEscape(content)
 }
