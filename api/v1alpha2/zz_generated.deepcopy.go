@@ -59,11 +59,6 @@ func (in *IPConfigSpec) DeepCopyInto(out *IPConfigSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.Gateway != nil {
-		in, out := &in.Gateway, &out.Gateway
-		*out = new(string)
-		**out = **in
-	}
 	if in.Metric != nil {
 		in, out := &in.Metric, &out.Metric
 		*out = new(int32)

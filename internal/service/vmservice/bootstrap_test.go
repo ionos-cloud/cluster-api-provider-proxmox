@@ -350,7 +350,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha2.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   ptr.To("2001:db8::1"),
+		Gateway:   "2001:db8::1",
 	}
 
 	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")

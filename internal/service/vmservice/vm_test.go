@@ -533,7 +533,7 @@ func TestReconcileMachineAddresses_IPV6(t *testing.T) {
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha2.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   ptr.To("2001:db8::1"),
+		Gateway:   "2001:db8::1",
 	}
 
 	vm := newRunningVM()
@@ -552,7 +552,7 @@ func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha2.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
-		Gateway:   ptr.To("2001:db8::1"),
+		Gateway:   "2001:db8::1",
 	}
 
 	vm := newRunningVM()

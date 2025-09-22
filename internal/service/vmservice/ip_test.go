@@ -22,7 +22,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
@@ -132,7 +131,7 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1alpha2.IPConfigSpec{
 		Addresses: []string{"fe80::/64"},
 		Prefix:    64,
-		Gateway:   ptr.To("fe80::1"),
+		Gateway:   "fe80::1",
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{

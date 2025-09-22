@@ -1670,6 +1670,7 @@ spec:
                     x-kubernetes-list-type: set
                   gateway:
                     description: gateway is the network gateway
+                    minLength: 1
                     type: string
                   metric:
                     default: 100
@@ -1708,6 +1709,7 @@ spec:
                     x-kubernetes-list-type: set
                   gateway:
                     description: gateway is the network gateway
+                    minLength: 1
                     type: string
                   metric:
                     default: 100

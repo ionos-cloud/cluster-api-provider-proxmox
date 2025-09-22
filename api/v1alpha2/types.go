@@ -35,21 +35,24 @@ const (
 type VirtualMachine struct {
 	// node is the VM node.
 	// +required
-	Node string `json:"node"`
+	// +kubebuilder:validation:MinLength=1
+	Node string `json:"node,omitempty"`
 
 	// name is the VM's name.
 	// +required
-	Name string `json:"name"`
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name,omitempty"`
 
 	// vmID is the VM's ID.
 	// +required
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:ExclusiveMinimum=false
-	VMID int64 `json:"vmID"`
+	VMID int64 `json:"vmID,omitempty"`
 
 	// state is the VM's state.
 	// +required
-	State VirtualMachineState `json:"state"`
+	// +kubebuilder:validation:Enum=notfound;pending;ready
+	State VirtualMachineState `json:"state,omitempty"`
 
 	// network is the status of the VM's network devices.
 	// +required

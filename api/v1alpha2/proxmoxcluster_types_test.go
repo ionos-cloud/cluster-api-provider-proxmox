@@ -85,7 +85,7 @@ func defaultCluster() *ProxmoxCluster {
 			IPv4Config: &IPConfigSpec{
 				Addresses: []string{"10.0.0.0/24"},
 				Prefix:    24,
-				Gateway:   ptr.To("10.0.0.254"),
+				Gateway:   "10.0.0.254",
 				Metric:    ptr.To(int32(123)),
 			},
 			DNSServers: []string{"1.2.3.4"},
