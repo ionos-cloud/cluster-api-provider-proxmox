@@ -89,6 +89,75 @@ spec:
         namingStrategy:
            template: "{{ .cluster.name }}-loadbalancer-{{ .random }}"
   variables:
+    - name: workerAdditionalVolumes
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: array
+          description: "Extra disks for worker nodes (per-volume storage + optional format)."
+          items:
+            type: object
+            required: ["disk","sizeGb"]
+            properties:
+              disk:    { type: string,  description: "Target slot (e.g. scsi1)" }
+              sizeGb:  { type: integer, minimum: 5, description: "Size in GiB (min 5)" }
+              storage: { type: string,  description: "Optional per-volume storage; falls back to PMT spec.storage" }
+              format:  { type: string,  enum: ["raw","qcow2","vmdk"], description: "Optional; file-backed only" }
+              discard: { type: boolean, description: "Enable TRIM/UNMAP on this disk (Proxmox 'discard=on'). Safe on all slot types." }
+              iothread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
+              ssd: { type: boolean, description: "Hint as SSD (Proxmox 'ssd=1'); SCSI/IDE/SATA only." }
+    - name: workerStorage
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: string
+          description: "Default Proxmox storage for worker nodes (used if per-volume storage not set)."
+    - name: controlPlaneAdditionalVolumes
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: array
+          description: "Extra disks for control plane nodes (per-volume storage + optional format)."
+          items:
+            type: object
+            required: ["disk","sizeGb"]
+            properties:
+              disk:    { type: string,  description: "Target slot (e.g. scsi1)" }
+              sizeGb:  { type: integer, minimum: 5, description: "Size in GiB (min 5)" }
+              storage: { type: string,  description: "Optional per-volume storage; falls back to PMT spec.storage" }
+              format:  { type: string,  enum: ["raw","qcow2","vmdk"], description: "Optional; file-backed only" }
+              discard: { type: boolean, description: "Enable TRIM/UNMAP on this disk (Proxmox 'discard=on'). Safe on all slot types." }
+              iothread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
+              ssd: { type: boolean, description: "Hint as SSD (Proxmox 'ssd=1'); SCSI/IDE/SATA only." }
+    - name: controlPlaneStorage
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: string
+          description: "Default Proxmox storage for control plane nodes (used if per-volume storage not set)."
+    - name: loadbalancerAdditionalVolumes
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: array
+          description: "Extra disks for load-balancer nodes (per-volume storage + optional format)."
+          items:
+            type: object
+            required: ["disk","sizeGb"]
+            properties:
+              disk:    { type: string,  description: "Target slot (e.g. scsi1)" }
+              sizeGb:  { type: integer, minimum: 5, description: "Size in GiB (min 5)" }
+              storage: { type: string,  description: "Optional per-volume storage; falls back to PMT spec.storage" }
+              format:  { type: string,  enum: ["raw","qcow2","vmdk"], description: "Optional; file-backed only" }
+              discard: { type: boolean, description: "Enable TRIM/UNMAP on this disk (Proxmox 'discard=on'). Safe on all slot types." }
+              iothread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
+              ssd: { type: boolean, description: "Hint as SSD (Proxmox 'ssd=1'); SCSI/IDE/SATA only." }
+    - name: loadBalancerStorage
+      required: false
+      schema:
+        openAPIV3Schema:
+          type: string
+          description: "Default Proxmox storage for load-balancer nodes (used if per-volume storage not set)."
     - name: controlPlaneEndpoint
       required: true
       schema:
@@ -378,6 +447,122 @@ spec:
                 workerNode: *machineSpec
                 loadBalancer: *machineSpec
   patches:
+  - name: worker-additional-volumes
+    description: "Add additional disks to workers via variable"
+    enabledIf: "{{ if .workerAdditionalVolumes }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names: ["proxmox-worker"]
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/disks
+            valueFrom:
+              template: |
+                additionalVolumes:
+                {{- range $i, $v := .workerAdditionalVolumes }}
+                - { disk: {{ $v.disk }}, sizeGb: {{ $v.sizeGb }}
+                  {{- if $v.storage }}, storage: {{ $v.storage }}{{- end }}
+                  {{- if $v.format }}, format: {{ $v.format }}{{- end }}
+                  {{- if hasKey $v "discard" }}, discard: {{ $v.discard }}{{- end }}
+                  {{- if hasKey $v "iothread" }}, iothread: {{ $v.iothread }}{{- end }}
+                  {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
+                {{- end }}
+  - name: worker-storage
+    enabledIf: "{{ if .workerStorage }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names: ["proxmox-worker"]
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/storage
+            valueFrom:
+              variable: workerStorage
+  - name: controlplane-additional-volumes
+    description: "Add additional disks to control-plane via variable"
+    enabledIf: "{{ if .controlPlaneAdditionalVolumes }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/disks
+            valueFrom:
+              template: |
+                additionalVolumes:
+                {{- range $i, $v := .controlPlaneAdditionalVolumes }}
+                - { disk: {{ $v.disk }}, sizeGb: {{ $v.sizeGb }}
+                  {{- if $v.storage }}, storage: {{ $v.storage }}{{- end }}
+                  {{- if $v.format }}, format: {{ $v.format }}{{- end }}
+                  {{- if hasKey $v "discard" }}, discard: {{ $v.discard }}{{- end }}
+                  {{- if hasKey $v "iothread" }}, iothread: {{ $v.iothread }}{{- end }}
+                  {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
+                {{- end }}
+  - name: control-plane-storage
+    enabledIf: "{{ if .controlPlaneStorage }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/storage
+            valueFrom:
+              variable: controlPlaneStorage
+  - name: lb-additional-volumes
+    description: "Add additional disks to load-balancers via variable"
+    enabledIf: "{{ if .loadBalancerAdditionalVolumes }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names: [ "proxmox-loadbalancer" ]
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/disks
+            valueFrom:
+              template: |
+                additionalVolumes:
+                {{- range $i, $v := .loadBalancerAdditionalVolumes }}
+                - { disk: {{ $v.disk }}, sizeGb: {{ $v.sizeGb }}
+                  {{- if $v.storage }}, storage: {{ $v.storage }}{{- end }}
+                  {{- if $v.format }}, format: {{ $v.format }}{{- end }}
+                  {{- if hasKey $v "discard" }}, discard: {{ $v.discard }}{{- end }}
+                  {{- if hasKey $v "iothread" }}, iothread: {{ $v.iothread }}{{- end }}
+                  {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
+                {{- end }}
+  - name: load-balancer-storage
+    enabledIf: "{{ if .loadBalancerStorage }}true{{ end }}"
+    definitions:
+      - selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names: ["proxmox-loadbalancer"]
+        jsonPatches:
+          - op: add
+            path: /spec/template/spec/storage
+            valueFrom:
+              variable: workerStorage
   - name: ProxmoxClusterTemplateGeneral
     description: "Configure Cluster"
     definitions:

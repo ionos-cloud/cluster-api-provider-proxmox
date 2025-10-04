@@ -142,8 +142,6 @@ type Storage struct {
 	// +optional
 	BootVolume *DiskSpec `json:"bootVolume,omitempty"`
 
-	// TODO Intended to add handling for additional volumes,
-	// which will be added to the node.
 	// AdditionalVolumes defines additional volumes to be added to the virtual machine.
 	// +optional
 	AdditionalVolumes []DiskSpec `json:"additionalVolumes,omitempty"`
@@ -154,15 +152,25 @@ type DiskSpec struct {
 	// Disk is the name of the disk device, that should be resized.
 	// Example values are: ide[0-3], scsi[0-30], sata[0-5].
 	Disk string `json:"disk"`
-
 	// Size defines the size in gigabyte.
-	//
 	// As Proxmox does not support shrinking, the size
 	// must be bigger than the already configured size in the
 	// template.
-	//
 	// +kubebuilder:validation:Minimum=5
 	SizeGB int32 `json:"sizeGb"`
+	// Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
+	// If omitted, falls back to the machine's .spec.storage.
+	// +optional
+	Storage *string `json:"storage,omitempty"`
+	// Format is optional:
+	Format *TargetFileStorageFormat `json:"format,omitempty"`
+	// Discard enables TRIM/UNMAP support for this virtual disk.
+	// Safe on IDE/SATA/SCSI/VirtIO; maps to Proxmox "discard=on".
+	// If omitted or false, the flag is not set.
+	// +optional
+	Discard  *bool `json:"discard,omitempty"`
+	Iothread *bool `json:"iothread,omitempty"`
+	SSD      *bool `json:"ssd,omitempty"`
 }
 
 // TargetFileStorageFormat the target format of the cloned disk.
@@ -585,7 +593,7 @@ type ProxmoxMachine struct {
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // ProxmoxMachineList contains a list of ProxmoxMachine.
 type ProxmoxMachineList struct {

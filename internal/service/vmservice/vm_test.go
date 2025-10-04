@@ -35,6 +35,10 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
+func init() {
+	EnablePendingGuard(false)
+}
+
 func TestReconcileVM_EverythingReady(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
@@ -515,6 +519,575 @@ func TestReconcileDisks_ResizeDisk(t *testing.T) {
 	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "ide0", machineScope.ProxmoxMachine.Spec.Disks.BootVolume.FormatSize()).Return(task, nil)
 
 	require.NoError(t, reconcileDisks(context.Background(), machineScope))
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes(t *testing.T) {
+	ctx := context.Background()
+
+	// 1) Block-backed syntax when no formats are specified
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+		vm := newStoppedVM()
+		vm.VirtualMachineConfig.Sockets = 2
+		vm.VirtualMachineConfig.Cores = 1
+		machineScope.SetVirtualMachine(vm)
+
+		// Machine-level format present, but NO per-volume format -> should still use BLOCK syntax
+		storage := "nfs-templates"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+
+		rawFmt := infrav1alpha1.TargetFileStorageFormat("raw")
+		machineScope.ProxmoxMachine.Spec.Format = &rawFmt // ignored for additional volumes
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi1", SizeGB: 50}, // no per-volume format
+			},
+		}
+
+		// Expect "<storage>:<size>" (block-backed syntax - no 'G', no format)
+		expectedOptions := []interface{}{
+			proxmox.VirtualMachineOption{
+				Name:  "scsi1",
+				Value: "nfs-templates:50",
+			},
+		}
+		proxmoxClient.
+			EXPECT().
+			ConfigureVM(ctx, vm, expectedOptions...).
+			Return(newTask(), nil).
+			Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue, "ConfigureVM should queue follow-up while task completes")
+	}
+
+	// 2) File-backed syntax with per-volume format (per-volume overrides machine-level)
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+		vm := newStoppedVM()
+		vm.VirtualMachineConfig.Sockets = 2
+		vm.VirtualMachineConfig.Cores = 1
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "nfs-store" // name only used in value rendering; presence of format selects file-backed syntax
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+
+		perVolFmt := infrav1alpha1.TargetFileStorageFormat("qcow2")
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi2", SizeGB: 80, Format: &perVolFmt},
+			},
+		}
+
+		// Expect "<storage>:0,size=<N>G,format=<fmt>" (file-backed)
+		expectedOptions := []interface{}{
+			proxmox.VirtualMachineOption{
+				Name:  "scsi2",
+				Value: "nfs-store:0,size=80G,format=qcow2",
+			},
+		}
+		proxmoxClient.
+			EXPECT().
+			ConfigureVM(ctx, vm, expectedOptions...).
+			Return(newTask(), nil).
+			Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
+
+	// 3) File-backed syntax with machine-level format fallback (no per-volume format)
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+		vm := newStoppedVM()
+		vm.VirtualMachineConfig.Sockets = 2
+		vm.VirtualMachineConfig.Cores = 1
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "nfs-store"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+
+		machineFmt := infrav1alpha1.TargetFileStorageFormat("raw")
+		machineScope.ProxmoxMachine.Spec.Format = &machineFmt
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi3", SizeGB: 200}, // no per-volume format
+			},
+		}
+
+		expectedOptions := []interface{}{
+			proxmox.VirtualMachineOption{
+				Name:  "scsi3",
+				Value: "nfs-store:200",
+			},
+		}
+		proxmoxClient.
+			EXPECT().
+			ConfigureVM(ctx, vm, expectedOptions...).
+			Return(newTask(), nil).
+			Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_Block_NoFormat(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	// Machine-level storage is block-backed (e.g., LVM-thin); no format anywhere.
+	storage := "local-lvm"
+	machineScope.ProxmoxMachine.Spec.Storage = &storage
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 90}, // no per-volume format/storage
+		},
+	}
+
+	// Expect block syntax "<storage>:<N>"
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi1", Value: "local-lvm:90"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_File_PerVolumeFormatAndStorage(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	// Per-volume specifies file-backed storage and format.
+	nfs := "nfs-store"
+	qcow2 := infrav1alpha1.TargetFileStorageFormat("qcow2")
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 80, Storage: &nfs, Format: &qcow2},
+		},
+	}
+
+	// Expect file syntax "<storage>:0,size=NG,format=fmt"
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi1", Value: "nfs-store:0,size=80G,format=qcow2"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_File_MachineFormatUsedWhenPerVolumeMissing(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	// Machine-level format present -> file syntax.
+	nfs := "nfs-templates"
+	format := infrav1alpha1.TargetFileStorageFormat("raw")
+	machineScope.ProxmoxMachine.Spec.Format = &format
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi2", SizeGB: 50, Storage: &nfs}, // no per-volume format
+		},
+	}
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi2", Value: "nfs-templates:50"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_PerVolumeStorageOverridesMachine(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	// Machine-level storage is block; per-volume chooses file store + format.
+	machineStorage := "local-lvm"
+	perVolStore := "nfs-a"
+	perVolFmt := infrav1alpha1.TargetFileStorageFormat("qcow2")
+	machineScope.ProxmoxMachine.Spec.Storage = &machineStorage
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 30, Storage: &perVolStore, Format: &perVolFmt},
+		},
+	}
+
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi1", Value: "nfs-a:0,size=30G,format=qcow2"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_ErrorWhenNoStorageAnywhere(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, _, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	// No machine storage, no per-volume storage -> error
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 10}, // no Storage, no Format
+		},
+	}
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.Error(t, err)
+	require.False(t, requeue)
+	require.Contains(t, err.Error(), "requires a storage to be set")
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_IdempotentWhenSlotOccupied(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, _, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	// Pretend scsi1 is already populated in VM config — reconcile should NOT call ConfigureVM.
+	vm.VirtualMachineConfig.SCSI1 = "local-lvm:20"
+	machineScope.SetVirtualMachine(vm)
+
+	storage := "local-lvm"
+	machineScope.ProxmoxMachine.Spec.Storage = &storage
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 40},
+		},
+	}
+
+	// No EXPECT() on proxmoxClient.ConfigureVM — any call would be an unexpected invocation and fail the test.
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue, "reconcile should be a no-op when slot already occupied")
+}
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_Block_DiscardTrue(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	storage := "local-lvm"
+	machineScope.ProxmoxMachine.Spec.Storage = &storage
+	dTrue := true
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 90, Discard: &dTrue},
+		},
+	}
+
+	// Expect block syntax with ",discard=on" appended.
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi1", Value: "local-lvm:90,discard=on"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_File_PerVolumeFormat_DiscardTrue(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	nfs := "nfs-store"
+	qcow2 := infrav1alpha1.TargetFileStorageFormat("qcow2")
+	dTrue := true
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi2", SizeGB: 80, Storage: &nfs, Format: &qcow2, Discard: &dTrue},
+		},
+	}
+
+	// Expect file syntax with ",discard=on" appended.
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi2", Value: "nfs-store:0,size=80G,format=qcow2,discard=on"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_DiscardOmittedWhenNilOrFalse(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Case A: discard=nil -> omitted
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+		vm := newStoppedVM()
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "local-lvm"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+		// discard not set (nil)
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi3", SizeGB: 20},
+			},
+		}
+
+		expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi3", Value: "local-lvm:20"}}
+		proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
+
+	// Case B: discard=false -> omitted (we only emit when explicitly true)
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+		vm := newStoppedVM()
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "local-lvm"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+		dFalse := false
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi4", SizeGB: 25, Discard: &dFalse},
+			},
+		}
+
+		expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi4", Value: "local-lvm:25"}}
+		proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_Block_IothreadTrue(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	storage := "local-lvm"
+	machineScope.ProxmoxMachine.Spec.Storage = &storage
+	iTrue := true
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 90, Iothread: &iTrue},
+		},
+	}
+
+	// Expect block syntax with ",iothread=1" appended.
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi1", Value: "local-lvm:90,iothread=1"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_File_PerVolumeFormat_IothreadTrue(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	nfs := "nfs-store"
+	qcow2 := infrav1alpha1.TargetFileStorageFormat("qcow2")
+	iTrue := true
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi2", SizeGB: 80, Storage: &nfs, Format: &qcow2, Iothread: &iTrue},
+		},
+	}
+
+	// Expect file syntax with ",iothread=1" appended.
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi2", Value: "nfs-store:0,size=80G,format=qcow2,iothread=1"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_Iothread_OmittedWhenNilOrFalse(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Case A: iothread=nil -> omitted
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+		vm := newStoppedVM()
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "local-lvm"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi3", SizeGB: 20},
+			},
+		}
+
+		expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi3", Value: "local-lvm:20"}}
+		proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
+
+	// Case B: iothread=false -> omitted (only emit when explicitly true)
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+		vm := newStoppedVM()
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "local-lvm"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+		iFalse := false
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi4", SizeGB: 25, Iothread: &iFalse},
+			},
+		}
+
+		expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi4", Value: "local-lvm:25"}}
+		proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
+}
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_Block_SSDTrue(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	storage := "local-lvm"
+	machineScope.ProxmoxMachine.Spec.Storage = &storage
+	sTrue := true
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi1", SizeGB: 90, SSD: &sTrue},
+		},
+	}
+
+	// Expect block syntax with ",ssd=1" appended.
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi1", Value: "local-lvm:90,ssd=1"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_File_PerVolumeFormat_SSDTrue(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	nfs := "nfs-store"
+	qcow2 := infrav1alpha1.TargetFileStorageFormat("qcow2")
+	sTrue := true
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+		AdditionalVolumes: []infrav1alpha1.DiskSpec{
+			{Disk: "scsi2", SizeGB: 80, Storage: &nfs, Format: &qcow2, SSD: &sTrue},
+		},
+	}
+
+	// Expect file syntax with ",ssd=1" appended.
+	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi2", Value: "nfs-store:0,size=80G,format=qcow2,ssd=1"}}
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_AdditionalVolumes_SSD_OmittedWhenNilOrFalse(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// Case A: ssd=nil -> omitted
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+		vm := newStoppedVM()
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "local-lvm"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi3", SizeGB: 20},
+			},
+		}
+
+		expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi3", Value: "local-lvm:20"}}
+		proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
+
+	// Case B: ssd=false -> omitted (only emit when explicitly true)
+	{
+		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+		vm := newStoppedVM()
+		machineScope.SetVirtualMachine(vm)
+
+		storage := "local-lvm"
+		machineScope.ProxmoxMachine.Spec.Storage = &storage
+		sFalse := false
+		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
+			AdditionalVolumes: []infrav1alpha1.DiskSpec{
+				{Disk: "scsi4", SizeGB: 25, SSD: &sFalse},
+			},
+		}
+
+		expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi4", Value: "local-lvm:25"}}
+		proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
+
+		requeue, err := reconcileVirtualMachineConfig(ctx, machineScope)
+		require.NoError(t, err)
+		require.True(t, requeue)
+	}
 }
 
 func TestReconcileMachineAddresses_IPV4(t *testing.T) {

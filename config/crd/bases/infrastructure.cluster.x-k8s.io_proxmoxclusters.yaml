@@ -106,28 +106,44 @@ spec:
                             which will be applied before the first startup.
                           properties:
                             additionalVolumes:
-                              description: |-
-                                which will be added to the node.
-                                AdditionalVolumes defines additional volumes to be added to the virtual machine.
+                              description: AdditionalVolumes defines additional volumes
+                                to be added to the virtual machine.
                               items:
                                 description: DiskSpec is contains values for the disk
                                   device and size.
                                 properties:
+                                  discard:
+                                    description: |-
+                                      Discard enables TRIM/UNMAP support for this virtual disk.
+                                      Safe on IDE/SATA/SCSI/VirtIO; maps to Proxmox "discard=on".
+                                      If omitted or false, the flag is not set.
+                                    type: boolean
                                   disk:
                                     description: |-
                                       Disk is the name of the disk device, that should be resized.
                                       Example values are: ide[0-3], scsi[0-30], sata[0-5].
                                     type: string
+                                  format:
+                                    description: 'Format is optional:'
+                                    type: string
+                                  iothread:
+                                    type: boolean
                                   sizeGb:
                                     description: |-
                                       Size defines the size in gigabyte.
-
                                       As Proxmox does not support shrinking, the size
                                       must be bigger than the already configured size in the
                                       template.
                                     format: int32
                                     minimum: 5
                                     type: integer
+                                  ssd:
+                                    type: boolean
+                                  storage:
+                                    description: |-
+                                      Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
+                                      If omitted, falls back to the machine's .spec.storage.
+                                    type: string
                                 required:
                                 - disk
                                 - sizeGb
@@ -139,21 +155,38 @@ spec:
                                 This field is optional, and should only be set if you want
                                 to change the size of the boot volume.
                               properties:
+                                discard:
+                                  description: |-
+                                    Discard enables TRIM/UNMAP support for this virtual disk.
+                                    Safe on IDE/SATA/SCSI/VirtIO; maps to Proxmox "discard=on".
+                                    If omitted or false, the flag is not set.
+                                  type: boolean
                                 disk:
                                   description: |-
                                     Disk is the name of the disk device, that should be resized.
                                     Example values are: ide[0-3], scsi[0-30], sata[0-5].
                                   type: string
+                                format:
+                                  description: 'Format is optional:'
+                                  type: string
+                                iothread:
+                                  type: boolean
                                 sizeGb:
                                   description: |-
                                     Size defines the size in gigabyte.
-
                                     As Proxmox does not support shrinking, the size
                                     must be bigger than the already configured size in the
                                     template.
                                   format: int32
                                   minimum: 5
                                   type: integer
+                                ssd:
+                                  type: boolean
+                                storage:
+                                  description: |-
+                                    Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
+                                    If omitted, falls back to the machine's .spec.storage.
+                                  type: string
                               required:
                               - disk
                               - sizeGb
