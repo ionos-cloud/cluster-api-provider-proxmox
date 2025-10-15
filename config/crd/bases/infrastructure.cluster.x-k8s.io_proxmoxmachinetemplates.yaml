@@ -734,11 +734,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxmoxMachineTemplateSpec defines the desired state of ProxmoxMachineTemplate.
+            description: spec is the machine template spec.
             properties:
               template:
-                description: ProxmoxMachineTemplateResource defines the spec and metadata
-                  for ProxmoxMachineTemplate supported by capi.
+                description: template is the Proxmox machine template resource.
                 properties:
                   metadata:
                     description: |-
@@ -765,8 +764,7 @@ spec:
                         type: object
                     type: object
                   spec:
-                    description: ProxmoxMachineSpec defines the desired state of a
-                      ProxmoxMachine.
+                    description: spec is the Proxmox machine spec.
                     properties:
                       allowedNodes:
                         description: |-
@@ -810,12 +808,13 @@ spec:
                             properties:
                               disk:
                                 description: |-
-                                  disk is the name of the disk device, that should be resized.
+                                  disk is the name of the disk device that should be resized.
                                   Example values are: ide[0-3], scsi[0-30], sata[0-5].
+                                minLength: 1
                                 type: string
                               sizeGb:
                                 description: |-
-                                  Size defines the size in gigabyte.
+                                  sizeGb defines the size in gigabytes.
 
                                   As Proxmox does not support shrinking, the size
                                   must be bigger than the already configured size in the
@@ -862,6 +861,8 @@ spec:
                               providerIDInjection enables the injection of the `providerID` into the cloudinit metadata.
                               this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
                             type: boolean
+                        required:
+                        - providerIDInjection
                         type: object
                       network:
                         description: network is the network configuration for this
@@ -1250,6 +1251,8 @@ spec:
             required:
             - template
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

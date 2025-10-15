@@ -150,18 +150,21 @@ type Storage struct {
 
 // DiskSize is contains values for the disk device and size.
 type DiskSize struct {
-	// disk is the name of the disk device, that should be resized.
+	// disk is the name of the disk device that should be resized.
 	// Example values are: ide[0-3], scsi[0-30], sata[0-5].
-	Disk string `json:"disk"`
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	Disk string `json:"disk,omitempty"`
 
-	// Size defines the size in gigabyte.
+	// sizeGb defines the size in gigabytes.
 	//
 	// As Proxmox does not support shrinking, the size
 	// must be bigger than the already configured size in the
 	// template.
 	//
 	// +kubebuilder:validation:Minimum=5
-	SizeGB int32 `json:"sizeGb"`
+	// +required
+	SizeGB int32 `json:"sizeGb,omitempty"`
 }
 
 // TargetFileStorageFormat the target format of the cloned disk.
@@ -373,6 +376,7 @@ type VirtualNetworkDevices struct {
 type NetworkDevice struct {
 	// bridge is the network bridge to attach to the machine.
 	// +kubebuilder:validation:MinLength=1
+	// +required
 	Bridge string `json:"bridge"`
 
 	// model is the network device model.
@@ -383,6 +387,7 @@ type NetworkDevice struct {
 
 	// mtu is the network device Maximum Transmission Unit.
 	// When set to 1, virtio devices inherit the MTU value from the underlying bridge.
+	// +optional
 	MTU MTU `json:"mtu,omitempty"`
 
 	// vlan is the network L2 VLAN.
@@ -413,6 +418,7 @@ type ProxmoxMachineStatus struct {
 	Addresses []clusterv1.MachineAddress `json:"addresses,omitempty"`
 
 	// vmStatus is used to identify the virtual machine status.
+	// +required
 	VMStatus VirtualMachineState `json:"vmStatus,omitempty"`
 
 	// bootstrapDataProvided whether the virtual machine has an injected bootstrap data.
@@ -523,7 +529,8 @@ type VMIDRange struct {
 type MetadataSettings struct {
 	// providerIDInjection enables the injection of the `providerID` into the cloudinit metadata.
 	// this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
-	ProviderIDInjection bool `json:"providerIDInjection,omitempty"`
+	// +required
+	ProviderIDInjection *bool `json:"providerIDInjection,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -538,13 +545,19 @@ type MetadataSettings struct {
 
 // ProxmoxMachine is the Schema for the proxmoxmachines API.
 type ProxmoxMachine struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// metadata is the ObjectMeta.
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// spec is the Proxmox machine spec.
 	// +kubebuilder:validation:XValidation:rule="[has(self.sourceNode), has(self.templateSelector)].exists_one(c, c)",message="must define either a SourceNode with a TemplateID or a TemplateSelector"
 	// +kubebuilder:validation:XValidation:rule="[has(self.templateID), has(self.templateSelector)].exists_one(c, c)",message="must define either a SourceNode with a TemplateID or a TemplateSelector"
-	Spec   ProxmoxMachineSpec   `json:"spec,omitempty"`
-	Status ProxmoxMachineStatus `json:"status,omitempty"`
+	// +required
+	Spec *ProxmoxMachineSpec `json:"spec,omitempty"`
+
+	// status is the status of the Proxmox machine.
+	// +required
+	Status ProxmoxMachineStatus `json:"status,omitzero"`
 }
 
 //+kubebuilder:object:root=true

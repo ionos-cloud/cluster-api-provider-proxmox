@@ -161,7 +161,8 @@ func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
 type ProxmoxClusterStatus struct {
 	// ready indicates that the cluster is ready.
 	// +kubebuilder:default=false
-	Ready bool `json:"ready,omitempty"`
+	// +optional
+	Ready *bool `json:"ready,omitempty"`
 
 	// inClusterIpPoolRef is the reference to the created in-cluster IP pool.
 	// +listType=set
@@ -230,11 +231,13 @@ type NodeLocations struct {
 // NodeLocation holds information about a single VM
 // in Proxmox.
 type NodeLocation struct {
-	// machine is the reference to the ProxmoxMachine.
-	Machine corev1.LocalObjectReference `json:"machine"`
+	// machine is the reference to the ProxmoxMachine that the node is on.
+	// +required
+	Machine corev1.LocalObjectReference `json:"machine,omitempty"`
 
 	// node is the Proxmox node.
-	Node string `json:"node"`
+	// +required
+	Node string `json:"node,omitempty"`
 }
 
 // +kubebuilder:object:root=true

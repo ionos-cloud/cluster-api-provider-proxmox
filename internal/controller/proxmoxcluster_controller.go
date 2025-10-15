@@ -243,7 +243,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 
 	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha2.ProxmoxClusterReady)
 
-	clusterScope.ProxmoxCluster.Status.Ready = true
+	clusterScope.ProxmoxCluster.Status.Ready = ptr.To(true)
 
 	return ctrl.Result{}, nil
 }

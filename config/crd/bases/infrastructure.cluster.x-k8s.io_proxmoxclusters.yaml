@@ -1145,12 +1145,13 @@ spec:
                               properties:
                                 disk:
                                   description: |-
-                                    disk is the name of the disk device, that should be resized.
+                                    disk is the name of the disk device that should be resized.
                                     Example values are: ide[0-3], scsi[0-30], sata[0-5].
+                                  minLength: 1
                                   type: string
                                 sizeGb:
                                   description: |-
-                                    Size defines the size in gigabyte.
+                                    sizeGb defines the size in gigabytes.
 
                                     As Proxmox does not support shrinking, the size
                                     must be bigger than the already configured size in the
@@ -1197,6 +1198,8 @@ spec:
                                 providerIDInjection enables the injection of the `providerID` into the cloudinit metadata.
                                 this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
                               type: boolean
+                          required:
+                          - providerIDInjection
                           type: object
                         network:
                           description: network is the network configuration for this
@@ -1883,7 +1886,8 @@ spec:
                         in Proxmox.
                       properties:
                         machine:
-                          description: machine is the reference to the ProxmoxMachine.
+                          description: machine is the reference to the ProxmoxMachine
+                            that the node is on.
                           properties:
                             name:
                               default: ""
@@ -1912,7 +1916,8 @@ spec:
                         in Proxmox.
                       properties:
                         machine:
-                          description: machine is the reference to the ProxmoxMachine.
+                          description: machine is the reference to the ProxmoxMachine
+                            that the node is on.
                           properties:
                             name:
                               default: ""

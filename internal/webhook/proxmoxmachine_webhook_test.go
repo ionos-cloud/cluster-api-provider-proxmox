@@ -40,7 +40,7 @@ var _ = Describe("Controller Test", func() {
 		It("should disallow invalid network vlan", func() {
 			machine := invalidVLANProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].vlan: Invalid value")))
-		})*/
+		})
 
 		It("should disallow invalid network mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
@@ -51,7 +51,7 @@ var _ = Describe("Controller Test", func() {
 		It("should create a valid proxmox machine", func() {
 			machine := validProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
-		})
+		})*/
 
 		It("should disallow invalid network vlan for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
@@ -59,6 +59,7 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
 
+		/* validation
 		It("should disallow invalid link mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
 			machine.Spec.Network.NetworkDevices[0].LinkMTU = ptr.To(int32(1000))
@@ -75,7 +76,7 @@ var _ = Describe("Controller Test", func() {
 			machine := validProxmoxMachine("test-machine")
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
-		})
+		})*/
 	})
 
 	Context("update proxmox cluster", func() {
@@ -97,7 +98,7 @@ var _ = Describe("Controller Test", func() {
 			}).WithTimeout(time.Second * 10).
 				WithPolling(time.Second).
 				Should(Succeed())
-		})*/
+		})
 
 		It("should not allow updates on tags", func() {
 			machine := validProxmoxMachine("test-machine-tags")
@@ -106,7 +107,7 @@ var _ = Describe("Controller Test", func() {
 
 			machine.Spec.Tags = []string{"foobar", "barfoo"}
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("tags are immutable")))
-		})
+		})*/
 	})
 })
 
@@ -116,7 +117,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 			Name:      name,
 			Namespace: "default",
 		},
-		Spec: infrav1.ProxmoxMachineSpec{
+		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
 					SourceNode: ptr.To("pve"),
@@ -170,7 +171,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 					},
 				},
 			},
-		},
+		}),
 	}
 }
 

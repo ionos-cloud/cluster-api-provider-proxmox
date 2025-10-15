@@ -338,9 +338,9 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "vm1000",
 		},
-		Spec: infrav1alpha2.ProxmoxMachineSpec{
+		Spec: ptr.To(infrav1alpha2.ProxmoxMachineSpec{
 			VirtualMachineID: ptr.To(int64(1000)),
-		},
+		}),
 	}
 	machine := clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{

@@ -905,7 +905,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxmoxMachineSpec defines the desired state of a ProxmoxMachine.
+            description: spec is the Proxmox machine spec.
             properties:
               allowedNodes:
                 description: |-
@@ -947,12 +947,13 @@ spec:
                     properties:
                       disk:
                         description: |-
-                          disk is the name of the disk device, that should be resized.
+                          disk is the name of the disk device that should be resized.
                           Example values are: ide[0-3], scsi[0-30], sata[0-5].
+                        minLength: 1
                         type: string
                       sizeGb:
                         description: |-
-                          Size defines the size in gigabyte.
+                          sizeGb defines the size in gigabytes.
 
                           As Proxmox does not support shrinking, the size
                           must be bigger than the already configured size in the
@@ -998,6 +999,8 @@ spec:
                       providerIDInjection enables the injection of the `providerID` into the cloudinit metadata.
                       this will basically set the `provider-id` field in the metadata to `proxmox://<instanceID>`.
                     type: boolean
+                required:
+                - providerIDInjection
                 type: object
               network:
                 description: network is the network configuration for this machine's
@@ -1373,7 +1376,7 @@ spec:
             - message: Must set full=true when specifying storage
               rule: self.full || !has(self.storage)
           status:
-            description: ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
+            description: status is the status of the Proxmox machine.
             properties:
               addresses:
                 description: addresses contains the Proxmox VM instance associated
@@ -1575,7 +1578,11 @@ spec:
                 type: string
             required:
             - ready
+            - vmStatus
             type: object
+        required:
+        - spec
+        - status
         type: object
     served: true
     storage: true

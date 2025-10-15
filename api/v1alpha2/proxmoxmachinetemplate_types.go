@@ -23,7 +23,9 @@ import (
 
 // ProxmoxMachineTemplateSpec defines the desired state of ProxmoxMachineTemplate.
 type ProxmoxMachineTemplateSpec struct {
-	Template ProxmoxMachineTemplateResource `json:"template"`
+	// template is the Proxmox machine template resource.
+	// +required
+	Template ProxmoxMachineTemplateResource `json:"template,omitzero"`
 }
 
 // +kubebuilder:object:root=true
@@ -36,7 +38,9 @@ type ProxmoxMachineTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec ProxmoxMachineTemplateSpec `json:"spec,omitempty"`
+	// spec is the machine template spec.
+	// +required
+	Spec ProxmoxMachineTemplateSpec `json:"spec,omitzero"`
 }
 
 // ProxmoxMachineTemplateResource defines the spec and metadata for ProxmoxMachineTemplate supported by capi.
@@ -45,7 +49,10 @@ type ProxmoxMachineTemplateResource struct {
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
 	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
-	Spec       ProxmoxMachineSpec    `json:"spec"`
+
+	// spec is the Proxmox machine spec.
+	// +required
+	Spec *ProxmoxMachineSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true
