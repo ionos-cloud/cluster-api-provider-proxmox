@@ -934,7 +934,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxmoxClusterTemplateSpec defines the desired state of ProxmoxClusterTemplate.
+            description: spec is the Proxmox Cluster Template spec
             properties:
               template:
                 description: ProxmoxClusterTemplateResource defines the spec and metadata
@@ -965,8 +965,7 @@ spec:
                         type: object
                     type: object
                   spec:
-                    description: ProxmoxClusterSpec defines the desired state of a
-                      ProxmoxCluster.
+                    description: spec is the Proxmox Cluster spec
                     properties:
                       allowedNodes:
                         description: |-

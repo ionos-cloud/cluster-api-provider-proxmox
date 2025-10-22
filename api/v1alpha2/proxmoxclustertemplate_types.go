@@ -32,7 +32,9 @@ type ProxmoxClusterTemplateResource struct {
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
 	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
-	Spec       ProxmoxClusterSpec    `json:"spec"`
+
+	// spec is the Proxmox Cluster spec
+	Spec ProxmoxClusterSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
@@ -48,6 +50,7 @@ type ProxmoxClusterTemplate struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// spec is the Proxmox Cluster Template spec
 	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
 }
 

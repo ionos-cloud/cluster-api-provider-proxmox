@@ -260,10 +260,9 @@ type ProxmoxCluster struct {
 	// spec is the Proxmox Cluster spec
 	// +kubebuilder:validation:XValidation:rule="self.ipv4Config != null || self.ipv6Config != null",message="at least one ip config must be set, either ipv4Config or ipv6Config"
 	// +required
-	Spec ProxmoxClusterSpec `json:"spec,omitempty"`
+	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
 
 	// status is the Proxmox Cluster status
-	// +optional
 	Status ProxmoxClusterStatus `json:"status,omitempty"`
 }
 
