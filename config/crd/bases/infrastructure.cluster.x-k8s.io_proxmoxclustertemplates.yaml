@@ -1591,7 +1591,7 @@ spec:
                             description: prefix is the network prefix to use.
                             format: int32
                             maximum: 128
-                            minimum: 0
+                            minimum: 1
                             type: integer
                         required:
                         - addresses
@@ -1630,7 +1630,7 @@ spec:
                             description: prefix is the network prefix to use.
                             format: int32
                             maximum: 128
-                            minimum: 0
+                            minimum: 1
                             type: integer
                         required:
                         - addresses

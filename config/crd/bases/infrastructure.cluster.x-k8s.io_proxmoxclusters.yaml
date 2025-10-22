@@ -1082,7 +1082,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.
+            description: spec is the Proxmox Cluster spec
             properties:
               allowedNodes:
                 description: |-
@@ -1688,7 +1688,7 @@ spec:
                     description: prefix is the network prefix to use.
                     format: int32
                     maximum: 128
-                    minimum: 0
+                    minimum: 1
                     type: integer
                 required:
                 - addresses
@@ -1727,7 +1727,7 @@ spec:
                     description: prefix is the network prefix to use.
                     format: int32
                     maximum: 128
-                    minimum: 0
+                    minimum: 1
                     type: integer
                 required:
                 - addresses
@@ -1761,7 +1761,7 @@ spec:
             - message: at least one ip config must be set, either ipv4Config or ipv6Config
               rule: self.ipv4Config != null || self.ipv6Config != null
           status:
-            description: ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
+            description: status is the Proxmox Cluster status
             properties:
               conditions:
                 description: conditions defines current service state of the ProxmoxCluster.
@@ -1904,6 +1904,7 @@ spec:
                           x-kubernetes-map-type: atomic
                         node:
                           description: node is the Proxmox node.
+                          minLength: 1
                           type: string
                       required:
                       - machine
@@ -1934,6 +1935,7 @@ spec:
                           x-kubernetes-map-type: atomic
                         node:
                           description: node is the Proxmox node.
+                          minLength: 1
                           type: string
                       required:
                       - machine
@@ -1946,6 +1948,8 @@ spec:
                 description: ready indicates that the cluster is ready.
                 type: boolean
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

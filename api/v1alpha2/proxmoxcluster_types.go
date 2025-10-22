@@ -114,13 +114,13 @@ type IPConfigSpec struct {
 	// addresses is a list of IP addresses that can be assigned. This set of addresses can be non-contiguous.
 	// +required
 	// +listType=set
-	Addresses []string `json:"addresses"`
+	Addresses []string `json:"addresses,omitempty"`
 
 	// prefix is the network prefix to use.
 	// +required
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=128
-	Prefix int32 `json:"prefix"`
+	Prefix int32 `json:"prefix,omitempty"`
 
 	// gateway is the network gateway
 	// +required
@@ -236,6 +236,7 @@ type NodeLocation struct {
 	Machine corev1.LocalObjectReference `json:"machine,omitempty"`
 
 	// node is the Proxmox node.
+	// +kubebuilder:validation:MinLength=1
 	// +required
 	Node string `json:"node,omitempty"`
 }
@@ -250,11 +251,19 @@ type NodeLocation struct {
 
 // ProxmoxCluster is the Schema for the proxmoxclusters API.
 type ProxmoxCluster struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// metadata is the standard object metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// spec is the Proxmox Cluster spec
 	// +kubebuilder:validation:XValidation:rule="self.ipv4Config != null || self.ipv6Config != null",message="at least one ip config must be set, either ipv4Config or ipv6Config"
-	Spec   ProxmoxClusterSpec   `json:"spec,omitempty"`
+	// +required
+	Spec ProxmoxClusterSpec `json:"spec,omitempty"`
+
+	// status is the Proxmox Cluster status
+	// +optional
 	Status ProxmoxClusterStatus `json:"status,omitempty"`
 }
 
