@@ -904,12 +904,12 @@ func (in *RouteSpec) DeepCopyInto(out *RouteSpec) {
 	}
 	if in.Metric != nil {
 		in, out := &in.Metric, &out.Metric
-		*out = new(uint32)
+		*out = new(int32)
 		**out = **in
 	}
 	if in.Table != nil {
 		in, out := &in.Table, &out.Table
-		*out = new(uint32)
+		*out = new(int32)
 		**out = **in
 	}
 }
@@ -968,12 +968,12 @@ func (in *RoutingPolicySpec) DeepCopyInto(out *RoutingPolicySpec) {
 	}
 	if in.Table != nil {
 		in, out := &in.Table, &out.Table
-		*out = new(uint32)
+		*out = new(int32)
 		**out = **in
 	}
 	if in.Priority != nil {
 		in, out := &in.Priority, &out.Priority
-		*out = new(uint32)
+		*out = new(int64)
 		**out = **in
 	}
 }

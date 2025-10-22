@@ -28,7 +28,7 @@ type ProxmoxClusterTemplateSpec struct {
 
 // ProxmoxClusterTemplateResource defines the spec and metadata for ProxmoxClusterTemplate supported by capi.
 type ProxmoxClusterTemplateResource struct {
-	// Standard object's metadata.
+	// metadata is the standard object metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
 	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
@@ -42,7 +42,10 @@ type ProxmoxClusterTemplateResource struct {
 
 // ProxmoxClusterTemplate is the Schema for the proxmoxclustertemplates API.
 type ProxmoxClusterTemplate struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// metadata is the standard object metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`

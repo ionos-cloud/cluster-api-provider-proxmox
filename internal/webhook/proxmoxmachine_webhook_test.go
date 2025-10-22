@@ -154,7 +154,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 						}},
 						Routing: infrav1.Routing{
 							RoutingPolicy: []infrav1.RoutingPolicySpec{{
-								Table: ptr.To(uint32(665)),
+								Table: ptr.To(int32(665)),
 							}},
 						},
 					},
@@ -165,7 +165,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 						Name:  "vrf-green",
 						Routing: infrav1.Routing{
 							RoutingPolicy: []infrav1.RoutingPolicySpec{{
-								Table: ptr.To(uint32(665)),
+								Table: ptr.To(int32(665)),
 							}},
 						}},
 					},

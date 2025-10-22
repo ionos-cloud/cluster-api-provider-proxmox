@@ -35,7 +35,10 @@ type ProxmoxMachineTemplateSpec struct {
 
 // ProxmoxMachineTemplate is the Schema for the proxmoxmachinetemplates API.
 type ProxmoxMachineTemplate struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// metadata is the standard object metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec is the machine template spec.

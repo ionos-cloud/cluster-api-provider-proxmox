@@ -30,7 +30,7 @@ type NetworkConfigData struct {
 	Type       string
 	Name       string
 	Interfaces []string // Interfaces controlled by this one.
-	Table      uint32   // linux routing table number for VRF.
+	Table      int32    // linux routing table number for VRF.
 	Routes     []RoutingData
 	FIBRules   []FIBRuleData // Forwarding information block for routing.
 	LinkMTU    infrav1.MTU   // linux network device MTU
@@ -41,7 +41,7 @@ type NetworkConfigData struct {
 type IPConfig struct {
 	IPAddress string
 	Gateway   string
-	Metric    *uint32
+	Metric    *int32
 }
 
 // RoutingData stores routing configuration.

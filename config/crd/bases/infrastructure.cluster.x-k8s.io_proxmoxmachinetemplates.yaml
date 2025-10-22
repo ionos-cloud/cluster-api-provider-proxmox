@@ -971,6 +971,7 @@ spec:
                                         description: metric is the priority of the
                                           route in the routing table.
                                         format: int32
+                                        minimum: 0
                                         type: integer
                                       table:
                                         description: table is the routing table used
@@ -1000,7 +1001,7 @@ spec:
                                       priority:
                                         description: priority is the position in the
                                           ip rule FIB table.
-                                        format: int32
+                                        format: int64
                                         maximum: 4294967295
                                         type: integer
                                         x-kubernetes-validations:
@@ -1033,7 +1034,7 @@ spec:
                             - name
                             x-kubernetes-list-type: map
                           vrfs:
-                            description: Definition of a VRF Device.
+                            description: vrfs defines VRF Devices.
                             items:
                               description: VRFDevice defines Virtual Routing Flow
                                 devices.
@@ -1061,6 +1062,7 @@ spec:
                                         description: metric is the priority of the
                                           route in the routing table.
                                         format: int32
+                                        minimum: 0
                                         type: integer
                                       table:
                                         description: table is the routing table used
@@ -1090,7 +1092,7 @@ spec:
                                       priority:
                                         description: priority is the position in the
                                           ip rule FIB table.
-                                        format: int32
+                                        format: int64
                                         maximum: 4294967295
                                         type: integer
                                         x-kubernetes-validations:

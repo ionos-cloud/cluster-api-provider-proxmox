@@ -288,11 +288,11 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 					Routing: infrav1alpha2.Routing{
 						Routes: []infrav1alpha2.RouteSpec{
 							{To: ptr.To("default"), Via: ptr.To("192.168.178.1")},
-							{To: ptr.To("172.24.16.0/24"), Via: ptr.To("192.168.178.1"), Table: ptr.To(uint32(100))},
+							{To: ptr.To("172.24.16.0/24"), Via: ptr.To("192.168.178.1"), Table: ptr.To(int32(100))},
 						},
 						RoutingPolicy: []infrav1alpha2.RoutingPolicySpec{
-							{To: ptr.To("10.10.10.0/24"), Table: ptr.To(uint32(100))},
-							{From: ptr.To("172.24.16.0/24"), Table: ptr.To(uint32(100))},
+							{To: ptr.To("10.10.10.0/24"), Table: ptr.To(int32(100))},
+							{From: ptr.To("172.24.16.0/24"), Table: ptr.To(int32(100))},
 						},
 					},
 				},

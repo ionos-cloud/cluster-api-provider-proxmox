@@ -316,11 +316,12 @@ type RouteSpec struct {
 	// +optional
 	Via *string `json:"via,omitempty"`
 	// metric is the priority of the route in the routing table.
+	// +kubebuilder:validation:Minimum=0
 	// +optional
-	Metric *uint32 `json:"metric,omitempty"`
+	Metric *int32 `json:"metric,omitempty"`
 	// table is the routing table used for this route.
 	// +optional
-	Table *uint32 `json:"table,omitempty"`
+	Table *int32 `json:"table,omitempty"`
 }
 
 // RoutingPolicySpec is a Linux FIB rule.
@@ -335,13 +336,13 @@ type RoutingPolicySpec struct {
 
 	// table is the routing table ID.
 	// +optional
-	Table *uint32 `json:"table,omitempty"`
+	Table *int32 `json:"table,omitempty"`
 
 	// priority is the position in the ip rule FIB table.
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert FIB rule matching kernel rules",rule="(self > 0 && self < 32765) || (self > 32766)"
 	// +optional
-	Priority *uint32 `json:"priority,omitempty"`
+	Priority *int64 `json:"priority,omitempty"`
 }
 
 // VRFDevice defines Virtual Routing Flow devices.
@@ -357,7 +358,7 @@ type VRFDevice struct {
 	// table is the ID of the routing table used for the l3mdev vrf device.
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert l3mdev rules into kernel tables",rule="(self > 0 && self < 254) || (self > 255)"
-	Table uint32 `json:"table"`
+	Table int32 `json:"table"`
 
 	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
 	Routing `json:",inline"`
@@ -365,7 +366,7 @@ type VRFDevice struct {
 
 // VirtualNetworkDevices defines Linux software networking devices.
 type VirtualNetworkDevices struct {
-	// Definition of a VRF Device.
+	// vrfs defines VRF Devices.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
@@ -546,7 +547,9 @@ type MetadataSettings struct {
 // ProxmoxMachine is the Schema for the proxmoxmachines API.
 type ProxmoxMachine struct {
 	metav1.TypeMeta `json:",inline"`
-	// metadata is the ObjectMeta.
+	// metadata is the standard object metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec is the Proxmox machine spec.

@@ -175,7 +175,7 @@ func (r *NetworkConfig) validate() error {
 		return ErrMissingNetworkConfigData
 	}
 	// TODO: Fix validation
-	metrics := make(map[uint32]*struct {
+	metrics := make(map[int32]*struct {
 		ipv4 bool
 		ipv6 bool
 	})

@@ -109,19 +109,19 @@ func findIPAddressesByPool(ctx context.Context, machineScope *scope.MachineScope
 	return out, nil
 }
 
-func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.MachineScope, ipAddress *ipamv1.IPAddress) (*uint32, error) {
+func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.MachineScope, ipAddress *ipamv1.IPAddress) (*int32, error) {
 	annotations, err := machineScope.IPAMHelper.GetIPPoolAnnotations(ctx, ipAddress)
 	if err != nil {
 		return nil, err
 	}
-	var rv *uint32
+	var rv *int32
 
 	if s, exists := annotations["metric"]; exists {
-		metric, err := strconv.ParseUint(s, 0, 32)
+		metric, err := strconv.ParseInt(s, 0, 32)
 		if err != nil {
 			return nil, err
 		}
-		rv = ptr.To(uint32(metric))
+		rv = ptr.To(int32(metric))
 	}
 	return rv, nil
 }
