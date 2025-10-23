@@ -136,13 +136,13 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 			Network: &infrav1.NetworkSpec{
 				NetworkDevices: []infrav1.NetworkDevice{{
 					Name:   "net0",
-					Bridge: "vmbr1",
+					Bridge: ptr.To("vmbr1"),
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(int32(1500)),
 					VLAN:   ptr.To(int32(100)),
 				}, {
 					Name:   "net1",
-					Bridge: "vmbr2",
+					Bridge: ptr.To("vmbr2"),
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(int32(1500)),
 					VLAN:   ptr.To(int32(100)),
@@ -180,7 +180,7 @@ func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
 		Name:   "net0",
-		Bridge: "vmbr1",
+		Bridge: ptr.To("vmbr1"),
 		Model:  ptr.To("virtio"),
 		MTU:    ptr.To(int32(50)),
 	}}
@@ -191,7 +191,7 @@ func invalidVLANProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
 		Name:   "net0",
-		Bridge: "vmbr1",
+		Bridge: ptr.To("vmbr1"),
 		Model:  ptr.To("virtio"),
 		VLAN:   ptr.To(int32(0)),
 	}}

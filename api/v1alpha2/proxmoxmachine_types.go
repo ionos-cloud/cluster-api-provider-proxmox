@@ -248,13 +248,14 @@ type VirtualMachineCloneSpec struct {
 
 // TemplateSelector defines MatchTags for looking up VM templates.
 type TemplateSelector struct {
-	// Specifies all tags to look for, when looking up the VM template.
+	// matchTags specifies all tags to look for when looking up the VM template.
 	// Passed tags must be an exact 1:1 match with the tags on the template you want to use.
 	// If multiple VM templates with the same set of tags are found, provisioning will fail.
 	//
 	// +listType=set
 	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
 	// +kubebuilder:validation:MinItems=1
+	// +required
 	MatchTags []string `json:"matchTags"`
 }
 
@@ -291,6 +292,7 @@ type InterfaceConfig struct {
 	Routing `json:",inline"`
 
 	// linkMtu is the network device Maximum Transmission Unit.
+	// +required
 	LinkMTU MTU `json:"linkMtu,omitempty"`
 }
 
@@ -348,19 +350,24 @@ type RoutingPolicySpec struct {
 // VRFDevice defines Virtual Routing Flow devices.
 type VRFDevice struct {
 	// interfaces is the list of proxmox network devices managed by this virtual device.
+	// +required
 	Interfaces []string `json:"interfaces,omitempty"`
 
 	// name is the virtual network device name.
 	// Must be unique within the virtual machine.
 	// +kubebuilder:validation:MinLength=3
+	// +required
 	Name string `json:"name"`
 
 	// table is the ID of the routing table used for the l3mdev vrf device.
+	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="Cowardly refusing to insert l3mdev rules into kernel tables",rule="(self > 0 && self < 254) || (self > 255)"
-	Table int32 `json:"table"`
+	// +required
+	Table int32 `json:"table,omitempty"`
 
 	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
+	// +required
 	Routing `json:",inline"`
 }
 
@@ -377,8 +384,8 @@ type VirtualNetworkDevices struct {
 type NetworkDevice struct {
 	// bridge is the network bridge to attach to the machine.
 	// +kubebuilder:validation:MinLength=1
-	// +required
-	Bridge string `json:"bridge"`
+	// +optional
+	Bridge *string `json:"bridge,omitempty"`
 
 	// model is the network device model.
 	// +optional
@@ -398,7 +405,9 @@ type NetworkDevice struct {
 	VLAN *int32 `json:"vlan,omitempty"`
 
 	// name is the network device name.
-	Name string `json:"name"`
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	Name string `json:"name,omitempty"`
 
 	// InterfaceConfig contains all configurables a network interface can have.
 	// +optional
@@ -412,15 +421,16 @@ type MTU *int32
 // ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
 type ProxmoxMachineStatus struct {
 	// ready indicates the Docker infrastructure has been provisioned and is ready.
-	Ready bool `json:"ready"`
+	// +optional
+	Ready *bool `json:"ready,omitempty"`
 
 	// addresses contains the Proxmox VM instance associated addresses.
 	// +optional
 	Addresses []clusterv1.MachineAddress `json:"addresses,omitempty"`
 
 	// vmStatus is used to identify the virtual machine status.
-	// +required
-	VMStatus VirtualMachineState `json:"vmStatus,omitempty"`
+	// +optional
+	VMStatus *VirtualMachineState `json:"vmStatus,omitempty"`
 
 	// bootstrapDataProvided whether the virtual machine has an injected bootstrap data.
 	// +optional

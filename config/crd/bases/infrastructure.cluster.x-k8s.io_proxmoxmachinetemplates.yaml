@@ -959,6 +959,7 @@ spec:
                                     rule: self == 1 || ( self >= 576 && self <= 65520)
                                 name:
                                   description: name is the network device name.
+                                  minLength: 1
                                   type: string
                                 routes:
                                   description: routes are the routes associated with
@@ -1026,7 +1027,7 @@ spec:
                                   minimum: 1
                                   type: integer
                               required:
-                              - bridge
+                              - linkMtu
                               - name
                               type: object
                             type: array
@@ -1115,12 +1116,15 @@ spec:
                                     used for the l3mdev vrf device.
                                   format: int32
                                   maximum: 4294967295
+                                  minimum: 1
                                   type: integer
                                   x-kubernetes-validations:
                                   - message: Cowardly refusing to insert l3mdev rules
                                       into kernel tables
                                     rule: (self > 0 && self < 254) || (self > 255)
                               required:
+                              - ""
+                              - interfaces
                               - name
                               - table
                               type: object
@@ -1199,7 +1203,7 @@ spec:
                         properties:
                           matchTags:
                             description: |-
-                              Specifies all tags to look for, when looking up the VM template.
+                              matchTags specifies all tags to look for when looking up the VM template.
                               Passed tags must be an exact 1:1 match with the tags on the template you want to use.
                               If multiple VM templates with the same set of tags are found, provisioning will fail.
                             items:

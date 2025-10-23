@@ -163,7 +163,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 		bridge := extractNetworkBridge(net)
 
 		// current is different from the desired spec.
-		if model != *v.Model || bridge != v.Bridge {
+		if model != *v.Model || bridge != *v.Bridge {
 			return true
 		}
 

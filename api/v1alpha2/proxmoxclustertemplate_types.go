@@ -23,7 +23,9 @@ import (
 
 // ProxmoxClusterTemplateSpec defines the desired state of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateSpec struct {
-	Template ProxmoxClusterTemplateResource `json:"template"`
+	// template is the Proxmox Cluster template
+	// +required
+	Template ProxmoxClusterTemplateResource `json:"template,omitzero"`
 }
 
 // ProxmoxClusterTemplateResource defines the spec and metadata for ProxmoxClusterTemplate supported by capi.
@@ -34,7 +36,8 @@ type ProxmoxClusterTemplateResource struct {
 	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec is the Proxmox Cluster spec
-	Spec ProxmoxClusterSpec `json:"spec"`
+	// +required
+	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
 }
 
 // +kubebuilder:object:root=true
@@ -51,7 +54,8 @@ type ProxmoxClusterTemplate struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec is the Proxmox Cluster Template spec
-	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
+	// +required
+	Spec ProxmoxClusterTemplateSpec `json:"spec,omitzero"`
 }
 
 // +kubebuilder:object:root=true

@@ -165,7 +165,7 @@ type ProxmoxClusterStatus struct {
 	Ready *bool `json:"ready,omitempty"`
 
 	// inClusterIpPoolRef is the reference to the created in-cluster IP pool.
-	// +listType=set
+	// +listType=atomic
 	// +optional
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
 

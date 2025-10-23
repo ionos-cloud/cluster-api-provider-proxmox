@@ -41,7 +41,7 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1alpha2.IPAddresses{infrav1alpha2.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
@@ -59,7 +59,7 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1alpha2.IPAddresses{infrav1alpha2.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1alpha2.ProxmoxMachineChecks{
 		SkipQemuGuestAgent: ptr.To(true),
 	}
@@ -79,7 +79,7 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1alpha2.IPAddresses{infrav1alpha2.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1alpha2.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 	}
@@ -99,7 +99,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1alpha2.IPAddresses{infrav1alpha2.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1alpha2.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 		SkipQemuGuestAgent:  ptr.To(true),
@@ -425,8 +425,8 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = ptr.To(int32(16 * 1024))
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
-			{Name: "net0", Bridge: "vmbr0", Model: ptr.To("virtio"), MTU: ptr.To(int32(1500))},
-			{Name: "net1", Bridge: "vmbr1", Model: ptr.To("virtio"), MTU: ptr.To(int32(1500))},
+			{Name: "net0", Bridge: ptr.To("vmbr0"), Model: ptr.To("virtio"), MTU: ptr.To(int32(1500))},
+			{Name: "net1", Bridge: ptr.To("vmbr1"), Model: ptr.To("virtio"), MTU: ptr.To(int32(1500))},
 		},
 	}
 
@@ -574,8 +574,8 @@ func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = ptr.To(int32(16 * 1024))
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
 		NetworkDevices: []infrav1alpha2.NetworkDevice{
-			{Name: "net0", Bridge: "vmbr0", Model: ptr.To("virtio"), VLAN: ptr.To(int32(100))},
-			{Name: "net1", Bridge: "vmbr1", Model: ptr.To("virtio"), VLAN: ptr.To(int32(100))},
+			{Name: "net0", Bridge: ptr.To("vmbr0"), Model: ptr.To("virtio"), VLAN: ptr.To(int32(100))},
+			{Name: "net1", Bridge: ptr.To("vmbr1"), Model: ptr.To("virtio"), VLAN: ptr.To(int32(100))},
 		},
 	}
 
@@ -616,7 +616,7 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1alpha2.IPAddresses{infrav1alpha2.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, goproxmox.ErrCloudInitFailed).Once()
@@ -634,7 +634,7 @@ func TestReconcileVM_CloudInitRunning(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1alpha2.IPAddresses{infrav1alpha2.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = true
+	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(true, nil).Once()
