@@ -420,7 +420,6 @@ type NetworkDevice struct {
 }
 
 // MTU is the network device Maximum Transmission Unit. MTUs below 1280 break IPv6.
-// +optional
 type MTU *uint16
 
 // AdditionalNetworkDevice the definition of a Proxmox network device.
