@@ -45,7 +45,8 @@ spec:
       - args:
         - --leader-elect
         - --feature-gates=ClusterTopology=${ClusterTopology:=false}
-        - "--metrics-bind-address=localhost:8080"
+        - "--diagnostics-address=${CAPI_DIAGNOSTICS_ADDRESS:=:8443}"
+        - "--insecure-diagnostics=${CAPI_INSECURE_DIAGNOSTICS:=false}"
         - "--v=${CAPMOX_LOGLEVEL:=0}"
         image: controller:latest
         name: manager
