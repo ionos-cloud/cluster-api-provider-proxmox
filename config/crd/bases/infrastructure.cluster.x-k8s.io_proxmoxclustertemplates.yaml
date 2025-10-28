@@ -997,6 +997,7 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                  x-kubernetes-list-type: set
                                 checks:
                                   description: checks defines possibles checks to
                                     skip.
@@ -1109,6 +1110,7 @@ spec:
                                               type: string
                                             minItems: 1
                                             type: array
+                                            x-kubernetes-list-type: set
                                           ipPoolRef:
                                             description: |-
                                               ipPoolRef is a reference to an IPAM Pool resource, which exposes IPv4 addresses.
@@ -1147,6 +1149,7 @@ spec:
                                                 rule: self.kind == 'InClusterIPPool'
                                                   || self.kind == 'GlobalInClusterIPPool'
                                             type: array
+                                            x-kubernetes-list-type: atomic
                                           linkMtu:
                                             description: linkMtu is the network device
                                               Maximum Transmission Unit.
@@ -1216,6 +1219,7 @@ spec:
                                               type: object
                                             minItems: 1
                                             type: array
+                                            x-kubernetes-list-type: atomic
                                           routingPolicy:
                                             description: routingPolicy is an interface-specific
                                               policy inserted into FIB (forwarding
@@ -1252,6 +1256,7 @@ spec:
                                               type: object
                                             minItems: 1
                                             type: array
+                                            x-kubernetes-list-type: atomic
                                           vlan:
                                             description: vlan is the network L2 VLAN.
                                             format: int32
@@ -1279,6 +1284,7 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                            x-kubernetes-list-type: set
                                           name:
                                             description: |-
                                               name is the virtual network device name.
@@ -1314,6 +1320,7 @@ spec:
                                               type: object
                                             minItems: 1
                                             type: array
+                                            x-kubernetes-list-type: atomic
                                           routingPolicy:
                                             description: routingPolicy is an interface-specific
                                               policy inserted into FIB (forwarding
@@ -1350,6 +1357,7 @@ spec:
                                               type: object
                                             minItems: 1
                                             type: array
+                                            x-kubernetes-list-type: atomic
                                           table:
                                             description: table is the ID of the routing
                                               table used for the l3mdev vrf device.

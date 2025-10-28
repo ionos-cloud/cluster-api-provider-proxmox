@@ -221,10 +221,12 @@ type ProxmoxClusterStatus struct {
 type NodeLocations struct {
 	// controlPlane contains all deployed control plane nodes.
 	// +optional
+	// +listType=atomic
 	ControlPlane []NodeLocation `json:"controlPlane,omitempty"`
 
 	// workers contains all deployed worker nodes.
 	// +optional
+	// +listType=atomic
 	Workers []NodeLocation `json:"workers,omitempty"`
 }
 

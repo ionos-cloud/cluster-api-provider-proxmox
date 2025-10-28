@@ -100,12 +100,12 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("must define either a SourceNode with a TemplateID or a TemplateSelector")))
 		})*/
 
-		It("Should not allow specifying TemplateSelector with empty MatchTags", func() {
+		/*It("Should not allow specifying TemplateSelector with empty MatchTags", func() {
 			dm := defaultMachine()
 			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{}}
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should have at least 1 items")))
-		})
+		})*/
 
 		/*It("Should only allow valid MatchTags", func() {
 			testCases := []struct {

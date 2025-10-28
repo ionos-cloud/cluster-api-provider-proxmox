@@ -123,6 +123,7 @@ type ProxmoxMachineSpec struct {
 	// the nodes where the VM can be cloned.
 	// If not set, the ProxmoxCluster will be used to determine the nodes.
 	// +optional
+	// +listType=set
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
 	// tags is a list of tags to be applied to the virtual machine.
@@ -256,7 +257,7 @@ type TemplateSelector struct {
 	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
 	// +kubebuilder:validation:MinItems=1
 	// +required
-	MatchTags []string `json:"matchTags"`
+	MatchTags []string `json:"matchTags,omitempty"`
 }
 
 // NetworkSpec defines the virtual machine's network configuration.
@@ -280,12 +281,14 @@ type InterfaceConfig struct {
 	// +optional
 	// +kubebuilder:validation:items:XValidation:rule="self.apiGroup == 'ipam.cluster.x-k8s.io'",message="ipPoolRef allows only IPAM apiGroup ipam.cluster.x-k8s.io"
 	// +kubebuilder:validation:items:XValidation:rule="self.kind == 'InClusterIPPool' || self.kind == 'GlobalInClusterIPPool'",message="ipPoolRef allows either InClusterIPPool or GlobalInClusterIPPool"
+	// +listType=atomic
 	IPPoolRef []corev1.TypedLocalObjectReference `json:"ipPoolRef,omitempty"`
 
 	// dnsServers contains information about nameservers to be used for this interface.
 	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
 	// +optional
 	// +kubebuilder:validation:MinItems=1
+	// +listType=set
 	DNSServers []string `json:"dnsServers,omitempty"`
 
 	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
@@ -301,11 +304,13 @@ type Routing struct {
 	// routes are the routes associated with this interface.
 	// +optional
 	// +kubebuilder:validation:MinItems=1
+	// +listType=atomic
 	Routes []RouteSpec `json:"routes,omitempty"`
 
 	// routingPolicy is an interface-specific policy inserted into FIB (forwarding information base).
 	// +optional
 	// +kubebuilder:validation:MinItems=1
+	// +listType=atomic
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
 }
 
@@ -351,13 +356,14 @@ type RoutingPolicySpec struct {
 type VRFDevice struct {
 	// interfaces is the list of proxmox network devices managed by this virtual device.
 	// +required
+	// +listType=set
 	Interfaces []string `json:"interfaces,omitempty"`
 
 	// name is the virtual network device name.
 	// Must be unique within the virtual machine.
 	// +kubebuilder:validation:MinLength=3
 	// +required
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
 	// table is the ID of the routing table used for the l3mdev vrf device.
 	// +kubebuilder:validation:Minimum=1
@@ -426,6 +432,7 @@ type ProxmoxMachineStatus struct {
 
 	// addresses contains the Proxmox VM instance associated addresses.
 	// +optional
+	// +listType=atomic
 	Addresses []clusterv1.MachineAddress `json:"addresses,omitempty"`
 
 	// vmStatus is used to identify the virtual machine status.
@@ -443,6 +450,7 @@ type ProxmoxMachineStatus struct {
 	// network returns the network status for each of the machine's configured.
 	// network interfaces.
 	// +optional
+	// +listType=atomic
 	Network []NetworkStatus `json:"network,omitempty"`
 
 	// proxmoxNode is the name of the proxmox node, which was chosen for this
