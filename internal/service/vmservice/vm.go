@@ -327,118 +327,8 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		}
 	}
 
-	// Additional data disks
-	disksSpec := machineScope.ProxmoxMachine.Spec.Disks
-	if disksSpec != nil && len(disksSpec.AdditionalVolumes) > 0 {
-		// Find an "Unused Disk" on the same storage to reattach (dedup):
-		findMatchingUnusedVolume := func(cfg any, storageName string) string {
-			if cfg == nil || storageName == "" {
-				return ""
-			}
-			cfgVal := reflect.ValueOf(cfg)
-			if cfgVal.Kind() == reflect.Pointer {
-				cfgVal = cfgVal.Elem()
-			}
-			if !cfgVal.IsValid() {
-				return ""
-			}
-			cfgType := cfgVal.Type()
-
-			// Unused# fields:
-			for i := 0; i < cfgType.NumField(); i++ {
-				fieldMetadata := cfgType.Field(i)
-				if !strings.HasPrefix(fieldMetadata.Name, "Unused") {
-					continue
-				}
-				fieldValue := cfgVal.Field(i)
-				if !fieldValue.IsValid() || fieldValue.Kind() != reflect.String {
-					continue
-				}
-				volID := strings.TrimSpace(fieldValue.String()) // e.g. "vg_xxx:vm-103-disk-2"
-				if volID != "" && strings.HasPrefix(volID, storageName+":") {
-					return volID
-				}
-			}
-			return ""
-		}
-
-		// Avoid queueing duplicate adds for the same slot within this reconcile:
-		pendingInReconcile := map[string]struct{}{}
-		for _, vol := range disksSpec.AdditionalVolumes {
-			slotName := strings.ToLower(strings.TrimSpace(vol.Disk))
-			alreadySet := diskSlotOccupied(vmConfig, slotName)
-			machineScope.V(4).Info("additionalVolume: slot state",
-				"machine", machineScope.Name(), "slot", slotName, "occupied", alreadySet)
-			if alreadySet {
-				if pendingGuardEnabled {
-					clearPending(machineScope, slotName)
-				}
-				continue
-			}
-			if pendingGuardEnabled && isPending(machineScope, slotName) {
-				machineScope.V(4).Info("additionalVolume: skip, pending add in effect",
-					"machine", machineScope.Name(), "slot", slotName)
-				continue
-			}
-			if _, seen := pendingInReconcile[slotName]; seen {
-				machineScope.V(4).Info("additionalVolume: skip, add already queued in this reconcile",
-					"machine", machineScope.Name(), "slot", slotName)
-				continue
-			}
-			// Resolve storage (per-volume overrides machine-level):
-			var storageName string
-			if vol.Storage != nil && *vol.Storage != "" {
-				storageName = *vol.Storage
-			} else if machineScope.ProxmoxMachine.Spec.Storage != nil && *machineScope.ProxmoxMachine.Spec.Storage != "" {
-				storageName = *machineScope.ProxmoxMachine.Spec.Storage
-			} else {
-				return false, errors.New("additionalVolumes requires a storage to be set (either per-volume .storage or spec.storage)")
-			}
-			machineScope.V(4).Info("additionalVolume: resolved storage",
-				"machine", machineScope.Name(), "slot", slotName, "storage", storageName)
-
-			volumeValue := findMatchingUnusedVolume(vmConfig, storageName)
-			if volumeValue != "" {
-				machineScope.V(4).Info("additionalVolume: reattaching existing unused volume to avoid spurious extra disks due to reconcile race-condition (dedup)",
-					"machine", machineScope.Name(), "slot", slotName, "volumeID", volumeValue)
-			} else {
-				if vol.Format != nil && *vol.Format != "" {
-					volumeValue = fmt.Sprintf("%s:0,size=%dG,format=%s", storageName, vol.SizeGB, string(*vol.Format))
-					machineScope.Info("additionalVolume: creating file-backed volume (with format notation)",
-						"machine", machineScope.Name(), "slot", slotName, "value", volumeValue)
-				} else {
-					volumeValue = fmt.Sprintf("%s:%d", storageName, vol.SizeGB)
-					machineScope.Info("additionalVolume: creating block-backed volume (without format notation)",
-						"machine", machineScope.Name(), "slot", slotName, "value", volumeValue)
-				}
-			}
-			// Add flags:
-			if vol.Discard != nil && *vol.Discard {
-				volumeValue = fmt.Sprintf("%s,discard=on", volumeValue)
-				machineScope.V(4).Info("additionalVolume: appended flag",
-					"machine", machineScope.Name(), "slot", slotName, "flag", "discard=on")
-			}
-			if vol.Iothread != nil && *vol.Iothread {
-				volumeValue = fmt.Sprintf("%s,iothread=1", volumeValue)
-				machineScope.V(4).Info("additionalVolume: appended flag",
-					"machine", machineScope.Name(), "slot", slotName, "flag", "iothread=1")
-			}
-			if vol.SSD != nil && *vol.SSD {
-				volumeValue = fmt.Sprintf("%s,ssd=1", volumeValue)
-				machineScope.V(4).Info("additionalVolume: appended flag",
-					"machine", machineScope.Name(), "slot", slotName, "flag", "ssd=1")
-			}
-			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
-				Name:  vol.Disk,
-				Value: volumeValue,
-			})
-			machineScope.V(4).Info("additionalVolume: queued vm option",
-				"machine", machineScope.Name(), "slot", slotName, "name", vol.Disk, "value", volumeValue)
-			pendingInReconcile[slotName] = struct{}{}
-			if pendingGuardEnabled {
-				markPending(machineScope, slotName)
-			}
-		}
+	if err := reconcileAdditionalVolumes(machineScope, vmConfig, &vmOptions); err != nil {
+		return false, err
 	}
 
 	if len(vmOptions) == 0 {
@@ -650,4 +540,116 @@ var selectNextNode = scheduler.ScheduleVM
 
 func unmountCloudInitISO(ctx context.Context, machineScope *scope.MachineScope) error {
 	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, machineScope.VirtualMachine, inject.CloudInitISODevice)
+}
+
+func reconcileAdditionalVolumes(machineScope *scope.MachineScope, vmConfig any, vmOptions *[]proxmox.VirtualMachineOption) error {
+	disksSpec := machineScope.ProxmoxMachine.Spec.Disks
+	if disksSpec == nil || len(disksSpec.AdditionalVolumes) == 0 {
+		return nil
+	}
+	findMatchingUnusedVolume := func(cfg any, storageName string) string {
+		if cfg == nil || storageName == "" {
+			return ""
+		}
+		cfgVal := reflect.ValueOf(cfg)
+		if cfgVal.Kind() == reflect.Pointer {
+			cfgVal = cfgVal.Elem()
+		}
+		if !cfgVal.IsValid() {
+			return ""
+		}
+		cfgType := cfgVal.Type()
+		for i := 0; i < cfgType.NumField(); i++ {
+			fieldMetadata := cfgType.Field(i)
+			if !strings.HasPrefix(fieldMetadata.Name, "Unused") {
+				continue
+			}
+			fieldValue := cfgVal.Field(i)
+			if !fieldValue.IsValid() || fieldValue.Kind() != reflect.String {
+				continue
+			}
+			volID := strings.TrimSpace(fieldValue.String()) // e.g. "vg_xxx:vm-103-disk-2"
+			if volID != "" && strings.HasPrefix(volID, storageName+":") {
+				return volID
+			}
+		}
+		return ""
+	}
+	pendingInReconcile := map[string]struct{}{}
+	for _, vol := range disksSpec.AdditionalVolumes {
+		slotName := strings.ToLower(strings.TrimSpace(vol.Disk))
+		alreadySet := diskSlotOccupied(vmConfig, slotName)
+		machineScope.V(4).Info("additionalVolume: slot state",
+			"machine", machineScope.Name(), "slot", slotName, "occupied", alreadySet)
+		if alreadySet {
+			if pendingGuardEnabled {
+				clearPending(machineScope, slotName)
+			}
+			continue
+		}
+		if pendingGuardEnabled && isPending(machineScope, slotName) {
+			machineScope.V(4).Info("additionalVolume: skip, pending add in effect",
+				"machine", machineScope.Name(), "slot", slotName)
+			continue
+		}
+		if _, seen := pendingInReconcile[slotName]; seen {
+			machineScope.V(4).Info("additionalVolume: skip, add already queued in this reconcile",
+				"machine", machineScope.Name(), "slot", slotName)
+			continue
+		}
+		// Resolve storage (per-volume overrides machine-level)
+		var storageName string
+		if vol.Storage != nil && *vol.Storage != "" {
+			storageName = *vol.Storage
+		} else if machineScope.ProxmoxMachine.Spec.Storage != nil && *machineScope.ProxmoxMachine.Spec.Storage != "" {
+			storageName = *machineScope.ProxmoxMachine.Spec.Storage
+		} else {
+			return errors.New("additionalVolumes requires a storage to be set (either per-volume .storage or spec.storage)")
+		}
+		machineScope.V(4).Info("additionalVolume: resolved storage",
+			"machine", machineScope.Name(), "slot", slotName, "storage", storageName)
+		volumeValue := findMatchingUnusedVolume(vmConfig, storageName)
+		if volumeValue != "" {
+			machineScope.V(4).Info("additionalVolume: reattaching existing unused volume to avoid spurious extra disks due to reconcile race-condition (dedup)",
+				"machine", machineScope.Name(), "slot", slotName, "volumeID", volumeValue)
+		} else {
+			if vol.Format != nil && *vol.Format != "" {
+				volumeValue = fmt.Sprintf("%s:0,size=%dG,format=%s", storageName, vol.SizeGB, string(*vol.Format))
+				machineScope.Info("additionalVolume: creating file-backed volume (with format notation)",
+					"machine", machineScope.Name(), "slot", slotName, "value", volumeValue)
+			} else {
+				volumeValue = fmt.Sprintf("%s:%d", storageName, vol.SizeGB)
+				machineScope.Info("additionalVolume: creating block-backed volume (without format notation)",
+					"machine", machineScope.Name(), "slot", slotName, "value", volumeValue)
+			}
+		}
+		// Add flags
+		if vol.Discard != nil && *vol.Discard {
+			volumeValue = fmt.Sprintf("%s,discard=on", volumeValue)
+			machineScope.V(4).Info("additionalVolume: appended flag",
+				"machine", machineScope.Name(), "slot", slotName, "flag", "discard=on")
+		}
+		if vol.IOThread != nil && *vol.IOThread {
+			volumeValue = fmt.Sprintf("%s,iothread=1", volumeValue)
+			machineScope.V(4).Info("additionalVolume: appended flag",
+				"machine", machineScope.Name(), "slot", slotName, "flag", "iothread=1")
+		}
+		if vol.SSD != nil && *vol.SSD {
+			volumeValue = fmt.Sprintf("%s,ssd=1", volumeValue)
+			machineScope.V(4).Info("additionalVolume: appended flag",
+				"machine", machineScope.Name(), "slot", slotName, "flag", "ssd=1")
+		}
+		*vmOptions = append(*vmOptions, proxmox.VirtualMachineOption{
+			Name:  vol.Disk,
+			Value: volumeValue,
+		})
+		machineScope.V(4).Info("additionalVolume: queued vm option",
+			"machine", machineScope.Name(), "slot", slotName, "name", vol.Disk, "value", volumeValue)
+		pendingInReconcile[slotName] = struct{}{}
+		if pendingGuardEnabled {
+			markPending(machineScope, slotName)
+		}
+	}
+
+	return nil
 }

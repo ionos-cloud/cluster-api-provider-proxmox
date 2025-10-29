@@ -120,7 +120,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
-	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
+	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetFileStorageFormatRaw)
 	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
@@ -161,7 +161,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 		},
 	}
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
-	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
+	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetFileStorageFormatRaw)
 	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
@@ -206,7 +206,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 		},
 	}
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
-	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetStorageFormatRaw)
+	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1alpha1.TargetFileStorageFormatRaw)
 	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
@@ -900,11 +900,11 @@ func TestReconcileVirtualMachineConfig_AdditionalVolumes_Block_IothreadTrue(t *t
 	iTrue := true
 	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
 		AdditionalVolumes: []infrav1alpha1.DiskSpec{
-			{Disk: "scsi1", SizeGB: 90, Iothread: &iTrue},
+			{Disk: "scsi1", SizeGB: 90, IOThread: &iTrue},
 		},
 	}
 
-	// Expect block syntax with ",iothread=1" appended.
+	// Expect block syntax with ",ioThread=1" appended.
 	expected := []interface{}{proxmox.VirtualMachineOption{Name: "scsi1", Value: "local-lvm:90,iothread=1"}}
 	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expected...).Return(newTask(), nil).Once()
 
@@ -926,7 +926,7 @@ func TestReconcileVirtualMachineConfig_AdditionalVolumes_File_PerVolumeFormat_Io
 	iTrue := true
 	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
 		AdditionalVolumes: []infrav1alpha1.DiskSpec{
-			{Disk: "scsi2", SizeGB: 80, Storage: &nfs, Format: &qcow2, Iothread: &iTrue},
+			{Disk: "scsi2", SizeGB: 80, Storage: &nfs, Format: &qcow2, IOThread: &iTrue},
 		},
 	}
 
@@ -943,7 +943,7 @@ func TestReconcileVirtualMachineConfig_AdditionalVolumes_Iothread_OmittedWhenNil
 	t.Parallel()
 	ctx := context.Background()
 
-	// Case A: iothread=nil -> omitted
+	// Case A: ioThread=nil -> omitted
 	{
 		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 		vm := newStoppedVM()
@@ -965,7 +965,7 @@ func TestReconcileVirtualMachineConfig_AdditionalVolumes_Iothread_OmittedWhenNil
 		require.True(t, requeue)
 	}
 
-	// Case B: iothread=false -> omitted (only emit when explicitly true)
+	// Case B: ioThread=false -> omitted (only emit when explicitly true)
 	{
 		machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 		vm := newStoppedVM()
@@ -976,7 +976,7 @@ func TestReconcileVirtualMachineConfig_AdditionalVolumes_Iothread_OmittedWhenNil
 		iFalse := false
 		machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
 			AdditionalVolumes: []infrav1alpha1.DiskSpec{
-				{Disk: "scsi4", SizeGB: 25, Iothread: &iFalse},
+				{Disk: "scsi4", SizeGB: 25, IOThread: &iFalse},
 			},
 		}
 

@@ -63,7 +63,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 	Context("VirtualMachineCloneSpec", func() {
 		It("Should not allow specifying format if full clone is disabled", func() {
 			dm := defaultMachine()
-			dm.Spec.Format = ptr.To(TargetStorageFormatRaw)
+			dm.Spec.Format = ptr.To(TargetFileStorageFormatRaw)
 			dm.Spec.Full = ptr.To(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying format")))
@@ -315,42 +315,42 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			ds := DiskSpec{
 				Disk:     "scsi7",
 				SizeGB:   60,
-				Iothread: &tTrue,
+				IOThread: &tTrue,
 			}
 			b, err := json.Marshal(ds)
 			Expect(err).NotTo(HaveOccurred())
 			js := string(b)
 			Expect(js).To(ContainSubstring(`"disk":"scsi7"`))
 			Expect(js).To(ContainSubstring(`"sizeGb":60`))
-			Expect(js).To(ContainSubstring(`"iothread":true`))
+			Expect(js).To(ContainSubstring(`"ioThread":true`))
 		})
 		It("includes iothread when explicitly false", func() {
 			tFalse := false
 			ds := DiskSpec{
 				Disk:     "scsi8",
 				SizeGB:   70,
-				Iothread: &tFalse,
+				IOThread: &tFalse,
 			}
 			b, err := json.Marshal(ds)
 			Expect(err).NotTo(HaveOccurred())
 			js := string(b)
 			Expect(js).To(ContainSubstring(`"disk":"scsi8"`))
 			Expect(js).To(ContainSubstring(`"sizeGb":70`))
-			Expect(js).To(ContainSubstring(`"iothread":false`)) // non-nil -> present
+			Expect(js).To(ContainSubstring(`"ioThread":false`)) // non-nil -> present
 		})
 
 		It("omits iothread when nil", func() {
 			ds := DiskSpec{
 				Disk:     "scsi9",
 				SizeGB:   80,
-				Iothread: nil,
+				IOThread: nil,
 			}
 			b, err := json.Marshal(ds)
 			Expect(err).NotTo(HaveOccurred())
 			js := string(b)
 			Expect(js).To(ContainSubstring(`"disk":"scsi9"`))
 			Expect(js).To(ContainSubstring(`"sizeGb":80`))
-			Expect(js).NotTo(ContainSubstring(`"iothread"`))
+			Expect(js).NotTo(ContainSubstring(`"ioThread"`))
 		})
 	})
 
@@ -359,7 +359,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			tTrue := true
 			src := &Storage{
 				AdditionalVolumes: []DiskSpec{
-					{Disk: "scsi10", SizeGB: 90, Iothread: &tTrue},
+					{Disk: "scsi10", SizeGB: 90, IOThread: &tTrue},
 				},
 			}
 			dst := src.DeepCopy()
@@ -368,11 +368,11 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			got := dst.AdditionalVolumes[0]
 			Expect(got.Disk).To(Equal("scsi10"))
 			Expect(got.SizeGB).To(Equal(int32(90)))
-			Expect(got.Iothread).NotTo(BeNil())
-			Expect(*got.Iothread).To(BeTrue())
-			*src.AdditionalVolumes[0].Iothread = false
-			Expect(dst.AdditionalVolumes[0].Iothread).NotTo(BeNil())
-			Expect(*dst.AdditionalVolumes[0].Iothread).To(BeTrue())
+			Expect(got.IOThread).NotTo(BeNil())
+			Expect(*got.IOThread).To(BeTrue())
+			*src.AdditionalVolumes[0].IOThread = false
+			Expect(dst.AdditionalVolumes[0].IOThread).NotTo(BeNil())
+			Expect(*dst.AdditionalVolumes[0].IOThread).To(BeTrue())
 		})
 	})
 	Context("AdditionalVolumes ssd - JSON marshalling", func() {

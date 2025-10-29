@@ -74,7 +74,7 @@ spec:
               storage: { type: string,  description: "Optional per-volume storage; falls back to PMT spec.storage" }
               format:  { type: string,  enum: ["raw","qcow2","vmdk"], description: "Optional; file-backed only" }
               discard: { type: boolean, description: "Enable TRIM/UNMAP on this disk (Proxmox 'discard=on'). Safe on all slot types." }
-              iothread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
+              ioThread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
               ssd: { type: boolean, description: "Hint as SSD (Proxmox 'ssd=1'); SCSI/IDE/SATA only." }
     - name: workerStorage
       required: false
@@ -97,7 +97,7 @@ spec:
               storage: { type: string,  description: "Optional per-volume storage; falls back to PMT spec.storage" }
               format:  { type: string,  enum: ["raw","qcow2","vmdk"], description: "Optional; file-backed only" }
               discard: { type: boolean, description: "Enable TRIM/UNMAP on this disk (Proxmox 'discard=on'). Safe on all slot types." }
-              iothread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
+              ioThread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
               ssd: { type: boolean, description: "Hint as SSD (Proxmox 'ssd=1'); SCSI/IDE/SATA only." }
     - name: controlPlaneStorage
       required: false
@@ -120,7 +120,7 @@ spec:
               storage: { type: string,  description: "Optional per-volume storage; falls back to PMT spec.storage" }
               format:  { type: string,  enum: ["raw","qcow2","vmdk"], description: "Optional; file-backed only" }
               discard: { type: boolean, description: "Enable TRIM/UNMAP on this disk (Proxmox 'discard=on'). Safe on all slot types." }
-              iothread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
+              ioThread: { type: boolean, description: "Enable a dedicated IO thread (Proxmox 'iothread=1'); SCSI & VirtIO-blk only." }
               ssd: { type: boolean, description: "Hint as SSD (Proxmox 'ssd=1'); SCSI/IDE/SATA only." }
     - name: loadBalancerStorage
       required: false
@@ -439,7 +439,7 @@ spec:
                   {{- if $v.storage }}, storage: {{ $v.storage }}{{- end }}
                   {{- if $v.format }}, format: {{ $v.format }}{{- end }}
                   {{- if hasKey $v "discard" }}, discard: {{ $v.discard }}{{- end }}
-                  {{- if hasKey $v "iothread" }}, iothread: {{ $v.iothread }}{{- end }}
+                  {{- if hasKey $v "ioThread" }}, ioThread: {{ $v.ioThread }}{{- end }}
                   {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
                 {{- end }}
   - name: worker-storage
@@ -477,7 +477,7 @@ spec:
                   {{- if $v.storage }}, storage: {{ $v.storage }}{{- end }}
                   {{- if $v.format }}, format: {{ $v.format }}{{- end }}
                   {{- if hasKey $v "discard" }}, discard: {{ $v.discard }}{{- end }}
-                  {{- if hasKey $v "iothread" }}, iothread: {{ $v.iothread }}{{- end }}
+                  {{- if hasKey $v "ioThread" }}, ioThread: {{ $v.ioThread }}{{- end }}
                   {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
                 {{- end }}
   - name: control-plane-storage
@@ -515,7 +515,7 @@ spec:
                   {{- if $v.storage }}, storage: {{ $v.storage }}{{- end }}
                   {{- if $v.format }}, format: {{ $v.format }}{{- end }}
                   {{- if hasKey $v "discard" }}, discard: {{ $v.discard }}{{- end }}
-                  {{- if hasKey $v "iothread" }}, iothread: {{ $v.iothread }}{{- end }}
+                  {{- if hasKey $v "ioThread" }}, ioThread: {{ $v.ioThread }}{{- end }}
                   {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
                 {{- end }}
   - name: load-balancer-storage

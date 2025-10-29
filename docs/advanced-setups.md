@@ -328,14 +328,14 @@ spec:
             storage: my-nfs  # Optional per-volume storage override. Uses .spec.template.spec.storage if omitted
             format: qcow2  # Only specify if using file-backed storage. If omitted, default for disk is used.
             discard: true
-            iothread: true
+            ioThread: true
             ssd: true
 ```
 In the same way, additionalVolumes can also be specified in ProxmoxClusters, ProxmoxClusterTemplates, 
-and ProxmoxMachines. Flags: format, discard, iothread, and ssd are supported by this provider.
+and ProxmoxMachines. Flags: format, discard, ioThread, and ssd are supported by this provider.
 See Proxmox [docs](https://pve.proxmox.com/pve-docs/qm.1.html#qm_hard_disk) for details about these flags.
 
-Alternatively if using cluster-class, define additionalVolmes in your cluster:
+Alternatively if using cluster-class, define additionalVolumes in your cluster:
 ```yaml
 kind: Cluster
 spec:

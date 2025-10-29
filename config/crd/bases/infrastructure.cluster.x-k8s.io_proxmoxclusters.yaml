@@ -125,8 +125,16 @@ spec:
                                     type: string
                                   format:
                                     description: 'Format is optional:'
+                                    enum:
+                                    - raw
+                                    - qcow2
+                                    - vmdk
                                     type: string
-                                  iothread:
+                                  ioThread:
+                                    description: |-
+                                      IOThread enables the option IO Thread,
+                                      With IO Thread enabled, QEMU creates one I/O thread per storage controller rather than handling all I/O in the main event loop or vCPU threads.
+                                      The option IO Thread can only be used when using a disk with the VirtIO controller, or with the SCSI controller
                                     type: boolean
                                   sizeGb:
                                     description: |-
@@ -138,11 +146,16 @@ spec:
                                     minimum: 5
                                     type: integer
                                   ssd:
+                                    description: |-
+                                      SSD enables SSD emulation feature
+                                      SSD emulation sets a drive to be presented to the guest as a solid-state drive rather than a rotational hard disk
+                                      There is no requirement that the underlying storage actually be backed by SSDs; this feature can be used with physical media of any type
+                                      SSD emulation is not supported on VirtIO Block drives.
                                     type: boolean
                                   storage:
                                     description: |-
                                       Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
-                                      If omitted, falls back to the machine's .spec.storage.
+                                      If omitted, falls back to the machine's .spec.storage if exists, otherwise the Proxmox node’s default storage.
                                     type: string
                                 required:
                                 - disk
@@ -168,8 +181,16 @@ spec:
                                   type: string
                                 format:
                                   description: 'Format is optional:'
+                                  enum:
+                                  - raw
+                                  - qcow2
+                                  - vmdk
                                   type: string
-                                iothread:
+                                ioThread:
+                                  description: |-
+                                    IOThread enables the option IO Thread,
+                                    With IO Thread enabled, QEMU creates one I/O thread per storage controller rather than handling all I/O in the main event loop or vCPU threads.
+                                    The option IO Thread can only be used when using a disk with the VirtIO controller, or with the SCSI controller
                                   type: boolean
                                 sizeGb:
                                   description: |-
@@ -181,11 +202,16 @@ spec:
                                   minimum: 5
                                   type: integer
                                 ssd:
+                                  description: |-
+                                    SSD enables SSD emulation feature
+                                    SSD emulation sets a drive to be presented to the guest as a solid-state drive rather than a rotational hard disk
+                                    There is no requirement that the underlying storage actually be backed by SSDs; this feature can be used with physical media of any type
+                                    SSD emulation is not supported on VirtIO Block drives.
                                   type: boolean
                                 storage:
                                   description: |-
                                     Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
-                                    If omitted, falls back to the machine's .spec.storage.
+                                    If omitted, falls back to the machine's .spec.storage if exists, otherwise the Proxmox node’s default storage.
                                   type: string
                               required:
                               - disk
@@ -196,12 +222,17 @@ spec:
                                 rule: self == oldSelf
                           type: object
                         format:
+                          allOf:
+                          - enum:
+                            - raw
+                            - qcow2
+                            - vmdk
+                          - enum:
+                            - raw
+                            - qcow2
+                            - vmdk
                           description: Format for file storage. Only valid for full
                             clone.
-                          enum:
-                          - raw
-                          - qcow2
-                          - vmdk
                           type: string
                         full:
                           default: true

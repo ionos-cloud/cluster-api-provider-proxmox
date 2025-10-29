@@ -46,8 +46,8 @@ func (in *DiskSpec) DeepCopyInto(out *DiskSpec) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.Iothread != nil {
-		in, out := &in.Iothread, &out.Iothread
+	if in.IOThread != nil {
+		in, out := &in.IOThread, &out.IOThread
 		*out = new(bool)
 		**out = **in
 	}
