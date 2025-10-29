@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -378,7 +378,7 @@ func assertClusterIsReady(ctx context.Context, g Gomega, clusterName string) {
 			Name:      clusterName,
 		}, &res)).To(Succeed())
 
-		g.Expect(res.Status.Ready).To(BeTrue())
+		g.Expect(ptr.Deref(res.Status.Ready, false)).To(BeTrue())
 	}).WithTimeout(time.Second * 20).
 		WithPolling(time.Second).
 		Should(Succeed())

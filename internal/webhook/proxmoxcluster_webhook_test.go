@@ -25,7 +25,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 var _ = Describe("Controller Test", func() {
@@ -148,6 +148,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			},
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 		},
+		Status: infrav1.ProxmoxClusterStatus{},
 	}
 }
 
