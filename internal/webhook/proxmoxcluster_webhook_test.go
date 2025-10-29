@@ -148,6 +148,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			},
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 		},
+		Status: infrav1.ProxmoxClusterStatus{},
 	}
 }
 

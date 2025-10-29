@@ -265,7 +265,8 @@ type ProxmoxCluster struct {
 	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
 
 	// status is the Proxmox Cluster status
-	Status ProxmoxClusterStatus `json:"status,omitempty"`
+	// +required
+	Status ProxmoxClusterStatus `json:"status,omitzero"`
 }
 
 // +kubebuilder:object:root=true

@@ -101,6 +101,7 @@ func defaultCluster() *ProxmoxCluster {
 				},
 			},
 		},
+		Status: ProxmoxClusterStatus{},
 	}
 }
 
