@@ -169,7 +169,10 @@ type DiskSpec struct {
 	// If omitted or false, the flag is not set.
 	// +optional
 	Discard  *bool `json:"discard,omitempty"`
-	Iothread *bool `json:"iothread,omitempty"`
+    // IOThread enables the option IO Thread, 
+    // With IO Thread enabled, QEMU creates one I/O thread per storage controller rather than handling all I/O in the main event loop or vCPU threads.
+    // The option IO Thread can only be used when using a disk with the VirtIO controller, or with the SCSI controller
+	IOThread *bool `json:"ioThread,omitempty"`
 	SSD      *bool `json:"ssd,omitempty"`
 }
 
