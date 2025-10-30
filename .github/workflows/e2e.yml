@@ -20,16 +20,16 @@ jobs:
     steps:
       - name: Check out branch ${{ github.ref }}
         if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       - name: Check out PR ${{ github.event.pull_request.number }}
         if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -41,7 +41,7 @@ jobs:
         run: "make test-e2e GINKGO_SKIP=${{ env.SKIP_E2E }}"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: success() || failure()
         with:
           name: logs
