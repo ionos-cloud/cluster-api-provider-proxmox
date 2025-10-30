@@ -20,11 +20,11 @@ jobs:
     steps:
       - name: Check out branch ${{ github.ref }}
         if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       - name: Check out PR ${{ github.event.pull_request.number }}
         if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
