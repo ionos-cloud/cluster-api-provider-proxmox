@@ -310,6 +310,71 @@ spec:
 You can set either `ipv4PoolRef` or `ipv6PoolRef` or you can also set them both for dual-stack.
 It's up for you also to manage the IP Pool, you can choose a `GlobalInClusterIPPool` or an `InClusterIPPool`.
 
+## Additional Volumes
+By default, only a boot volume is created in machines. If additional disks are required for data storage, they can be 
+specified in the ProxmoxMachineTemplates.
+
+```yaml
+kind: ProxmoxMachineTemplate
+spec:
+  template:
+    spec:
+      storage: local-lvm  # Optional: a default storage to use when a volume doesn't set .storage
+      disks:
+        additionalVolumes:
+          - disk: scsi1
+            sizeGb: 200
+          - disk: scsi2  # target slot (e.g. scsi1, sata1, virtio1, ide2)
+            sizeGb: 80  # capacity in gigabytes
+            # Optional flags:
+            storage: my-nfs  # Optional per-volume storage override. Uses .spec.template.spec.storage if omitted
+            format: qcow2  # Only specify if using file-backed storage. If omitted, default for disk is used.
+            discard: true
+            ioThread: true
+            ssd: true
+```
+In the same way, additionalVolumes can also be specified in ProxmoxClusters, ProxmoxClusterTemplates, 
+and ProxmoxMachines. Flags: format, discard, ioThread, and ssd are supported by this provider.
+See Proxmox [docs](https://pve.proxmox.com/pve-docs/qm.1.html#qm_hard_disk) for details about these flags.
+
+Alternatively if using cluster-class, define additionalVolumes in your cluster:
+```yaml
+kind: Cluster
+spec:
+  topology:
+    class: proxmox-clusterclass-cilium-v0.1.0
+    variables:
+      - name: workerAdditionalVolumes
+        value:
+          - { disk: scsi1, sizeGb: 80, storage: my-lvm }
+          - { disk: ide1, sizeGb: 80, storage: my-zfs }
+      - name: controlPlaneAdditionalVolumes
+        value:
+          - { disk: virtio1, sizeGb: 80, storage: my-zfs }
+      - name: loadBalancerAdditionalVolumes
+        value:
+          - { disk: sata1, sizeGb: 80, storage: my-nfs, format: qcow2 }
+```
+To use the same storage for all machines of a given type, can specify a `<type>Storage` variable and then omit `storage`
+from the `workerAdditionalVolumes`. Eg for workers:
+```yaml
+kind: Cluster
+metadata:
+  labels:
+    cluster.x-k8s.io/proxmox-cluster-cni: cilium
+  name: capmox-cluster
+spec:
+  topology:
+    class: proxmox-clusterclass-cilium-v0.1.0
+    variables:
+      - name: workerStorage
+        value: my-lvm
+      - name: workerAdditionalVolumes
+        value:
+          - { disk: scsi1, sizeGb: 80 }
+          - { disk: scsi2, sizeGb: 80 }
+```
+
 ## Notes
 
 * Clusters with IPV6 only is supported.
