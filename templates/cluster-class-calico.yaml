@@ -94,7 +94,7 @@ spec:
       schema:
         openAPIV3Schema:
           type: array
-          description: "Extra disks for worker nodes (per-volume storage + optional format)."
+          description: "Extra disks for worker nodes (per-volume storage + optional format). Deprecated in favor of .spec.disks.volumes (coming in a future API)"
           items:
             type: object
             required: ["disk","sizeGb"]
@@ -111,13 +111,13 @@ spec:
       schema:
         openAPIV3Schema:
           type: string
-          description: "Default Proxmox storage for worker nodes (used if per-volume storage not set)."
+          description: "Default Proxmox storage for worker nodes (used if per-volume storage not set). Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     - name: controlPlaneAdditionalVolumes
       required: false
       schema:
         openAPIV3Schema:
           type: array
-          description: "Extra disks for control plane nodes (per-volume storage + optional format)."
+          description: "Extra disks for control-plane nodes (per-volume storage + optional format). Deprecated in favor of .spec.disks.volumes (coming in a future API)"
           items:
             type: object
             required: ["disk","sizeGb"]
@@ -134,13 +134,13 @@ spec:
       schema:
         openAPIV3Schema:
           type: string
-          description: "Default Proxmox storage for control plane nodes (used if per-volume storage not set)."
+          description: "Default Proxmox storage for control plane nodes (used if per-volume storage not set). Deprecated in favor of .spec.disks.volumes (coming in a future API)"
     - name: loadbalancerAdditionalVolumes
       required: false
       schema:
         openAPIV3Schema:
           type: array
-          description: "Extra disks for load-balancer nodes (per-volume storage + optional format)."
+          description: "Extra disks for load-balancer nodes (per-volume storage + optional format). Deprecated in favor of .spec.disks.volumes (coming in a future API)."
           items:
             type: object
             required: ["disk","sizeGb"]
@@ -157,7 +157,7 @@ spec:
       schema:
         openAPIV3Schema:
           type: string
-          description: "Default Proxmox storage for load-balancer nodes (used if per-volume storage not set)."
+          description: "Default Proxmox storage for load-balancer nodes (used if per-volume storage not set). Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     - name: controlPlaneEndpoint
       required: true
       schema:
@@ -448,7 +448,7 @@ spec:
                 loadBalancer: *machineSpec
   patches:
   - name: worker-additional-volumes
-    description: "Add additional disks to workers via variable"
+    description: "Add additional disks to workers via variable. Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     enabledIf: "{{ if .workerAdditionalVolumes }}true{{ end }}"
     definitions:
       - selector:
@@ -473,6 +473,7 @@ spec:
                   {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
                 {{- end }}
   - name: worker-storage
+    description: "Default Proxmox storage for worker nodes (used if per-volume storage not set). Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     enabledIf: "{{ if .workerStorage }}true{{ end }}"
     definitions:
       - selector:
@@ -488,7 +489,7 @@ spec:
             valueFrom:
               variable: workerStorage
   - name: controlplane-additional-volumes
-    description: "Add additional disks to control-plane via variable"
+    description: "Add additional disks to control-plane via variable. Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     enabledIf: "{{ if .controlPlaneAdditionalVolumes }}true{{ end }}"
     definitions:
       - selector:
@@ -511,6 +512,7 @@ spec:
                   {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
                 {{- end }}
   - name: control-plane-storage
+    description: "Default Proxmox storage for control-plane nodes (used if per-volume storage not set). Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     enabledIf: "{{ if .controlPlaneStorage }}true{{ end }}"
     definitions:
       - selector:
@@ -524,7 +526,7 @@ spec:
             valueFrom:
               variable: controlPlaneStorage
   - name: lb-additional-volumes
-    description: "Add additional disks to load-balancers via variable"
+    description: "Add additional disks to load-balancers via variable. Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     enabledIf: "{{ if .loadBalancerAdditionalVolumes }}true{{ end }}"
     definitions:
       - selector:
@@ -549,6 +551,7 @@ spec:
                   {{- if hasKey $v "ssd" }}, ssd: {{ $v.ssd }}{{- end }} }
                 {{- end }}
   - name: load-balancer-storage
+    description: "Default Proxmox storage for loadbalancer nodes (used if per-volume storage not set). Deprecated in favor of .spec.disks.volumes (coming in a future API)."
     enabledIf: "{{ if .loadBalancerStorage }}true{{ end }}"
     definitions:
       - selector:

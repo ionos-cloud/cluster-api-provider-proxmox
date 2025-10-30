@@ -110,8 +110,10 @@ spec:
                           which will be applied before the first startup.
                         properties:
                           additionalVolumes:
-                            description: AdditionalVolumes defines additional volumes
-                              to be added to the virtual machine.
+                            description: |-
+                              AdditionalVolumes defines additional volumes to be added to the virtual machine.
+                              Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (additional
+                              items with boot:false). Use for v1alpha1/v1alpha2; plan to migrate to `volumes[]` when available.
                             items:
                               description: DiskSpec is contains values for the disk
                                 device and size.
@@ -169,6 +171,9 @@ spec:
                           bootVolume:
                             description: |-
                               BootVolume defines the storage size for the boot volume.
+                              Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (one item
+                              with boot:true). Use BootVolume for v1alpha1/v1alpha2, but plan to migrate to `volumes[]` when
+                              available.
                               This field is optional, and should only be set if you want
                               to change the size of the boot volume.
                             properties:

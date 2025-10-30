@@ -136,6 +136,9 @@ type ProxmoxMachineSpec struct {
 // Storage is the physical storage on the node.
 type Storage struct {
 	// BootVolume defines the storage size for the boot volume.
+	// Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (one item
+	// with boot:true). Use BootVolume for v1alpha1/v1alpha2, but plan to migrate to `volumes[]` when
+	// available.
 	// This field is optional, and should only be set if you want
 	// to change the size of the boot volume.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
@@ -143,6 +146,8 @@ type Storage struct {
 	BootVolume *DiskSpec `json:"bootVolume,omitempty"`
 
 	// AdditionalVolumes defines additional volumes to be added to the virtual machine.
+	// Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (additional
+	// items with boot:false). Use for v1alpha1/v1alpha2; plan to migrate to `volumes[]` when available.
 	// +optional
 	AdditionalVolumes []DiskSpec `json:"additionalVolumes,omitempty"`
 }
