@@ -496,7 +496,7 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 func TestReconcileDisks_RunningVM(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
-		BootVolume: &infrav1alpha1.DiskSize{Disk: "ide0", SizeGB: 100},
+		BootVolume: &infrav1alpha1.DiskSpec{Disk: "ide0", SizeGB: 100},
 	}
 	machineScope.SetVirtualMachine(newRunningVM())
 
@@ -506,7 +506,7 @@ func TestReconcileDisks_RunningVM(t *testing.T) {
 func TestReconcileDisks_ResizeDisk(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Disks = &infrav1alpha1.Storage{
-		BootVolume: &infrav1alpha1.DiskSize{Disk: "ide0", SizeGB: 100},
+		BootVolume: &infrav1alpha1.DiskSpec{Disk: "ide0", SizeGB: 100},
 	}
 	vm := newStoppedVM()
 	machineScope.SetVirtualMachine(vm)
