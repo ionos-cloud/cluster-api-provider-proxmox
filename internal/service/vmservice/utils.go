@@ -23,8 +23,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"k8s.io/utils/ptr"
 
-	//	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -153,7 +154,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 	devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 	for _, v := range devices {
-		net := nets[v.Name]
+		net := nets[ptr.Deref(v.Name, infrav1.DefaultNetworkDevice)]
 		// device is empty.
 		if len(net) == 0 {
 			return true

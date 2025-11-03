@@ -135,13 +135,13 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 			},
 			Network: &infrav1.NetworkSpec{
 				NetworkDevices: []infrav1.NetworkDevice{{
-					Name:   "net0",
+					Name:   ptr.To("net0"),
 					Bridge: ptr.To("vmbr1"),
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(int32(1500)),
 					VLAN:   ptr.To(int32(100)),
 				}, {
-					Name:   "net1",
+					Name:   ptr.To("net1"),
 					Bridge: ptr.To("vmbr2"),
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(int32(1500)),
