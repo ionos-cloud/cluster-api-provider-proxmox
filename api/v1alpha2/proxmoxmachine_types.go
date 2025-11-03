@@ -295,7 +295,7 @@ type InterfaceConfig struct {
 	Routing `json:",inline"`
 
 	// linkMtu is the network device Maximum Transmission Unit.
-	// +required
+	// +optional
 	LinkMTU MTU `json:"linkMtu,omitempty"`
 }
 
@@ -412,8 +412,9 @@ type NetworkDevice struct {
 
 	// name is the network device name.
 	// +kubebuilder:validation:MinLength=1
-	// +required
-	Name string `json:"name,omitempty"`
+	// +kubebuilder:default=net0
+	// +optional
+	Name *string `json:"name,omitempty"`
 
 	// InterfaceConfig contains all configurables a network interface can have.
 	// +optional
@@ -577,7 +578,7 @@ type ProxmoxMachine struct {
 	Spec *ProxmoxMachineSpec `json:"spec,omitempty"`
 
 	// status is the status of the Proxmox machine.
-	// +required
+	// +optional
 	Status ProxmoxMachineStatus `json:"status,omitzero"`
 }
 

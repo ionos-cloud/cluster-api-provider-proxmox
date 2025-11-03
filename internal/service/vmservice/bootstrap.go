@@ -328,9 +328,9 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 		var config = ptr.To(types.NetworkConfigData{})
 
 		// TODO: Default device IPPool
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, nic.Name, nic.InterfaceConfig.IPPoolRef)
+		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, *nic.Name, nic.InterfaceConfig.IPPoolRef)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
+			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", *nic.Name)
 		}
 		if len(nic.DNSServers) != 0 {
 			config.DNSServers = nic.DNSServers
@@ -341,7 +341,7 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 
 		config.Name = fmt.Sprintf("eth%d", i)
 		config.Type = "ethernet"
-		config.ProxName = nic.Name
+		config.ProxName = *nic.Name
 
 		// TODO: Figure device names for eth0
 		if i == 0 {

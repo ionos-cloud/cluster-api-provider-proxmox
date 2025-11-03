@@ -152,6 +152,11 @@ func (in *NetworkDevice) DeepCopyInto(out *NetworkDevice) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.Name != nil {
+		in, out := &in.Name, &out.Name
+		*out = new(string)
+		**out = **in
+	}
 	in.InterfaceConfig.DeepCopyInto(&out.InterfaceConfig)
 }
 

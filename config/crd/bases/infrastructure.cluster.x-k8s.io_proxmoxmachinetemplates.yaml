@@ -955,6 +955,7 @@ spec:
                                   - message: invalid MTU value
                                     rule: self == 1 || ( self >= 576 && self <= 65520)
                                 name:
+                                  default: net0
                                   description: name is the network device name.
                                   minLength: 1
                                   type: string
@@ -1025,9 +1026,6 @@ spec:
                                   maximum: 4094
                                   minimum: 1
                                   type: integer
-                              required:
-                              - linkMtu
-                              - name
                               type: object
                             type: array
                             x-kubernetes-list-map-keys:
