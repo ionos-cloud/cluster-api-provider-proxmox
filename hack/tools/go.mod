@@ -4,7 +4,7 @@ go 1.24.5
 
 require (
 	github.com/braydonk/yaml v0.9.0
-	github.com/golangci/golangci-lint/v2 v2.6.0
+	github.com/golangci/golangci-lint/v2 v2.6.0 // remember to update version in lint action
 	github.com/google/yamlfmt v0.20.0
 	github.com/vektra/mockery/v2 v2.53.4
 	golang.org/x/tools v0.38.0
