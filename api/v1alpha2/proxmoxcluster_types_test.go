@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	// clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -111,7 +111,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	})
 
 	Context("ClusterPort", func() {
-		/*It("Should not allow ports higher than 65535", func() {
+		It("Should not allow ports higher than 65535", func() {
 			dc := defaultCluster()
 			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
 				Port: 65536,
@@ -125,16 +125,16 @@ var _ = Describe("ProxmoxCluster Test", func() {
 				Port: 0,
 			}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
-		})*/
+		})
 	})
 
 	Context("IPv4Config", func() {
-		/*It("Should not allow empty addresses", func() {
+		It("Should not allow empty addresses", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv4Config.Addresses = []string{}
 
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("IPv4Config addresses must be provided")))
-		})*/
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.ipv4Config.addresses: Required value")))
+		})
 
 		It("Should not allow prefix higher than 128", func() {
 			dc := defaultCluster()
@@ -143,21 +143,20 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be less than or equal to 128")))
 		})
 
-		/*It("Should not allow empty ip config", func() {
+		It("Should not allow empty ip config", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv6Config = nil
 			dc.Spec.IPv4Config = nil
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("at least one ip config must be set")))
-		})*/
+		})
 	})
 
-	/* done by validation now
 	It("Should not allow empty DNS servers", func() {
 		dc := defaultCluster()
 		dc.Spec.DNSServers = []string{}
 
-		Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should have at least 1 items")))
-	})*/
+		Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.dnsServers: Required value")))
+	})
 
 	It("Should allow creating valid clusters", func() {
 		Expect(k8sClient.Create(context.Background(), defaultCluster())).To(Succeed())
@@ -173,16 +172,14 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	})
 
 	Context("IPV6Config", func() {
-		/* now handled by validation
 		It("Should not allow empty addresses", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv6Config = &IPConfigSpec{
 				Addresses: []string{},
 				Prefix:    0,
 			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("IPv6Config addresses must be provided")))
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.ipv6Config.addresses: Required value")))
 		})
-		*/
 
 		It("Should not allow prefix higher than 128", func() {
 			dc := defaultCluster()
