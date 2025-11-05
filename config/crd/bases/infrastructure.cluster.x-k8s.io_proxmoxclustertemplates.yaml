@@ -1360,8 +1360,6 @@ spec:
                                               rule: (self > 0 && self < 254) || (self
                                                 > 255)
                                         required:
-                                        - ""
-                                        - interfaces
                                         - name
                                         - table
                                         type: object

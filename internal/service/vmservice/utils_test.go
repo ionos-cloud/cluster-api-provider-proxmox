@@ -205,7 +205,6 @@ func TestShouldUpdateNetworkDevices_AdditionalDeviceNeedsUpdate(t *testing.T) {
 	require.True(t, shouldUpdateNetworkDevices(machineScope))
 }
 
-/*
 func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1alpha2.NetworkSpec{
@@ -218,7 +217,6 @@ func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 
 	require.False(t, shouldUpdateNetworkDevices(machineScope))
 }
-*/
 
 func TestExtractNetworkVLAN(t *testing.T) {
 	type match struct {

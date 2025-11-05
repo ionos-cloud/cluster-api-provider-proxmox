@@ -17,12 +17,14 @@ limitations under the License.
 package webhook
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
@@ -31,15 +33,14 @@ var _ = Describe("Controller Test", func() {
 	g := NewWithT(GinkgoT())
 
 	Context("create proxmox machine", func() {
-		/* now handled by validation
 		It("should disallow invalid network mtu", func() {
 			machine := invalidMTUProxmoxMachine("test-machine")
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].mtu: Invalid value")))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid MTU value")))
 		})
 
 		It("should disallow invalid network vlan", func() {
 			machine := invalidVLANProxmoxMachine("test-machine")
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].vlan: Invalid value")))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.networkDevices[0].vlan: Invalid value")))
 		})
 
 		It("should disallow invalid network mtu for additional device", func() {
@@ -51,7 +52,7 @@ var _ = Describe("Controller Test", func() {
 		It("should create a valid proxmox machine", func() {
 			machine := validProxmoxMachine("test-machine")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
-		})*/
+		})
 
 		It("should disallow invalid network vlan for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
@@ -59,7 +60,6 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
 
-		/* validation
 		It("should disallow invalid link mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
 			machine.Spec.Network.NetworkDevices[0].LinkMTU = ptr.To(int32(1000))
@@ -76,11 +76,11 @@ var _ = Describe("Controller Test", func() {
 			machine := validProxmoxMachine("test-machine")
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
-		})*/
+		})
 	})
 
 	Context("update proxmox cluster", func() {
-		/* now handled by validation It("should disallow invalid network mtu", func() {
+		It("should disallow invalid network mtu", func() {
 			clusterName := "test-cluster"
 			machine := validProxmoxMachine(clusterName)
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
@@ -88,10 +88,10 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&machine), &machine)).To(Succeed())
 			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(50))
 
-			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].mtu: Invalid value")))
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid MTU value")))
 			machine.Spec.Network.NetworkDevices[0].VLAN = ptr.To(int32(0))
 
-			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("spec.network.NetworkDevices[0].vlan: Invalid value")))
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid MTU value")))
 
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &machine))).To(Succeed())
@@ -107,7 +107,7 @@ var _ = Describe("Controller Test", func() {
 
 			machine.Spec.Tags = []string{"foobar", "barfoo"}
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("tags are immutable")))
-		})*/
+		})
 	})
 })
 
@@ -175,11 +175,10 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	}
 }
 
-/*
 func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
-		Name:   "net0",
+		Name:   ptr.To("net0"),
 		Bridge: ptr.To("vmbr1"),
 		Model:  ptr.To("virtio"),
 		MTU:    ptr.To(int32(50)),
@@ -190,11 +189,10 @@ func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 func invalidVLANProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
-		Name:   "net0",
+		Name:   ptr.To("net0"),
 		Bridge: ptr.To("vmbr1"),
 		Model:  ptr.To("virtio"),
 		VLAN:   ptr.To(int32(0)),
 	}}
 	return machine
 }
-*/
