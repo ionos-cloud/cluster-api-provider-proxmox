@@ -355,7 +355,7 @@ type RoutingPolicySpec struct {
 // VRFDevice defines Virtual Routing Flow devices.
 type VRFDevice struct {
 	// interfaces is the list of proxmox network devices managed by this virtual device.
-	// +required
+	// +optional
 	// +listType=set
 	Interfaces []string `json:"interfaces,omitempty"`
 
@@ -373,7 +373,6 @@ type VRFDevice struct {
 	Table int32 `json:"table,omitempty"`
 
 	// Routing is the common spec of routes and routing policies to all interfaces and VRFs.
-	// +required
 	Routing `json:",inline"`
 }
 

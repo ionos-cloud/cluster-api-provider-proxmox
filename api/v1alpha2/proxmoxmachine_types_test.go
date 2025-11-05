@@ -268,7 +268,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("invalid MTU value")))
 		})
 
-		/*It("Should only allow VRFS with a non kernel routing table ", func() {
+		It("Should only allow VRFS with a non kernel routing table ", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				VirtualNetworkDevices: VirtualNetworkDevices{
@@ -280,9 +280,9 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Cowardly refusing to insert l3mdev rules into kernel tables")))
-		})*/
+		})
 
-		/*It("Should only allow non kernel FIB rule priority", func() {
+		It("Should only allow non kernel FIB rule priority", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				VirtualNetworkDevices: VirtualNetworkDevices{
@@ -299,7 +299,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Cowardly refusing to insert FIB rule matching kernel rules")))
-		})*/
+		})
 
 		It("Should not allow machine with network device vlan equal to 0", func() {
 			dm := defaultMachine()
