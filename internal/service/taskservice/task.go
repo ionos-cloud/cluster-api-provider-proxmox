@@ -28,7 +28,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
-	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -120,7 +120,7 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		} else {
 			errorMessage = "task failed but its exit status is OK; this should not happen"
 		}
-		conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.TaskFailure, clusterv1.ConditionSeverityInfo, "%s", errorMessage)
+		conditions.MarkFalse(scope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.TaskFailure, clusterv1.ConditionSeverityInfo, "%s", errorMessage)
 
 		// Instead of directly requeuing the failed task, wait for the RetryAfter duration to pass
 		// before resetting the taskRef from the ProxmoxMachine status.
@@ -132,6 +132,6 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		}
 		return true, nil
 	default:
-		return false, NewRequeueError(fmt.Sprintf("unknown task state %q for %q", task.ExitStatus, scope.ProxmoxMachine.Name), infrav1alpha2.DefaultReconcilerRequeue)
+		return false, NewRequeueError(fmt.Sprintf("unknown task state %q for %q", task.ExitStatus, scope.ProxmoxMachine.Name), infrav1.DefaultReconcilerRequeue)
 	}
 }

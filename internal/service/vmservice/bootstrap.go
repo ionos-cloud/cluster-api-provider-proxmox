@@ -28,7 +28,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
-	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
@@ -44,7 +44,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	if !machineHasIPAddress(machineScope.ProxmoxMachine) {
 		// skip machine doesn't have an IpAddress yet.
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
 		return true, nil
 	}
 
@@ -58,7 +58,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	// Get the bootstrap data.
 	bootstrapData, format, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.CloningFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.CloningFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
 		return false, err
 	}
 
@@ -66,7 +66,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	nicData, err := getNetworkConfigData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "%s", err)
 		return false, err
 	}
 
@@ -97,11 +97,11 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha2.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
 		return err
 	}
 	return nil
@@ -109,7 +109,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 
 func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []types.NetworkConfigData, kubernetesVersion string) error {
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha2.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
 
 	// create an enricher
 	enricher := &ignition.Enricher{
@@ -122,7 +122,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 
 	injector := getIgnitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
 	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
 		return err
 	}
 	return nil
@@ -183,7 +183,7 @@ func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, *
 
 func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]types.NetworkConfigData, error) {
 	// provide a default in case network is not defined
-	network := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1alpha2.NetworkSpec{})
+	network := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{})
 	networkConfigData := make([]types.NetworkConfigData, 0, len(network.NetworkDevices)+len(network.VRFs))
 
 	networkConfig, err := getNetworkDevices(ctx, machineScope, network)
@@ -311,7 +311,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 }
 */
 
-func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1alpha2.InterfaceConfig) {
+func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1.InterfaceConfig) {
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
@@ -320,7 +320,7 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 	ciconfig.LinkMTU = ifconfig.LinkMTU
 }
 
-func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1alpha2.NetworkSpec) ([]types.NetworkConfigData, error) {
+func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1.NetworkSpec) ([]types.NetworkConfigData, error) {
 	networkConfigData := make([]types.NetworkConfigData, 0, len(network.NetworkDevices))
 
 	// network devices.
@@ -355,7 +355,7 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 	return networkConfigData, nil
 }
 
-func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network infrav1alpha2.NetworkSpec, data []types.NetworkConfigData) ([]types.NetworkConfigData, error) {
+func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network infrav1.NetworkSpec, data []types.NetworkConfigData) ([]types.NetworkConfigData, error) {
 	networkConfigData := make([]types.NetworkConfigData, 0, len(network.VRFs))
 
 	for _, device := range network.VRFs {
