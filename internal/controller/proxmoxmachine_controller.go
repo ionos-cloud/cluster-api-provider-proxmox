@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/vmservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
@@ -55,10 +55,10 @@ type ProxmoxMachineReconciler struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProxmoxMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrav1alpha2.ProxmoxMachine{}).
+		For(&infrav1.ProxmoxMachine{}).
 		Watches(
 			&clusterv1.Machine{},
-			handler.EnqueueRequestsFromMapFunc(util.MachineToInfrastructureMapFunc(infrav1alpha2.GroupVersion.WithKind(infrav1alpha2.ProxmoxMachineKind))),
+			handler.EnqueueRequestsFromMapFunc(util.MachineToInfrastructureMapFunc(infrav1.GroupVersion.WithKind(infrav1.ProxmoxMachineKind))),
 		).
 		Complete(r)
 }
@@ -82,7 +82,7 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	logger := log.FromContext(ctx)
 
 	// Fetch the ProxmoxMachine instance.
-	proxmoxMachine := &infrav1alpha2.ProxmoxMachine{}
+	proxmoxMachine := &infrav1.ProxmoxMachine{}
 	err := r.Get(ctx, req.NamespacedName, proxmoxMachine)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -157,14 +157,14 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope) (ctrl.Result, error) {
 	machineScope.Logger.Info("Handling deleted ProxmoxMachine")
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
 
 	err := vmservice.DeleteVM(ctx, machineScope)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 	// VM is being deleted
-	return reconcile.Result{RequeueAfter: infrav1alpha2.DefaultReconcilerRequeue}, nil
+	return reconcile.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 }
 
 func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
@@ -178,19 +178,19 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 
 	if !machineScope.Cluster.Status.InfrastructureReady {
 		machineScope.Info("Cluster infrastructure is not ready yet")
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
 		return ctrl.Result{}, nil
 	}
 
 	// Make sure bootstrap data is available and populated.
 	if machineScope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		machineScope.Info("Bootstrap data secret reference is not yet available")
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition, infrav1alpha2.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
 		return ctrl.Result{}, nil
 	}
 
 	// If the ProxmoxMachine doesn't have our finalizer, add it.
-	if ctrlutil.AddFinalizer(machineScope.ProxmoxMachine, infrav1alpha2.MachineFinalizer) {
+	if ctrlutil.AddFinalizer(machineScope.ProxmoxMachine, infrav1.MachineFinalizer) {
 		// Register the finalizer after first read operation from Proxmox to avoid orphaning Proxmox resources on delete
 		if err := machineScope.PatchObject(); err != nil {
 			machineScope.Error(err, "unable to patch object")
@@ -212,28 +212,28 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	machineScope.ProxmoxMachine.Status.VMStatus = &vm.State
 
 	// Do not proceed until the backend VM is marked ready.
-	if vm.State != infrav1alpha2.VirtualMachineStateReady {
+	if vm.State != infrav1.VirtualMachineStateReady {
 		machineScope.Logger.Info(
 			"VM state is not reconciled",
-			"expectedVMState", infrav1alpha2.VirtualMachineStateReady,
+			"expectedVMState", infrav1.VirtualMachineStateReady,
 			"actualVMState", vm.State)
-		return reconcile.Result{RequeueAfter: infrav1alpha2.DefaultReconcilerRequeue}, nil
+		return reconcile.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 	}
 
 	// TODO, check if we need to add some labels to the machine.
 
 	machineScope.SetReady()
-	conditions.MarkTrue(machineScope.ProxmoxMachine, infrav1alpha2.VMProvisionedCondition)
+	conditions.MarkTrue(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 	machineScope.Logger.Info("ProxmoxMachine is ready")
 
 	return reconcile.Result{}, nil
 }
 
-func (r *ProxmoxMachineReconciler) getInfraCluster(ctx context.Context, logger *logr.Logger, cluster *clusterv1.Cluster, proxmoxMachine *infrav1alpha2.ProxmoxMachine) (*scope.ClusterScope, error) {
+func (r *ProxmoxMachineReconciler) getInfraCluster(ctx context.Context, logger *logr.Logger, cluster *clusterv1.Cluster, proxmoxMachine *infrav1.ProxmoxMachine) (*scope.ClusterScope, error) {
 	var clusterScope *scope.ClusterScope
 	var err error
 
-	proxmoxCluster := &infrav1alpha2.ProxmoxCluster{}
+	proxmoxCluster := &infrav1.ProxmoxCluster{}
 
 	infraClusterName := client.ObjectKey{
 		Namespace: proxmoxMachine.Namespace,
