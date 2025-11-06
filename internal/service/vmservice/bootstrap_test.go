@@ -317,9 +317,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	*/
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
 	require.Equal(t, "default", *cfg.Routes[0].To)
-	/*
-		require.Equal(t, "172.24.16.0/24", cfg.Routes[1].To)
-	*/
+	require.Equal(t, "172.24.16.0/24", *cfg.Routes[1].To)
 	require.Equal(t, "10.10.10.0/24", *cfg.FIBRules[0].To)
 	require.Equal(t, "172.24.16.0/24", *cfg.FIBRules[1].From)
 	// require.NoError(t, err)
