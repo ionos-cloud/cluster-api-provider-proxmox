@@ -185,6 +185,7 @@ const (
 )
 
 // TemplateSource defines the source of the template VM.
+// +kubebuilder:validation:XValidation:rule="has(self.templateSelector) || (has(self.templateID) && has(self.sourceNode))",message="Must specify either templateID or templateSelector"
 type TemplateSource struct {
 	// sourceNode is the initially selected proxmox node.
 	// This node will be used to locate the template VM, which will
@@ -210,6 +211,7 @@ type TemplateSource struct {
 	TemplateID *int32 `json:"templateID,omitempty"`
 
 	// templateSelector defines MatchTags for looking up VM templates.
+	// If a templateID is defined, templateSelector will be ignored.
 	// +optional
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty,omitzero"`
 }
@@ -253,6 +255,16 @@ type VirtualMachineCloneSpec struct {
 	Target *string `json:"target,omitempty"`
 }
 
+// TemplateResolutionPolicy defines how MatchTags are evaluated against template tags.
+type TemplateResolutionPolicy string
+
+const (
+	// TemplateResolutionPolicyExact requires an exact 1:1 match between MatchTags and the template's tags.
+	TemplateResolutionPolicyExact TemplateResolutionPolicy = "exact"
+	// TemplateResolutionPolicySubset requires the template's tags to contain all MatchTags, but allows additional tags.
+	TemplateResolutionPolicySubset TemplateResolutionPolicy = "subset"
+)
+
 // TemplateSelector defines MatchTags for looking up VM templates.
 type TemplateSelector struct {
 	// matchTags specifies all tags to look for when looking up the VM template.
@@ -264,6 +276,16 @@ type TemplateSelector struct {
 	// +kubebuilder:validation:MinItems=1
 	// +required
 	MatchTags []string `json:"matchTags,omitempty"`
+
+	// resolutionPolicy controls how MatchTags are evaluated against template tags.
+	// When not set, or set to "exact", the behaviour is identical to the previous implementation
+	// and requires an exact 1:1 tag match. When set to "subset", the template's tags must contain
+	// all MatchTags, but may include additional tags.
+	//
+	// +kubebuilder:validation:Enum=exact;subset
+	// +kubebuilder:default=exact
+	// +optional
+	ResolutionPolicy TemplateResolutionPolicy `json:"resolutionPolicy,omitempty"`
 }
 
 // NetworkSpec defines the virtual machine's network configuration.
@@ -667,6 +689,15 @@ func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
 		return r.Spec.TemplateSelector.MatchTags
 	}
 	return nil
+}
+
+// GetTemplateResolutionPolicy returns the resolution policy for selecting VM templates.
+// If no TemplateSelector or ResolutionPolicy is set, TemplateResolutionPolicyExact is returned.
+func (r *ProxmoxMachine) GetTemplateResolutionPolicy() TemplateResolutionPolicy {
+	if r.Spec.TemplateSelector != nil && r.Spec.TemplateSelector.ResolutionPolicy != "" {
+		return r.Spec.TemplateSelector.ResolutionPolicy
+	}
+	return TemplateResolutionPolicyExact
 }
 
 // GetNode get the Proxmox node used to provision this machine.

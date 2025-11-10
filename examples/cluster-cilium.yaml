@@ -8,8 +8,8 @@ metadata:
 spec:
   topology:
     classRef:
-      name: proxmox-clusterclass-cilium-v0.2.0
-    version: 1.28.3
+      name: proxmox-clusterclass-cilium-v0.2.1
+    version: 1.33.3
     controlPlane:
       replicas: 1
     workers:
