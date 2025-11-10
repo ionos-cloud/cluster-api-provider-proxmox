@@ -109,9 +109,12 @@ func selectNode(
 	sort.Sort(byReplicas)
 
 	decision := byMemory[0].Name
-	if requestedMemory < byReplicas[0].AvailableMemory {
+	for _, info := range byReplicas {
 		// distribute round-robin when memory allows it
-		decision = byReplicas[0].Name
+		if requestedMemory < info.AvailableMemory {
+			decision = info.Name
+			break
+		}
 	}
 
 	if logger := logr.FromContextOrDiscard(ctx); logger.V(4).Enabled() {
