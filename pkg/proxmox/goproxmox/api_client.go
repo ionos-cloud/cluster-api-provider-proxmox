@@ -173,9 +173,30 @@ func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []str
 		}
 
 		vmTags := strings.Split(vm.Tags, ";")
+		for i := range vmTags {
+			vmTags[i] = strings.ToLower(strings.TrimSpace(vmTags[i]))
+		}
 		slices.Sort(vmTags)
+		vmTags = slices.Compact(vmTags)
 
-		if slices.Equal(vmTags, uniqueTags) {
+		// Check whether the template’s tags (tagsPresent) contain all the requested tags (tagsWanted)
+		isSuperset := func(tagsPresent, tagsWanted []string) bool {
+			presentIdx, wantedIdx := 0, 0
+			for presentIdx < len(tagsPresent) && wantedIdx < len(tagsWanted) {
+				switch {
+				case tagsPresent[presentIdx] == tagsWanted[wantedIdx]:
+					presentIdx++
+					wantedIdx++
+				case tagsPresent[presentIdx] < tagsWanted[wantedIdx]:
+					presentIdx++
+				default:
+					return false
+				}
+			}
+			return wantedIdx == len(tagsWanted)
+		}
+
+		if isSuperset(vmTags, uniqueTags) {
 			vmTemplates = append(vmTemplates, vm)
 		}
 	}
