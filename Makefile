@@ -142,6 +142,10 @@ verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are
 		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
 	fi
 
+.PHONY: vuln-check
+vuln-check: govulncheck ## Run govulncheck to check for known vulnerabilities in the code.
+	$(GOVULNCHECK) ./...
+
 
 ##@ Deployment
 
@@ -177,11 +181,14 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+GOVULNCHECK ?= $(LOCALBIN)/govulncheck
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.0.0
 CONTROLLER_TOOLS_VERSION ?= v0.16.5
 ENVTEST_VERSION ?= 42a14a36c13b95dd6bc8b4ba69c181b16d50e3c0 # last version to support go1.24
+
+GOVULNCHECK_VERSION ?= latest
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -203,6 +210,12 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
+
+.PHONY: govulncheck
+govulncheck: $(GOVULNCHECK) ## Download govulncheck locally if necessary. If wrong version is installed, it will be overwritten.
+$(GOVULNCHECK): $(LOCALBIN)
+	test -s $(LOCALBIN)/govulncheck && $(LOCALBIN)/govulncheck --version | grep -q $(GOVULNCHECK_VERSION) || \
+	GOBIN=$(LOCALBIN) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 ##@ Test
 
