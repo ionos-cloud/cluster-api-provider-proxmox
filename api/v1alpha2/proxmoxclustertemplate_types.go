@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,31 +23,43 @@ import (
 
 // ProxmoxClusterTemplateSpec defines the desired state of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateSpec struct {
-	Template ProxmoxClusterTemplateResource `json:"template"`
+	// template is the Proxmox Cluster template
+	// +required
+	Template ProxmoxClusterTemplateResource `json:"template,omitzero"`
 }
 
 // ProxmoxClusterTemplateResource defines the spec and metadata for ProxmoxClusterTemplate supported by capi.
 type ProxmoxClusterTemplateResource struct {
-	// Standard object's metadata.
+	// metadata is the standard object metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"`
-	Spec       ProxmoxClusterSpec   `json:"spec"`
+	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
+
+	// spec is the Proxmox Cluster spec
+	// +required
+	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxclustertemplates,scope=Namespaced,categories=cluster-api,shortName=pct
+// +kubebuilder:storageversion
 
 // ProxmoxClusterTemplate is the Schema for the proxmoxclustertemplates API.
 type ProxmoxClusterTemplate struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// metadata is the standard object metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
+	// spec is the Proxmox Cluster Template spec
+	// +required
+	Spec ProxmoxClusterTemplateSpec `json:"spec,omitzero"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // ProxmoxClusterTemplateList contains a list of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateList struct {

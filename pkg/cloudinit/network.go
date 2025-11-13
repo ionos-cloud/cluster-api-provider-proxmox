@@ -19,12 +19,14 @@ package cloudinit
 import (
 	"net/netip"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
 	/* network-config template. */
-	networkConfigTPl = `network:
+	networkConfigTpl = `network:
   version: 2
   renderer: networkd
   ethernets:
@@ -86,46 +88,42 @@ const (
 {{- end -}}
 
 {{- define "routes" }}
-    {{- if or .Gateway .Gateway6 }}
+    {{- if or .IPConfigs .Routes }}
       routes:
+      {{- range $ipconfig := .IPConfigs }}
+      {{- if .Gateway }}
        {{- if .Gateway }}
+        {{- if is6 .IPAddress }}
+        - to: '::/0'
+        {{- else }}
         - to: 0.0.0.0/0
+        {{- end -}}
           {{- if .Metric }}
           metric: {{ .Metric }}
           {{- end }}
           via: {{ .Gateway }}
        {{- end }}
-       {{- if .Gateway6 }}
-        - to: '::/0'
-          {{- if .Metric6 }}
-          metric: {{ .Metric6 }}
-          {{- end }}
-          via: '{{ .Gateway6 }}'
-       {{- end }}
-    {{- else }}
-      {{- if .Routes }}
-      routes:
       {{- end -}}
-    {{- end -}}
-    {{- range $index, $route := .Routes }}
+      {{- end -}}
+      {{- if .Routes }}
+        {{- range $index, $route := .Routes }}
         - {
         {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
         {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
         {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
         {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
+        {{- end -}}
+        {{- end -}}
     {{- end -}}
 {{- end -}}
 
 {{- define "ipAddresses" }}
-    {{- if or .IPAddress .IPV6Address }}
+    {{- if .IPConfigs }}
       addresses:
-      {{- if .IPAddress }}
+        {{- range $ipconfig := .IPConfigs }}
         - {{ .IPAddress }}
-      {{- end }}
-      {{- if .IPV6Address }}
-        - '{{ .IPV6Address }}'
-      {{- end }}
-    {{- end }}
+        {{- end }}
+    {{- end -}}
 {{- end -}}
 
 {{- define "mtu" }}
@@ -169,19 +167,21 @@ func (r *NetworkConfig) Render() ([]byte, error) {
 	}
 
 	// render network-config
-	return render("network-config", networkConfigTPl, r.data)
+	return render("network-config", networkConfigTpl, r.data)
 }
 
 func (r *NetworkConfig) validate() error {
 	if len(r.data.NetworkConfigData) == 0 {
 		return ErrMissingNetworkConfigData
 	}
-	metrics := make(map[uint32]*struct {
+	// TODO: Fix validation
+	metrics := make(map[int32]*struct {
 		ipv4 bool
 		ipv6 bool
 	})
 
-	for i, d := range r.data.NetworkConfigData {
+	// for i, d := range r.data.NetworkConfigData {
+	for _, d := range r.data.NetworkConfigData {
 		// TODO: refactor this when network configuration is unified
 		if d.Type != "ethernet" {
 			err := validRoutes(d.Routes)
@@ -195,7 +195,7 @@ func (r *NetworkConfig) validate() error {
 			continue
 		}
 
-		if !d.DHCP4 && !d.DHCP6 && len(d.IPAddress) == 0 && len(d.IPV6Address) == 0 {
+		if !d.DHCP4 && !d.DHCP6 && len(d.IPConfigs) == 0 {
 			return ErrMissingIPAddress
 		}
 
@@ -203,49 +203,39 @@ func (r *NetworkConfig) validate() error {
 			return ErrMissingMacAddress
 		}
 
-		if !d.DHCP4 && len(d.IPAddress) > 0 {
-			err := validIPAddress(d.IPAddress)
-			if err != nil {
-				return err
-			}
-			if d.Gateway == "" && i == 0 {
-				return ErrMissingGateway
-			}
-		}
+		for _, c := range d.IPConfigs {
+			var is6 bool
+			var err error
 
-		if !d.DHCP6 && len(d.IPV6Address) > 0 {
-			err6 := validIPAddress(d.IPV6Address)
-			if err6 != nil {
-				return err6
-			}
-			if d.Gateway6 == "" && i == 0 {
-				return ErrMissingGateway
-			}
-		}
-		if d.Metric != nil {
-			if _, exists := metrics[*d.Metric]; !exists {
-				metrics[*d.Metric] = new(struct {
-					ipv4 bool
-					ipv6 bool
-				})
-			}
-			if metrics[*d.Metric].ipv4 {
-				return ErrConflictingMetrics
-			}
-			metrics[*d.Metric].ipv4 = true
-		}
-		if d.Metric6 != nil {
-			if _, exists := metrics[*d.Metric6]; !exists {
-				metrics[*d.Metric6] = new(struct {
-					ipv4 bool
-					ipv6 bool
-				})
+			if !d.DHCP4 || !d.DHCP6 {
+				is6, err = validIPAddress(c.IPAddress)
+				if err != nil {
+					return err
+				}
+				if c.Gateway == "" /*&& i == 0*/ {
+					return ErrMissingGateway
+				}
 			}
 
-			if metrics[*d.Metric6].ipv6 {
-				return ErrConflictingMetrics
+			if c.Metric != nil {
+				if _, exists := metrics[*c.Metric]; !exists {
+					metrics[*c.Metric] = new(struct {
+						ipv4 bool
+						ipv6 bool
+					})
+				}
+				if !is6 && metrics[*c.Metric].ipv4 {
+					return ErrConflictingMetrics
+				}
+				if is6 && metrics[*c.Metric].ipv6 {
+					return ErrConflictingMetrics
+				}
+				if !is6 {
+					metrics[*c.Metric].ipv4 = true
+				} else {
+					metrics[*c.Metric].ipv6 = true
+				}
 			}
-			metrics[*d.Metric6].ipv6 = true
 		}
 	}
 	return nil
@@ -257,16 +247,16 @@ func validRoutes(input []types.RoutingData) error {
 	}
 	// No support for blackhole, etc.pp. Add iff you require this.
 	for _, route := range input {
-		if route.To != "default" {
+		if ptr.Deref(route.To, "") != "default" {
 			// An IP address is a valid route (implicit smallest subnet)
-			_, errPrefix := netip.ParsePrefix(route.To)
-			_, errAddr := netip.ParseAddr(route.To)
+			_, errPrefix := netip.ParsePrefix(ptr.Deref(route.To, ""))
+			_, errAddr := netip.ParseAddr(ptr.Deref(route.To, ""))
 			if errPrefix != nil && errAddr != nil {
 				return ErrMalformedRoute
 			}
 		}
-		if route.Via != "" {
-			_, err := netip.ParseAddr(route.Via)
+		if ptr.Deref(route.Via, "") != "" {
+			_, err := netip.ParseAddr(ptr.Deref(route.Via, ""))
 			if err != nil {
 				return ErrMalformedRoute
 			}
@@ -282,19 +272,19 @@ func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 
 	for _, rule := range input {
 		// We only support To/From and we require a table if we're not a vrf
-		if (rule.To == "" && rule.From == "") || (rule.Table == 0 && !isVrf) {
+		if (ptr.Deref(rule.To, "") == "" && ptr.Deref(rule.From, "") == "") || (ptr.Deref(rule.Table, 0) == 0 && !isVrf) {
 			return ErrMalformedFIBRule
 		}
-		if rule.To != "" {
-			_, errPrefix := netip.ParsePrefix(rule.To)
-			_, errAddr := netip.ParseAddr(rule.To)
+		if ptr.Deref(rule.To, "") != "" {
+			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.To, ""))
+			_, errAddr := netip.ParseAddr(ptr.Deref(rule.To, ""))
 			if errPrefix != nil && errAddr != nil {
 				return ErrMalformedFIBRule
 			}
 		}
-		if rule.From != "" {
-			_, errPrefix := netip.ParsePrefix(rule.From)
-			_, errAddr := netip.ParseAddr(rule.From)
+		if ptr.Deref(rule.From, "") != "" {
+			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.From, ""))
+			_, errAddr := netip.ParseAddr(ptr.Deref(rule.From, ""))
 			if errPrefix != nil && errAddr != nil {
 				return ErrMalformedFIBRule
 			}
@@ -303,13 +293,13 @@ func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 	return nil
 }
 
-func validIPAddress(input string) error {
+func validIPAddress(input string) (bool, error) {
 	if input == "" {
-		return ErrMissingIPAddress
+		return false, ErrMissingIPAddress
 	}
-	_, err := netip.ParsePrefix(input)
+	p, err := netip.ParsePrefix(input)
 	if err != nil {
-		return ErrMalformedIPAddress
+		return false, ErrMalformedIPAddress
 	}
-	return nil
+	return p.Addr().Is6(), nil
 }

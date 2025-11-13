@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,27 +23,39 @@ import (
 
 // ProxmoxMachineTemplateSpec defines the desired state of ProxmoxMachineTemplate.
 type ProxmoxMachineTemplateSpec struct {
-	Template ProxmoxMachineTemplateResource `json:"template"`
+	// template is the Proxmox machine template resource.
+	// +required
+	Template ProxmoxMachineTemplateResource `json:"template,omitzero"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=proxmoxmachinetemplates,scope=Namespaced,categories=cluster-api,shortName=pmt
+// +kubebuilder:storageversion
+// +kubebuilder:subresource:status
 
 // ProxmoxMachineTemplate is the Schema for the proxmoxmachinetemplates API.
 type ProxmoxMachineTemplate struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// metadata is the standard object metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec ProxmoxMachineTemplateSpec `json:"spec,omitempty"`
+	// spec is the machine template spec.
+	// +required
+	Spec ProxmoxMachineTemplateSpec `json:"spec,omitzero"`
 }
 
 // ProxmoxMachineTemplateResource defines the spec and metadata for ProxmoxMachineTemplate supported by capi.
 type ProxmoxMachineTemplateResource struct {
-	// Standard object's metadata.
+	// metadata is the standard object metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"`
-	Spec       ProxmoxMachineSpec   `json:"spec"`
+	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
+
+	// spec is the Proxmox machine spec.
+	// +required
+	Spec *ProxmoxMachineSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true
