@@ -52,6 +52,8 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	createIPPools(t, kubeClient, machineScope)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]), infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: []string{}})
 	require.NoError(t, err)
 	require.True(t, requeue)
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
@@ -87,8 +89,15 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	createIPPools(t, kubeClient, machineScope)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
+
 	require.NoError(t, err)
 	require.True(t, requeue)
+
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]), infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: []string{}})
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]), infrav1.IPAddresses{IPV4: []string{"10.100.10.10"}, IPV6: []string{}})
+
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
@@ -150,6 +159,12 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
+
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]), infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: []string{"fe80::1"}})
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]), infrav1.IPAddresses{IPV4: []string{"10.100.10.10"}, IPV6: []string{}})
+
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
@@ -171,5 +186,11 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
+
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]), infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: []string{}})
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]), infrav1.IPAddresses{IPV4: []string{"10.100.10.10"}, IPV6: []string{}})
+
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
