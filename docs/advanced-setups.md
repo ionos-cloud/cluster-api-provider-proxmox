@@ -182,8 +182,28 @@ Our provider is able to look up templates based on their attached tags, for `Pro
 
 For example, you can set the `TEMPLATE_TAGS="tag1,tag2"` environment variable. Your custom image will then be used when using the [auto-image](https://github.com/ionos-cloud/cluster-api-provider-ionoscloud/blob/main/templates/cluster-template-auto-image.yaml) template.
 
-Please note: Passed tags will match at least a subset of the tags on the template you want to use. The lookup must result in a unique template. If multiple templates are found, provisioning will fail.
+Template selection is controlled by the `TemplateSelector` on the `ProxmoxMachine`:
 
+- `matchTags`: the list of tags that should be used when searching for a VM template.
+- `resolutionPolicy`: controls how `matchTags` are evaluated against the tags on a template. It supports two values:
+  - `exact` (default): the template's tags must be an exact 1:1 match with `matchTags` (after normalisation). This preserves the behaviour from earlier releases.
+  - `subset`: the template's tags must contain all of the `matchTags`, but may include additional tags.
+
+The lookup must always result in a unique template. If no template or more than one template matches the configured tags under the chosen `resolutionPolicy`, provisioning will fail.
+
+### Using TemplateSelector with ClusterClass
+
+When using the provided ClusterClass (for example `cluster-class-cilium.yaml`), you can drive tag-based template selection via the `templateSelector` topology variable on the `Cluster`:
+
+- If `templateSelector` is **not** set, the ClusterClass uses the explicit `sourceNode` / `templateID` fields on the `ProxmoxMachineTemplate` (the behaviour from earlier releases).
+- If `templateSelector` **is** set, the ClusterClass injects it into all `ProxmoxMachineTemplate` resources and removes `sourceNode` / `templateID`. In this mode, templates are resolved by tags.
+
+A `Cluster` using subset matching for tag-based template selection would set, for example:
+
+- `spec.topology.variables.templateSelector.matchTags` to the list of tags that identify the desired templates (e.g. `capmox`, `template`, and a Kubernetes version tag), and
+- `spec.topology.variables.templateSelector.resolutionPolicy` to `subset`.
+
+With this configuration, each `ProxmoxMachineTemplate` created by the ClusterClass will use tag-based template lookup with `subset` semantics, and provisioning will only succeed if exactly one template matches the configured tags for each machine role.
 ## Proxmox RBAC with least privileges
 
 For the Proxmox API user/token you create for CAPMOX, these are the minimum required permissions.

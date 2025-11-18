@@ -648,14 +648,27 @@ spec:
                             matchTags:
                               description: |-
                                 Specifies all tags to look for, when looking up the VM template.
-                                Passed tags must be an exact 1:1 match with the tags on the template you want to use.
-                                If multiple VM templates with the same set of tags are found, provisioning will fail.
+                                When ResolutionPolicy is "exact" (the default), the template's tags must be an exact 1:1 match
+                                with MatchTags. If multiple VM templates with the same set of tags are found, provisioning will fail.
+                                When ResolutionPolicy is "subset", the template's tags must contain all of the MatchTags, but may
+                                have additional tags.
                               items:
                                 pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                                 type: string
                               minItems: 1
                               type: array
                               x-kubernetes-list-type: set
+                            resolutionPolicy:
+                              default: exact
+                              description: |-
+                                ResolutionPolicy controls how MatchTags are evaluated against template tags.
+                                When not set, or set to "exact", the behaviour is identical to the previous implementation
+                                and requires an exact 1:1 tag match. When set to "subset", the template's tags must contain
+                                all MatchTags, but may include additional tags.
+                              enum:
+                              - exact
+                              - subset
+                              type: string
                           required:
                           - matchTags
                           type: object
