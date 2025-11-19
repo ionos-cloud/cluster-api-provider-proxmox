@@ -159,6 +159,7 @@ func TestShouldUpdateNetworkDevices_NoNetworkConfig(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
 	require.False(t, shouldUpdateNetworkDevices(machineScope))
+
 }
 
 func TestShouldUpdateNetworkDevices_MissingDefaultDeviceOnVM(t *testing.T) {
@@ -169,6 +170,7 @@ func TestShouldUpdateNetworkDevices_MissingDefaultDeviceOnVM(t *testing.T) {
 	machineScope.SetVirtualMachine(newStoppedVM())
 
 	require.True(t, shouldUpdateNetworkDevices(machineScope))
+
 }
 
 func TestShouldUpdateNetworkDevices_DefaultDeviceNeedsUpdate(t *testing.T) {
@@ -179,6 +181,7 @@ func TestShouldUpdateNetworkDevices_DefaultDeviceNeedsUpdate(t *testing.T) {
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0"))
 
 	require.True(t, shouldUpdateNetworkDevices(machineScope))
+
 }
 
 func TestShouldUpdateNetworkDevices_MissingAdditionalDeviceOnVM(t *testing.T) {
@@ -191,6 +194,7 @@ func TestShouldUpdateNetworkDevices_MissingAdditionalDeviceOnVM(t *testing.T) {
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0"))
 
 	require.True(t, shouldUpdateNetworkDevices(machineScope))
+
 }
 
 func TestShouldUpdateNetworkDevices_AdditionalDeviceNeedsUpdate(t *testing.T) {
@@ -203,6 +207,7 @@ func TestShouldUpdateNetworkDevices_AdditionalDeviceNeedsUpdate(t *testing.T) {
 	machineScope.SetVirtualMachine(newVMWithNets("", "virtio=A6:23:64:4D:84:CB,bridge=vmbr0"))
 
 	require.True(t, shouldUpdateNetworkDevices(machineScope))
+
 }
 
 func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
@@ -216,6 +221,7 @@ func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CD,bridge=vmbr0,mtu=1500", "virtio=A6:23:64:4D:84:CD,bridge=vmbr1,mtu=1500"))
 
 	require.False(t, shouldUpdateNetworkDevices(machineScope))
+
 }
 
 func TestExtractNetworkVLAN(t *testing.T) {
@@ -258,4 +264,5 @@ func TestShouldUpdateNetworkDevices_VLANChanged(t *testing.T) {
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0,tag=101"))
 
 	require.True(t, shouldUpdateNetworkDevices(machineScope))
+
 }

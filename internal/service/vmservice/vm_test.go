@@ -51,6 +51,7 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
 	require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+
 }
 
 func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
@@ -71,6 +72,7 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
 	require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+
 }
 
 func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
@@ -91,6 +93,7 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
 	require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+
 }
 
 func TestReconcileVM_InitCheckDisabled(t *testing.T) {
@@ -111,6 +114,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
 	require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
@@ -143,6 +147,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T) {
@@ -187,6 +192,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNotFound(t *testing.T) {
@@ -217,6 +223,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.FailureMessage)
 	require.Error(t, err)
 	require.Contains(t, "VM template not found", err.Error())
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
@@ -239,6 +246,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
 	require.Equal(t, "node3", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing.T) {
@@ -262,6 +270,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing
 	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.T) {
@@ -279,6 +288,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 	require.True(t, machineScope.HasFailed())
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
@@ -301,6 +311,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
 	require.Equal(t, int64(1001), machineScope.ProxmoxMachine.GetVirtualMachineID())
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
@@ -318,6 +329,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
 	require.Error(t, err, ErrNoVMIDInRangeFree)
 	require.False(t, requeue)
 	require.Equal(t, int64(-1), machineScope.ProxmoxMachine.GetVirtualMachineID())
+
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
@@ -377,6 +389,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 	require.Equal(t, int64(1002), machineScope.ProxmoxMachine.GetVirtualMachineID())
+
 }
 
 func TestEnsureVirtualMachine_FindVM(t *testing.T) {
@@ -393,6 +406,7 @@ func TestEnsureVirtualMachine_FindVM(t *testing.T) {
 
 	require.Equal(t, vm, machineScope.VirtualMachine)
 	require.Equal(t, "proxmox://56603c36-46b9-4608-90ae-c731c15eae64", machineScope.GetProviderID())
+
 }
 
 func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
@@ -404,6 +418,7 @@ func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
 
 	_, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.Error(t, err)
+
 }
 
 func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
@@ -415,6 +430,7 @@ func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
 	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
+
 }
 
 func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
@@ -448,6 +464,7 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+
 }
 
 func TestReconcileVirtualMachineConfigTags(t *testing.T) {
@@ -488,6 +505,7 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+
 }
 
 func TestReconcileDisks_RunningVM(t *testing.T) {
@@ -498,6 +516,7 @@ func TestReconcileDisks_RunningVM(t *testing.T) {
 	machineScope.SetVirtualMachine(newRunningVM())
 
 	require.NoError(t, reconcileDisks(context.Background(), machineScope))
+
 }
 
 func TestReconcileDisks_ResizeDisk(t *testing.T) {
@@ -512,6 +531,7 @@ func TestReconcileDisks_ResizeDisk(t *testing.T) {
 	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "ide0", machineScope.ProxmoxMachine.Spec.Disks.BootVolume.FormatSize()).Return(task, nil)
 
 	require.NoError(t, reconcileDisks(context.Background(), machineScope))
+
 }
 
 func TestReconcileMachineAddresses_IPV4(t *testing.T) {
@@ -525,6 +545,7 @@ func TestReconcileMachineAddresses_IPV4(t *testing.T) {
 	require.NoError(t, reconcileMachineAddresses(machineScope))
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "10.10.10.10")
+
 }
 
 func TestReconcileMachineAddresses_IPV6(t *testing.T) {
@@ -545,6 +566,7 @@ func TestReconcileMachineAddresses_IPV6(t *testing.T) {
 	require.NoError(t, reconcileMachineAddresses(machineScope))
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "2001:db8::2")
+
 }
 
 func TestReconcileMachineAddresses_DualStack(t *testing.T) {
@@ -565,6 +587,7 @@ func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "10.10.10.10")
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[2].Address, "2001:db8::2")
+
 }
 
 func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
@@ -596,6 +619,7 @@ func TestReconcileVirtualMachineConfigVLAN(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+
 }
 
 func TestReconcileDisks_UnmountCloudInitISO(t *testing.T) {
@@ -608,6 +632,7 @@ func TestReconcileDisks_UnmountCloudInitISO(t *testing.T) {
 	proxmoxClient.EXPECT().UnmountCloudInitISO(context.Background(), vm, "ide0").Return(nil)
 
 	require.NoError(t, unmountCloudInitISO(context.Background(), machineScope))
+
 }
 
 func TestReconcileVM_CloudInitFailed(t *testing.T) {
@@ -626,6 +651,7 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	require.Error(t, err, "unknown error")
 	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureReason, ptr.To(capierrors.MachineStatusError("BootstrapFailed")))
 	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureMessage, ptr.To("cloud-init failed execution"))
+
 }
 
 func TestReconcileVM_CloudInitRunning(t *testing.T) {
@@ -643,4 +669,5 @@ func TestReconcileVM_CloudInitRunning(t *testing.T) {
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStatePending, result.State)
+
 }

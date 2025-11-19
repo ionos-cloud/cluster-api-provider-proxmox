@@ -78,6 +78,10 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	}
 
 	infraCluster := &infrav1.ProxmoxCluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
+			Kind: "ProxmoxCluster",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
@@ -100,6 +104,10 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1.IPV4Format)}}
 
 	infraMachine := &infrav1.ProxmoxMachine{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
+			Kind: "ProxmoxMachine",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
@@ -136,6 +144,15 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 
 	mockClient := proxmoxtest.NewMockClient(t)
 
+	// fake indexing tests. TODO: Unify
+
+	indexFunc := func(obj client.Object) []string {
+		return []string{obj.(*ipamv1.IPAddress).Spec.PoolRef.Name}
+	}
+
+	err := fake.AddIndex(kubeClient, &ipamv1.IPAddress{}, "spec.poolRef.name", indexFunc)
+	require.NoError(t, err)
+
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:         kubeClient,
 		Logger:         &logger,
@@ -170,35 +187,60 @@ func getIPSuffix(addr string) string {
 	return suffix
 }
 
-func createIPAddressResource(t *testing.T, c client.Client, name, namespace, ip string, prefix int) {
-	obj := &ipamv1.IPAddress{
+func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip string, prefix int, pool *corev1.TypedLocalObjectReference) {
+	if pool != nil {
+		ipAddrClaim := &ipamv1.IPAddressClaim{
+			TypeMeta: metav1.TypeMeta {
+				APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: machineScope.Namespace(),
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: machineScope.ProxmoxMachine.APIVersion,
+					Kind: "ProxmoxMachine",
+					Name: machineScope.Name(),
+				}},
+			},
+			Spec: ipamv1.IPAddressClaimSpec{
+				PoolRef: *pool,
+			},
+		}
+		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
+	}
+
+	ipAddr := &ipamv1.IPAddress{
+		TypeMeta: metav1.TypeMeta {
+			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: machineScope.Namespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
 			Address: ip,
 			Prefix:  prefix,
 			Gateway: netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String(),
+			PoolRef: ptr.Deref(pool, corev1.TypedLocalObjectReference{}),
 		},
 	}
-	require.NoError(t, c.Create(context.Background(), obj))
+	require.NoError(t, c.Create(context.Background(), ipAddr))
 }
 
-func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string) {
+func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is4(), "%s is not a valid ipv4 address", ip)
 	name := formatIPAddressName(machineScope.Name(), device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
-	createIPAddressResource(t, c, name, machineScope.Namespace(), ip, 24)
+	createIPAddressResource(t, c, name, machineScope, ip, 24, pool)
 }
 
-func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string) {
+func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is6(), "%s is not a valid ipv6 address", ip)
 	name := formatIPAddressName(machineScope.Name(), device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
-	createIPAddressResource(t, c, name, machineScope.Namespace(), ip, 64)
+	createIPAddressResource(t, c, name, machineScope, ip, 64, pool)
 }
 
 func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineScope) {

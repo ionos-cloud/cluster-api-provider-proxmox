@@ -21,7 +21,10 @@ package ipam
 import (
 	"context"
 	"fmt"
+	"net/netip"
+	"regexp"
 
+	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +35,7 @@ import (
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -62,6 +66,42 @@ func NewHelper(c client.Client, infraCluster *infrav1.ProxmoxCluster) *Helper {
 // InClusterPoolFormat returns the name of the `InClusterIPPool` for a given cluster.
 func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, format string) string {
 	return fmt.Sprintf("%s-%s-icip", cluster.GetName(), format)
+}
+
+func (h *Helper) GetOwnerClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
+	pools := map[string]*ipamicv1.InClusterIPPool{}
+	namespace := moxm.ObjectMeta.Namespace
+	owners := moxm.GetOwnerReferences()
+
+	machine := &clusterv1.Machine{}
+	h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: owners[0].Name}, machine)
+
+	if machine == nil {
+		// ERROR
+	}
+
+	cluster, _ := util.GetClusterFromMetadata(ctx, h.ctrlClient, machine.ObjectMeta)
+	clusterName := cluster.Spec.InfrastructureRef.Name
+	proxmoxCluster := &infrav1alpha2.ProxmoxCluster{}
+
+	// TODO: Per ZONE IPPoolRefs
+	h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: clusterName}, proxmoxCluster)
+
+	for _, poolRef := range proxmoxCluster.Status.InClusterIPPoolRef {
+		pool := &ipamicv1.InClusterIPPool{}
+		h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: poolRef.Name}, pool)
+		// There's no way of telling if a pool is ipv4 or ipv6 except for parsing it
+		re := regexp.MustCompile("^.+[^/-]")
+		ipString := re.FindString(pool.Spec.Addresses[0])
+		ip, _ := netip.ParseAddr(ipString)
+
+		if ip.Is4() {
+			pools["ipv4"] = pool
+		} else if ip.Is6() {
+			pools["ipv6"] = pool
+		}
+	}
+	return pools, nil
 }
 
 // ErrMissingAddresses is returned when the cluster IPAM config does not contain any addresses.
@@ -365,6 +405,43 @@ func (h *Helper) GetIPAddress(ctx context.Context, key client.ObjectKey) (*ipamv
 	err := h.ctrlClient.Get(ctx, key, out)
 	if err != nil {
 		return nil, err
+	}
+
+	return out, nil
+}
+
+func (h *Helper) GetIPAddressV2(ctx context.Context, poolRef corev1.TypedLocalObjectReference, moxm *infrav1.ProxmoxMachine) ([]ipamv1.IPAddress, error) {
+	ipAddresses, err := h.GetIPAddressByPool(ctx, poolRef)
+
+	out := make([]ipamv1.IPAddress, 0)
+	// fieldSelector, err := fields.ParseSelector("spec.poolRef.name=" + poolRef.Name + ",spec.poolRef.kind=" + poolRef.Kind)
+	// fieldSelector, err := fields.ParseSelector("metadata" + poolRef.Name)
+
+	if err != nil {
+		return nil, err
+	}
+	for _, addr := range ipAddresses {
+		key := client.ObjectKey{
+			Name:      addr.Name,
+			Namespace: addr.Namespace,
+		}
+
+		// Get the parent to find the owner machine
+		ipAddressClaim := &ipamv1.IPAddressClaim{}
+		err := h.ctrlClient.Get(ctx, key, ipAddressClaim)
+		if err != nil {
+			return nil, err
+		}
+
+		// check if current moxm is in the owner reference
+		isOwner, err := controllerutil.HasOwnerReference(ipAddressClaim.OwnerReferences, moxm, h.ctrlClient.Scheme())
+		if err != nil {
+			return nil, err
+		}
+
+		if isOwner {
+			out = append(out, addr)
+		}
 	}
 
 	return out, nil
