@@ -36,20 +36,25 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
+
+	pool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"), Kind: "InClusterIPPool", Name: "custom"}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
-			{Name: ptr.To("net1"), InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{{Kind: "InClusterIPPool", Name: "custom"}}}},
+			{Name: ptr.To("net0"), InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{pool0}}},
+			{Name: ptr.To("net1"), InterfaceConfig: infrav1.InterfaceConfig{}},
 		},
 	}
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.Tags = ipTag
 	machineScope.SetVirtualMachine(vm)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10")
+
 	createIPPools(t, kubeClient, machineScope)
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &pool0)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
@@ -57,6 +62,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 /*func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
@@ -84,8 +90,8 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.Tags = ipTag
 	machineScope.SetVirtualMachine(vm)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10")
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10")
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", nil)
 	createIPPools(t, kubeClient, machineScope)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
@@ -99,6 +105,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]), infrav1.IPAddresses{IPV4: []string{"10.100.10.10"}, IPV6: []string{}})
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+
 }
 
 /*func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
@@ -151,9 +158,9 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.Tags = ipTag
 	machineScope.SetVirtualMachine(vm)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10")
-	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "fe80::1")
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10")
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "fe80::1", nil)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", nil)
 	createIPPools(t, kubeClient, machineScope)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
@@ -179,8 +186,8 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.Tags = ipTag
 	machineScope.SetVirtualMachine(vm)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10")
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10")
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", nil)
 	createIPPools(t, kubeClient, machineScope)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)

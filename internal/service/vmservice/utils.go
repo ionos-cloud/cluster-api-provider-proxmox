@@ -17,16 +17,19 @@ limitations under the License.
 package vmservice
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
 const (
@@ -36,6 +39,22 @@ const (
 	// DefaultNetworkDeviceIPV6 is the default network device name for ipv6.
 	DefaultNetworkDeviceIPV6 = "net0-inet6"
 )
+
+func GetClusterPoolsFromMachine(ctx context.Context, machineScope *scope.MachineScope, m *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
+
+	// Sanity check Machine
+	owners := m.GetOwnerReferences()
+	if len(owners) != 1 { // TODO Error string
+		return nil, errors.New("Expected exactly 1 owner for ProxmoxMachine")
+	}
+	if owners[0].Kind != "Machine" {
+		return nil, errors.New("Owner of Proxmoxmachine not a Machine")
+	}
+
+	pools, _ := machineScope.IPAMHelper.GetOwnerClusterPools(ctx, m)
+
+	return pools, nil
+}
 
 func extractUUID(input string) string {
 	pattern := `(^|,)uuid=([0-9a-fA-F-]+)`
