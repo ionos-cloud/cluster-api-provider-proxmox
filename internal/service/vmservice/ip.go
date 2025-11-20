@@ -38,45 +38,37 @@ import (
 
 func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
 	if machineScope.ProxmoxMachine.Status.IPAddresses != nil {
-		// skip machine has IpAddress already.
+		// skip machine, it has IPAddresses already. IPAddresses are part of bootstrap
+		// and can not be reconciled beyond bootstrap at the moment.
 		return false, nil
 	}
 	machineScope.Logger.V(4).Info("reconciling IPAddresses.")
 	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityInfo, "")
 
-	addresses := make(map[string]string)
+	netPoolAddresses := make(map[string]map[string][]string)
 
 	if machineScope.ProxmoxMachine.Spec.Network != nil {
 		// fmt.Println( handleDevices(ctx, machineScope, addresses))
-		if requeue, err = handleDevices(ctx, machineScope, addresses); err != nil || requeue {
+		if requeue, err = handleDevices(ctx, machineScope, netPoolAddresses); err != nil || requeue {
 			return true, errors.Wrap(err, "unable to handle network devices")
 		}
 	}
 
-	/*
-		// default device.
-		if requeue, err = handleDefaultDevice(ctx, machineScope, addresses); err != nil || requeue {
-			return true, errors.Wrap(err, "unable to handle default device")
-		}
-
-		if machineScope.ProxmoxMachine.Spec.Network != nil {
-			if requeue, err = handleAdditionalDevices(ctx, machineScope, addresses); err != nil || requeue {
-				return true, errors.Wrap(err, "unable to handle additional devices")
-			}
-		}
-	*/
-
 	// update the status.IpAddr.
 
-	statusAddresses := make(map[string]*infrav1.IPAddresses, len(addresses))
-	for k, v := range addresses {
-		if _, e := statusAddresses[k]; !e {
-			statusAddresses[k] = new(infrav1.IPAddresses)
-		}
-		if isIPV4(v) {
-			statusAddresses[k].IPV4 = append(statusAddresses[k].IPV4, v)
-		} else {
-			statusAddresses[k].IPV6 = append(statusAddresses[k].IPV6, v)
+	statusAddresses := make(map[string]*infrav1.IPAddresses, len(netPoolAddresses))
+	for net, pools := range netPoolAddresses {
+		for _, ips := range pools {
+			for _, ip := range ips {
+				if _, e := statusAddresses[net]; !e {
+					statusAddresses[net] = new(infrav1.IPAddresses)
+				}
+				if isIPV4(ip) {
+					statusAddresses[net].IPV4 = append(statusAddresses[net].IPV4, ip)
+				} else {
+					statusAddresses[net].IPV6 = append(statusAddresses[net].IPV6, ip)
+				}
+			}
 		}
 	}
 	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
@@ -274,11 +266,10 @@ func handleIPAddress(ctx context.Context, machineScope *scope.MachineScope, dev 
 	return out, nil
 }
 
-func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]string) (bool, error) {
+func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]map[string][]string) (bool, error) {
 	// additional network devices.
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
 		for i, ipPool := range net.InterfaceConfig.IPPoolRef {
-			// TODO: Unfuck this
 			ipAddresses, err := handleIPAddress(ctx, machineScope, net.Name, i, &ipPool)
 			for _, ip := range ipAddresses {
 				if err != nil || ip == "" {
@@ -286,7 +277,17 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 					return true, errors.Wrapf(err, "unable to handle IPAddress for device %+v, pool %s", net.Name, ipPool.Name)
 				}
 
-				addresses[*net.Name+fmt.Sprint(i)] = ip
+				poolMap := addresses[*net.Name]
+				if poolMap == nil {
+					poolMap = make(map[string][]string)
+				}
+
+				poolIPAddresses := poolMap[ipPool.Name]
+
+				poolIPAddresses = append(poolIPAddresses, ip)
+				poolMap[ipPool.Name] = poolIPAddresses
+
+				addresses[*net.Name] = poolMap
 			}
 		}
 		/*
