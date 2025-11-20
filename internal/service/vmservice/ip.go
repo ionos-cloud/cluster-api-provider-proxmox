@@ -30,7 +30,6 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -45,6 +44,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	machineScope.Logger.V(4).Info("reconciling IPAddresses.")
 	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityInfo, "")
 
+	// TODO: This datastructure is BAD
 	netPoolAddresses := make(map[string]map[string][]string)
 
 	if machineScope.ProxmoxMachine.Spec.Network != nil {
@@ -56,6 +56,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 
 	// update the status.IpAddr.
 
+	// TODO: This datastructure should be redundant. Too many loops too
 	statusAddresses := make(map[string]*infrav1.IPAddresses, len(netPoolAddresses))
 	for net, pools := range netPoolAddresses {
 		for _, ips := range pools {
@@ -79,14 +80,6 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 
 func formatIPAddressName(name, device string) string {
 	return fmt.Sprintf("%s-%s", name, device)
-}
-
-func findIPAddress(ctx context.Context, machineScope *scope.MachineScope, device string) (*ipamv1.IPAddress, error) {
-	key := client.ObjectKey{
-		Namespace: machineScope.Namespace(),
-		Name:      formatIPAddressName(machineScope.Name(), device),
-	}
-	return machineScope.IPAMHelper.GetIPAddress(ctx, key)
 }
 
 // findIPAddressV2 takes the likely name of an ipaddress and returns an ipamv1.IPAddress object or nil
@@ -132,100 +125,8 @@ func machineHasIPAddress(machine *infrav1.ProxmoxMachine) bool {
 	return machine.Status.IPAddresses[infrav1.DefaultNetworkDevice] != nil
 }
 
-/*
-func handleIPAddressForDevice(ctx context.Context, machineScope *scope.MachineScope, device, format string, ipamRef *corev1.TypedLocalObjectReference) (string, error) {
-	suffix := infrav1.DefaultSuffix
-	if format == infrav1.IPV6Format {
-		suffix += "6"
-	}
-	formattedDevice := fmt.Sprintf("%s-%s", device, suffix)
-	ipAddr, err := findIPAddress(ctx, machineScope, formattedDevice)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return "", err
-		}
-		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
-		// IpAddress not yet created.
-		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, device, format, machineScope.InfraCluster.Cluster.GetName(), ipamRef)
-		if err != nil {
-			return "", errors.Wrapf(err, "unable to create Ip address claim for machine %s", machineScope.Name())
-		}
-		return "", nil
-	}
-
-	ip := ipAddr.Spec.Address
-
-	machineScope.Logger.V(4).Info("IPAddress found, ", "ip", ip, "device", device)
-
-	// format ipTag as `ip_net0_<ipv4/6-address>`
-	// to add it to the VM.
-	ipTag := fmt.Sprintf("ip_%s_%s", device, ip)
-
-	// Add ip tag if the Virtual Machine doesn't have it.
-	if vm := machineScope.VirtualMachine; device == infrav1.DefaultNetworkDevice && !vm.HasTag(ipTag) && isIPV4(ip) {
-		machineScope.Logger.V(4).Info("adding virtual machine ip tag.")
-		t, err := machineScope.InfraCluster.ProxmoxClient.TagVM(ctx, vm, ipTag)
-		if err != nil {
-			return "", errors.Wrapf(err, "unable to add Ip tag to VirtualMachine %s", machineScope.Name())
-		}
-		machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(t.UPID))
-		return "", nil
-	}
-
-	return ip, nil
-}
-*/
-
-/*
-func handleDefaultDevice(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1.IPAddress) (bool, error) {
-	// default network device ipv4.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil ||
-		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef != nil) {
-		var ipamRef *corev1.TypedLocalObjectReference
-		if machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef != nil {
-			ipamRef = machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef
-		}
-
-		ip, err := handleIPAddressForDevice(ctx, machineScope, infrav1.DefaultNetworkDevice, infrav1.IPV4Format, ipamRef)
-		if err != nil || ip == "" {
-			return true, err
-		}
-		addresses[infrav1.DefaultNetworkDevice] = infrav1.IPAddress{
-			IPV4: ip,
-		}
-	}
-
-	// default network device ipv6.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil ||
-		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef != nil) {
-		var ipamRef *corev1.TypedLocalObjectReference
-		if machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef != nil {
-			ipamRef = machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef
-		}
-
-		ip, err := handleIPAddressForDevice(ctx, machineScope, infrav1.DefaultNetworkDevice, infrav1.IPV6Format, ipamRef)
-		if err != nil || ip == "" {
-			return true, err
-		}
-
-		addr := addresses[infrav1.DefaultNetworkDevice]
-		addr.IPV6 = ip
-		addresses[infrav1.DefaultNetworkDevice] = addr
-	}
-	return false, nil
-}
-*/
-
 func handleIPAddress(ctx context.Context, machineScope *scope.MachineScope, dev *string, poolNum int, ipamRef *corev1.TypedLocalObjectReference) ([]string, error) {
-	// suffix := infrav1.DefaultSuffix
-
 	device := ptr.Deref(dev, infrav1.DefaultNetworkDevice)
-
-	// ipAddressName := fmt.Sprintf("%s-%s-%02d-%s", machineScope.Name(), device, poolNum, suffix)
-	/* TODO: Generalise for default device prepending. Especially IPv6! */
-	// if device == infrav1.DefaultNetworkDevice && poolNum == 0 {
-	//	ipAddressName = fmt.Sprintf("%s-%s-inet", machineScope.Name(), device)
-	// }
 
 	ipAddresses, err := findIPAddressV2(ctx, ipamRef, machineScope)
 	if err != nil {
@@ -267,7 +168,6 @@ func handleIPAddress(ctx context.Context, machineScope *scope.MachineScope, dev 
 }
 
 func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]map[string][]string) (bool, error) {
-	// additional network devices.
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
 		for i, ipPool := range net.InterfaceConfig.IPPoolRef {
 			ipAddresses, err := handleIPAddress(ctx, machineScope, net.Name, i, &ipPool)
@@ -290,64 +190,10 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 				addresses[*net.Name] = poolMap
 			}
 		}
-		/*
-			if net.IPv4PoolRef != nil {
-				ip, err := handleIPAddressForDevice(ctx, machineScope, net.Name, infrav1.IPV4Format, net.IPv4PoolRef)
-				if err != nil || ip == "" {
-					return true, errors.Wrapf(err, "unable to handle IPAddress for device %s", net.Name)
-				}
-
-				addresses[net.Name] = infrav1.IPAddress{
-					IPV4: ip,
-				}
-			}
-
-			if net.IPv6PoolRef != nil {
-				ip, err := handleIPAddressForDevice(ctx, machineScope, net.Name, infrav1.IPV6Format, net.IPv6PoolRef)
-				if err != nil || ip == "" {
-					return true, errors.Wrapf(err, "unable to handle IPAddress for device %s", net.Name)
-				}
-
-				addresses[net.Name] = infrav1.IPAddress{
-					IPV6: ip,
-				}
-			}
-		*/
 	}
 
 	return false, nil
 }
-
-/*
-func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]infrav1.IPAddress) (bool, error) {
-	// additional network devices.
-	for _, net := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
-		if net.IPv4PoolRef != nil {
-			ip, err := handleIPAddressForDevice(ctx, machineScope, net.Name, infrav1.IPV4Format, net.IPv4PoolRef)
-			if err != nil || ip == "" {
-				return true, errors.Wrapf(err, "unable to handle IPAddress for device %s", net.Name)
-			}
-
-			addresses[net.Name] = infrav1.IPAddress{
-				IPV4: ip,
-			}
-		}
-
-		if net.IPv6PoolRef != nil {
-			ip, err := handleIPAddressForDevice(ctx, machineScope, net.Name, infrav1.IPV6Format, net.IPv6PoolRef)
-			if err != nil || ip == "" {
-				return true, errors.Wrapf(err, "unable to handle IPAddress for device %s", net.Name)
-			}
-
-			addresses[net.Name] = infrav1.IPAddress{
-				IPV6: ip,
-			}
-		}
-	}
-
-	return false, nil
-}
-*/
 
 func isIPV4(ip string) bool {
 	return netip.MustParseAddr(ip).Is4()
