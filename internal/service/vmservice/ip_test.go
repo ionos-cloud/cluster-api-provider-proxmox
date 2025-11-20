@@ -58,7 +58,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
-	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]), infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: []string{}})
+	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]), infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: nil})
 	require.NoError(t, err)
 	require.True(t, requeue)
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)

@@ -80,7 +80,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	infraCluster := &infrav1.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
-			Kind: "ProxmoxCluster",
+			Kind:       "ProxmoxCluster",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -106,7 +106,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	infraMachine := &infrav1.ProxmoxMachine{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
-			Kind: "ProxmoxMachine",
+			Kind:       "ProxmoxMachine",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -190,7 +190,7 @@ func getIPSuffix(addr string) string {
 func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip string, prefix int, pool *corev1.TypedLocalObjectReference) {
 	if pool != nil {
 		ipAddrClaim := &ipamv1.IPAddressClaim{
-			TypeMeta: metav1.TypeMeta {
+			TypeMeta: metav1.TypeMeta{
 				APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -198,8 +198,8 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 				Namespace: machineScope.Namespace(),
 				OwnerReferences: []metav1.OwnerReference{{
 					APIVersion: machineScope.ProxmoxMachine.APIVersion,
-					Kind: "ProxmoxMachine",
-					Name: machineScope.Name(),
+					Kind:       "ProxmoxMachine",
+					Name:       machineScope.Name(),
 				}},
 			},
 			Spec: ipamv1.IPAddressClaimSpec{
@@ -210,7 +210,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 	}
 
 	ipAddr := &ipamv1.IPAddress{
-		TypeMeta: metav1.TypeMeta {
+		TypeMeta: metav1.TypeMeta{
 			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
