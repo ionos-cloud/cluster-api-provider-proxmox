@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
-go 1.24.6
+go 1.24.6 // keep in sync with hack/tools/go.mod
 
 replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.10.4
 
@@ -18,6 +18,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.34.0
+	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
@@ -139,6 +140,8 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
+	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
+	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.25.0 // indirect

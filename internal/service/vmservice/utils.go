@@ -17,15 +17,19 @@ limitations under the License.
 package vmservice
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"k8s.io/utils/ptr"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
 const (
@@ -35,6 +39,22 @@ const (
 	// DefaultNetworkDeviceIPV6 is the default network device name for ipv6.
 	DefaultNetworkDeviceIPV6 = "net0-inet6"
 )
+
+func GetClusterPoolsFromMachine(ctx context.Context, machineScope *scope.MachineScope, m *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
+
+	// Sanity check Machine
+	owners := m.GetOwnerReferences()
+	if len(owners) != 1 { // TODO Error string
+		return nil, errors.New("Expected exactly 1 owner for ProxmoxMachine")
+	}
+	if owners[0].Kind != "Machine" {
+		return nil, errors.New("Owner of Proxmoxmachine not a Machine")
+	}
+
+	pools, _ := machineScope.IPAMHelper.GetOwnerClusterPools(ctx, m)
+
+	return pools, nil
+}
 
 func extractUUID(input string) string {
 	pattern := `(^|,)uuid=([0-9a-fA-F-]+)`
@@ -79,30 +99,30 @@ func extractNetworkBridge(input string) string {
 }
 
 // extractNetworkMTU returns the mtu out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500.
-func extractNetworkMTU(input string) uint16 {
+func extractNetworkMTU(input string) int32 {
 	re := regexp.MustCompile(`mtu=(\d+)`)
 	match := re.FindStringSubmatch(input)
 	if len(match) > 1 {
-		mtu, err := strconv.ParseUint(match[1], 10, 16)
+		mtu, err := strconv.ParseInt(match[1], 10, 32)
 		if err != nil {
 			return 0
 		}
-		return uint16(mtu)
+		return int32(mtu)
 	}
 
 	return 0
 }
 
 // extractNetworkVLAN returns the vlan out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100.
-func extractNetworkVLAN(input string) uint16 {
+func extractNetworkVLAN(input string) int32 {
 	re := regexp.MustCompile(`tag=(\d+)`)
 	match := re.FindStringSubmatch(input)
 	if len(match) > 1 {
-		vlan, err := strconv.ParseUint(match[1], 10, 16)
+		vlan, err := strconv.ParseInt(match[1], 10, 32)
 		if err != nil {
 			return 0
 		}
-		return uint16(vlan)
+		return int32(vlan)
 	}
 
 	return 0
@@ -116,41 +136,44 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
 
-	if machineScope.ProxmoxMachine.Spec.Network.Default != nil {
-		net0 := nets[infrav1alpha1.DefaultNetworkDevice]
-		if net0 == "" {
-			return true
-		}
-
-		desiredDefault := *machineScope.ProxmoxMachine.Spec.Network.Default
-
-		model := extractNetworkModel(net0)
-		bridge := extractNetworkBridge(net0)
-
-		if model != *desiredDefault.Model || bridge != desiredDefault.Bridge {
-			return true
-		}
-
-		if desiredDefault.MTU != nil {
-			mtu := extractNetworkMTU(net0)
-
-			if mtu != *desiredDefault.MTU {
+	// TODO: remove
+	/*
+		if machineScope.ProxmoxMachine.Spec.Network.Default != nil {
+			net0 := nets[infrav1alpha2.DefaultNetworkDevice]
+			if net0 == "" {
 				return true
 			}
-		}
 
-		if desiredDefault.VLAN != nil {
-			vlan := extractNetworkVLAN(net0)
+			desiredDefault := *machineScope.ProxmoxMachine.Spec.Network.Default
 
-			if vlan != *desiredDefault.VLAN {
+			model := extractNetworkModel(net0)
+			bridge := extractNetworkBridge(net0)
+
+			if model != *desiredDefault.Model || bridge != desiredDefault.Bridge {
 				return true
 			}
-		}
-	}
 
-	devices := machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices
+			if desiredDefault.MTU != nil {
+				mtu := extractNetworkMTU(net0)
+
+				if mtu != *desiredDefault.MTU {
+					return true
+				}
+			}
+
+			if desiredDefault.VLAN != nil {
+				vlan := extractNetworkVLAN(net0)
+
+				if vlan != *desiredDefault.VLAN {
+					return true
+				}
+			}
+		}
+	*/
+
+	devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 	for _, v := range devices {
-		net := nets[v.Name]
+		net := nets[ptr.Deref(v.Name, infrav1.DefaultNetworkDevice)]
 		// device is empty.
 		if len(net) == 0 {
 			return true
@@ -160,7 +183,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 		bridge := extractNetworkBridge(net)
 
 		// current is different from the desired spec.
-		if model != *v.Model || bridge != v.Bridge {
+		if model != *v.Model || bridge != *v.Bridge {
 			return true
 		}
 
@@ -186,7 +209,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 // formatNetworkDevice formats a network device config
 // example 'virtio,bridge=vmbr0,tag=100'.
-func formatNetworkDevice(model, bridge string, mtu *uint16, vlan *uint16) string {
+func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32) string {
 	var components = []string{model, fmt.Sprintf("bridge=%s", bridge)}
 
 	if mtu != nil {

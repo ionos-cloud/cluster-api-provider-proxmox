@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 func TestFindVM_FindByNodeAndID(t *testing.T) {
@@ -38,6 +38,7 @@ func TestFindVM_FindByNodeAndID(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.NoError(t, err)
+
 }
 
 func TestFindVM_FindByNodeLocationsAndID(t *testing.T) {
@@ -45,7 +46,7 @@ func TestFindVM_FindByNodeLocationsAndID(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
-	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1alpha1.NodeLocation{
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: machineScope.ProxmoxMachine.GetName()},
 		Node:    "node3",
 	}, false)
@@ -54,6 +55,7 @@ func TestFindVM_FindByNodeLocationsAndID(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.NoError(t, err)
+
 }
 
 func TestFindVM_NotFound(t *testing.T) {
@@ -67,6 +69,7 @@ func TestFindVM_NotFound(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.ErrorIs(t, err, ErrVMNotFound)
+
 }
 
 func TestFindVM_NotCreated(t *testing.T) {
@@ -74,6 +77,7 @@ func TestFindVM_NotCreated(t *testing.T) {
 
 	_, err := FindVM(context.TODO(), machineScope)
 	require.ErrorIs(t, err, ErrVMNotCreated)
+
 }
 
 func TestFindVM_NotInitialized(t *testing.T) {
@@ -88,6 +92,7 @@ func TestFindVM_NotInitialized(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.ErrorIs(t, err, ErrVMNotInitialized)
+
 }
 
 func TestUpdateVMLocation_MissingName(t *testing.T) {
@@ -103,6 +108,7 @@ func TestUpdateVMLocation_MissingName(t *testing.T) {
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
+
 }
 
 func TestUpdateVMLocation_NameMismatch(t *testing.T) {
@@ -120,6 +126,7 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
+
 }
 
 func TestUpdateVMLocation_UpdateNode(t *testing.T) {
@@ -129,7 +136,7 @@ func TestUpdateVMLocation_UpdateNode(t *testing.T) {
 	vmr := newVMResource()
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.ProxmoxNode = ptr.To("node3")
-	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1alpha1.NodeLocation{
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
 		Node:    "node3",
 	}, false)
@@ -140,6 +147,7 @@ func TestUpdateVMLocation_UpdateNode(t *testing.T) {
 	require.NoError(t, updateVMLocation(ctx, machineScope))
 	require.Equal(t, vmr.Node, *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.Equal(t, vmr.Node, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+
 }
 
 func TestUpdateVMLocation_WithTask(t *testing.T) {
@@ -150,6 +158,7 @@ func TestUpdateVMLocation_WithTask(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("test-task-uupid")
 
 	require.Error(t, updateVMLocation(context.TODO(), machineScope))
+
 }
 
 func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
@@ -168,4 +177,5 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
+
 }

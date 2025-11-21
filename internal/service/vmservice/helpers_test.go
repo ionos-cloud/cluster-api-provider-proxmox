@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
@@ -77,44 +77,52 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		},
 	}
 
-	infraCluster := &infrav1alpha1.ProxmoxCluster{
+	infraCluster := &infrav1.ProxmoxCluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
+			Kind:       "ProxmoxCluster",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.ClusterFinalizer,
+				infrav1.ClusterFinalizer,
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxClusterSpec{
-			IPv4Config: &infrav1alpha1.IPConfigSpec{
+		Spec: infrav1.ProxmoxClusterSpec{
+			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{"10.0.0.10-10.0.0.20"},
 				Prefix:    24,
 				Gateway:   "10.0.0.1",
 			},
 			DNSServers: []string{"1.2.3.4"},
 		},
-		Status: infrav1alpha1.ProxmoxClusterStatus{
-			NodeLocations: &infrav1alpha1.NodeLocations{},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{},
 		},
 	}
-	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1alpha1.IPV4Format)}}
+	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1.IPV4Format)}}
 
-	infraMachine := &infrav1alpha1.ProxmoxMachine{
+	infraMachine := &infrav1.ProxmoxMachine{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
+			Kind:       "ProxmoxMachine",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.MachineFinalizer,
+				infrav1.MachineFinalizer,
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxMachineSpec{
-			VirtualMachineCloneSpec: infrav1alpha1.VirtualMachineCloneSpec{
-				TemplateSource: infrav1alpha1.TemplateSource{
-					SourceNode: "node1",
+		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
+				TemplateSource: infrav1.TemplateSource{
+					SourceNode: ptr.To("node1"),
 					TemplateID: ptr.To[int32](123),
 				},
 			},
-		},
+		}),
 	}
 
 	scheme := runtime.NewScheme()
@@ -122,11 +130,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	require.NoError(t, clusterv1.AddToScheme(scheme))
 	require.NoError(t, ipamv1.AddToScheme(scheme))
 	require.NoError(t, ipamicv1.AddToScheme(scheme))
-	require.NoError(t, infrav1alpha1.AddToScheme(scheme))
+	require.NoError(t, infrav1.AddToScheme(scheme))
 	kubeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(cluster, machine, infraCluster, infraMachine).
-		WithStatusSubresource(&infrav1alpha1.ProxmoxCluster{}, &infrav1alpha1.ProxmoxMachine{}).
+		WithStatusSubresource(&infrav1.ProxmoxCluster{}, &infrav1.ProxmoxMachine{}).
 		Build()
 
 	ipamHelper := ipam.NewHelper(kubeClient, infraCluster)
@@ -135,6 +143,15 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	require.NoError(t, ipamHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
 	mockClient := proxmoxtest.NewMockClient(t)
+
+	// fake indexing tests. TODO: Unify
+
+	indexFunc := func(obj client.Object) []string {
+		return []string{obj.(*ipamv1.IPAddress).Spec.PoolRef.Name}
+	}
+
+	err := fake.AddIndex(kubeClient, &ipamv1.IPAddress{}, "spec.poolRef.name", indexFunc)
+	require.NoError(t, err)
 
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:         kubeClient,
@@ -161,7 +178,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 }
 
 func getIPSuffix(addr string) string {
-	suffix := infrav1alpha1.DefaultSuffix
+	suffix := infrav1.DefaultSuffix
 	ip := netip.MustParseAddr(addr)
 	if ip.Is6() {
 		suffix += "6"
@@ -170,54 +187,76 @@ func getIPSuffix(addr string) string {
 	return suffix
 }
 
-func createIPAddressResource(t *testing.T, c client.Client, name, namespace, ip string, prefix int) {
-	obj := &ipamv1.IPAddress{
+func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip string, prefix int, pool *corev1.TypedLocalObjectReference) {
+	if pool != nil {
+		ipAddrClaim := &ipamv1.IPAddressClaim{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: machineScope.Namespace(),
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: machineScope.ProxmoxMachine.APIVersion,
+					Kind:       "ProxmoxMachine",
+					Name:       machineScope.Name(),
+				}},
+			},
+			Spec: ipamv1.IPAddressClaimSpec{
+				PoolRef: *pool,
+			},
+		}
+		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
+	}
+
+	ipAddr := &ipamv1.IPAddress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: machineScope.Namespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
 			Address: ip,
 			Prefix:  prefix,
 			Gateway: netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String(),
+			PoolRef: ptr.Deref(pool, corev1.TypedLocalObjectReference{}),
 		},
 	}
-	require.NoError(t, c.Create(context.Background(), obj))
+	require.NoError(t, c.Create(context.Background(), ipAddr))
 }
 
-func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string) {
+func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is4(), "%s is not a valid ipv4 address", ip)
 	name := formatIPAddressName(machineScope.Name(), device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
-	createIPAddressResource(t, c, name, machineScope.Namespace(), ip, 24)
+	createIPAddressResource(t, c, name, machineScope, ip, 24, pool)
 }
 
-func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string) {
+func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is6(), "%s is not a valid ipv6 address", ip)
 	name := formatIPAddressName(machineScope.Name(), device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
-	createIPAddressResource(t, c, name, machineScope.Namespace(), ip, 64)
+	createIPAddressResource(t, c, name, machineScope, ip, 64, pool)
 }
 
 func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineScope) {
-	for _, dev := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
-		poolRef := dev.IPv4PoolRef
-		if poolRef == nil {
-			poolRef = dev.IPv6PoolRef
+	for _, dev := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
+		for _, poolRef := range dev.IPPoolRef {
+			var obj client.Object
+			switch poolRef.Kind {
+			case "InClusterIPPool":
+				obj = &ipamicv1.InClusterIPPool{}
+				obj.SetNamespace(machineScope.Namespace())
+			case "GlobalInClusterIPPool":
+				obj = &ipamicv1.GlobalInClusterIPPool{}
+			}
+			obj.SetName(poolRef.Name)
+			require.NoError(t, c.Create(context.Background(), obj))
 		}
-
-		var obj client.Object
-		switch poolRef.Kind {
-		case "InClusterIPPool":
-			obj = &ipamicv1.InClusterIPPool{}
-			obj.SetNamespace(machineScope.Namespace())
-		case "GlobalInClusterIPPool":
-			obj = &ipamicv1.GlobalInClusterIPPool{}
-		}
-		obj.SetName(poolRef.Name)
-		require.NoError(t, c.Create(context.Background(), obj))
 	}
 }
 
