@@ -23,7 +23,7 @@ jobs:
     name: build image
     runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v5
 
       - name: Generate lowercase repository name
         run: |
@@ -54,7 +54,7 @@ jobs:
 
       - name: Scan image
         if: github.event_name == 'pull_request'
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         id: scan
         with:
           scan-ref: ${{ steps.meta.outputs.tags }}

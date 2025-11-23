@@ -298,6 +298,7 @@ type InterfaceConfig struct {
 
 	// LinkMTU is the network device Maximum Transmission Unit.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == 1 || ( self >= 576 && self <= 65520)",message="invalid MTU value"
 	LinkMTU MTU `json:"linkMtu,omitempty"`
 }
 
@@ -395,6 +396,7 @@ type NetworkDevice struct {
 	// MTU is the network device Maximum Transmission Unit.
 	// When set to 1, virtio devices inherit the MTU value from the underlying bridge.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == 1 || ( self >= 576 && self <= 65520)",message="invalid MTU value"
 	MTU MTU `json:"mtu,omitempty"`
 
 	// VLAN is the network L2 VLAN.
@@ -418,8 +420,6 @@ type NetworkDevice struct {
 }
 
 // MTU is the network device Maximum Transmission Unit. MTUs below 1280 break IPv6.
-// +optional
-// +kubebuilder:validation:XValidation:rule="self == 1 || ( self >= 576 && self <= 65520)",message="invalid MTU value"
 type MTU *uint16
 
 // AdditionalNetworkDevice the definition of a Proxmox network device.

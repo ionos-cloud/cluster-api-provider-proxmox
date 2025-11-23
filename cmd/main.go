@@ -37,10 +37,10 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
 	"sigs.k8s.io/cluster-api/feature"
+	"sigs.k8s.io/cluster-api/util/flags"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -60,13 +60,13 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 
-	metricsAddr                 string
 	enableLeaderElection        bool
 	leaderElectionLeaseDuration time.Duration
 	leaderElectionRenewDeadline time.Duration
 	leaderElectionRetryPeriod   time.Duration
 	enableWebhooks              bool
 	probeAddr                   string
+	managerOptions              = flags.ManagerOptions{}
 
 	// ProxmoxURL env variable that defines the Proxmox host.
 	ProxmoxURL string
@@ -97,9 +97,15 @@ func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
+	_, metricsOptions, err := flags.GetManagerOptions(managerOptions)
+	if err != nil {
+		setupLog.Error(err, "Unable to start manager: invalid flags")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:  scheme,
-		Metrics: metricsserver.Options{BindAddress: metricsAddr},
+		Metrics: *metricsOptions,
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
 			Port: 9443,
 		}),
@@ -234,7 +240,6 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	fs.StringVar(&proxmoxRootCertFile, "proxmox-root-cert-file", "",
 		"Root-Certificate to use to verify server TLS certificate")
 
-	fs.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	fs.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -247,6 +252,8 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 		"Duration the LeaderElector clients should wait between tries of actions (duration string)")
 	fs.BoolVar(&enableWebhooks, "enable-webhooks", true,
 		"If true, run webhook server alongside manager")
+
+	flags.AddManagerOptions(fs, &managerOptions)
 
 	feature.MutableGates.AddFlag(fs)
 }
