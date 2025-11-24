@@ -195,18 +195,16 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	require.Nil(t, err)
 }
 
-// TODO: Do we need to error on not having a pool?
-/*
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	machineScope.SetVirtualMachine(vm)
 
 	cfg, err := getNetworkConfigDataForDevice(context.Background(), machineScope, "net0", nil)
-	require.Error(t, err)
-	require.Nil(t, cfg)
+	require.NoError(t, err)
+	require.Equal(t, cfg.MacAddress, "A6:23:64:4D:84:CB")
+	require.Len(t, cfg.IPConfigs, 0)
 }
-*/
 
 func TestGetNetworkConfigDataForDevice_MissingMACAddress(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
