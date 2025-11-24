@@ -215,8 +215,6 @@ func TestGetNetworkConfigDataForDevice_MissingMACAddress(t *testing.T) {
 	require.Nil(t, cfg)
 }
 
-// TODO: getCommonInterfaceConfig no longer sets IPs
-/*
 func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
@@ -226,7 +224,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 			{
 				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
-				Name:   "net1",
+				Name:   ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
 					IPPoolRef: []corev1.TypedLocalObjectReference{{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -239,10 +237,10 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 	}
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
-	require.Error(t, err)
+	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
+	// Check that no IP config has been assigned.
+	require.Len(t, cfg.IPConfigs, 0)
 }
-*/
 
 /* getCommonInterfaceConfig cannot fail
 func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
