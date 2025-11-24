@@ -238,11 +238,10 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
 	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
-	// Check that no IP config has been assigned.
+	// Check that no IP config has been assigned even in the presence of an IPPoolRef.
 	require.Len(t, cfg.IPConfigs, 0)
 }
 
-/* getCommonInterfaceConfig cannot fail
 func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
@@ -251,16 +250,16 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 			{
 				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
-				Name:   "net1",
+				Name:   ptr.To("net1"),
 			},
 		},
 	}
 
 	cfg := &types.NetworkConfigData{Name: "net1"}
-	err := getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
-	require.NoError(t, err)
+	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
+	// Check that no IP config has been assigned.
+	require.Len(t, cfg.IPConfigs, 0)
 }
-*/
 
 func TestGetCommonInterfaceConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTest(t)
