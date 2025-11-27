@@ -36,13 +36,12 @@ import (
 )
 
 func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if machineScope.ProxmoxMachine.Status.IPAddresses != nil {
-		// skip machine, it has IPAddresses already. IPAddresses are part of bootstrap
-		// and can not be reconciled beyond bootstrap at the moment.
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForStaticIPAllocationReason {
+		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for IP Address assignment
 		return false, nil
 	}
+
 	machineScope.Logger.V(4).Info("reconciling IPAddresses.")
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityInfo, "")
 
 	// TODO: This datastructure is BAD
 	netPoolAddresses := make(map[string]map[string][]string)
@@ -77,6 +76,8 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	}
 	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
 	machineScope.ProxmoxMachine.Status.IPAddresses = statusAddresses
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityInfo, "")
 
 	return true, nil
 }

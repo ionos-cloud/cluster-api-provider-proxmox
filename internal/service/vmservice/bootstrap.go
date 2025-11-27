@@ -37,6 +37,12 @@ import (
 )
 
 func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForBootstrapDataReconcilationReason {
+		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for Bootsrap Data reconcilation
+		return false, nil
+	}
+
+	/* TODO: This is useless because we use conditions as state machines
 	if ptr.Deref(machineScope.ProxmoxMachine.Status.BootstrapDataProvided, false) {
 		// skip machine already have the bootstrap data.
 		return false, nil
@@ -47,6 +53,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
 		return true, nil
 	}
+	*/
 
 	// make sure MacAddress is set.
 	if !vmHasMacAddresses(machineScope) {
@@ -66,7 +73,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	nicData, err := getNetworkConfigData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityWarning, "%s", err)
 		return false, err
 	}
 
@@ -87,7 +94,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, errors.Wrap(err, "failed to inject bootstrap data")
 	}
 
+	// Todo: This status field is now superfluous
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForVMPowerUpReason, clusterv1.ConditionSeverityInfo, "")
 
 	return false, nil
 }

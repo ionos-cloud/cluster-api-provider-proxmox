@@ -71,37 +71,40 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 		return vm, err
 	}
 
+	// TODO: This requires a proper state machine. We're reusing
+	// the condition reasons in VMProvisionedConditions as a state machine
+	// for convenience, but this definitely needs to be refactored.
 	if requeue, err := ensureVirtualMachine(ctx, scope); err != nil || requeue {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.CloningReason
 
 	if requeue, err := reconcileVirtualMachineConfig(ctx, scope); err != nil || requeue {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForDiskReconcilationReason
 
 	if err := reconcileDisks(ctx, scope); err != nil {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForStaticIPAllocationReason
 
 	if requeue, err := reconcileIPAddresses(ctx, scope); err != nil || requeue {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForBootstrapDataReason
 
 	if requeue, err := reconcileBootstrapData(ctx, scope); err != nil || requeue {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForVMPowerUpReason
 
 	if requeue, err := reconcilePowerState(ctx, scope); err != nil || requeue {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForClusterAPIMachineAddressesReason
 
 	if err := reconcileMachineAddresses(scope); err != nil {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForCloudInitReason
 
 	if requeue, err := checkCloudInitStatus(ctx, scope); err != nil || requeue {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForBootstrapReadyReason
 
 	// if the root machine is ready, we can assume that the VM is ready as well.
 	// unmount the cloud-init iso if it is still mounted.
@@ -109,17 +112,24 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 		if err := unmountCloudInitISO(ctx, scope); err != nil {
 			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
 		}
-	}
+	} // State Machine is finished
 
 	vm.State = infrav1.VirtualMachineStateReady
 	return vm, nil
 }
 
 func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if !machineScope.VirtualMachine.IsRunning() {
-		// skip if the vm is not running.
-		return true, nil
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForCloudInitReason {
+		// Machine is in the wrong state to reconcile, we only reconcile machines waiting for cloud init
+		return false, nil
 	}
+
+	/*
+		if !machineScope.VirtualMachine.IsRunning() {
+			// skip if the vm is not running.
+			return true, nil
+		}
+	*/
 
 	if !machineScope.SkipQemuGuestCheck() {
 		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
@@ -127,6 +137,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 		}
 	}
 
+	// TODO: Is there a status for Ignition?
 	if !machineScope.SkipCloudInitCheck() {
 		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
 			if running {
@@ -141,6 +152,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 		}
 	}
 
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapReadyReason, clusterv1.ConditionSeverityInfo, "")
 	return false, nil
 }
 
@@ -196,34 +208,45 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 	// setting the VirtualMachine object for completing the reconciliation.
 	machineScope.SetVirtualMachine(vmRef)
 
+	// The state machine gets initialised the in vmRef error handling
 	return false, nil
 }
 
 func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) error {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForDiskReconcilationReason {
+		// Machine is in the wrong state to reconcile, we only reconcile Cloning VMs
+		return nil
+	}
+
 	machineScope.V(4).Info("reconciling disks")
 	disks := machineScope.ProxmoxMachine.Spec.Disks
-	if disks == nil {
-		// nothing to do
-		return nil
-	}
 
-	vm := machineScope.VirtualMachine
-	if vm.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Ready, false) {
-		// We only want to do this before the machine was started or is ready
-		return nil
-	}
+	if disks != nil {
+		vm := machineScope.VirtualMachine
+		if vm.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Ready, false) {
+			// We only want to do this before the machine was started or is ready
+			return nil
+		}
 
-	if bv := disks.BootVolume; bv != nil {
-		if _, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize()); err != nil {
-			machineScope.Error(err, "unable to set disk size", "vm", machineScope.VirtualMachine.VMID)
-			return err
+		if bv := disks.BootVolume; bv != nil {
+			if _, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize()); err != nil {
+				machineScope.Error(err, "unable to set disk size", "vm", machineScope.VirtualMachine.VMID)
+				return err
+			}
 		}
 	}
 
+	// Machine is now waiting for IPAddress Allocations, move State Machine along
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityInfo, "")
 	return nil
 }
 
 func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.CloningReason {
+		// Machine is in the wrong state to reconcile, we only reconcile Cloning VMs.
+		return false, nil
+	}
+
 	if machineScope.VirtualMachine.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Ready, false) {
 		// We only want to do this before the machine was started or is ready
 		return false, nil
@@ -305,24 +328,35 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	}
 
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(task.UPID))
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForDiskReconcilationReason, clusterv1.ConditionSeverityInfo, "")
 	return true, nil
 }
 
-func reconcileMachineAddresses(scope *scope.MachineScope) error {
-	addr, err := getMachineAddresses(scope)
+func reconcileMachineAddresses(machineScope *scope.MachineScope) error {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForClusterAPIMachineAddressesReason {
+		// Machine is in the wrong state to reconcile, we only reconcile powered up VMs
+		return nil
+	}
+
+	addr, err := getClusterAPIMachineAddresses(machineScope)
 	if err != nil {
-		scope.Error(err, "failed to retrieve machine addresses")
+		machineScope.Error(err, "failed to retrieve machine addresses")
 		return err
 	}
 
-	scope.SetAddresses(addr)
+	machineScope.SetAddresses(addr)
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForCloudInitReason, clusterv1.ConditionSeverityInfo, "")
 	return nil
 }
 
-func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
-	if !machineHasIPAddress(scope.ProxmoxMachine) {
-		return nil, errors.New("machine does not yet have an ip address")
-	}
+func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
+	/*
+		if !machineHasIPAddress(scope.ProxmoxMachine) {
+			return nil, errors.New("machine does not yet have an ip address")
+		}
+	*/
 
 	if !scope.VirtualMachine.IsRunning() {
 		return nil, errors.New("unable to apply configuration as long as the virtual machine is not running")
@@ -335,6 +369,7 @@ func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress,
 		},
 	}
 
+	// TODO: DHCP as InternalIP
 	if scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
 		addresses = append(addresses, clusterv1.MachineAddress{
 			Type:    clusterv1.MachineInternalIP,
