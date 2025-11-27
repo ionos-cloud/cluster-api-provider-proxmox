@@ -40,9 +40,34 @@ const (
 	// NOTE: This reason does not apply to ProxmoxVM (this state happens before the ProxmoxVM is actually created).
 	WaitingForBootstrapDataReason = "WaitingForBootstrapData"
 
+	// WaitingForBootstrapReadyReason (Severity=Info) documents a ProxmoxMachine waiting for the underlying
+	// Cluster-API machine to be ready.
+	// bootstrapping ISO.
+	WaitingForBootstrapReadyReason = "WaitingForBootstrapReady"
+
+	// WaitingForCloudInitReason (Severity=Info) documents a ProxmoxVM waiting for CloudInit.
+	WaitingForCloudInitReason = "WaitingForCloudInit"
+
+	// WaitingForClusterAPIMachineAddressesReason (Severity=Info) documents a machine assigning addresses
+	// host addresses for Cluster API
+	WaitingForClusterAPIMachineAddressesReason = "WaitingForClusterAPIMachineAddresses"
+
+	// WaitingForVMPowerUpReason (Severity=Info) documents a ProxmoxVM waiting for  Proxmox to power it on.
+	WaitingForVMPowerUpReason = "WaitingForVMPowerUp"
+
+	// WaitingForBootstrapDataReconcilationReason  (Severity=Info) documents a ProxmoxVM waiting for the
+	// reconcilation of Bootstrap Data for cloud-init/ignition.
+	WaitingForBootstrapDataReconcilationReason = "WaitingForBootstrapDataReconcilation"
+
 	// WaitingForStaticIPAllocationReason (Severity=Info) documents a ProxmoxVM waiting for the allocation of
 	// a static IP address.
 	WaitingForStaticIPAllocationReason = "WaitingForStaticIPAllocation"
+
+	// WaitingForDiskReconcilationReason (Severity=Info) documents a ProxmoxVM waiting for the disks to resize.
+	WaitingForDiskReconcilationReason = "WaitingForDiskReconcilation"
+
+	// WaitingForVirtualMachineConfig (Severity=Info) documents a ProxmoxVM waiting for VritualMachineConfig.
+	WaitingForVirtualMachineConfigReason = "WaitingForVirtualMachineConfig"
 
 	// CloningReason documents (Severity=Info) a ProxmoxMachine/ProxmoxVM currently executing the clone operation.
 	CloningReason = "Cloning"

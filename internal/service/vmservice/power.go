@@ -31,15 +31,21 @@ import (
 )
 
 func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if !machineHasIPAddress(machineScope.ProxmoxMachine) {
-		machineScope.V(4).Info("ip address not set for machine")
-		// machine doesn't have an ip address yet
-		// needs to reconcile again
-		return true, nil
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForVMPowerUpReason {
+		// Machine is in the wrong state to reconcile, we only reconcile machines waiting to power on
+		return false, nil
 	}
 
+	/*
+		if !machineHasIPAddress(machineScope.ProxmoxMachine) {
+			machineScope.V(4).Info("ip address not set for machine")
+			// machine doesn't have an ip address yet
+			// needs to reconcile again
+			return true, nil
+		}
+	*/
+
 	machineScope.V(4).Info("ensuring machine is started")
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.PoweringOnReason, clusterv1.ConditionSeverityInfo, "")
 
 	t, err := startVirtualMachine(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine)
 	if err != nil {
@@ -52,6 +58,7 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 		return true, nil
 	}
 
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForCloudInitReason, clusterv1.ConditionSeverityInfo, "")
 	return false, nil
 }
 

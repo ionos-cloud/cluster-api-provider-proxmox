@@ -61,6 +61,15 @@ func (f FakeIgnitionISOInjector) Inject(_ context.Context, _ inject.BootstrapDat
 	return f.Error
 }
 
+// setupReconcilerTestWithCondition sets up a reconciler test with a condition for the proxmoxmachiens statemachine.
+func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
+	machineScope, mockClient, client := setupReconcilerTest(t)
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, condition, clusterv1.ConditionSeverityInfo, "")
+
+	return machineScope, mockClient, client
+}
+
 // setupReconcilerTest initializes a MachineScope with a mock Proxmox client and a fake controller-runtime client.
 func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
 	cluster := &clusterv1.Cluster{
