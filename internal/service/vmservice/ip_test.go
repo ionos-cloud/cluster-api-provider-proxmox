@@ -93,7 +93,13 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
-	require.Equal(t, ipTag, machineScope.VirtualMachine.VirtualMachineConfig.Tags)
+
+	// Machine should have one Task Pending
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.TaskRef)
+
+	// Task should be equal to fake result from TagVM
+	require.Equal(t, "result", *machineScope.ProxmoxMachine.Status.TaskRef)
+
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
