@@ -153,7 +153,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 			return []string{}, errors.Wrapf(err, "unable to create Ip address claim for machine %s", machineScope.Name())
 		}
 
-		// send the machine to requeue so ipaddress can be created
+		// send the machine to requeue so ipaddresses can be created
 		return []string{}, nil
 	}
 

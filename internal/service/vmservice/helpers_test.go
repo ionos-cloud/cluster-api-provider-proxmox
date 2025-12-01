@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	fields "k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
@@ -162,6 +163,23 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	err := fake.AddIndex(kubeClient, &ipamv1.IPAddress{}, "spec.poolRef.name", indexFunc)
 	require.NoError(t, err)
 
+	// set up index for ipAddressClaims owner ProxmoxMachine (testing of interfaces)
+	indexFunc = func(obj client.Object) []string {
+		var ret = []string{}
+
+		owners := obj.(*ipamv1.IPAddressClaim).ObjectMeta.OwnerReferences
+
+		for _, owner := range owners {
+			if owner.Kind == infrav1.ProxmoxMachineKind {
+				ret = append(ret, owner.Name)
+			}
+		}
+		return ret
+	}
+
+	err = fake.AddIndex(kubeClient, &ipamv1.IPAddressClaim{}, "ipaddressclaim.ownerMachine", indexFunc)
+	require.NoError(t, err)
+
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:         kubeClient,
 		Logger:         &logger,
@@ -267,6 +285,32 @@ func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineSco
 			require.NoError(t, c.Create(context.Background(), obj))
 		}
 	}
+}
+
+func getIPAddressClaims(t *testing.T, c client.Client, machineScope *scope.MachineScope) map[string]*[]ipamv1.IPAddressClaim {
+	ipAddressClaims := &ipamv1.IPAddressClaimList{}
+
+	fieldSelector, _ := fields.ParseSelector("ipaddressclaim.ownerMachine=" + machineScope.Name())
+
+	listOptions := client.ListOptions{FieldSelector: fieldSelector}
+	c.List(context.Background(), ipAddressClaims, &listOptions)
+
+	claimMap := make(map[string]*[]ipamv1.IPAddressClaim)
+
+	for _, claim := range ipAddressClaims.Items {
+		pool := claim.Spec.PoolRef.Name
+
+		perPoolClaims := ptr.Deref(claimMap[pool], []ipamv1.IPAddressClaim{})
+		perPoolClaims = append(perPoolClaims, claim)
+		claimMap[pool] = &perPoolClaims
+	}
+
+	return claimMap
+}
+
+func getIPAddressClaimsPerPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, pool string) *[]ipamv1.IPAddressClaim {
+	ipAddressClaims := getIPAddressClaims(t, c, machineScope)
+	return ipAddressClaims[pool]
 }
 
 func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.MachineScope, format string) {

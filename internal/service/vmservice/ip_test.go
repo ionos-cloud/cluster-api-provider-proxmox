@@ -29,6 +29,7 @@ import (
 
 const ipTag = "ip_net0_10.10.10.10"
 
+// TODO: actually prepend net0 ipaddress claim
 func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -38,10 +39,11 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+// TestReconcileIPAddresses_CreatAdditionalClaim tests if an IPAddressClaim is created for the missing IPAddress on net1
 func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
-	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"), Kind: "InClusterIPPool", Name: "custom"}
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"), Kind: "InClusterIPPool", Name: "defaultv4"}
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"), Kind: "GlobalInClusterIPPool", Name: "additional0"}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -65,12 +67,18 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 
-	// net0 should not exist yet
-	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
+	// net1 should not exist yet, because IPAddress reconcilation should be unfinished
+	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
+
+	// test if IPAddressClaim was created
+	claimsExtraPool0 := getIPAddressClaimsPerPool(t, kubeClient, machineScope, extraPool0.Name)
+	require.NotNil(t, claimsExtraPool0)
+	require.Equal(t, 1, len(*claimsExtraPool0))
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+// TestReconcileIPAddresses_AddIPTag tests if a machine with all resources created will add a task to add tags to proxmox VMs
 func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -103,6 +111,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+// TestReconcileIPAddresses_SetIPAddresses tests if proxmoxMachine.Status.IPAddresses gets reconciled
 func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -135,6 +144,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+// TestReconcileIPAddresses_MultipleDevices tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices
 func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -175,6 +185,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+// TestReconcileIPAddresses_ tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices
 func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -209,6 +220,7 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+// TestReconcileIPAddresses_MachineIPPoolRef tests TODO
 func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
