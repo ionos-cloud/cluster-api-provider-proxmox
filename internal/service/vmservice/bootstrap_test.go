@@ -376,7 +376,6 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
-/* TODO
 func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
@@ -391,7 +390,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 			{
 				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
-				Name:   "net1",
+				Name:   ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
 					IPPoolRef: []corev1.TypedLocalObjectReference{{
@@ -413,10 +412,10 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}, IPV6: []string{"2001:db8::2"}}, "net1": {IPV4: []string{"10.0.0.10"}, IPV6: []string{"2001:db8::9"}}}
 	createIPPools(t, kubeClient, machineScope)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10")
-	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2")
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10")
-	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9")
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", nil)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10", nil)
+	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9", nil)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{}
@@ -426,10 +425,9 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
-	require.False(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
-*/
 
 /* TODO
 func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
