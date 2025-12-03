@@ -597,14 +597,13 @@ func TestIgnitionISOInjector(t *testing.T) {
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).IgnitionEnricher.BootstrapData)
 }
 
-/* TODO
 func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{{
 			Bridge: ptr.To("vmbr0"),
 			Model:  ptr.To("virtio"),
-			Name:   infrav1.DefaultNetworkDevice,
+			Name:   ptr.To(infrav1.DefaultNetworkDevice),
 			InterfaceConfig: infrav1.InterfaceConfig{
 				IPPoolRef: []corev1.TypedLocalObjectReference{{
 					APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -619,7 +618,7 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	vm.VirtualMachineConfig.SMBios1 = biosUUID
 	machineScope.SetVirtualMachine(vm)
 	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.5.10.10"}}}
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.5.10.10")
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.5.10.10", nil)
 
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
@@ -630,7 +629,6 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
-	require.False(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
-*/
