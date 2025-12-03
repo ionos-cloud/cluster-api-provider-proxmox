@@ -519,12 +519,8 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 	require.False(t, requeue)
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
-	/* TODO: make sure that this is right
-	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) == infrav1.WaitingForStaticIPAllocationReason)
-	*/
 	require.Equal(t, infrav1.VMProvisionFailedReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.ErrorContains(t, err, "network config data is not set")
-
 }
 
 func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
