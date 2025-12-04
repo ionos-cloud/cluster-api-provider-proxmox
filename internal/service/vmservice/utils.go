@@ -24,8 +24,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"k8s.io/utils/ptr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -47,12 +47,12 @@ func GetInClusterIPPoolsFromMachine(ctx context.Context, machineScope *scope.Mac
 	ret := []corev1.TypedLocalObjectReference{}
 
 	// TODO: move one function upwards
-	for _, pool := range []*ipamicv1.InClusterIPPool{pools["ipv4"], pools["ipv6"]}  {
+	for _, pool := range []*ipamicv1.InClusterIPPool{pools["ipv4"], pools["ipv6"]} {
 		if pool != nil {
 			poolRef := corev1.TypedLocalObjectReference{
 				APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
-				Name: pool.Name,
-				Kind: pool.TypeMeta.Kind,
+				Name:     pool.Name,
+				Kind:     pool.TypeMeta.Kind,
 			}
 			ret = append(ret, poolRef)
 		}

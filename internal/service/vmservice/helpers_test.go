@@ -156,7 +156,6 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	ipamHelper := ipam.NewHelper(kubeClient, infraCluster)
 	logger := logr.Discard()
 
-
 	mockClient := proxmoxtest.NewMockClient(t)
 
 	// fake indexing tests. TODO: Unify

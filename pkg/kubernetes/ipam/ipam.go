@@ -22,8 +22,8 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"regexp"
 	"reflect"
+	"regexp"
 
 	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/pkg/errors"

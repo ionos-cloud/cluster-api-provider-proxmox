@@ -54,19 +54,18 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-
 // TestReconcileIPAddresses_CreatAdditionalClaim tests if an IPAddressClaim is created for the missing IPAddress on net1
 func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "InClusterIPPool",
-													Name: getDefaultPoolRefs(machineScope)[0].Name,
-												}
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "extraPool0",
-												}
+		Kind: "GlobalInClusterIPPool",
+		Name: "extraPool0",
+	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
@@ -74,8 +73,8 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 			{
 				Name: ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
-											IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0},
-										},
+					IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0},
+				},
 			},
 		},
 	}
@@ -110,9 +109,9 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "InClusterIPPool",
-													Name: getDefaultPoolRefs(machineScope)[0].Name,
-												}
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{Name: ptr.To("net0")},
@@ -146,13 +145,13 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "InClusterIPPool",
-													Name: getDefaultPoolRefs(machineScope)[0].Name,
-												}
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "extraPool0",
-												}
+		Kind: "GlobalInClusterIPPool",
+		Name: "extraPool0",
+	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
@@ -160,8 +159,8 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 			{
 				Name: ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
-											IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0},
-										},
+					IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0},
+				},
 			},
 		},
 	}
@@ -191,34 +190,34 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "InClusterIPPool",
-													Name: getDefaultPoolRefs(machineScope)[0].Name,
-												}
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
 	ipv4pool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "ipv4pool0",
-												}
+		Kind: "GlobalInClusterIPPool",
+		Name: "ipv4pool0",
+	}
 	ipv4pool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "ipv4pool1",
-												}
+		Kind: "GlobalInClusterIPPool",
+		Name: "ipv4pool1",
+	}
 	ipv6pool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "ipv6pool",
-												}
+		Kind: "GlobalInClusterIPPool",
+		Name: "ipv6pool",
+	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name: ptr.To(infrav1.DefaultNetworkDevice),
+				Name:            ptr.To(infrav1.DefaultNetworkDevice),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{ipv4pool0}},
 			},
 			{
-				Name: ptr.To("net1"),
+				Name:            ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{ipv4pool1}},
 			},
 			{
-				Name: ptr.To("net2"),
+				Name:            ptr.To("net2"),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{ipv6pool}},
 			},
 		},
@@ -241,7 +240,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	require.Len(t, machineScope.ProxmoxMachine.Status.IPAddresses, 3)
 
 	expected := map[string]*infrav1.IPAddresses{
-		"net0": {IPV4: []string{"10.10.10.10","10.11.10.10"}},
+		"net0": {IPV4: []string{"10.10.10.10", "10.11.10.10"}},
 		"net1": {IPV4: []string{"10.100.10.10"}},
 		"net2": {IPV6: []string{"fe80::ffee"}},
 	}
@@ -258,9 +257,9 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
 	proxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"fe80::"},
-		Prefix: 64,
-		Gateway: "fe80::",
-		Metric: nil,
+		Prefix:    64,
+		Gateway:   "fe80::",
+		Metric:    nil,
 	}
 	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
 
@@ -276,24 +275,23 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "InClusterIPPool",
-													Name: getDefaultPoolRefs(machineScope)[0].Name,
-												}
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
 	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "InClusterIPPool",
-													Name: getDefaultPoolRefs(machineScope)[1].Name,
-												}
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[1].Name,
+	}
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "extrapool0",
-												}
-
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool0",
+	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{Name: ptr.To("net0")},
 			{
-				Name: ptr.To("net1"),
+				Name:            ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0}},
 			},
 		},
@@ -317,9 +315,9 @@ func TestReconcileIPAddresses_IPV6(t *testing.T) {
 	require.False(t, requeue)
 
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
-	require.Equal(t,  infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: []string{"fe80::1"}}, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]))
+	require.Equal(t, infrav1.IPAddresses{IPV4: []string{"10.10.10.10"}, IPV6: []string{"fe80::1"}}, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]))
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
-	require.Equal(t,  infrav1.IPAddresses{IPV4: []string{"10.100.10.10"}, IPV6: nil}, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]))
+	require.Equal(t, infrav1.IPAddresses{IPV4: []string{"10.100.10.10"}, IPV6: nil}, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]))
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
@@ -329,26 +327,26 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "InClusterIPPool",
-													Name: getDefaultPoolRefs(machineScope)[0].Name,
-												}
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "extrapool0",
-												}
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool0",
+	}
 	extraPool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-													Kind: "GlobalInClusterIPPool",
-													Name: "extrapool1",
-												}
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool1",
+	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name: ptr.To("net0"),
+				Name:            ptr.To("net0"),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0}},
 			},
 			{
-				Name: ptr.To("net1"),
+				Name:            ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool1}},
 			},
 		},
