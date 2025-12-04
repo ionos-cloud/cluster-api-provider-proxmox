@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+	"reflect"
 
 	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/pkg/errors"
@@ -35,7 +36,6 @@ import (
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -68,30 +68,25 @@ func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, format string) string 
 	return fmt.Sprintf("%s-%s-icip", cluster.GetName(), format)
 }
 
-func (h *Helper) GetOwnerClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
+// GetInClusterPools returns the IPPools belonging to the ProxmoxCluster.
+func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
 	pools := map[string]*ipamicv1.InClusterIPPool{}
 	namespace := moxm.ObjectMeta.Namespace
-	owners := moxm.GetOwnerReferences()
 
-	machine := &clusterv1.Machine{}
-	h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: owners[0].Name}, machine)
-
-	if machine == nil {
-		// ERROR
-	}
-
-	cluster, _ := util.GetClusterFromMetadata(ctx, h.ctrlClient, machine.ObjectMeta)
-	clusterName := cluster.Spec.InfrastructureRef.Name
+	// cluster, _ := util.GetClusterFromMetadata(ctx, h.ctrlClient, machine.ObjectMeta)
+	clusterName := moxm.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"]
 	proxmoxCluster := &infrav1alpha2.ProxmoxCluster{}
 
-	// TODO: Per ZONE IPPoolRefs
 	h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: clusterName}, proxmoxCluster)
 
+	// TODO: Per ZONE IPPoolRefs
 	for _, poolRef := range proxmoxCluster.Status.InClusterIPPoolRef {
 		pool := &ipamicv1.InClusterIPPool{}
 		h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: poolRef.Name}, pool)
-		// There's no way of telling if a pool is ipv4 or ipv6 except for parsing it
-		re := regexp.MustCompile("^.+[^/-]")
+		// There's no way of telling if a pool is ipv4 or ipv6 except for parsing it.
+		// cluster-api-in-cluster-ipam keeps the pool functions to tag a pool ipv4/ipv6 internal,
+		// so we need to reinvent the wheel here.
+		re := regexp.MustCompile(`^[^-/]+`)
 		ipString := re.FindString(pool.Spec.Addresses[0])
 		ip, _ := netip.ParseAddr(ipString)
 
@@ -117,6 +112,11 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 		ipv4Config := h.cluster.Spec.IPv4Config
 
 		v4Pool := &ipamicv1.InClusterIPPool{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: ipamicv1.GroupVersion.String(),
+				// Thank you ipamic for making InClusterIPPoolKind private
+				Kind: reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      InClusterPoolFormat(h.cluster, infrav1.IPV4Format),
 				Namespace: h.cluster.GetNamespace(),
@@ -159,6 +159,11 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 	// ipv6
 	if h.cluster.Spec.IPv6Config != nil {
 		v6Pool := &ipamicv1.InClusterIPPool{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: ipamicv1.GroupVersion.String(),
+				// Thank you ipamic for making InClusterIPPoolKind private
+				Kind: reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      InClusterPoolFormat(h.cluster, infrav1.IPV6Format),
 				Namespace: h.cluster.GetNamespace(),

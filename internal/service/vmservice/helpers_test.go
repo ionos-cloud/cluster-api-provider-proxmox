@@ -84,6 +84,9 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
+			Labels: map[string]string{
+				"cluster.x-k8s.io/cluster-name": "test",
+			},
 		},
 	}
 
@@ -124,6 +127,9 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			Finalizers: []string{
 				infrav1.MachineFinalizer,
 			},
+			Labels: map[string]string{
+				"cluster.x-k8s.io/cluster-name": "test",
+			},
 		},
 		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
@@ -150,7 +156,6 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	ipamHelper := ipam.NewHelper(kubeClient, infraCluster)
 	logger := logr.Discard()
 
-	require.NoError(t, ipamHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
 	mockClient := proxmoxtest.NewMockClient(t)
 
@@ -179,6 +184,9 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 
 	err = fake.AddIndex(kubeClient, &ipamv1.IPAddressClaim{}, "ipaddressclaim.ownerMachine", indexFunc)
 	require.NoError(t, err)
+
+	// Create InClusterIPPools after the indexes are set up
+	require.NoError(t, ipamHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:         kubeClient,
@@ -256,7 +264,8 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 
 func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is4(), "%s is not a valid ipv4 address", ip)
-	name := formatIPAddressName(machineScope.Name(), device)
+	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummy"}).Name
+	name := formatIPAddressName(machineScope.Name(), poolName, device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
 	createIPAddressResource(t, c, name, machineScope, ip, 24, pool)
@@ -264,7 +273,8 @@ func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope
 
 func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is6(), "%s is not a valid ipv6 address", ip)
-	name := formatIPAddressName(machineScope.Name(), device)
+	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummyv6"}).Name
+	name := formatIPAddressName(machineScope.Name(), poolName, device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
 	createIPAddressResource(t, c, name, machineScope, ip, 64, pool)
@@ -285,6 +295,13 @@ func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineSco
 			require.NoError(t, c.Create(context.Background(), obj))
 		}
 	}
+}
+
+// todo: ZONES?
+func getDefaultPoolRefs(machineScope *scope.MachineScope) []corev1.LocalObjectReference {
+	cluster := machineScope.InfraCluster.ProxmoxCluster
+
+	return cluster.Status.InClusterIPPoolRef
 }
 
 func getIPAddressClaims(t *testing.T, c client.Client, machineScope *scope.MachineScope) map[string]*[]ipamv1.IPAddressClaim {
