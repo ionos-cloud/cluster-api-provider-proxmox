@@ -24,8 +24,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
+	corev1 "k8s.io/api/core/v1"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -40,20 +40,25 @@ const (
 	DefaultNetworkDeviceIPV6 = "net0-inet6"
 )
 
-func GetClusterPoolsFromMachine(ctx context.Context, machineScope *scope.MachineScope, m *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
+func GetInClusterIPPoolsFromMachine(ctx context.Context, machineScope *scope.MachineScope) (*[]corev1.TypedLocalObjectReference, error) {
 
-	// Sanity check Machine
-	owners := m.GetOwnerReferences()
-	if len(owners) != 1 { // TODO Error string
-		return nil, errors.New("Expected exactly 1 owner for ProxmoxMachine")
+	pools, _ := machineScope.IPAMHelper.GetInClusterPools(ctx, machineScope.ProxmoxMachine)
+
+	ret := []corev1.TypedLocalObjectReference{}
+
+	// TODO: move one function upwards
+	for _, pool := range []*ipamicv1.InClusterIPPool{pools["ipv4"], pools["ipv6"]}  {
+		if pool != nil {
+			poolRef := corev1.TypedLocalObjectReference{
+				APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+				Name: pool.Name,
+				Kind: pool.TypeMeta.Kind,
+			}
+			ret = append(ret, poolRef)
+		}
 	}
-	if owners[0].Kind != "Machine" {
-		return nil, errors.New("Owner of Proxmoxmachine not a Machine")
-	}
 
-	pools, _ := machineScope.IPAMHelper.GetOwnerClusterPools(ctx, m)
-
-	return pools, nil
+	return &ret, nil
 }
 
 func extractUUID(input string) string {

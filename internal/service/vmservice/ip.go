@@ -22,6 +22,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"slices"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -56,6 +57,37 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 		}
 	}
 
+	defaultDevicePools := netPoolAddresses[infrav1.DefaultNetworkDevice]
+	defaultPools := machineScope.InfraCluster.ProxmoxCluster.Status.InClusterIPPoolRef
+	for _, pool := range defaultPools {
+		if len(defaultDevicePools[pool.Name]) < 1 {
+			continue
+		}
+		ip := defaultDevicePools[pool.Name][0]
+		// format ipTag as `ip_net0_<ipv4/6-address>`
+		// to add it to the VM.
+		ipTag := fmt.Sprintf("ip_%s_%s", infrav1.DefaultNetworkDevice, ip)
+
+		// TODO: the requeuing logic is wrong. we only want to print the default pools
+		requeue := false
+
+		// Todo: add tagging to its own stage
+		// Add ip tag if the Virtual Machine doesn't have it.
+		if vm := machineScope.VirtualMachine; !vm.HasTag(ipTag) && isIPV4(ip) {
+			machineScope.Logger.V(4).Info("adding virtual machine ip tag.")
+			t, err := machineScope.InfraCluster.ProxmoxClient.TagVM(ctx, vm, ipTag)
+			if err != nil {
+				return false, errors.Wrapf(err, "unable to add Ip tag to VirtualMachine %s", machineScope.Name())
+			}
+			machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(t.UPID))
+			requeue = true
+		}
+		if requeue {
+			// send the machine to requeue so promoxclient can execute
+			return true, nil
+		}
+	}
+
 	// update the status.IpAddr.
 
 	// TODO: This datastructure should be redundant. Too many loops too
@@ -77,13 +109,15 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
 	machineScope.ProxmoxMachine.Status.IPAddresses = statusAddresses
 
+
 	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityInfo, "")
 
 	return true, nil
 }
 
-func formatIPAddressName(name, device string) string {
-	return fmt.Sprintf("%s-%s", name, device)
+// Todo: This function is only called in a helper
+func formatIPAddressName(name, pool, device string) string {
+	return fmt.Sprintf("%s-%s-%s", name, pool,  device)
 }
 
 // findIPAddress returns all IPAddresses owned by a pool and a machine
@@ -163,22 +197,6 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 		out = append(out, ip)
 		machineScope.Logger.V(4).Info("IPAddress found, ", "ip", ip, "device", device)
 
-		// format ipTag as `ip_net0_<ipv4/6-address>`
-		// to add it to the VM.
-		ipTag := fmt.Sprintf("ip_%s_%s", device, ip)
-
-		// Add ip tag if the Virtual Machine doesn't have it.
-		if vm := machineScope.VirtualMachine; device == infrav1.DefaultNetworkDevice && !vm.HasTag(ipTag) && isIPV4(ip) {
-			machineScope.Logger.V(4).Info("adding virtual machine ip tag.")
-			t, err := machineScope.InfraCluster.ProxmoxClient.TagVM(ctx, vm, ipTag)
-			if err != nil {
-				return []string{}, errors.Wrapf(err, "unable to add Ip tag to VirtualMachine %s", machineScope.Name())
-			}
-			machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(t.UPID))
-
-			// send the machine to requeue so promoxclient can execute
-			return []string{}, nil
-		}
 	}
 
 	return out, nil
@@ -186,7 +204,17 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 
 func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]map[string][]string) (bool, error) {
 	for _, net := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
-		for i, ipPool := range net.InterfaceConfig.IPPoolRef {
+		// TODO: Where should prepending default clusterpools belong
+		// TODO: Network Zones
+		pools := []corev1.TypedLocalObjectReference{}
+		if *net.Name == infrav1.DefaultNetworkDevice {
+			poolsRef, err := GetInClusterIPPoolsFromMachine(ctx, machineScope)
+			if err != nil {
+				return false, err
+			}
+			pools = *poolsRef
+		}
+		for i, ipPool := range slices.Concat(pools, net.InterfaceConfig.IPPoolRef) {
 			ipAddresses, err := handleIPAddresses(ctx, machineScope, net.Name, i, &ipPool)
 
 			// requeue machine if tag or ipaddress need creation
