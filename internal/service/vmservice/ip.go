@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
-	"slices"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -109,7 +109,6 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
 	machineScope.ProxmoxMachine.Status.IPAddresses = statusAddresses
 
-
 	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityInfo, "")
 
 	return true, nil
@@ -117,7 +116,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 
 // Todo: This function is only called in a helper
 func formatIPAddressName(name, pool, device string) string {
-	return fmt.Sprintf("%s-%s-%s", name, pool,  device)
+	return fmt.Sprintf("%s-%s-%s", name, pool, device)
 }
 
 // findIPAddress returns all IPAddresses owned by a pool and a machine
