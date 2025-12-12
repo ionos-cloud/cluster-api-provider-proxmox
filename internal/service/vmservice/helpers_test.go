@@ -18,6 +18,7 @@ package vmservice
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"testing"
@@ -36,6 +37,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
@@ -44,10 +46,15 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 type FakeISOInjector struct {
-	Error error
+	Error          error
+	VirtualMachine *proxmox.VirtualMachine
+	BootstrapData  []byte
+	MetaData       cloudinit.Renderer
+	Network        cloudinit.Renderer
 }
 
 func (f FakeISOInjector) Inject(_ context.Context, _ inject.BootstrapDataFormat) error {
@@ -220,8 +227,9 @@ func getIPSuffix(addr string) string {
 
 	return suffix
 }
-
 func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip string, prefix int, pool *corev1.TypedLocalObjectReference) {
+	gateway := netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String()
+
 	if pool != nil {
 		ipAddrClaim := &ipamv1.IPAddressClaim{
 			TypeMeta: metav1.TypeMeta{
@@ -241,6 +249,10 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 			},
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
+
+		poolSpec := getPoolSpec(getIPAddressPool(t, c, machineScope, pool))
+		prefix = poolSpec.prefix
+		gateway = poolSpec.gateway
 	}
 
 	ipAddr := &ipamv1.IPAddress{
@@ -254,7 +266,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		Spec: ipamv1.IPAddressSpec{
 			Address: ip,
 			Prefix:  prefix,
-			Gateway: netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String(),
+			Gateway: gateway,
 			PoolRef: ptr.Deref(pool, corev1.TypedLocalObjectReference{}),
 		},
 	}
@@ -282,18 +294,52 @@ func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope
 func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineScope) {
 	for _, dev := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
 		for _, poolRef := range dev.IPPoolRef {
-			var obj client.Object
-			switch poolRef.Kind {
-			case "InClusterIPPool":
-				obj = &ipamicv1.InClusterIPPool{}
-				obj.SetNamespace(machineScope.Namespace())
-			case "GlobalInClusterIPPool":
-				obj = &ipamicv1.GlobalInClusterIPPool{}
-			}
-			obj.SetName(poolRef.Name)
-			require.NoError(t, c.Create(context.Background(), obj))
+			createOrUpdateIPPool(t, c, machineScope, &poolRef, nil)
 		}
 	}
+}
+
+func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef *corev1.TypedLocalObjectReference, pool client.Object) *corev1.TypedLocalObjectReference {
+	// literally nothing to do
+	if pool == nil && poolRef == nil {
+		return nil
+	}
+
+	if pool == nil {
+		switch poolRef.Kind {
+		case "InClusterIPPool":
+			pool = &ipamicv1.InClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: "InClusterIPPool", APIVersion: ipamicv1.GroupVersion.String()}}
+			pool.SetNamespace(machineScope.Namespace())
+		case "GlobalInClusterIPPool":
+			pool = &ipamicv1.GlobalInClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: "GlobalInClusterIPPool", APIVersion: ipamicv1.GroupVersion.String()}}
+		}
+		pool.SetName(poolRef.Name)
+	}
+
+	if poolRef == nil {
+		poolRef = &corev1.TypedLocalObjectReference{
+			Name:     pool.GetName(),
+			Kind:     pool.GetObjectKind().GroupVersionKind().Kind,
+			APIGroup: ptr.To(pool.GetObjectKind().GroupVersionKind().Group),
+		}
+	}
+
+	desired := pool.DeepCopyObject()
+
+	_, err := controllerutil.CreateOrUpdate(context.Background(), c, pool, func() error {
+		// TODO: Metric change in annotations
+		if pool.GetObjectKind().GroupVersionKind().Kind == "InClusterIPPool" {
+			pool.(*ipamicv1.InClusterIPPool).Spec = desired.(*ipamicv1.InClusterIPPool).Spec
+		} else if pool.GetObjectKind().GroupVersionKind().Kind == "GlobalInClusterIPPool" {
+			pool.(*ipamicv1.GlobalInClusterIPPool).Spec = desired.(*ipamicv1.GlobalInClusterIPPool).Spec
+		}
+		return nil
+	},
+	)
+
+	require.NoError(t, err)
+
+	return poolRef
 }
 
 // todo: ZONES?
@@ -301,6 +347,40 @@ func getDefaultPoolRefs(machineScope *scope.MachineScope) []corev1.LocalObjectRe
 	cluster := machineScope.InfraCluster.ProxmoxCluster
 
 	return cluster.Status.InClusterIPPoolRef
+}
+
+func getPoolSpec(pool client.Object) struct {
+	gateway string
+	prefix  int
+} {
+	var gateway string
+	var prefix int
+	if pool.GetObjectKind().GroupVersionKind().Kind == "InClusterIPPool" {
+		prefix = pool.(*ipamicv1.InClusterIPPool).Spec.Prefix
+		gateway = pool.(*ipamicv1.InClusterIPPool).Spec.Gateway
+	} else if pool.GetObjectKind().GroupVersionKind().Kind == "GlobalInClusterIPPool" {
+		prefix = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix
+		gateway = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway
+	}
+
+	return struct {
+		gateway string
+		prefix  int
+	}{gateway: gateway, prefix: prefix}
+}
+
+func getIPAddressPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef *corev1.TypedLocalObjectReference) client.Object {
+	var obj client.Object
+	var err error
+
+	if poolRef.Kind == "InClusterIPPool" {
+		obj, err = machineScope.IPAMHelper.GetInClusterIPPool(context.Background(), poolRef)
+	} else if poolRef.Kind == "GlobalInClusterIPPool" {
+		obj, err = machineScope.IPAMHelper.GetGlobalInClusterIPPool(context.Background(), poolRef)
+	}
+
+	require.NoError(t, err)
+	return obj
 }
 
 func getIPAddressClaims(t *testing.T, c client.Client, machineScope *scope.MachineScope) map[string]*[]ipamv1.IPAddressClaim {
@@ -327,6 +407,16 @@ func getIPAddressClaims(t *testing.T, c client.Client, machineScope *scope.Machi
 func getIPAddressClaimsPerPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, pool string) *[]ipamv1.IPAddressClaim {
 	ipAddressClaims := getIPAddressClaims(t, c, machineScope)
 	return ipAddressClaims[pool]
+}
+
+func getNetworkConfigDataFromVM(t *testing.T, jsonData []byte) []types.NetworkConfigData {
+	var networkConfigData []types.NetworkConfigData
+
+	err := json.Unmarshal(jsonData, &networkConfigData)
+
+	require.NoError(t, err)
+
+	return networkConfigData
 }
 
 func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.MachineScope, format string) {

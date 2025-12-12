@@ -16,6 +16,10 @@ limitations under the License.
 
 package cloudinit
 
+import (
+	"encoding/json"
+)
+
 const (
 	metadataTPl = `instance-id: {{ .InstanceID }}
 local-hostname: {{ .Hostname }}
@@ -53,6 +57,11 @@ func (r *Metadata) Render() (metadata []byte, err error) {
 	}
 
 	return render("metadata", metadataTPl, r.data)
+}
+
+// Inspect returns a jsonified version for inspection.
+func (r *Metadata) Inspect() ([]byte, error) {
+	return json.Marshal(r.data)
 }
 
 func (r *Metadata) validate() error {

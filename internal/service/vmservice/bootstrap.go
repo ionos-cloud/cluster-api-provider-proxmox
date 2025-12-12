@@ -19,6 +19,7 @@ package vmservice
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/luthermonson/go-proxmox"
@@ -334,6 +335,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 }
 */
 
+// getCommonInterfaceConfig sets data which is common to all types of network interfaces.
 func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1.InterfaceConfig) {
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
@@ -350,8 +352,15 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 	for i, nic := range network.NetworkDevices {
 		var config = ptr.To(types.NetworkConfigData{})
 
-		// TODO: Default device IPPool
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, *nic.Name, nic.InterfaceConfig.IPPoolRef)
+		// TODO: Default device IPPool api change
+		ipPoolRefs := nic.InterfaceConfig.IPPoolRef
+		if *nic.Name == infrav1.DefaultNetworkDevice {
+			defaultPools, _ := GetInClusterIPPoolsFromMachine(ctx, machineScope)
+
+			ipPoolRefs = slices.Concat(*defaultPools, ipPoolRefs)
+		}
+
+		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, *nic.Name, ipPoolRefs)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", *nic.Name)
 		}

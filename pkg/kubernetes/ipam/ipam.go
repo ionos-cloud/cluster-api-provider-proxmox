@@ -258,10 +258,10 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 		}
 	} else if poolRef.Kind == globalInClusterIPPool {
 		ipPool, err := h.GetGlobalInClusterIPPool(ctx, key)
-		annotations = ipPool.ObjectMeta.Annotations
 		if err != nil {
 			return nil, err
 		}
+		annotations = ipPool.ObjectMeta.Annotations
 	}
 	// If neither of these kinds are matched, this is a test case,
 	// therefore no action is to be taken.

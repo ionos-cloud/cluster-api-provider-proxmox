@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -35,6 +34,7 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
 const (
@@ -47,58 +47,97 @@ var defaultNic = infrav1.NetworkDevice{
 	Name:   ptr.To(infrav1.DefaultNetworkDevice),
 }
 
-/* State Can never happen. Replaced by state machine.
-func TestReconcileBootstrapData_MissingIPAddress(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-
-	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
-	require.NoError(t, err)
-	require.True(t, requeue)
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
-}
-*/
-
-/* State can never happen. Replaced by state machine.
-func TestReconcileBootstrapData_MissingMACAddress(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-
-	machineScope.SetVirtualMachine(newStoppedVM())
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
-
-	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
-	require.NoError(t, err)
-	require.True(t, requeue)
-	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
-}
-*/
-
-func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-
-	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{}
+func setupFakeIsoInjector(t *testing.T) *[]byte {
+	networkData := new([]byte)
+	getISOInjector = func(vm *proxmox.VirtualMachine, bootstrapData []byte, metadata, network cloudinit.Renderer) isoInjector {
+		*networkData, _ = network.Inspect()
+		return FakeISOInjector{
+			VirtualMachine: vm,
+			BootstrapData:  bootstrapData,
+			MetaData:       metadata,
+			Network:        network,
+		}
 	}
 	t.Cleanup(func() { getISOInjector = defaultISOInjector })
 
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	return networkData
+}
+
+func setupVMWithMetadata(t *testing.T, machineScope *scope.MachineScope, netSpecs ...string) *proxmox.VirtualMachine {
+	if len(netSpecs) == 0 {
+		netSpecs = []string{"virtio=A6:23:64:4D:84:CB,bridge=vmbr0"}
+	}
+	vm := newVMWithNets(netSpecs[0], netSpecs[1:]...)
 	vm.VirtualMachineConfig.SMBios1 = biosUUID
 	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityInfo, "")
 
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	return vm
+}
+
+// TestReconcileBootsrapData_NoNetworkConfig_UpdateStatus tests the simplest setup
+// with only a default network pool being reconciled correctly.
+func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+
+	// setup bootstrapdata injection fake
+	networkDataPtr := setupFakeIsoInjector(t)
+
+	// setup VM with all metadata
+	setupVMWithMetadata(t, machineScope)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
+	// NetworkSetup
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{
+			defaultNic,
+		},
+	}
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
+	createIPPools(t, kubeClient, machineScope)
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+
+	// reconcile BootstrapData
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
+
+	// Check generated bootstrapData against setup
+	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
+	require.True(t, len(networkConfigData) == 1)
+	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress)
+	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
+	require.Equal(t, "eth0", networkConfigData[0].Name)
+	require.Equal(t, "net0", networkConfigData[0].ProxName)
+	require.Equal(t, "ethernet", networkConfigData[0].Type)
+
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
+// TestReconcileBootstrapData_UpdateStatus
 func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 
+	// setup bootstrapdata injection fake
+	networkDataPtr := setupFakeIsoInjector(t)
+
+	// NetworkSetup
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{
+			defaultNic,
+		},
+	}
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "GlobalInClusterIPPool",
+		Name: "extraPool0",
+	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			defaultNic,
@@ -108,34 +147,56 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 				Name:   ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
+					IPPoolRef:  []corev1.TypedLocalObjectReference{extraPool0},
 				},
 			},
 		},
 	}
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}, "net1": {IPV4: []string{"10.100.10.10"}}}
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", nil)
-	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{}
-	}
-	t.Cleanup(func() { getISOInjector = defaultISOInjector })
 
+	createIPPools(t, kubeClient, machineScope)
+
+	// update extraPool for gateway/prefix test
+	poolObj := getIPAddressPool(t, kubeClient, machineScope, &extraPool0)
+	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix = 16
+	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway = "10.100.10.1"
+	createOrUpdateIPPool(t, kubeClient, machineScope, nil, poolObj)
+
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", &extraPool0)
+
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+
+	// reconcile BootstrapData
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
+
+	// Check generated bootstrapData against setup
+	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
+	require.True(t, len(networkConfigData) > 0)
+	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress)
+	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
+	require.Equal(t, "eth0", networkConfigData[0].Name)
+	require.Equal(t, "net0", networkConfigData[0].ProxName)
+	require.Equal(t, "ethernet", networkConfigData[0].Type)
+	require.Equal(t, "10.100.10.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress)
+	require.Equal(t, "10.100.10.1", networkConfigData[1].IPConfigs[0].Gateway)
+	require.Equal(t, "AA:23:64:4D:84:CD", networkConfigData[1].MacAddress)
+	require.Equal(t, "eth1", networkConfigData[1].Name)
+	require.Equal(t, "net1", networkConfigData[1].ProxName)
+	require.Equal(t, "ethernet", networkConfigData[1].Type)
+
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
+// TestReconcileBootstrapData_BadInjector is supposed to fail when rendering VM configuration data.
 func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}, "net1": {IPV4: []string{"10.100.10.10"}}}
+
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
@@ -219,6 +280,7 @@ func TestGetNetworkConfigDataForDevice_MissingMACAddress(t *testing.T) {
 
 	cfg, err := getNetworkConfigDataForDevice(context.Background(), machineScope, "net2", nil)
 	require.Error(t, err)
+	require.Equal(t, "unable to extract mac address", err.Error())
 	require.Nil(t, cfg)
 }
 
@@ -249,6 +311,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 	require.Len(t, cfg.IPConfigs, 0)
 }
 
+/* Test makes no sense, getCommonInterfaceConfig no longer assings addresses
 func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 
@@ -267,9 +330,10 @@ func TestGetCommonInterfaceConfig_NoIPAddresses(t *testing.T) {
 	// Check that no IP config has been assigned.
 	require.Len(t, cfg.IPConfigs, 0)
 }
+*/
 
 func TestGetCommonInterfaceConfig(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 
 	var MTU int32 = 9000
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -280,16 +344,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 				Name:   ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
-					IPPoolRef: []corev1.TypedLocalObjectReference{{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "net1-inet6",
-					}, {
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "net1-inet",
-					}},
-					LinkMTU: &MTU,
+					LinkMTU:    &MTU,
 					Routing: infrav1.Routing{
 						Routes: []infrav1.RouteSpec{
 							{To: ptr.To("default"), Via: ptr.To("192.168.178.1")},
@@ -305,27 +360,13 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 		},
 	}
 
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}, IPV6: []string{"2001:db8::2"}}, "net1": {IPV4: []string{"10.0.0.10"}, IPV6: []string{"2001:db8::9"}}}
-	createIPPools(t, kubeClient, machineScope)
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10", nil)
-	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9", nil)
-
 	cfg := &types.NetworkConfigData{Name: "net1"}
 	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
-	// TODO: not meaningful anylonger
-	/*
-		require.Equal(t, "10.0.0.10/24", cfg.IPConfigs[0].IPAddress)
-		require.Equal(t, "2001:db8::9/64", cfg.IPConfigs[1].IPAddress)
-	*/
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
 	require.Equal(t, "default", *cfg.Routes[0].To)
 	require.Equal(t, "172.24.16.0/24", *cfg.Routes[1].To)
 	require.Equal(t, "10.10.10.0/24", *cfg.FIBRules[0].To)
 	require.Equal(t, "172.24.16.0/24", *cfg.FIBRules[1].From)
-	// require.NoError(t, err)
 }
 
 func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
@@ -345,45 +386,108 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 
 	cfg, err := getVirtualNetworkDevices(context.Background(), machineScope, networkSpec, networkConfigData)
 	require.Error(t, err)
+	require.Equal(t, "unable to find vrf interface=vrf-blue child interface net1", err.Error())
 	require.Nil(t, cfg)
 }
 
 func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
-		Addresses: []string{"2001:db8::/64"},
-		Prefix:    64,
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	networkDataPtr := setupFakeIsoInjector(t)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+
+	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
+	proxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+		Addresses: []string{"2001:db8::/96"},
+		Prefix:    96,
 		Gateway:   "2001:db8::1",
 	}
-
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}, IPV6: []string{"2001:db8::2"}}}
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
-	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", nil)
-
-	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{}
+	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
+	proxmoxCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
+		{Name: "test-v4-icip"},
+		{Name: "test-v6-icip"},
 	}
-	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
+	// NetworkSetup for default pools
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
+	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[1].Name,
+	}
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{defaultNic},
+	}
+
+	// create missing defaultPoolV6 and ipAddresses
+	machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background())
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.254", &defaultPool)
+	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", &defaultPoolV6)
+
+	// perform test
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	// Test if generated data is equal
+	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
+	require.True(t, len(networkConfigData) == 1)
+	require.True(t, len(networkConfigData[0].IPConfigs) == 2)
+	ipConfigs := networkConfigData[0].IPConfigs
+	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
+	require.Equal(t, "10.0.0.254/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
+	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress)
 }
 
 func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
-		Addresses: []string{"2001:db8::/64"},
-		Prefix:    64,
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	networkDataPtr := setupFakeIsoInjector(t)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+
+	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
+	proxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+		Addresses: []string{"2001:db8::/96"},
+		Prefix:    96,
 		Gateway:   "2001:db8::1",
 	}
+	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
+	proxmoxCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
+		{Name: "test-v4-icip"},
+		{Name: "test-v6-icip"},
+	}
+	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
+	// NetworkSetup for default pools
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
+	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[1].Name,
+	}
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{defaultNic},
+	}
+
+	// create missing defaultPoolV6
+	machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background())
+
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool0",
+	}
+	extraPool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool1",
+	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			defaultNic,
@@ -393,45 +497,66 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 				Name:   ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
-					IPPoolRef: []corev1.TypedLocalObjectReference{{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
-						Name:     "sample",
-					}, {
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "sample",
-					}},
+					IPPoolRef: []corev1.TypedLocalObjectReference{
+						extraPool0,
+						extraPool1,
+					},
 				},
 			},
 		},
 	}
 
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}, IPV6: []string{"2001:db8::2"}}, "net1": {IPV4: []string{"10.0.0.10"}, IPV6: []string{"2001:db8::9"}}}
+	// Create missing ip addresses and pools.
 	createIPPools(t, kubeClient, machineScope)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
-	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", nil)
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10", nil)
-	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9", nil)
-	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{}
-	}
-	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", &defaultPoolV6)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10", &extraPool0)
+	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9", &extraPool1)
 
+	// Perform test.
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	// Test if generated data is equal.
+	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
+	require.True(t, len(networkConfigData) == 2)
+	require.True(t, len(networkConfigData[0].IPConfigs) == 2)
+	require.True(t, len(networkConfigData[1].IPConfigs) == 2)
+	ipConfigs := networkConfigData[0].IPConfigs
+	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
+	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
+	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress)
+	ipConfigs = networkConfigData[1].IPConfigs
+	require.Equal(t, "", ipConfigs[0].Gateway) // No Gateway assigned
+	require.Equal(t, "10.0.0.10/0", ipConfigs[0].IPAddress)
+	require.Equal(t, "", ipConfigs[1].Gateway) // No Gateway assigned
+	require.Equal(t, "2001:db8::9/0", ipConfigs[1].IPAddress)
 }
 
 func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	networkDataPtr := setupFakeIsoInjector(t)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
+	// NetworkSetup for default pools
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
+
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool0",
+	}
+	extraPool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool1",
+	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		VirtualNetworkDevices: infrav1.VirtualNetworkDevices{
 			VRFs: []infrav1.VRFDevice{{
@@ -447,11 +572,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 				Name:   ptr.To("net0"),
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
-					IPPoolRef: []corev1.TypedLocalObjectReference{{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "test-v4-icip",
-					}},
+					IPPoolRef:  []corev1.TypedLocalObjectReference{extraPool0},
 				},
 			},
 			{
@@ -460,33 +581,41 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 				Name:   ptr.To("net1"),
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
-					IPPoolRef: []corev1.TypedLocalObjectReference{{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "InClusterIPPool",
-						Name:     "sample",
-					}},
+					IPPoolRef:  []corev1.TypedLocalObjectReference{extraPool1},
 				},
 			},
 		},
 	}
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}, "net1": {IPV4: []string{"10.100.10.10"}}}
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", nil)
 
-	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{}
-	}
-	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+	createIPPools(t, kubeClient, machineScope)
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.20.10.10", &extraPool0)
+	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", &extraPool1)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	// Test if generated data is equal.
+	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
+	require.True(t, len(networkConfigData) == 3)
+	require.True(t, len(networkConfigData[0].IPConfigs) == 2)
+	require.True(t, len(networkConfigData[1].IPConfigs) == 1)
+	require.True(t, len(networkConfigData[2].IPConfigs) == 0)
+	require.True(t, len(networkConfigData[2].Interfaces) == 1)
+	ipConfigs := networkConfigData[0].IPConfigs
+	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
+	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "10.20.10.10/0", ipConfigs[1].IPAddress)
+	ipConfigs = networkConfigData[1].IPConfigs
+	require.Equal(t, "10.100.10.10/0", ipConfigs[0].IPAddress)
+	// VRF Data
+	require.Equal(t, "vrf", networkConfigData[2].Type)
+	require.Equal(t, "vrf-blue", networkConfigData[2].Name)
+	require.Equal(t, "eth1", networkConfigData[2].Interfaces[0])
+	require.Equal(t, int32(500), networkConfigData[2].Table)
 }
 
 func TestVMHasMacAddress(t *testing.T) {
@@ -500,11 +629,8 @@ func TestVMHasMacAddress(t *testing.T) {
 
 func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
 	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -518,11 +644,7 @@ func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 
 func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -536,19 +658,11 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 
 func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	machineScope.SetVirtualMachine(vm)
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 
-	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{}
-	}
-	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+	setupFakeIsoInjector(t)
 
 	// test defaulting of format to cloud-config
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -565,14 +679,10 @@ func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 
 func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, ignition.FormatIgnition)
-	machineScope.SetVirtualMachine(vm)
+
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 
 	getIgnitionISOInjector = func(_ *proxmox.VirtualMachine, _ cloudinit.Renderer, _ *ignition.Enricher) isoInjector {
 		return FakeIgnitionISOInjector{}
@@ -610,36 +720,47 @@ func TestIgnitionISOInjector(t *testing.T) {
 
 func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	networkDataPtr := setupFakeIsoInjector(t)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "GlobalInClusterIPPool",
+		Name: "extrapool0",
+	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{{
 			Bridge: ptr.To("vmbr0"),
 			Model:  ptr.To("virtio"),
 			Name:   ptr.To(infrav1.DefaultNetworkDevice),
 			InterfaceConfig: infrav1.InterfaceConfig{
-				IPPoolRef: []corev1.TypedLocalObjectReference{{
-					APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-					Kind:     "GlobalInClusterIPPool",
-					Name:     "sample-shared-pool",
-				}},
+				IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0},
 			},
 		}},
 	}
 
-	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
-	vm.VirtualMachineConfig.SMBios1 = biosUUID
-	machineScope.SetVirtualMachine(vm)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.5.10.10"}}}
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.5.10.10", nil)
+	createIPPools(t, kubeClient, machineScope)
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.5.10.10", &extraPool0)
 
-	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{}
-	}
-	t.Cleanup(func() { getISOInjector = defaultISOInjector })
-
+	// Perform the test
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	// Test if generated data is equal
+	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
+	require.True(t, len(networkConfigData) == 1)
+	require.True(t, len(networkConfigData[0].IPConfigs) == 2)
+	ipConfigs := networkConfigData[0].IPConfigs
+	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
+	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "", ipConfigs[1].Gateway)
+	require.Equal(t, "10.5.10.10/0", ipConfigs[1].IPAddress)
 }
