@@ -22,7 +22,6 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -133,9 +132,9 @@ func findIPAddressesByPool(ctx context.Context, machineScope *scope.MachineScope
 
 	var out []ipamv1.IPAddress
 	for _, a := range addresses {
-		if strings.Contains(a.Name, machineScope.Name()+device) {
-			out = append(out, a)
-		}
+		// if strings.Contains(a.Name, machineScope.Name()+device) {
+		out = append(out, a)
+		// }
 	}
 	return out, nil
 }

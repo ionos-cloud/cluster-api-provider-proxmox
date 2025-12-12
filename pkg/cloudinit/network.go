@@ -17,6 +17,7 @@ limitations under the License.
 package cloudinit
 
 import (
+	"encoding/json"
 	"net/netip"
 
 	"k8s.io/utils/ptr"
@@ -158,6 +159,12 @@ func NewNetworkConfig(configs []types.NetworkConfigData) *NetworkConfig {
 		NetworkConfigData: configs,
 	}
 	return nc
+}
+
+// Inspect returns a serialized copy of the NetworkData. This is useful when
+// wanting to immutably inspect what goes into the renderer.
+func (r *NetworkConfig) Inspect() ([]byte, error) {
+	return json.Marshal(r.data.NetworkConfigData)
 }
 
 // Render returns rendered network-config.
