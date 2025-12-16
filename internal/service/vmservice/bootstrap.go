@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"encoding/json"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
@@ -85,6 +86,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
+	machineScope.Logger.V(4).Info("nicData", "json", func() string {ret, _ := json.Marshal(nicData); return string(ret)}())
 	// Inject userdata based on the format
 	if ptr.Deref(format, "") == ignition.FormatIgnition {
 		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)
@@ -92,6 +94,8 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)
 	}
 	if err != nil {
+		// Todo: test this (colliding default gateways for example)
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
 		return false, errors.Wrap(err, "failed to inject bootstrap data")
 	}
 
@@ -110,11 +114,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
-	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
-		return err
-	}
-	return nil
+	return injector.Inject(ctx, inject.CloudConfigFormat)
 }
 
 func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []types.NetworkConfigData, kubernetesVersion string) error {
@@ -131,11 +131,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 	}
 
 	injector := getIgnitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
-	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
-		return err
-	}
-	return nil
+	return injector.Inject(ctx, inject.IgnitionFormat)
 }
 
 type isoInjector interface {
