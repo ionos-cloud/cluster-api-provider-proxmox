@@ -27,9 +27,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
+	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
+
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
 const (
@@ -41,7 +42,6 @@ const (
 )
 
 func GetInClusterIPPoolsFromMachine(ctx context.Context, machineScope *scope.MachineScope) (*[]corev1.TypedLocalObjectReference, error) {
-
 	pools, _ := machineScope.IPAMHelper.GetInClusterPools(ctx, machineScope.ProxmoxMachine)
 
 	ret := []corev1.TypedLocalObjectReference{}

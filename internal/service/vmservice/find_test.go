@@ -38,7 +38,6 @@ func TestFindVM_FindByNodeAndID(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.NoError(t, err)
-
 }
 
 func TestFindVM_FindByNodeLocationsAndID(t *testing.T) {
@@ -55,7 +54,6 @@ func TestFindVM_FindByNodeLocationsAndID(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.NoError(t, err)
-
 }
 
 func TestFindVM_NotFound(t *testing.T) {
@@ -69,7 +67,6 @@ func TestFindVM_NotFound(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.ErrorIs(t, err, ErrVMNotFound)
-
 }
 
 func TestFindVM_NotCreated(t *testing.T) {
@@ -77,7 +74,6 @@ func TestFindVM_NotCreated(t *testing.T) {
 
 	_, err := FindVM(context.TODO(), machineScope)
 	require.ErrorIs(t, err, ErrVMNotCreated)
-
 }
 
 func TestFindVM_NotInitialized(t *testing.T) {
@@ -92,7 +88,6 @@ func TestFindVM_NotInitialized(t *testing.T) {
 
 	_, err := FindVM(ctx, machineScope)
 	require.ErrorIs(t, err, ErrVMNotInitialized)
-
 }
 
 func TestUpdateVMLocation_MissingName(t *testing.T) {
@@ -108,7 +103,6 @@ func TestUpdateVMLocation_MissingName(t *testing.T) {
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
-
 }
 
 func TestUpdateVMLocation_NameMismatch(t *testing.T) {
@@ -126,7 +120,6 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
-
 }
 
 func TestUpdateVMLocation_UpdateNode(t *testing.T) {
@@ -147,7 +140,6 @@ func TestUpdateVMLocation_UpdateNode(t *testing.T) {
 	require.NoError(t, updateVMLocation(ctx, machineScope))
 	require.Equal(t, vmr.Node, *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.Equal(t, vmr.Node, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
-
 }
 
 func TestUpdateVMLocation_WithTask(t *testing.T) {
@@ -158,7 +150,6 @@ func TestUpdateVMLocation_WithTask(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("test-task-uupid")
 
 	require.Error(t, updateVMLocation(context.TODO(), machineScope))
-
 }
 
 func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
@@ -177,5 +168,4 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
-
 }

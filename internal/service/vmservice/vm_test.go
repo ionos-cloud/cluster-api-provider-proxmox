@@ -40,7 +40,7 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForCloudInitReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	//machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 
@@ -56,14 +56,14 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	//require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapReadyReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	//machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
@@ -76,14 +76,14 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	//require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForCloudInitReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	//machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
@@ -101,14 +101,14 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	//require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapReadyReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	//machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
@@ -121,7 +121,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	//require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
