@@ -285,7 +285,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 	}
 
 	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil {
-		poolV4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPV4Format)
+		poolv4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPv4Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
@@ -293,10 +293,10 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 
 			return ctrl.Result{}, err
 		}
-		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolV4)
+		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolv4)
 	}
 	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil {
-		poolV6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPV6Format)
+		poolv6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPv6Format)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
@@ -304,7 +304,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 
 			return ctrl.Result{}, err
 		}
-		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolV6)
+		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolv6)
 	}
 
 	return reconcile.Result{}, nil

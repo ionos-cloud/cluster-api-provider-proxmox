@@ -280,9 +280,9 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 	// default network device ipv4.
 	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil ||
 		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef != nil) {
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPV4)
+		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPv4)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPV4)
+			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPv4)
 		}
 		if machineScope.ProxmoxMachine.Spec.Network != nil && len(machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers) != 0 {
 			config.DNSServers = machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers
@@ -293,9 +293,9 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 	// default network device ipv6.
 	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil ||
 		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef != nil) {
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPV6)
+		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPv6)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPV6)
+			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPv6)
 		}
 
 		switch {
@@ -304,7 +304,7 @@ func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineSco
 		case config.MacAddress != conf.MacAddress:
 			return nil, errors.New("default network device ipv4 and ipv6 have different mac addresses")
 		default:
-			config.IPV6Address = conf.IPV6Address
+			config.IPv6Address = conf.IPv6Address
 			config.Gateway6 = conf.Gateway6
 			config.Metric6 = conf.Metric6
 		}

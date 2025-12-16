@@ -102,7 +102,7 @@ var _ = Describe("Controller Test", func() {
 			assertClusterIsReady(testEnv.GetContext(), g, clusterName)
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPv4Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				config := cl.Spec.IPv4Config
@@ -118,7 +118,7 @@ var _ = Describe("Controller Test", func() {
 				WithPolling(time.Second).
 				Should(Succeed())
 		})
-		It("Should successfully create IPAM IPV6 related resources", func() {
+		It("Should successfully create IPAM IPv6 related resources", func() {
 			cl := buildProxmoxCluster(clusterName)
 			cl.Spec.IPv6Config = &infrav1.IPConfigSpec{
 				Addresses: []string{"2001:db8::/64"},
@@ -134,7 +134,7 @@ var _ = Describe("Controller Test", func() {
 			assertClusterIsReady(testEnv.GetContext(), g, clusterName)
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV6Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPv6Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				config := cl.Spec.IPv6Config
@@ -161,7 +161,7 @@ var _ = Describe("Controller Test", func() {
 			assertClusterIsReady(testEnv.GetContext(), g, clusterName)
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPv4Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				config := cl.Spec.IPv4Config
@@ -176,13 +176,13 @@ var _ = Describe("Controller Test", func() {
 				WithPolling(time.Second).
 				Should(Succeed())
 
-			pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+			pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPv4Format)
 			g.Expect(err).ToNot(HaveOccurred())
 			// create an IPAddress.
 			g.Expect(k8sClient.Create(testEnv.GetContext(), dummyIPAddress(k8sClient, &cl, pool.GetName()))).To(Succeed())
 
 			g.Eventually(func(g Gomega) {
-				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPV4Format)
+				pool, err := helper.GetDefaultInClusterIPPool(testEnv.GetContext(), infrav1.IPv4Format)
 				g.Expect(err).ToNot(HaveOccurred())
 
 				ipAddr, err := helper.GetIPAddress(testEnv.GetContext(), client.ObjectKeyFromObject(&cl))

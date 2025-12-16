@@ -60,14 +60,14 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	SchedulerHints *SchedulerHints `json:"schedulerHints,omitempty"`
 
-	// ipv4Config contains information about available IPV4 address pools and the gateway.
+	// ipv4Config contains information about available IPv4 address pools and the gateway.
 	// This can be combined with ipv6Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
 	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
 
-	// ipv6Config contains information about available IPV6 address pools and the gateway.
+	// ipv6Config contains information about available IPv6 address pools and the gateway.
 	// This can be combined with ipv4Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional

@@ -136,7 +136,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 }
 
 func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
-	notFound, err := s.helper.GetDefaultInClusterIPPool(s.ctx, infrav1.IPV4Format)
+	notFound, err := s.helper.GetDefaultInClusterIPPool(s.ctx, infrav1.IPv4Format)
 	s.Nil(notFound)
 	s.Error(err)
 	s.True(apierrors.IsNotFound(err))
@@ -150,7 +150,7 @@ func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	found, err := s.helper.GetDefaultInClusterIPPool(s.ctx, infrav1.IPV4Format)
+	found, err := s.helper.GetDefaultInClusterIPPool(s.ctx, infrav1.IPv4Format)
 	s.NoError(err)
 	s.Equal(&pool, found)
 
@@ -170,7 +170,7 @@ func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
 		Name:      "test-cluster-v6-icip",
 	}, &poolV6))
 
-	foundV6, err := s.helper.GetDefaultInClusterIPPool(s.ctx, infrav1.IPV6Format)
+	foundV6, err := s.helper.GetDefaultInClusterIPPool(s.ctx, infrav1.IPv6Format)
 	s.NoError(err)
 	s.Equal(&poolV6, foundV6)
 }
@@ -246,7 +246,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", nil)
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPv4Format, "test-cluster", nil)
 	s.NoError(err)
 
 	// create a dummy IPAddress.
@@ -282,7 +282,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Name: "test-ippool-annotations",
 	}, &globalPool))
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
 		Name:     "test-ippool-annotations",
 		Kind:     "GlobalInClusterIPPool",
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -334,7 +334,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 	device := "net0"
 
 	rootClusterName := "test"
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, infrav1.IPV4Format, rootClusterName, nil)
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, infrav1.IPv4Format, rootClusterName, nil)
 	s.NoError(err)
 
 	// Ensure cluster label is set.
@@ -367,7 +367,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 
 	additionalDevice := "net1"
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), additionalDevice, infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), additionalDevice, infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
 		Name:     "test-additional-cluster-icip",
 		Kind:     "InClusterIPPool",
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -393,14 +393,14 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 
 	globalDevice := "net2"
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), globalDevice, infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), globalDevice, infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
 		Name:     "test-global-cluster-icip",
 		Kind:     "GlobalInClusterIPPool",
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 	})
 	s.NoError(err)
 
-	// IPV6.
+	// IPv6.
 	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
@@ -414,7 +414,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 		Name:      "test-cluster-v6-icip",
 	}, &poolV6))
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, infrav1.IPV6Format, "test-cluster", nil)
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, infrav1.IPv6Format, "test-cluster", nil)
 	s.NoError(err)
 }
 
@@ -427,7 +427,7 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPV4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
 		Kind: "InClusterIPPool",
 		Name: "test-cluster-v4-icip",
 	})

@@ -1662,7 +1662,7 @@ spec:
                 type: boolean
               ipv4Config:
                 description: |-
-                  ipv4Config contains information about available IPV4 address pools and the gateway.
+                  ipv4Config contains information about available IPv4 address pools and the gateway.
                   This can be combined with ipv6Config in order to enable dual stack.
                   Either IPv4Config or IPv6Config must be provided.
                 properties:
@@ -1701,7 +1701,7 @@ spec:
                   rule: self.addresses.size() > 0
               ipv6Config:
                 description: |-
-                  ipv6Config contains information about available IPV6 address pools and the gateway.
+                  ipv6Config contains information about available IPv6 address pools and the gateway.
                   This can be combined with ipv4Config in order to enable dual stack.
                   Either IPv4Config or IPv6Config must be provided.
                 properties:

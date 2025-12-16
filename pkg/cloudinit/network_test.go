@@ -143,7 +143,7 @@ const (
           - '8.8.8.8'
           - '8.8.4.4'`
 
-	expectedValidNetworkConfigIPV6 = `network:
+	expectedValidNetworkConfigIPv6 = `network:
   version: 2
   renderer: networkd
   ethernets:
@@ -834,7 +834,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 				err:     nil,
 			},
 		},
-		"ValidNetworkConfigIPV6": {
+		"ValidNetworkConfigIPv6": {
 			reason: "render valid ipv6 network-config",
 			args: args{
 				nics: []types.NetworkConfigData{
@@ -852,7 +852,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 				},
 			},
 			want: want{
-				network: expectedValidNetworkConfigIPV6,
+				network: expectedValidNetworkConfigIPv6,
 				err:     nil,
 			},
 		},

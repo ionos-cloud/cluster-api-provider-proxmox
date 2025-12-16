@@ -171,7 +171,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 		})
 	})
 
-	Context("IPV6Config", func() {
+	Context("IPv6Config", func() {
 		It("Should not allow empty addresses", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv6Config = &IPConfigSpec{

@@ -373,14 +373,14 @@ func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.Machi
 	if scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
 		addresses = append(addresses, clusterv1.MachineAddress{
 			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPV4[0], // TODO: Unfuck this
+			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4[0], // TODO: Unfuck this
 		})
 	}
 
 	if scope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
 		addresses = append(addresses, clusterv1.MachineAddress{
 			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPV6[0], // TODO: Unfuck this
+			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv6[0], // TODO: Unfuck this
 		})
 	}
 

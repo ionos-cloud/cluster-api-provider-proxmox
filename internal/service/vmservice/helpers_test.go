@@ -121,7 +121,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			NodeLocations: &infrav1.NodeLocations{},
 		},
 	}
-	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1.IPV4Format)}}
+	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1.IPv4Format)}}
 
 	infraMachine := &infrav1.ProxmoxMachine{
 		TypeMeta: metav1.TypeMeta{
@@ -273,7 +273,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 	require.NoError(t, c.Create(context.Background(), ipAddr))
 }
 
-func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
+func createIPv4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is4(), "%s is not a valid ipv4 address", ip)
 	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummy"}).Name
 	name := formatIPAddressName(machineScope.Name(), poolName, device)
@@ -282,7 +282,7 @@ func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope
 	createIPAddressResource(t, c, name, machineScope, ip, 24, pool)
 }
 
-func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
+func createIPv6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is6(), "%s is not a valid ipv6 address", ip)
 	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummyv6"}).Name
 	name := formatIPAddressName(machineScope.Name(), poolName, device)
