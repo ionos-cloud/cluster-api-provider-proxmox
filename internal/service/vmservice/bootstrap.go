@@ -40,7 +40,7 @@ import (
 
 func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
 	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForBootstrapDataReconcilationReason {
-		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for Bootsrap Data reconcilation
+		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for Bootsrap Data reconciliation
 		return false, nil
 	}
 

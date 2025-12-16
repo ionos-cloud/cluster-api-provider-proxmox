@@ -28,13 +28,14 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
+	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
+
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
 const (
@@ -117,7 +118,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
-// TestReconcileBootstrapData_UpdateStatus
+// TestReconcileBootstrapData_UpdateStatus.
 func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 
@@ -639,7 +640,6 @@ func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) == infrav1.CloningFailedReason)
-
 }
 
 func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
@@ -674,7 +674,6 @@ func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 	require.Equal(t, cloudinit.FormatCloudConfig, ptr.Deref(format, ""))
 	require.Equal(t, []byte("data"), data)
 	require.Nil(t, err)
-
 }
 
 func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {

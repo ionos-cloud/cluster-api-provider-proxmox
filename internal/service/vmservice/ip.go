@@ -113,12 +113,12 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	return true, nil
 }
 
-// Todo: This function is only called in a helper
+// Todo: This function is only called in a helper.
 func formatIPAddressName(name, pool, device string) string {
 	return fmt.Sprintf("%s-%s-%s", name, pool, device)
 }
 
-// findIPAddress returns all IPAddresses owned by a pool and a machine
+// findIPAddress returns all IPAddresses owned by a pool and a machine.
 func findIPAddress(ctx context.Context, poolRef *corev1.TypedLocalObjectReference, machineScope *scope.MachineScope) ([]ipamv1.IPAddress, error) {
 	return machineScope.IPAMHelper.GetIPAddressV2(ctx, *poolRef, machineScope.ProxmoxMachine)
 }
@@ -131,11 +131,7 @@ func findIPAddressesByPool(ctx context.Context, machineScope *scope.MachineScope
 	}
 
 	var out []ipamv1.IPAddress
-	for _, a := range addresses {
-		// if strings.Contains(a.Name, machineScope.Name()+device) {
-		out = append(out, a)
-		// }
-	}
+	out = append(out, addresses...)
 	return out, nil
 }
 
@@ -194,7 +190,6 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 		ip := ip.Spec.Address
 		out = append(out, ip)
 		machineScope.Logger.V(4).Info("IPAddress found, ", "ip", ip, "device", device)
-
 	}
 
 	return out, nil

@@ -54,7 +54,7 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-// TestReconcileIPAddresses_CreatAdditionalClaim tests if an IPAddressClaim is created for the missing IPAddress on net1
+// TestReconcileIPAddresses_CreateAdditionalClaim tests if an IPAddressClaim is created for the missing IPAddress on net1.
 func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -93,7 +93,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 
-	// net1 should not exist yet, because IPAddress reconcilation should be unfinished
+	// net1 should not exist yet, because IPAddress reconciliation should be unfinished
 	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
 
 	// test if IPAddressClaim was created
@@ -104,7 +104,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-// TestReconcileIPAddresses_AddIPTag tests if a machine with all resources created will add a task to add tags to proxmox VMs
+// TestReconcileIPAddresses_AddIPTag tests if a machine with all resources created will add a task to add tags to proxmox VMs.
 func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -140,7 +140,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-// TestReconcileIPAddresses_SetIPAddresses tests if proxmoxMachine.Status.IPAddresses gets reconciled
+// TestReconcileIPAddresses_SetIPAddresses tests if proxmoxMachine.Status.IPAddresses gets reconciled.
 func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -185,7 +185,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-// TestReconcileIPAddresses_MultipleDevices tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices
+// TestReconcileIPAddresses_MultipleDevices tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices.
 func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -252,7 +252,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-// TestReconcileIPAddresses_IPv6 tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices
+// TestReconcileIPAddresses_IPv6 tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices.
 func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -325,7 +325,7 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-// TestReconcileIPAddresses_MachineIPPoolRef tests TODO: multiple claims from same pool
+// TestReconcileIPAddresses_MachineIPPoolRef tests TODO: multiple claims from same pool.
 func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
