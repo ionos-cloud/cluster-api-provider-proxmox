@@ -33,11 +33,11 @@ import (
 )
 
 const (
-	// DefaultNetworkDeviceIPV4 is the default network device name for ipv4.
-	DefaultNetworkDeviceIPV4 = "net0-inet"
+	// DefaultNetworkDeviceIPv4 is the default network device name for ipv4.
+	DefaultNetworkDeviceIPv4 = "net0-inet"
 
-	// DefaultNetworkDeviceIPV6 is the default network device name for ipv6.
-	DefaultNetworkDeviceIPV6 = "net0-inet6"
+	// DefaultNetworkDeviceIPv6 is the default network device name for ipv6.
+	DefaultNetworkDeviceIPv6 = "net0-inet6"
 )
 
 func GetInClusterIPPoolsFromMachine(ctx context.Context, machineScope *scope.MachineScope) (*[]corev1.TypedLocalObjectReference, error) {

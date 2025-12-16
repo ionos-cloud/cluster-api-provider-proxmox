@@ -39,7 +39,7 @@ func TestReconcilePowerState_MissingIPAddress(t *testing.T) {
 func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPV4: []string{"10.10.10.10"}}}
+	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 
 	vm := newStoppedVM()
 	task := newTask()

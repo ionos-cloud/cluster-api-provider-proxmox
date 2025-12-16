@@ -97,7 +97,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
 	}
 	createIPPools(t, kubeClient, machineScope)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
 
 	// reconcile BootstrapData
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -161,8 +161,8 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway = "10.100.10.1"
 	createOrUpdateIPPool(t, kubeClient, machineScope, nil, poolObj)
 
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", &extraPool0)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIPv4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", &extraPool0)
 
 	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
@@ -197,7 +197,7 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	machineScope.SetVirtualMachine(vm)
 
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
@@ -424,8 +424,8 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 
 	// create missing defaultPoolV6 and ipAddresses
 	machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background())
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.254", &defaultPool)
-	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", &defaultPoolV6)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.254", &defaultPool)
+	createIPv6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", &defaultPoolV6)
 
 	// perform test
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -508,10 +508,10 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 
 	// Create missing ip addresses and pools.
 	createIPPools(t, kubeClient, machineScope)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
-	createIP6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", &defaultPoolV6)
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10", &extraPool0)
-	createIP6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9", &extraPool1)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIPv6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", &defaultPoolV6)
+	createIPv4AddressResource(t, kubeClient, machineScope, "net1", "10.0.0.10", &extraPool0)
+	createIPv6AddressResource(t, kubeClient, machineScope, "net1", "2001:db8::9", &extraPool1)
 
 	// Perform test.
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -588,9 +588,9 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	}
 
 	createIPPools(t, kubeClient, machineScope)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.20.10.10", &extraPool0)
-	createIP4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", &extraPool1)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.20.10.10", &extraPool0)
+	createIPv4AddressResource(t, kubeClient, machineScope, "net1", "10.100.10.10", &extraPool1)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -631,7 +631,7 @@ func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
@@ -660,7 +660,7 @@ func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 
 	setupFakeIsoInjector(t)
 
@@ -682,7 +682,7 @@ func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
 	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, ignition.FormatIgnition)
 
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 
 	getIgnitionISOInjector = func(_ *proxmox.VirtualMachine, _ cloudinit.Renderer, _ *ignition.Enricher) isoInjector {
 		return FakeIgnitionISOInjector{}
@@ -744,8 +744,8 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	}
 
 	createIPPools(t, kubeClient, machineScope)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
-	createIP4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.5.10.10", &extraPool0)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.5.10.10", &extraPool0)
 
 	// Perform the test
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)

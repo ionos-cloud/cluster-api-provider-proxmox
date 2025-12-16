@@ -72,7 +72,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 
 		// Todo: add tagging to its own stage
 		// Add ip tag if the Virtual Machine doesn't have it.
-		if vm := machineScope.VirtualMachine; !vm.HasTag(ipTag) && isIPV4(ip) {
+		if vm := machineScope.VirtualMachine; !vm.HasTag(ipTag) && isIPv4(ip) {
 			machineScope.Logger.V(4).Info("adding virtual machine ip tag.")
 			t, err := machineScope.InfraCluster.ProxmoxClient.TagVM(ctx, vm, ipTag)
 			if err != nil {
@@ -97,10 +97,10 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 				if _, e := statusAddresses[net]; !e {
 					statusAddresses[net] = new(infrav1.IPAddresses)
 				}
-				if isIPV4(ip) {
-					statusAddresses[net].IPV4 = append(statusAddresses[net].IPV4, ip)
+				if isIPv4(ip) {
+					statusAddresses[net].IPv4 = append(statusAddresses[net].IPv4, ip)
 				} else {
-					statusAddresses[net].IPV6 = append(statusAddresses[net].IPV6, ip)
+					statusAddresses[net].IPv6 = append(statusAddresses[net].IPv6, ip)
 				}
 			}
 		}
@@ -161,8 +161,8 @@ func machineHasIPAddress(machine *infrav1.ProxmoxMachine) bool {
 	if machine.Status.IPAddresses[infrav1.DefaultNetworkDevice] == nil {
 		return false
 	} else {
-		return len(machine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPV4) > 0 ||
-			len(machine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPV6) > 0
+		return len(machine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4) > 0 ||
+			len(machine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv6) > 0
 	}
 }
 
@@ -244,6 +244,6 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 	return false, nil
 }
 
-func isIPV4(ip string) bool {
+func isIPv4(ip string) bool {
 	return netip.MustParseAddr(ip).Is4()
 }

@@ -118,7 +118,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 				Kind: reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      InClusterPoolFormat(h.cluster, infrav1.IPV4Format),
+				Name:      InClusterPoolFormat(h.cluster, infrav1.IPv4Format),
 				Namespace: h.cluster.GetNamespace(),
 				Annotations: func() map[string]string {
 					if ipv4Config.Metric != nil {
@@ -165,7 +165,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 				Kind: reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      InClusterPoolFormat(h.cluster, infrav1.IPV6Format),
+				Name:      InClusterPoolFormat(h.cluster, infrav1.IPv6Format),
 				Namespace: h.cluster.GetNamespace(),
 				Annotations: func() map[string]string {
 					if h.cluster.Spec.IPv6Config.Metric != nil {

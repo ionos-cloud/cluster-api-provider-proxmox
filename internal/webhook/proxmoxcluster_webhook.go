@@ -157,7 +157,7 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 		}
 	}
 
-	// IPV6
+	// IPv6
 	if cluster.Spec.IPv6Config != nil {
 		set6, err := buildSetFromAddresses(cluster.Spec.IPv6Config.Addresses)
 		if err != nil {

@@ -44,11 +44,11 @@ const (
 	// DefaultSuffix is the default suffix for the network device.
 	DefaultSuffix = "inet"
 
-	// IPV4Format is the IP v4 format.
-	IPV4Format = "v4"
+	// IPv4Format is the IP v4 format.
+	IPv4Format = "v4"
 
-	// IPV6Format is the IP v6 format.
-	IPV6Format = "v6"
+	// IPv6Format is the IP v6 format.
+	IPv6Format = "v6"
 )
 
 // ProxmoxMachineChecks defines possibibles checks to skip.
@@ -516,12 +516,12 @@ type IPAddresses struct {
 	// ipv4 is the IPv4 address.
 	// +listType=set
 	// +optional
-	IPV4 []string `json:"ipv4,omitempty"`
+	IPv4 []string `json:"ipv4,omitempty"`
 
 	// ipv6 is the IPv6 address.
 	// +listType=set
 	// +optional
-	IPV6 []string `json:"ipv6,omitempty"`
+	IPv6 []string `json:"ipv6,omitempty"`
 }
 
 // VMIDRange defines the range of VMIDs to use for VMs.
