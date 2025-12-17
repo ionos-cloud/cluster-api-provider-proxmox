@@ -50,6 +50,7 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
+	// TODO: check that result is such that requeueing is necessary
 
 	// requeue the VM since it is not fully done with the state transition
 	result, err = ReconcileVM(context.Background(), machineScope)
@@ -95,6 +96,7 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
+	// TODO: check that result is such that requeueing is necessary
 
 	// requeue the VM since it is not fully done with the state transition
 	result, err = ReconcileVM(context.Background(), machineScope)
