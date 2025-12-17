@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 )
 
 var _ = Describe("Controller Test", func() {
@@ -149,7 +150,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 					InterfaceConfig: infrav1.InterfaceConfig{
 						IPPoolRef: []corev1.TypedLocalObjectReference{{
 							Name:     "simple-pool",
-							Kind:     "InClusterIPPool",
+							Kind:     InClusterIPPool,
 							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 						}},
 						Routing: infrav1.Routing{

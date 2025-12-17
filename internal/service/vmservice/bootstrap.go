@@ -18,10 +18,10 @@ package vmservice
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
-	"encoding/json"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
@@ -86,7 +86,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
-	machineScope.Logger.V(4).Info("nicData", "json", func() string {ret, _ := json.Marshal(nicData); return string(ret)}())
+	machineScope.Logger.V(4).Info("nicData", "json", func() string { ret, _ := json.Marshal(nicData); return string(ret) }())
 	// Inject userdata based on the format
 	if ptr.Deref(format, "") == ignition.FormatIgnition {
 		err = injectIgnition(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)

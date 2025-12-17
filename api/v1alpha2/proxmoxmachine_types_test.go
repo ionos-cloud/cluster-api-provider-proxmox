@@ -26,6 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 )
 
 func defaultMachine() *ProxmoxMachine {
@@ -199,7 +201,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 					InterfaceConfig: InterfaceConfig{
 						IPPoolRef: []corev1.TypedLocalObjectReference{{
 							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-							Kind:     "InClusterIPPool",
+							Kind:     InClusterIPPool,
 							Name:     "some-pool",
 						}},
 					},

@@ -42,6 +42,7 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
@@ -307,11 +308,11 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 
 	if pool == nil {
 		switch poolRef.Kind {
-		case "InClusterIPPool":
-			pool = &ipamicv1.InClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: "InClusterIPPool", APIVersion: ipamicv1.GroupVersion.String()}}
+		case InClusterIPPool:
+			pool = &ipamicv1.InClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: InClusterIPPool, APIVersion: ipamicv1.GroupVersion.String()}}
 			pool.SetNamespace(machineScope.Namespace())
-		case "GlobalInClusterIPPool":
-			pool = &ipamicv1.GlobalInClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: "GlobalInClusterIPPool", APIVersion: ipamicv1.GroupVersion.String()}}
+		case GlobalInClusterIPPool:
+			pool = &ipamicv1.GlobalInClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: GlobalInClusterIPPool, APIVersion: ipamicv1.GroupVersion.String()}}
 		}
 		pool.SetName(poolRef.Name)
 	}
@@ -328,9 +329,9 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 
 	_, err := controllerutil.CreateOrUpdate(context.Background(), c, pool, func() error {
 		// TODO: Metric change in annotations
-		if pool.GetObjectKind().GroupVersionKind().Kind == "InClusterIPPool" {
+		if pool.GetObjectKind().GroupVersionKind().Kind == InClusterIPPool {
 			pool.(*ipamicv1.InClusterIPPool).Spec = desired.(*ipamicv1.InClusterIPPool).Spec
-		} else if pool.GetObjectKind().GroupVersionKind().Kind == "GlobalInClusterIPPool" {
+		} else if pool.GetObjectKind().GroupVersionKind().Kind == GlobalInClusterIPPool {
 			pool.(*ipamicv1.GlobalInClusterIPPool).Spec = desired.(*ipamicv1.GlobalInClusterIPPool).Spec
 		}
 		return nil
@@ -355,10 +356,10 @@ func getPoolSpec(pool client.Object) struct {
 } {
 	var gateway string
 	var prefix int
-	if pool.GetObjectKind().GroupVersionKind().Kind == "InClusterIPPool" {
+	if pool.GetObjectKind().GroupVersionKind().Kind == InClusterIPPool {
 		prefix = pool.(*ipamicv1.InClusterIPPool).Spec.Prefix
 		gateway = pool.(*ipamicv1.InClusterIPPool).Spec.Gateway
-	} else if pool.GetObjectKind().GroupVersionKind().Kind == "GlobalInClusterIPPool" {
+	} else if pool.GetObjectKind().GroupVersionKind().Kind == GlobalInClusterIPPool {
 		prefix = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix
 		gateway = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway
 	}
@@ -373,9 +374,9 @@ func getIPAddressPool(t *testing.T, c client.Client, machineScope *scope.Machine
 	var obj client.Object
 	var err error
 
-	if poolRef.Kind == "InClusterIPPool" {
+	if poolRef.Kind == InClusterIPPool {
 		obj, err = machineScope.IPAMHelper.GetInClusterIPPool(context.Background(), poolRef)
-	} else if poolRef.Kind == "GlobalInClusterIPPool" {
+	} else if poolRef.Kind == GlobalInClusterIPPool {
 		obj, err = machineScope.IPAMHelper.GetGlobalInClusterIPPool(context.Background(), poolRef)
 	}
 
