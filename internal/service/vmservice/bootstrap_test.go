@@ -33,6 +33,7 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
@@ -94,7 +95,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 		},
 	}
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
 	}
 	createIPPools(t, kubeClient, machineScope)
@@ -132,11 +133,11 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 		},
 	}
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
 	}
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "GlobalInClusterIPPool",
+		Kind: GlobalInClusterIPPool,
 		Name: "extraPool0",
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -298,7 +299,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 				InterfaceConfig: infrav1.InterfaceConfig{
 					IPPoolRef: []corev1.TypedLocalObjectReference{{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-						Kind:     "GlobalInClusterIPPool",
+						Kind:     GlobalInClusterIPPool,
 						Name:     "net1-inet",
 					}},
 				},
@@ -412,11 +413,11 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 
 	// NetworkSetup for default pools
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
 	}
 	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[1].Name,
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -467,11 +468,11 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 
 	// NetworkSetup for default pools
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
 	}
 	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[1].Name,
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -482,11 +483,11 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background())
 
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "GlobalInClusterIPPool",
+		Kind: GlobalInClusterIPPool,
 		Name: "extrapool0",
 	}
 	extraPool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "GlobalInClusterIPPool",
+		Kind: GlobalInClusterIPPool,
 		Name: "extrapool1",
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -546,16 +547,16 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 
 	// NetworkSetup for default pools
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
 	}
 
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "GlobalInClusterIPPool",
+		Kind: GlobalInClusterIPPool,
 		Name: "extrapool0",
 	}
 	extraPool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "GlobalInClusterIPPool",
+		Kind: GlobalInClusterIPPool,
 		Name: "extrapool1",
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -724,11 +725,11 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "InClusterIPPool",
+		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
 	}
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind: "GlobalInClusterIPPool",
+		Kind: GlobalInClusterIPPool,
 		Name: "extrapool0",
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{

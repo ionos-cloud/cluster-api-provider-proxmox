@@ -41,11 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
-)
-
-const (
-	globalInClusterIPPool = "GlobalInClusterIPPool"
-	inClusterIPPool       = "InClusterIPPool"
+	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 )
 
 // Helper provides handling of ipam objects such as, InClusterPool, IPAddressClaim.
@@ -250,13 +246,13 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 		Name: poolRef.Name,
 	}
 
-	if poolRef.Kind == inClusterIPPool {
+	if poolRef.Kind == InClusterIPPool {
 		ipPool, err := h.GetInClusterIPPool(ctx, key)
 		annotations = ipPool.ObjectMeta.Annotations
 		if err != nil {
 			return nil, err
 		}
-	} else if poolRef.Kind == globalInClusterIPPool {
+	} else if poolRef.Kind == GlobalInClusterIPPool {
 		ipPool, err := h.GetGlobalInClusterIPPool(ctx, key)
 		if err != nil {
 			return nil, err
@@ -290,7 +286,7 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 		if err != nil {
 			return err
 		}
-	case ref.Kind == inClusterIPPool:
+	case ref.Kind == InClusterIPPool:
 		pool, err := h.GetInClusterIPPool(ctx, ref)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find inclusterpool for cluster %s", h.cluster.Name)
@@ -300,7 +296,7 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 		if err != nil {
 			return err
 		}
-	case ref.Kind == globalInClusterIPPool:
+	case ref.Kind == GlobalInClusterIPPool:
 		pool, err := h.GetGlobalInClusterIPPool(ctx, ref)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find global inclusterpool for cluster %s", h.cluster.Name)
@@ -352,7 +348,7 @@ func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object
 	suffix := infrav1.DefaultSuffix
 
 	switch {
-	case ref.Kind == inClusterIPPool:
+	case ref.Kind == InClusterIPPool:
 		pool, err := h.GetInClusterIPPool(ctx, ref)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find inclusterpool for cluster %s", h.cluster.Name)
@@ -362,7 +358,7 @@ func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object
 		if err != nil {
 			return err
 		}
-	case ref.Kind == globalInClusterIPPool:
+	case ref.Kind == GlobalInClusterIPPool:
 		pool, err := h.GetGlobalInClusterIPPool(ctx, ref)
 		if err != nil {
 			return errors.Wrapf(err, "unable to find global inclusterpool for cluster %s", h.cluster.Name)
