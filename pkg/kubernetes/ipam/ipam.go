@@ -25,7 +25,6 @@ import (
 	"reflect"
 	"regexp"
 
-	infrav1alpha2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,7 +70,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 
 	// cluster, _ := util.GetClusterFromMetadata(ctx, h.ctrlClient, machine.ObjectMeta)
 	clusterName := moxm.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"]
-	proxmoxCluster := &infrav1alpha2.ProxmoxCluster{}
+	proxmoxCluster := &infrav1.ProxmoxCluster{}
 
 	h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: clusterName}, proxmoxCluster)
 

@@ -91,12 +91,14 @@ linters:
           - staticcheck
         text: QF100(2|3|8)
       - linters:
+          - staticcheck
+        text: ST1001
+      - linters:
+          - revive
+        text: dot-imports
+      - linters:
           - unparam
         text: always receives
-      - path: _test\.go
-        text: should not use dot imports
-      - path: (framework|e2e)/.*.go
-        text: should not use dot imports
       - path: _test\.go
         text: cyclomatic complexity
       - linters:

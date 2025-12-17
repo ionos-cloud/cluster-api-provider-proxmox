@@ -425,7 +425,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	}
 
 	// create missing defaultPoolV6 and ipAddresses
-	machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background())
+	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.254", &defaultPool)
 	createIPv6AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", &defaultPoolV6)
 
@@ -480,7 +480,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	}
 
 	// create missing defaultPoolV6
-	machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background())
+	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
 	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
