@@ -357,7 +357,7 @@ type VRFDevice struct {
 	// interfaces is the list of proxmox network devices managed by this virtual device.
 	// +optional
 	// +listType=set
-	Interfaces []string `json:"interfaces,omitempty"`
+	Interfaces []NetName `json:"interfaces,omitempty"`
 
 	// name is the virtual network device name.
 	// Must be unique within the virtual machine.
@@ -410,10 +410,9 @@ type NetworkDevice struct {
 	VLAN *int32 `json:"vlan,omitempty"`
 
 	// name is the network device name.
-	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:default=net0
 	// +optional
-	Name *string `json:"name,omitempty"`
+	Name NetName `json:"name,omitempty"`
 
 	// InterfaceConfig contains all configurables a network interface can have.
 	// +optional

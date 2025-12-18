@@ -112,7 +112,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress)
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
-	require.Equal(t, "net0", networkConfigData[0].ProxName)
+	require.Equal(t, "net0", *networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
 
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
@@ -127,11 +127,6 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	networkDataPtr := setupFakeIsoInjector(t)
 
 	// NetworkSetup
-	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
-		NetworkDevices: []infrav1.NetworkDevice{
-			defaultNic,
-		},
-	}
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope)[0].Name,
@@ -180,13 +175,13 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress)
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
-	require.Equal(t, "net0", networkConfigData[0].ProxName)
+	require.Equal(t, "net0", *networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
 	require.Equal(t, "10.100.10.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress)
 	require.Equal(t, "10.100.10.1", networkConfigData[1].IPConfigs[0].Gateway)
 	require.Equal(t, "AA:23:64:4D:84:CD", networkConfigData[1].MacAddress)
 	require.Equal(t, "eth1", networkConfigData[1].Name)
-	require.Equal(t, "net1", networkConfigData[1].ProxName)
+	require.Equal(t, "net1", *networkConfigData[1].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[1].Type)
 
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
@@ -198,9 +193,20 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
 	vm := newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	machineScope.SetVirtualMachine(vm)
-
-	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", nil)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+
+	// NetworkSetup
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{
+			defaultNic,
+		},
+	}
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope)[0].Name,
+	}
+	createIPPools(t, kubeClient, machineScope)
+	createIPv4AddressResource(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", &defaultPool)
 
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{Error: errors.New("bad FakeISOInjector")}
@@ -380,7 +386,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 			VRFs: []infrav1.VRFDevice{{
 				Name:       "vrf-blue",
 				Table:      500,
-				Interfaces: []string{"net1"},
+				Interfaces: []infrav1.NetName{ptr.To("net1")},
 			}},
 		},
 	}
@@ -562,7 +568,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		VirtualNetworkDevices: infrav1.VirtualNetworkDevices{
 			VRFs: []infrav1.VRFDevice{{
-				Interfaces: []string{"net1"},
+				Interfaces: []infrav1.NetName{ptr.To("net1")},
 				Name:       "vrf-blue",
 				Table:      500,
 			}},

@@ -125,7 +125,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 							{IPAddress: "10.0.0.98/25", Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
 							{IPAddress: "2001:db8:1::10/64", Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
 						},
-						ProxName:   "net0",
+						ProxName:   ptr.To("net0"),
 						DNSServers: []string{"10.0.1.1"},
 					},
 					{
@@ -135,7 +135,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						IPConfigs: []types.IPConfig{
 							{IPAddress: "10.0.1.84/25", Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
 						},
-						ProxName:   "net1",
+						ProxName:   ptr.To("net1"),
 						DNSServers: []string{"10.0.1.1"},
 						FIBRules: []types.FIBRuleData{{
 							To:       ptr.To("8.7.6.5/32"),
@@ -163,7 +163,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 							{IPAddress: "10.0.0.98/25", Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
 							{IPAddress: "2001:db8:1::10/64", Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
 						},
-						ProxName:   "net0",
+						ProxName:   ptr.To("net0"),
 						DNSServers: []string{"10.0.1.1"},
 					},
 					{
@@ -173,13 +173,13 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						IPConfigs: []types.IPConfig{
 							{IPAddress: "10.0.1.84/25", Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
 						},
-						ProxName:   "net1",
+						ProxName:   ptr.To("net1"),
 						DNSServers: []string{"10.0.1.1"},
 					},
 					{
 						Type:       "vrf",
 						Name:       "vrf0",
-						ProxName:   "net1",
+						ProxName:   ptr.To("net1"),
 						Table:      644,
 						Interfaces: []string{"eth1"},
 						Routes: []types.RoutingData{{

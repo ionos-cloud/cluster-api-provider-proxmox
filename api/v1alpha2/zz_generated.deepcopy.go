@@ -1118,8 +1118,14 @@ func (in *VRFDevice) DeepCopyInto(out *VRFDevice) {
 	*out = *in
 	if in.Interfaces != nil {
 		in, out := &in.Interfaces, &out.Interfaces
-		*out = make([]string, len(*in))
-		copy(*out, *in)
+		*out = make([]NetName, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(string)
+				**out = **in
+			}
+		}
 	}
 	in.Routing.DeepCopyInto(&out.Routing)
 }
