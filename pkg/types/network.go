@@ -21,7 +21,7 @@ import infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2
 
 // NetworkConfigData is used to render network-config.
 type NetworkConfigData struct {
-	ProxName   string // Device name in Proxmox
+	ProxName   infrav1.NetName // Device name in Proxmox
 	MacAddress string
 	DHCP4      bool
 	DHCP6      bool

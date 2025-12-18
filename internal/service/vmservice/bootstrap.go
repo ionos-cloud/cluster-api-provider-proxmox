@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/luthermonson/go-proxmox"
@@ -28,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -44,19 +44,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, nil
 	}
 
-	/* TODO: This is useless because we use conditions as state machines
-	if ptr.Deref(machineScope.ProxmoxMachine.Status.BootstrapDataProvided, false) {
-		// skip machine already have the bootstrap data.
-		return false, nil
-	}
-
-	if !machineHasIPAddress(machineScope.ProxmoxMachine) {
-		// skip machine doesn't have an IpAddress yet.
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
-		return true, nil
-	}
-	*/
-
+	// TODO: remove.
 	// make sure MacAddress is set.
 	if !vmHasMacAddresses(machineScope) {
 		return true, nil
@@ -79,10 +67,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, err
 	}
 
-	kubernetesVersion := ""
-	if machineScope.Machine.Spec.Version != nil {
-		kubernetesVersion = *machineScope.Machine.Spec.Version
-	}
+	kubernetesVersion := ptr.Deref(machineScope.Machine.Spec.Version, "")
 
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
@@ -207,6 +192,7 @@ func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope)
 	return networkConfigData, nil
 }
 
+// TODO: make this a thing
 func getClusterNetwork(ctx context.Context, machineScope *scope.MachineScope) ([]corev1.TypedLocalObjectReference, error) {
 	ipv4 := machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config
 	ipv6 := machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config
@@ -220,7 +206,7 @@ func getClusterNetwork(ctx context.Context, machineScope *scope.MachineScope) ([
 	return ret, nil
 }
 
-func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string, ipPoolRefs []corev1.TypedLocalObjectReference) (*types.NetworkConfigData, error) {
+func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string, ipPoolRefs map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (*types.NetworkConfigData, error) {
 	if device == "" {
 		// this should never happen outwith tests
 		return nil, errors.New("empty device name")
@@ -236,16 +222,11 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 		return nil, errors.New("unable to extract mac address")
 	}
 
-	// TODO: Append default pool in front. Default IPPool takes 2.
-
-	ipConfigs := make([]types.IPConfig, 0, len(ipPoolRefs)+2)
-	for _, ipPool := range ipPoolRefs {
+	var ipConfigs []types.IPConfig
+	for _, addresses := range ipPoolRefs {
 		ipConfig := types.IPConfig{}
-		addresses, err := findIPAddressesByPool(ctx, machineScope, device, ipPool)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error getting IPAddresses for pool, kind=%s, name=%s", ipPool.Kind, ipPool.Name)
-		}
 		for _, ipAddr := range addresses {
+			// TODO: IPConfigs is stupid. No need to gather metrics here.
 			ipConfig.IPAddress = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
 			ipConfig.Gateway = ipAddr.Spec.Gateway
 
@@ -269,68 +250,6 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	return cloudinitNetworkConfigData, nil
 }
 
-/*
-func getDefaultNetworkDevice(ctx context.Context, machineScope *scope.MachineScope) ([]types.NetworkConfigData, error) {
-	var config types.NetworkConfigData
-
-	// default network device ipv4.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil ||
-		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv4PoolRef != nil) {
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPv4)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPv4)
-		}
-		if machineScope.ProxmoxMachine.Spec.Network != nil && len(machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers) != 0 {
-			config.DNSServers = machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers
-		}
-		config = *conf
-	}
-
-	// default network device ipv6.
-	if machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil ||
-		(machineScope.ProxmoxMachine.Spec.Network != nil && machineScope.ProxmoxMachine.Spec.Network.Default.IPv6PoolRef != nil) {
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, DefaultNetworkDeviceIPv6)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", DefaultNetworkDeviceIPv6)
-		}
-
-		switch {
-		case len(config.MacAddress) == 0:
-			config = *conf
-		case config.MacAddress != conf.MacAddress:
-			return nil, errors.New("default network device ipv4 and ipv6 have different mac addresses")
-		default:
-			config.IPv6Address = conf.IPv6Address
-			config.Gateway6 = conf.Gateway6
-			config.Metric6 = conf.Metric6
-		}
-
-		if machineScope.ProxmoxMachine.Spec.Network != nil && len(machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers) != 0 {
-			config.DNSServers = machineScope.ProxmoxMachine.Spec.Network.Default.DNSServers
-		}
-	}
-
-    // TODO: remove me
-	// Default Network Device lacks a datastructure to transport MTU.
-	// We can use the Proxmox Device MTU instead to enable non virtio devices
-	// the usage of jumbo frames. This has the minor drawback of coalescing proxmox
-	// MTU with interface MTU, which shouldn't matter in almost all cases.
-	if network := machineScope.ProxmoxMachine.Spec.Network; network != nil {
-		if len(network.NetworkDevices) > 0 {
-			if network.NetworkDevices[0].MTU != nil && *network.NetworkDevices[0].MTU >= 576 {
-				config.LinkMTU = network.NetworkDevices[0].MTU
-			}
-		}
-	}
-
-	config.Name = "eth0"
-	config.Type = "ethernet"
-	config.ProxName = "net0"
-
-	return []types.NetworkConfigData{config}, nil
-}
-*/
-
 // getCommonInterfaceConfig sets data which is common to all types of network interfaces.
 func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1.InterfaceConfig) {
 	if len(ifconfig.DNSServers) != 0 {
@@ -343,18 +262,20 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 
 func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1.NetworkSpec) ([]types.NetworkConfigData, error) {
 	networkConfigData := make([]types.NetworkConfigData, 0, len(network.NetworkDevices))
+	ipAddressMap := make(map[string]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+
+	requeue, err := handleDevices(ctx, machineScope, ipAddressMap)
+	if requeue || err != nil {
+		// invalid state. Machine should've had all IPs assigned
+		return nil, errors.Wrapf(err, "unable to get IPs for network config data")
+	}
 
 	// network devices.
 	for i, nic := range network.NetworkDevices {
 		var config = ptr.To(types.NetworkConfigData{})
 
 		// TODO: Default device IPPool api change
-		ipPoolRefs := nic.InterfaceConfig.IPPoolRef
-		if *nic.Name == infrav1.DefaultNetworkDevice {
-			defaultPools, _ := GetInClusterIPPoolsFromMachine(ctx, machineScope)
-
-			ipPoolRefs = slices.Concat(*defaultPools, ipPoolRefs)
-		}
+		ipPoolRefs := ipAddressMap[*nic.Name]
 
 		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, *nic.Name, ipPoolRefs)
 		if err != nil {
@@ -369,11 +290,11 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 
 		config.Name = fmt.Sprintf("eth%d", i)
 		config.Type = "ethernet"
-		config.ProxName = *nic.Name
+		config.ProxName = nic.Name
 
 		// TODO: Figure device names for eth0
 		if i == 0 {
-			config.ProxName = "net0"
+			config.ProxName = ptr.To("net0")
 		}
 
 		if len(config.MacAddress) > 0 {
@@ -394,12 +315,12 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 
 		for i, child := range device.Interfaces {
 			for _, net := range data {
-				if (net.Name == child) || (net.ProxName == child) {
+				if (net.Name == *child) || (ptr.Deref(net.ProxName, "") == *child) {
 					config.Interfaces = append(config.Interfaces, net.Name)
 				}
 			}
 			if len(config.Interfaces)-1 < i {
-				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
+				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, *child)
 			}
 		}
 

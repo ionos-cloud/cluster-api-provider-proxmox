@@ -81,5 +81,9 @@ type NetworkStatus struct {
 
 	// networkName is the name of the network.
 	// +optional
-	NetworkName *string `json:"networkName,omitempty"`
+	NetworkName NetName `json:"networkName,omitempty"`
 }
+
+// NetName is a formally verified Proxmox network name string.
+// +kubebuilder:validation:Pattern=`^net[0-9]+$`
+type NetName *string

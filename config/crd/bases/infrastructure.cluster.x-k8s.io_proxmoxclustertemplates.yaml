@@ -1180,7 +1180,7 @@ spec:
                                             default: net0
                                             description: name is the network device
                                               name.
-                                            minLength: 1
+                                            pattern: ^net[0-9]+$
                                             type: string
                                           routes:
                                             description: routes are the routes associated
@@ -1271,6 +1271,9 @@ spec:
                                               proxmox network devices managed by this
                                               virtual device.
                                             items:
+                                              description: NetName is a formally verified
+                                                Proxmox network name string.
+                                              pattern: ^net[0-9]+$
                                               type: string
                                             type: array
                                             x-kubernetes-list-type: set
