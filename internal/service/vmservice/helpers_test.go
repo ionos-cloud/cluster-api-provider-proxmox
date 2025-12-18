@@ -228,8 +228,11 @@ func getIPSuffix(addr string) string {
 
 	return suffix
 }
-func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip string, prefix int, pool *corev1.TypedLocalObjectReference) {
-	gateway := netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String()
+func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, pool *corev1.TypedLocalObjectReference) {
+	// gateway := netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String()
+
+	prefix := ip.Bits()
+	var gateway string
 
 	if pool != nil {
 		ipAddrClaim := &ipamv1.IPAddressClaim{
@@ -265,7 +268,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 			Namespace: machineScope.Namespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
-			Address: ip,
+			Address: ip.Addr().String(),
 			Prefix:  prefix,
 			Gateway: gateway,
 			PoolRef: ptr.Deref(pool, corev1.TypedLocalObjectReference{}),
@@ -280,7 +283,7 @@ func createIPv4AddressResource(t *testing.T, c client.Client, machineScope *scop
 	name := formatIPAddressName(machineScope.Name(), poolName, device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
-	createIPAddressResource(t, c, name, machineScope, ip, 24, pool)
+	createIPAddressResource(t, c, name, machineScope, netip.MustParsePrefix(ip+"/24"), pool)
 }
 
 func createIPv6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
@@ -289,7 +292,19 @@ func createIPv6AddressResource(t *testing.T, c client.Client, machineScope *scop
 	name := formatIPAddressName(machineScope.Name(), poolName, device)
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
-	createIPAddressResource(t, c, name, machineScope, ip, 64, pool)
+	createIPAddressResource(t, c, name, machineScope, netip.MustParsePrefix(ip+"/64"), pool)
+}
+
+func createIPAddressesForMachine(t *testing.T, c client.Client, machineScope *scope.MachineScope, ipAddresses []netip.Prefix) {
+	ipCount := 0
+	for _, device := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
+		for j, poolRef := range device.IPPoolRef {
+			// todo: unify with ipam
+			ipName := fmt.Sprintf("%s-%s-%02d-%s", machineScope.ProxmoxMachine.GetName(), *device.Name, j, infrav1.DefaultSuffix)
+			createIPAddressResource(t, c, ipName, machineScope, ipAddresses[ipCount], &poolRef)
+			ipCount++
+		}
+	}
 }
 
 func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineScope) {

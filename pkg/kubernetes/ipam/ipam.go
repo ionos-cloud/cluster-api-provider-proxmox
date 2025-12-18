@@ -379,6 +379,7 @@ func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object
 		clusterv1.ClusterNameLabel: clusterNameLabel,
 	}
 
+	// TODO: suffix makes no sense, fmt.Sprintf() needs to be shared with testing
 	desired := &ipamv1.IPAddressClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s-%02d-%s", owner.GetName(), device, poolNum, suffix),
