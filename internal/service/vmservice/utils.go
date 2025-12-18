@@ -141,41 +141,6 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
 
-	// TODO: remove
-	/*
-		if machineScope.ProxmoxMachine.Spec.Network.Default != nil {
-			net0 := nets[infrav1alpha2.DefaultNetworkDevice]
-			if net0 == "" {
-				return true
-			}
-
-			desiredDefault := *machineScope.ProxmoxMachine.Spec.Network.Default
-
-			model := extractNetworkModel(net0)
-			bridge := extractNetworkBridge(net0)
-
-			if model != *desiredDefault.Model || bridge != desiredDefault.Bridge {
-				return true
-			}
-
-			if desiredDefault.MTU != nil {
-				mtu := extractNetworkMTU(net0)
-
-				if mtu != *desiredDefault.MTU {
-					return true
-				}
-			}
-
-			if desiredDefault.VLAN != nil {
-				vlan := extractNetworkVLAN(net0)
-
-				if vlan != *desiredDefault.VLAN {
-					return true
-				}
-			}
-		}
-	*/
-
 	devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 	for _, v := range devices {
 		net := nets[ptr.Deref(v.Name, infrav1.DefaultNetworkDevice)]
