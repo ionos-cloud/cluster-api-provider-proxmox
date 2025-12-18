@@ -17,6 +17,33 @@ limitations under the License.
 // Package consts contains global consts.
 package consts
 
+import (
+	"reflect"
+
+	"k8s.io/utils/ptr"
+	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
+)
+
+// GetGlobalInClusterIPPoolKind returns the kind string of a GlobalInClusterIPPool,
+// which is useful for typedlocalobjectreferences.
+func GetGlobalInClusterIPPoolKind() string {
+	return reflect.ValueOf(ipamicv1.GlobalInClusterIPPool{}).Type().Name()
+}
+
+// GetGlobalInClusterIPPoolKind returns the kind string of a InClusterIPPool,
+// which is useful for typedlocalobjectreferences.
+func GetInClusterIPPoolKind() string {
+	return reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name()
+}
+
+func GetIpamInClusterAPIGroup() *string {
+	return ptr.To(ipamicv1.GroupVersion.String())
+}
+
+func GetIpamInClusterAPIVersion() string {
+	return ipamicv1.GroupVersion.Group
+}
+
 const (
 	// GlobalInClusterIPPool is the Global In-Cluster Pool.
 	GlobalInClusterIPPool = "GlobalInClusterIPPool"

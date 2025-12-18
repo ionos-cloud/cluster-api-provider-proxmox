@@ -24,6 +24,8 @@ import (
 	"net/netip"
 	"reflect"
 	"regexp"
+	"slices"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -110,7 +112,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: ipamicv1.GroupVersion.String(),
 				// Thank you ipamic for making InClusterIPPoolKind private
-				Kind: reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+				Kind: GetInClusterIPPoolKind(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      InClusterPoolFormat(h.cluster, infrav1.IPv4Format),
@@ -451,7 +453,6 @@ func (h *Helper) GetIPAddressV2(ctx context.Context, poolRef corev1.TypedLocalOb
 func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {
 	addresses := &ipamv1.IPAddressList{}
 
-	// fieldSelector, err := fields.ParseSelector("spec.poolRef.name=" + poolRef.Name + ",spec.poolRef.kind=" + poolRef.Kind)
 	fieldSelector, err := fields.ParseSelector("spec.poolRef.name=" + poolRef.Name)
 	if err != nil {
 		return nil, err
@@ -464,16 +465,18 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 		return nil, err
 	}
 
-	out := make([]ipamv1.IPAddress, 0, len(addresses.Items))
-	for _, addr := range addresses.Items {
-		groupVersion, _ := schema.ParseGroupVersion(addr.APIVersion)
-		if groupVersion.Group != "ipam.cluster.x-k8s.io" {
-			continue
-		}
-		out = append(out, addr)
-	}
+	addresses.Items = slices.DeleteFunc(addresses.Items, func(n ipamv1.IPAddress) bool {
+		// Check if we are actually dealing with the right resource kind.
+		groupVersion, _ := schema.ParseGroupVersion(n.APIVersion)
+		return groupVersion.Group != GetIpamInClusterAPIVersion()
+	})
 
-	return out, nil
+	// Sort result by IPAddress.Name to provide stability to testing.
+	slices.SortFunc(addresses.Items, func(a, b ipamv1.IPAddress) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	return addresses.Items, nil
 }
 
 func gvkForObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersionKind, error) {
