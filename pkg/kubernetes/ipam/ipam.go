@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -65,6 +64,11 @@ func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, format string) string 
 	return fmt.Sprintf("%s-%s-icip", cluster.GetName(), format)
 }
 
+// IPAddressFormat returns an ipaddress name.
+func IPAddressFormat(machineName, proxDeviceName, suffix string, offset int) string {
+	return fmt.Sprintf("%s-%s-%02d-%s", machineName, proxDeviceName, offset, suffix)
+}
+
 // GetInClusterPools returns the IPPools belonging to the ProxmoxCluster.
 func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
 	pools := map[string]*ipamicv1.InClusterIPPool{}
@@ -79,7 +83,14 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 	// TODO: Per ZONE IPPoolRefs
 	for _, poolRef := range proxmoxCluster.Status.InClusterIPPoolRef {
 		pool := &ipamicv1.InClusterIPPool{}
-		h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: poolRef.Name}, pool)
+		err := h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: poolRef.Name}, pool)
+		if err != nil {
+			return nil, err
+		}
+		if len(pool.Spec.Addresses) == 0 {
+			return nil, errors.New(fmt.Sprintf("InClusterIPPool %s without addresses", pool.Name))
+		}
+
 		// There's no way of telling if a pool is ipv4 or ipv6 except for parsing it.
 		// cluster-api-in-cluster-ipam keeps the pool functions to tag a pool ipv4/ipv6 internal,
 		// so we need to reinvent the wheel here.
@@ -159,7 +170,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: ipamicv1.GroupVersion.String(),
 				// Thank you ipamic for making InClusterIPPoolKind private
-				Kind: reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+				Kind: GetInClusterIPPoolKind(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      InClusterPoolFormat(h.cluster, infrav1.IPv6Format),
@@ -382,7 +393,7 @@ func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object
 	// TODO: suffix makes no sense, fmt.Sprintf() needs to be shared with testing
 	desired := &ipamv1.IPAddressClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s-%02d-%s", owner.GetName(), device, poolNum, suffix),
+			Name:      IPAddressFormat(owner.GetName(), device, suffix, poolNum),
 			Namespace: owner.GetNamespace(),
 			Labels:    labels,
 		},

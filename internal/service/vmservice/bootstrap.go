@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/luthermonson/go-proxmox"
@@ -222,20 +223,27 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 		return nil, errors.New("unable to extract mac address")
 	}
 
-	var ipConfigs []types.IPConfig
+	// Keys need to be sorted as golang doesn't guarantee stable map iteration
+	ipAddressesPerNet := []ipamv1.IPAddress{}
 	for _, addresses := range ipPoolRefs {
-		ipConfig := types.IPConfig{}
-		for _, ipAddr := range addresses {
-			// TODO: IPConfigs is stupid. No need to gather metrics here.
-			ipConfig.IPAddress = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
-			ipConfig.Gateway = ipAddr.Spec.Gateway
+		ipAddressesPerNet = slices.Concat(ipAddressesPerNet, addresses)
+	}
+	slices.SortFunc(ipAddressesPerNet, func(a, b ipamv1.IPAddress) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
-			metric, err := findIPAddressGatewayMetric(ctx, machineScope, &ipAddr)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
-			}
-			ipConfig.Metric = metric
+	var ipConfigs []types.IPConfig
+	for _, ipAddr := range ipAddressesPerNet {
+		ipConfig := types.IPConfig{}
+		// TODO: IPConfigs is stupid. No need to gather metrics here.
+		ipConfig.IPAddress = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
+		ipConfig.Gateway = ipAddr.Spec.Gateway
+
+		metric, err := findIPAddressGatewayMetric(ctx, machineScope, &ipAddr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
 		}
+		ipConfig.Metric = metric
 		ipConfigs = append(ipConfigs, ipConfig)
 	}
 
