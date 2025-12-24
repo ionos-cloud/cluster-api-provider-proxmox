@@ -122,11 +122,6 @@ func setVMIPAddressTag(ctx context.Context, machineScope *scope.MachineScope, ip
 	return requeue, nil
 }
 
-// Todo: This function is only called in a helper.
-func formatIPAddressName(name, pool, device string) string {
-	return fmt.Sprintf("%s-%s-%s", name, pool, device)
-}
-
 // findIPAddress returns all IPAddresses owned by a pool and a machine.
 func findIPAddress(ctx context.Context, poolRef *corev1.TypedLocalObjectReference, machineScope *scope.MachineScope) ([]ipamv1.IPAddress, error) {
 	return machineScope.IPAMHelper.GetIPAddressV2(ctx, *poolRef, machineScope.ProxmoxMachine)

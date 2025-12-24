@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -255,7 +256,9 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
 		poolSpec := getPoolSpec(getIPAddressPool(t, c, machineScope, pool))
-		prefix = poolSpec.prefix
+		if poolSpec.prefix != 0 {
+			prefix = poolSpec.prefix
+		}
 		gateway = poolSpec.gateway
 	}
 
@@ -277,10 +280,30 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 	require.NoError(t, c.Create(context.Background(), ipAddr))
 }
 
+func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
+	ipPrefix, err := netip.ParsePrefix(ip)
+	if err != nil {
+		ipAddr, err := netip.ParseAddr(ip)
+		require.NoError(t, err, "%s is not a valid ip address", ip)
+		subnet := 24
+		if !ipAddr.Is4() {
+			subnet = 64
+		}
+		ipPrefix = netip.PrefixFrom(ipAddr, subnet)
+	}
+
+	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummy"}).Name
+	name := ipam.IPAddressFormat(machineScope.Name(), poolName, device, 0)
+
+	createIPAddressResource(t, c, name, machineScope, ipPrefix, pool)
+}
+
+// Mostly useful to add IPs to default pools or IPAddress Testing
 func createIPv4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is4(), "%s is not a valid ipv4 address", ip)
 	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	name := formatIPAddressName(machineScope.Name(), poolName, device)
+	name := ipam.IPAddressFormat(machineScope.Name(), poolName, device, 0)
+	// TODO: Remove this
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
 	createIPAddressResource(t, c, name, machineScope, netip.MustParsePrefix(ip+"/24"), pool)
@@ -289,26 +312,58 @@ func createIPv4AddressResource(t *testing.T, c client.Client, machineScope *scop
 func createIPv6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
 	require.Truef(t, netip.MustParseAddr(ip).Is6(), "%s is not a valid ipv6 address", ip)
 	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummyv6"}).Name
-	name := formatIPAddressName(machineScope.Name(), poolName, device)
+	name := ipam.IPAddressFormat(machineScope.Name(), poolName, device, 0)
+	// TODO: Remove this
 	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
 
 	createIPAddressResource(t, c, name, machineScope, netip.MustParsePrefix(ip+"/64"), pool)
 }
 
-func createIPAddressesForMachine(t *testing.T, c client.Client, machineScope *scope.MachineScope, ipAddresses []netip.Prefix) {
-	ipCount := 0
+// createNetworkSpecForMachine is a one stop setup. You need to provide the ipPrefixes in order of pools.
+func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *scope.MachineScope, ipPrefixes ...string) {
+	// Can't hurt to create ippools here
+	createIPPools(t, c, machineScope)
+
+	defaultPools := []corev1.TypedLocalObjectReference{}
+	// TODO: handle default pools beyond appending in front ... handle zones
+	for _, pool := range getDefaultPoolRefs(machineScope) {
+		defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
+			Kind: GetInClusterIPPoolKind(),
+			Name: pool.Name,
+		}
+		defaultPools = append(defaultPools, defaultPool)
+	}
+
+	i := 0
+	// Create the pools sequentially by ref
 	for _, device := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
-		for j, poolRef := range device.IPPoolRef {
-			// todo: unify with ipam
-			ipName := fmt.Sprintf("%s-%s-%02d-%s", machineScope.ProxmoxMachine.GetName(), *device.Name, j, infrav1.DefaultSuffix)
-			createIPAddressResource(t, c, ipName, machineScope, ipAddresses[ipCount], &poolRef)
-			ipCount++
+		ipPoolRefs := device.IPPoolRef
+		// Todo: unify this with whatever approach we take on default pool adding
+		if *device.Name == infrav1.DefaultNetworkDevice {
+			ipPoolRefs = slices.Concat(defaultPools, ipPoolRefs)
+		}
+
+		for j, poolRef := range ipPoolRefs {
+			// TODO: deduplicate with createIPAddress
+			ipPrefix, err := netip.ParsePrefix(ipPrefixes[i])
+			if err != nil {
+				ipAddr, err := netip.ParseAddr(ipPrefixes[i])
+				require.NoError(t, err, "%s is not a valid ip address", ipPrefixes[i])
+				subnet := 24
+				if !ipAddr.Is4() {
+					subnet = 64
+				}
+				ipPrefix = netip.PrefixFrom(ipAddr, subnet)
+			}
+			ipName := ipam.IPAddressFormat(machineScope.ProxmoxMachine.GetName(), *device.Name, infrav1.DefaultSuffix, j)
+			createIPAddressResource(t, c, ipName, machineScope, ipPrefix, &poolRef)
+			i++
 		}
 	}
 }
 
 func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineScope) {
-	for _, dev := range machineScope.ProxmoxMachine.Spec.Network.NetworkDevices {
+	for _, dev := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
 		for _, poolRef := range dev.IPPoolRef {
 			createOrUpdateIPPool(t, c, machineScope, &poolRef, nil)
 		}
@@ -362,6 +417,7 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 func getDefaultPoolRefs(machineScope *scope.MachineScope) []corev1.LocalObjectReference {
 	cluster := machineScope.InfraCluster.ProxmoxCluster
 
+	// TODO: turn this into an IPv4/IPv6 situation
 	return cluster.Status.InClusterIPPoolRef
 }
 
