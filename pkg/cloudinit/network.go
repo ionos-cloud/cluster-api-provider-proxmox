@@ -18,7 +18,9 @@ package cloudinit
 
 import (
 	"net/netip"
+	"strings"
 
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
@@ -150,15 +152,23 @@ config: []`
 
 // NetworkConfig provides functionality to render machine network-config.
 type NetworkConfig struct {
-	data BaseCloudInitData
+	data   BaseCloudInitData
+	format infrav1alpha1.CloudInitNetworkConfigFormat
 }
 
 // NewNetworkConfig returns a new NetworkConfig object.
-func NewNetworkConfig(configs []types.NetworkConfigData) *NetworkConfig {
+// The format parameter specifies the cloud-init network-config format to use.
+// If empty, defaults to netplan format.
+func NewNetworkConfig(configs []types.NetworkConfigData, format infrav1alpha1.CloudInitNetworkConfigFormat) *NetworkConfig {
 	nc := new(NetworkConfig)
 	nc.data = BaseCloudInitData{
 		NetworkConfigData: configs,
 	}
+	// Default to netplan format if not specified
+	if format == "" {
+		format = infrav1alpha1.CloudInitNetworkConfigFormatNetplan
+	}
+	nc.format = format
 	return nc
 }
 
@@ -168,8 +178,57 @@ func (r *NetworkConfig) Render() ([]byte, error) {
 		return nil, err
 	}
 
-	// render network-config
-	return render("network-config", networkConfigTPl, r.data)
+	// render network-config using netplan template
+	rendered, err := render("network-config", networkConfigTPl, r.data)
+	if err != nil {
+		return nil, err
+	}
+
+	// For nocloud format, convert by stripping "network:" wrapper and dedenting
+	if r.format == infrav1alpha1.CloudInitNetworkConfigFormatNoCloud {
+		// Validate that no netplan-only features are used
+		if err := r.validateNoCloudCompatibility(); err != nil {
+			return nil, err
+		}
+		return convertToNoCloud(rendered), nil
+	}
+
+	return rendered, nil
+}
+
+// convertToNoCloud transforms netplan format to nocloud format by removing
+// the "network:" wrapper and dedenting the content by 2 spaces.
+func convertToNoCloud(netplanConfig []byte) []byte {
+	lines := strings.Split(string(netplanConfig), "\n")
+	var result []string
+	for i, line := range lines {
+		if i == 0 && line == "network:" {
+			continue // Skip "network:" line
+		}
+		if len(line) >= 2 && line[:2] == "  " {
+			result = append(result, line[2:]) // Remove 2 leading spaces
+		} else {
+			result = append(result, line)
+		}
+	}
+	return []byte(strings.Join(result, "\n"))
+}
+
+// validateNoCloudCompatibility checks that no netplan-only features are used
+// when nocloud format is requested. VRFs and routing-policy are not supported
+// by cloud-init's network-config v2 format.
+func (r *NetworkConfig) validateNoCloudCompatibility() error {
+	for _, d := range r.data.NetworkConfigData {
+		// VRFs are not supported by cloud-init v2
+		if d.Type == "vrf" {
+			return ErrNoCloudUnsupportedFeature
+		}
+		// routing-policy (FIBRules) is not supported by cloud-init v2
+		if len(d.FIBRules) > 0 {
+			return ErrNoCloudUnsupportedFeature
+		}
+	}
+	return nil
 }
 
 func (r *NetworkConfig) validate() error {
