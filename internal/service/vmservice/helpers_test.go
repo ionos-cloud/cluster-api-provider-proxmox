@@ -293,7 +293,7 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 	}
 
 	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	name := ipam.IPAddressFormat(machineScope.Name(), poolName, device, 0)
+	name := ipam.IPAddressFormat(machineScope.Name(), poolName, 0, device)
 
 	createIPAddressResource(t, c, name, machineScope, ipPrefix, pool)
 }
@@ -334,7 +334,7 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 				}
 				ipPrefix = netip.PrefixFrom(ipAddr, subnet)
 			}
-			ipName := ipam.IPAddressFormat(machineScope.ProxmoxMachine.GetName(), *device.Name, infrav1.DefaultSuffix, j)
+			ipName := ipam.IPAddressFormat(machineScope.ProxmoxMachine.GetName(), *device.Name, j, infrav1.DefaultSuffix)
 			createIPAddressResource(t, c, ipName, machineScope, ipPrefix, &poolRef)
 			i++
 		}
