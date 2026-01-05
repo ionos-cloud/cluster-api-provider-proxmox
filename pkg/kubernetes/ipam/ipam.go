@@ -65,7 +65,7 @@ func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, format string) string 
 }
 
 // IPAddressFormat returns an ipaddress name.
-func IPAddressFormat(machineName, proxDeviceName, suffix string, offset int) string {
+func IPAddressFormat(machineName, proxDeviceName string, offset int, suffix string) string {
 	return fmt.Sprintf("%s-%s-%02d-%s", machineName, proxDeviceName, offset, suffix)
 }
 
@@ -393,7 +393,7 @@ func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object
 	// TODO: suffix makes no sense, fmt.Sprintf() needs to be shared with testing
 	desired := &ipamv1.IPAddressClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      IPAddressFormat(owner.GetName(), device, suffix, poolNum),
+			Name:      IPAddressFormat(owner.GetName(), device, poolNum, suffix),
 			Namespace: owner.GetNamespace(),
 			Labels:    labels,
 		},
