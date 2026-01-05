@@ -298,27 +298,6 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 	createIPAddressResource(t, c, name, machineScope, ipPrefix, pool)
 }
 
-// Mostly useful to add IPs to default pools or IPAddress Testing
-func createIPv4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
-	require.Truef(t, netip.MustParseAddr(ip).Is4(), "%s is not a valid ipv4 address", ip)
-	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	name := ipam.IPAddressFormat(machineScope.Name(), poolName, device, 0)
-	// TODO: Remove this
-	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
-
-	createIPAddressResource(t, c, name, machineScope, netip.MustParsePrefix(ip+"/24"), pool)
-}
-
-func createIPv6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
-	require.Truef(t, netip.MustParseAddr(ip).Is6(), "%s is not a valid ipv6 address", ip)
-	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummyv6"}).Name
-	name := ipam.IPAddressFormat(machineScope.Name(), poolName, device, 0)
-	// TODO: Remove this
-	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
-
-	createIPAddressResource(t, c, name, machineScope, netip.MustParsePrefix(ip+"/64"), pool)
-}
-
 // createNetworkSpecForMachine is a one stop setup. You need to provide the ipPrefixes in order of pools.
 func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *scope.MachineScope, ipPrefixes ...string) {
 	// Can't hurt to create ippools here
