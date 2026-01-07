@@ -280,7 +280,11 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 	require.NoError(t, c.Create(context.Background(), ipAddr))
 }
 
-func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, pool *corev1.TypedLocalObjectReference) {
+// createIPAddress creates an IP address resource from strings.
+// If no pool or nil pool is passed then a dummy pool is used.
+// If one pool is passed then that pool is used (intended for most tests, typically pass 0 for offset).
+// If two pools are passed then the first pool is used for the IP address name and the second for creating the IP address resource (intended for createNetworkSpecForMachine, pass your poolRef index for offset).
+func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, offset int, pool ...*corev1.TypedLocalObjectReference) {
 	ipPrefix, err := netip.ParsePrefix(ip)
 	if err != nil {
 		ipAddr, err := netip.ParseAddr(ip)
@@ -292,10 +296,16 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 		ipPrefix = netip.PrefixFrom(ipAddr, subnet)
 	}
 
-	poolName := ptr.Deref(pool, corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	name := ipam.IPAddressFormat(machineScope.Name(), poolName, 0, device)
+	pools := make([]*corev1.TypedLocalObjectReference, 2)
+	copy(pools, pool)
+	if pools[1] == nil {
+		// yes pools[0] might be nil here anyway and that's ok
+		pools[1] = pools[0]
+	}
 
-	createIPAddressResource(t, c, name, machineScope, ipPrefix, pool)
+	poolName := ptr.Deref(pools[0], corev1.TypedLocalObjectReference{Name: "dummy"}).Name
+	ipName := ipam.IPAddressFormat(machineScope.Name(), poolName, offset, device)
+	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, pools[1])
 }
 
 // createNetworkSpecForMachine is a one stop setup. You need to provide the ipPrefixes in order of pools.
@@ -323,19 +333,7 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 		}
 
 		for j, poolRef := range ipPoolRefs {
-			// TODO: deduplicate with createIPAddress
-			ipPrefix, err := netip.ParsePrefix(ipPrefixes[i])
-			if err != nil {
-				ipAddr, err := netip.ParseAddr(ipPrefixes[i])
-				require.NoError(t, err, "%s is not a valid ip address", ipPrefixes[i])
-				subnet := 24
-				if !ipAddr.Is4() {
-					subnet = 64
-				}
-				ipPrefix = netip.PrefixFrom(ipAddr, subnet)
-			}
-			ipName := ipam.IPAddressFormat(machineScope.ProxmoxMachine.GetName(), *device.Name, j, infrav1.DefaultSuffix)
-			createIPAddressResource(t, c, ipName, machineScope, ipPrefix, &poolRef)
+			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], j, &corev1.TypedLocalObjectReference{Name: *device.Name}, &poolRef)
 			i++
 		}
 	}
