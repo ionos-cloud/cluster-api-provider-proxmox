@@ -18,8 +18,10 @@ package vmservice
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -27,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	fields "k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
@@ -35,18 +38,25 @@ import (
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
+	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 type FakeISOInjector struct {
-	Error error
+	Error          error
+	VirtualMachine *proxmox.VirtualMachine
+	BootstrapData  []byte
+	MetaData       cloudinit.Renderer
+	Network        cloudinit.Renderer
 }
 
 func (f FakeISOInjector) Inject(_ context.Context, _ inject.BootstrapDataFormat) error {
@@ -59,6 +69,15 @@ type FakeIgnitionISOInjector struct {
 
 func (f FakeIgnitionISOInjector) Inject(_ context.Context, _ inject.BootstrapDataFormat) error {
 	return f.Error
+}
+
+// setupReconcilerTestWithCondition sets up a reconciler test with a condition for the proxmoxmachiens statemachine.
+func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
+	machineScope, mockClient, client := setupReconcilerTest(t)
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, condition, clusterv1.ConditionSeverityInfo, "")
+
+	return machineScope, mockClient, client
 }
 
 // setupReconcilerTest initializes a MachineScope with a mock Proxmox client and a fake controller-runtime client.
@@ -74,47 +93,61 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
+			Labels: map[string]string{
+				"cluster.x-k8s.io/cluster-name": "test",
+			},
 		},
 	}
 
-	infraCluster := &infrav1alpha1.ProxmoxCluster{
+	infraCluster := &infrav1.ProxmoxCluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
+			Kind:       "ProxmoxCluster",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.ClusterFinalizer,
+				infrav1.ClusterFinalizer,
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxClusterSpec{
-			IPv4Config: &infrav1alpha1.IPConfigSpec{
+		Spec: infrav1.ProxmoxClusterSpec{
+			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{"10.0.0.10-10.0.0.20"},
 				Prefix:    24,
 				Gateway:   "10.0.0.1",
 			},
 			DNSServers: []string{"1.2.3.4"},
 		},
-		Status: infrav1alpha1.ProxmoxClusterStatus{
-			NodeLocations: &infrav1alpha1.NodeLocations{},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{},
 		},
 	}
-	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1alpha1.IPV4Format)}}
+	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1.IPv4Format)}}
 
-	infraMachine := &infrav1alpha1.ProxmoxMachine{
+	infraMachine := &infrav1.ProxmoxMachine{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
+			Kind:       "ProxmoxMachine",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
 			Finalizers: []string{
-				infrav1alpha1.MachineFinalizer,
+				infrav1.MachineFinalizer,
+			},
+			Labels: map[string]string{
+				"cluster.x-k8s.io/cluster-name": "test",
 			},
 		},
-		Spec: infrav1alpha1.ProxmoxMachineSpec{
-			VirtualMachineCloneSpec: infrav1alpha1.VirtualMachineCloneSpec{
-				TemplateSource: infrav1alpha1.TemplateSource{
-					SourceNode: "node1",
+		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
+				TemplateSource: infrav1.TemplateSource{
+					SourceNode: ptr.To("node1"),
 					TemplateID: ptr.To[int32](123),
 				},
 			},
-		},
+		}),
 	}
 
 	scheme := runtime.NewScheme()
@@ -122,19 +155,46 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	require.NoError(t, clusterv1.AddToScheme(scheme))
 	require.NoError(t, ipamv1.AddToScheme(scheme))
 	require.NoError(t, ipamicv1.AddToScheme(scheme))
-	require.NoError(t, infrav1alpha1.AddToScheme(scheme))
+	require.NoError(t, infrav1.AddToScheme(scheme))
 	kubeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(cluster, machine, infraCluster, infraMachine).
-		WithStatusSubresource(&infrav1alpha1.ProxmoxCluster{}, &infrav1alpha1.ProxmoxMachine{}).
+		WithStatusSubresource(&infrav1.ProxmoxCluster{}, &infrav1.ProxmoxMachine{}).
 		Build()
 
 	ipamHelper := ipam.NewHelper(kubeClient, infraCluster)
 	logger := logr.Discard()
 
-	require.NoError(t, ipamHelper.CreateOrUpdateInClusterIPPool(context.Background()))
-
 	mockClient := proxmoxtest.NewMockClient(t)
+
+	// fake indexing tests. TODO: Unify
+
+	indexFunc := func(obj client.Object) []string {
+		return []string{obj.(*ipamv1.IPAddress).Spec.PoolRef.Name}
+	}
+
+	err := fake.AddIndex(kubeClient, &ipamv1.IPAddress{}, "spec.poolRef.name", indexFunc)
+	require.NoError(t, err)
+
+	// set up index for ipAddressClaims owner ProxmoxMachine (testing of interfaces)
+	indexFunc = func(obj client.Object) []string {
+		var ret = []string{}
+
+		owners := obj.(*ipamv1.IPAddressClaim).ObjectMeta.OwnerReferences
+
+		for _, owner := range owners {
+			if owner.Kind == infrav1.ProxmoxMachineKind {
+				ret = append(ret, owner.Name)
+			}
+		}
+		return ret
+	}
+
+	err = fake.AddIndex(kubeClient, &ipamv1.IPAddressClaim{}, "ipaddressclaim.ownerMachine", indexFunc)
+	require.NoError(t, err)
+
+	// Create InClusterIPPools after the indexes are set up
+	require.NoError(t, ipamHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:         kubeClient,
@@ -161,7 +221,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 }
 
 func getIPSuffix(addr string) string {
-	suffix := infrav1alpha1.DefaultSuffix
+	suffix := infrav1.DefaultSuffix
 	ip := netip.MustParseAddr(addr)
 	if ip.Is6() {
 		suffix += "6"
@@ -169,56 +229,243 @@ func getIPSuffix(addr string) string {
 
 	return suffix
 }
+func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, pool *corev1.TypedLocalObjectReference) {
+	// gateway := netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String()
 
-func createIPAddressResource(t *testing.T, c client.Client, name, namespace, ip string, prefix int) {
-	obj := &ipamv1.IPAddress{
+	prefix := ip.Bits()
+	var gateway string
+
+	if pool != nil {
+		ipAddrClaim := &ipamv1.IPAddressClaim{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: machineScope.Namespace(),
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: machineScope.ProxmoxMachine.APIVersion,
+					Kind:       "ProxmoxMachine",
+					Name:       machineScope.Name(),
+				}},
+			},
+			Spec: ipamv1.IPAddressClaimSpec{
+				PoolRef: *pool,
+			},
+		}
+		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
+
+		poolSpec := getPoolSpec(getIPAddressPool(t, c, machineScope, pool))
+		if poolSpec.prefix != 0 {
+			prefix = poolSpec.prefix
+		}
+		gateway = poolSpec.gateway
+	}
+
+	ipAddr := &ipamv1.IPAddress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: machineScope.Namespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
-			Address: ip,
+			Address: ip.Addr().String(),
 			Prefix:  prefix,
-			Gateway: netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String(),
+			Gateway: gateway,
+			PoolRef: ptr.Deref(pool, corev1.TypedLocalObjectReference{}),
 		},
 	}
-	require.NoError(t, c.Create(context.Background(), obj))
+	require.NoError(t, c.Create(context.Background(), ipAddr))
 }
 
-func createIP4AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string) {
-	require.Truef(t, netip.MustParseAddr(ip).Is4(), "%s is not a valid ipv4 address", ip)
-	name := formatIPAddressName(machineScope.Name(), device)
-	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
+// createIPAddress creates an IP address resource from strings.
+// If no pool or nil pool is passed then a dummy pool is used.
+// If one pool is passed then that pool is used (intended for most tests, typically pass 0 for offset).
+// If two pools are passed then the first pool is used for the IP address name and the second for creating the IP address resource (intended for createNetworkSpecForMachine, pass your poolRef index for offset).
+func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, offset int, pool ...*corev1.TypedLocalObjectReference) {
+	ipPrefix, err := netip.ParsePrefix(ip)
+	if err != nil {
+		ipAddr, err := netip.ParseAddr(ip)
+		require.NoError(t, err, "%s is not a valid ip address", ip)
+		subnet := 24
+		if !ipAddr.Is4() {
+			subnet = 64
+		}
+		ipPrefix = netip.PrefixFrom(ipAddr, subnet)
+	}
 
-	createIPAddressResource(t, c, name, machineScope.Namespace(), ip, 24)
+	pools := make([]*corev1.TypedLocalObjectReference, 2)
+	copy(pools, pool)
+	if pools[1] == nil {
+		// yes pools[0] might be nil here anyway and that's ok
+		pools[1] = pools[0]
+	}
+
+	poolName := ptr.Deref(pools[0], corev1.TypedLocalObjectReference{Name: "dummy"}).Name
+	ipName := ipam.IPAddressFormat(machineScope.Name(), poolName, offset, device)
+	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, pools[1])
 }
 
-func createIP6AddressResource(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string) {
-	require.Truef(t, netip.MustParseAddr(ip).Is6(), "%s is not a valid ipv6 address", ip)
-	name := formatIPAddressName(machineScope.Name(), device)
-	name = fmt.Sprintf("%s-%s", name, getIPSuffix(ip))
+// createNetworkSpecForMachine is a one stop setup. You need to provide the ipPrefixes in order of pools.
+func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *scope.MachineScope, ipPrefixes ...string) {
+	// Can't hurt to create ippools here
+	createIPPools(t, c, machineScope)
 
-	createIPAddressResource(t, c, name, machineScope.Namespace(), ip, 64)
+	defaultPools := []corev1.TypedLocalObjectReference{}
+	// TODO: handle default pools beyond appending in front ... handle zones
+	for _, pool := range getDefaultPoolRefs(machineScope) {
+		defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
+			Kind: GetInClusterIPPoolKind(),
+			Name: pool.Name,
+		}
+		defaultPools = append(defaultPools, defaultPool)
+	}
+
+	i := 0
+	// Create the pools sequentially by ref
+	for _, device := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
+		ipPoolRefs := device.IPPoolRef
+		// Todo: unify this with whatever approach we take on default pool adding
+		if *device.Name == infrav1.DefaultNetworkDevice {
+			ipPoolRefs = slices.Concat(defaultPools, ipPoolRefs)
+		}
+
+		for j, poolRef := range ipPoolRefs {
+			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], j, &corev1.TypedLocalObjectReference{Name: *device.Name}, &poolRef)
+			i++
+		}
+	}
 }
 
 func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineScope) {
-	for _, dev := range machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices {
-		poolRef := dev.IPv4PoolRef
-		if poolRef == nil {
-			poolRef = dev.IPv6PoolRef
+	for _, dev := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
+		for _, poolRef := range dev.IPPoolRef {
+			createOrUpdateIPPool(t, c, machineScope, &poolRef, nil)
 		}
-
-		var obj client.Object
-		switch poolRef.Kind {
-		case "InClusterIPPool":
-			obj = &ipamicv1.InClusterIPPool{}
-			obj.SetNamespace(machineScope.Namespace())
-		case "GlobalInClusterIPPool":
-			obj = &ipamicv1.GlobalInClusterIPPool{}
-		}
-		obj.SetName(poolRef.Name)
-		require.NoError(t, c.Create(context.Background(), obj))
 	}
+}
+
+func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef *corev1.TypedLocalObjectReference, pool client.Object) *corev1.TypedLocalObjectReference {
+	// literally nothing to do
+	if pool == nil && poolRef == nil {
+		return nil
+	}
+
+	if pool == nil {
+		switch poolRef.Kind {
+		case InClusterIPPool:
+			pool = &ipamicv1.InClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: InClusterIPPool, APIVersion: ipamicv1.GroupVersion.String()}}
+			pool.SetNamespace(machineScope.Namespace())
+		case GlobalInClusterIPPool:
+			pool = &ipamicv1.GlobalInClusterIPPool{TypeMeta: metav1.TypeMeta{Kind: GlobalInClusterIPPool, APIVersion: ipamicv1.GroupVersion.String()}}
+		}
+		pool.SetName(poolRef.Name)
+	}
+
+	if poolRef == nil {
+		poolRef = &corev1.TypedLocalObjectReference{
+			Name:     pool.GetName(),
+			Kind:     pool.GetObjectKind().GroupVersionKind().Kind,
+			APIGroup: ptr.To(pool.GetObjectKind().GroupVersionKind().Group),
+		}
+	}
+
+	desired := pool.DeepCopyObject()
+
+	_, err := controllerutil.CreateOrUpdate(context.Background(), c, pool, func() error {
+		// TODO: Metric change in annotations
+		if pool.GetObjectKind().GroupVersionKind().Kind == InClusterIPPool {
+			pool.(*ipamicv1.InClusterIPPool).Spec = desired.(*ipamicv1.InClusterIPPool).Spec
+		} else if pool.GetObjectKind().GroupVersionKind().Kind == GlobalInClusterIPPool {
+			pool.(*ipamicv1.GlobalInClusterIPPool).Spec = desired.(*ipamicv1.GlobalInClusterIPPool).Spec
+		}
+		return nil
+	},
+	)
+
+	require.NoError(t, err)
+
+	return poolRef
+}
+
+// todo: ZONES?
+func getDefaultPoolRefs(machineScope *scope.MachineScope) []corev1.LocalObjectReference {
+	cluster := machineScope.InfraCluster.ProxmoxCluster
+
+	// TODO: turn this into an IPv4/IPv6 situation
+	return cluster.Status.InClusterIPPoolRef
+}
+
+func getPoolSpec(pool client.Object) struct {
+	gateway string
+	prefix  int
+} {
+	var gateway string
+	var prefix int
+	if pool.GetObjectKind().GroupVersionKind().Kind == InClusterIPPool {
+		prefix = pool.(*ipamicv1.InClusterIPPool).Spec.Prefix
+		gateway = pool.(*ipamicv1.InClusterIPPool).Spec.Gateway
+	} else if pool.GetObjectKind().GroupVersionKind().Kind == GlobalInClusterIPPool {
+		prefix = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix
+		gateway = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway
+	}
+
+	return struct {
+		gateway string
+		prefix  int
+	}{gateway: gateway, prefix: prefix}
+}
+
+func getIPAddressPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef *corev1.TypedLocalObjectReference) client.Object {
+	var obj client.Object
+	var err error
+
+	if poolRef.Kind == InClusterIPPool {
+		obj, err = machineScope.IPAMHelper.GetInClusterIPPool(context.Background(), poolRef)
+	} else if poolRef.Kind == GlobalInClusterIPPool {
+		obj, err = machineScope.IPAMHelper.GetGlobalInClusterIPPool(context.Background(), poolRef)
+	}
+
+	require.NoError(t, err)
+	return obj
+}
+
+func getIPAddressClaims(t *testing.T, c client.Client, machineScope *scope.MachineScope) map[string]*[]ipamv1.IPAddressClaim {
+	ipAddressClaims := &ipamv1.IPAddressClaimList{}
+
+	fieldSelector, _ := fields.ParseSelector("ipaddressclaim.ownerMachine=" + machineScope.Name())
+
+	listOptions := client.ListOptions{FieldSelector: fieldSelector}
+	c.List(context.Background(), ipAddressClaims, &listOptions)
+
+	claimMap := make(map[string]*[]ipamv1.IPAddressClaim)
+
+	for _, claim := range ipAddressClaims.Items {
+		pool := claim.Spec.PoolRef.Name
+
+		perPoolClaims := ptr.Deref(claimMap[pool], []ipamv1.IPAddressClaim{})
+		perPoolClaims = append(perPoolClaims, claim)
+		claimMap[pool] = &perPoolClaims
+	}
+
+	return claimMap
+}
+
+func getIPAddressClaimsPerPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, pool string) *[]ipamv1.IPAddressClaim {
+	ipAddressClaims := getIPAddressClaims(t, c, machineScope)
+	return ipAddressClaims[pool]
+}
+
+func getNetworkConfigDataFromVM(t *testing.T, jsonData []byte) []types.NetworkConfigData {
+	var networkConfigData []types.NetworkConfigData
+
+	err := json.Unmarshal(jsonData, &networkConfigData)
+
+	require.NoError(t, err)
+
+	return networkConfigData
 }
 
 func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.MachineScope, format string) {

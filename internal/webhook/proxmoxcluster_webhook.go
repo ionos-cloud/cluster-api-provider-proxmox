@@ -32,7 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 var _ admission.CustomValidator = &ProxmoxCluster{}
@@ -50,7 +50,7 @@ func (p *ProxmoxCluster) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha1-proxmoxcluster,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha1,name=validation.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxcluster,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha2,name=validation.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // ValidateCreate implements the creation validation function.
 func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
@@ -96,7 +96,7 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 	// Skipping the validation of the Control Plane endpoint in case of externally managed Control Plane:
 	// the Cluster API Control Plane provider will eventually provide the LB.
-	if cluster.Spec.ExternalManagedControlPlane {
+	if *cluster.Spec.ExternalManagedControlPlane {
 		return nil
 	}
 
@@ -157,7 +157,7 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 		}
 	}
 
-	// IPV6
+	// IPv6
 	if cluster.Spec.IPv6Config != nil {
 		set6, err := buildSetFromAddresses(cluster.Spec.IPv6Config.Addresses)
 		if err != nil {
