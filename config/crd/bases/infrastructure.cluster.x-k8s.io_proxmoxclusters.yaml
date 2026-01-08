@@ -75,11 +75,11 @@ spec:
                         allowedNodes:
                           description: |-
                             AllowedNodes specifies all Proxmox nodes which will be considered
-                            for operations. This implies that VMs can be cloned on different nodes from
-                            the node which holds the VM template.
+                            for operations. This implies that VMs can be cloned on different nodes.
 
                             This field is optional and should only be set if you want to restrict
                             the nodes where the VM can be cloned.
+
                             If not set, the ProxmoxCluster will be used to determine the nodes.
                           items:
                             type: string
@@ -148,6 +148,12 @@ spec:
                             Full Create a full copy of all disks.
                             This is always done when you clone a normal VM.
                             Create a Full clone by default.
+                          type: boolean
+                        localStorage:
+                          default: false
+                          description: |-
+                            LocalStorage defines whether the VM template stored on local storage.
+                            Combination of (TemplateID, SourceNode) and LocalStorage is mutually exclusive.
                           type: boolean
                         memoryMiB:
                           description: |-
@@ -605,8 +611,7 @@ spec:
                         sourceNode:
                           description: |-
                             SourceNode is the initially selected proxmox node.
-                            This node will be used to locate the template VM, which will
-                            be used for cloning operations.
+                            SourceNode should be used together with TemplateID.
 
                             Cloning will be performed according to the configuration.
                             Setting the `Target` field will tell Proxmox to clone the
@@ -633,8 +638,9 @@ spec:
                           type: array
                           x-kubernetes-list-type: set
                         target:
-                          description: Target node. Only allowed if the original VM
-                            is on shared storage.
+                          description: |-
+                            Target node. Only allowed if the original VM is on shared storage.
+                            Deprecated: Use `AllowedNodes` instead.
                           type: string
                         templateID:
                           description: TemplateID the vm_template vmid used for cloning
@@ -649,7 +655,8 @@ spec:
                               description: |-
                                 Specifies all tags to look for, when looking up the VM template.
                                 Passed tags must be an exact 1:1 match with the tags on the template you want to use.
-                                If multiple VM templates with the same set of tags are found, provisioning will fail.
+                                If multiple VM templates on same Proxmox node with the same set of tags are found, provisioning will fail.
+                                If multiple VM templates on different Proxmox nodes with the same set of tags are found, template on node where vm scheduled will be used.
                               items:
                                 pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                                 type: string

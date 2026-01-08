@@ -182,7 +182,21 @@ Our provider is able to look up templates based on their attached tags, for `Pro
 
 For example, you can set the `TEMPLATE_TAGS="tag1,tag2"` environment variable. Your custom image will then be used when using the [auto-image](https://github.com/ionos-cloud/cluster-api-provider-ionoscloud/blob/main/templates/cluster-template-auto-image.yaml) template.
 
-Please note: Passed tags must be an exact 1:1 match with the tags on the template you want to use.  The matched result must be unique. If multiple templates are found, provisioning will fail.
+**N.B.** Passed tags must be an exact 1:1 match with the tags on the template you want to use.
+
+### localStorage
+
+`false` (default)
+* Shared storage is assumed for template.
+* The template must be accessible from any node.
+* Only one template with the matching tags should exist in the entire cluster.
+* If multiple templates found, the operation fails.
+
+`true`
+* Local storage is assumed for templates.
+* Each node listed in the `allowedNodes` is expected to have a copy of the template stored locally.
+* If any of the nodes in `allowedNodes` is missing the template, the operation fails.
+
 
 ## Proxmox RBAC with least privileges
 
