@@ -11,6 +11,7 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -100,7 +101,7 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 				Gateway:    "10.1.1.1",
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 			},
-		}),
+		}, infrav1alpha1.CloudInitNetworkConfigFormatNetplan),
 	}
 
 	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/storage`, "pve"),
@@ -144,7 +145,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 				Gateway:    "10.1.1.1",
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 			},
-		}),
+		}, infrav1alpha1.CloudInitNetworkConfigFormatNetplan),
 	}
 
 	// missing hostname
@@ -153,7 +154,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 
 	// missing network
 	injector.MetaRenderer = cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", false)
-	injector.NetworkRenderer = cloudinit.NewNetworkConfig(nil)
+	injector.NetworkRenderer = cloudinit.NewNetworkConfig(nil, infrav1alpha1.CloudInitNetworkConfigFormatNetplan)
 	err = injector.Inject(context.Background(), "cloudinit")
 	require.Error(t, err)
 }
@@ -301,7 +302,7 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 				Gateway:    "10.1.1.1",
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 			},
-		}),
+		}, infrav1alpha1.CloudInitNetworkConfigFormatNetplan),
 	}
 
 	// unsupported format

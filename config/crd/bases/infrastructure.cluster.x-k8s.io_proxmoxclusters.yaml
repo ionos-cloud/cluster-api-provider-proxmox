@@ -714,6 +714,18 @@ spec:
                 required:
                 - machineSpec
                 type: object
+              cloudInitNetworkConfigFormat:
+                default: netplan
+                description: |-
+                  CloudInitNetworkConfigFormat specifies the format for cloud-init network-config.
+                  Defaults to "netplan" which generates configuration with a top-level "network:" key
+                  suitable for netplan-based distributions (Ubuntu, Debian).
+                  Set to "nocloud" when using the cloud-init nocloud datasource, which expects the
+                  network-config file to have version: at the root level without a "network:" wrapper.
+                enum:
+                - netplan
+                - nocloud
+                type: string
               controlPlaneEndpoint:
                 description: ControlPlaneEndpoint represents the endpoint used to
                   communicate with the control plane.
