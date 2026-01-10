@@ -107,6 +107,69 @@ func TestSelectNode(t *testing.T) {
 	})
 }
 
+func TestSelectNodeEvenlySpread(t *testing.T) {
+	// Verify that VMs are scheduled evenly across nodes when memory allows
+	allowedNodes := []string{"pve1", "pve2", "pve3"}
+	var locations []infrav1.NodeLocation
+	const requestMiB = 8
+	availableMem := map[string]uint64{
+		"pve1": miBytes(25), // enough for 3 VMs
+		"pve2": miBytes(35), // enough for 4 VMs
+		"pve3": miBytes(15), // enough for 1 VM
+	}
+
+	expectedNodes := []string{
+		// initial round-robin: everyone has enough memory
+		"pve2", "pve1", "pve3",
+		// second round-robin: pve3 out of memory
+		"pve2", "pve1", "pve2",
+		// third round-robin: pve1 and pve2 has room for one more VM each
+		"pve1", "pve2",
+	}
+
+	for i, expectedNode := range expectedNodes {
+		t.Run(fmt.Sprintf("round %d", i+1), func(t *testing.T) {
+			proxmoxMachine := &infrav1.ProxmoxMachine{
+				Spec: infrav1.ProxmoxMachineSpec{
+					MemoryMiB: requestMiB,
+				},
+			}
+
+			client := fakeResourceClient(availableMem)
+
+			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			require.NoError(t, err)
+			require.Equal(t, expectedNode, node)
+
+			require.Greater(t, availableMem[node], miBytes(requestMiB))
+			availableMem[node] -= miBytes(requestMiB)
+
+			locations = append(locations, infrav1.NodeLocation{Node: node})
+		})
+	}
+
+	t.Run("out of memory", func(t *testing.T) {
+		proxmoxMachine := &infrav1.ProxmoxMachine{
+			Spec: infrav1.ProxmoxMachineSpec{
+				MemoryMiB: requestMiB,
+			},
+		}
+
+		client := fakeResourceClient(availableMem)
+
+		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		require.ErrorAs(t, err, &InsufficientMemoryError{})
+		require.Empty(t, node)
+
+		expectMem := map[string]uint64{
+			"pve1": miBytes(1), // 25 - 8 x 3
+			"pve2": miBytes(3), // 35 - 8 x 4
+			"pve3": miBytes(7), // 15 - 8 x 1
+		}
+		require.Equal(t, expectMem, availableMem)
+	})
+}
+
 func TestScheduleVM(t *testing.T) {
 	ctrlClient := setupClient()
 	require.NotNil(t, ctrlClient)
