@@ -112,7 +112,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 	// Verify that VMs are scheduled evenly across nodes when memory allows
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
 	var locations []infrav1.NodeLocation
-	const requestMiB = 8
+	var requestMiB = int32(8)
 	availableMem := map[string]uint64{
 		"pve1": miBytes(25), // enough for 3 VMs
 		"pve2": miBytes(35), // enough for 4 VMs
@@ -131,8 +131,8 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 	for i, expectedNode := range expectedNodes {
 		t.Run(fmt.Sprintf("round %d", i+1), func(t *testing.T) {
 			proxmoxMachine := &infrav1.ProxmoxMachine{
-				Spec: infrav1.ProxmoxMachineSpec{
-					MemoryMiB: requestMiB,
+				Spec: &infrav1.ProxmoxMachineSpec{
+					MemoryMiB: &requestMiB,
 				},
 			}
 
@@ -151,8 +151,8 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 	t.Run("out of memory", func(t *testing.T) {
 		proxmoxMachine := &infrav1.ProxmoxMachine{
-			Spec: infrav1.ProxmoxMachineSpec{
-				MemoryMiB: requestMiB,
+			Spec: &infrav1.ProxmoxMachineSpec{
+				MemoryMiB: &requestMiB,
 			},
 		}
 
