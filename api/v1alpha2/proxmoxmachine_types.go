@@ -260,8 +260,25 @@ type TemplateSelector struct {
 	MatchTags []string `json:"matchTags,omitempty"`
 }
 
+// DefaultNetworkSpec defines the network interfaces to which the cluster/zone pools
+// will be added.
+type DefaultNetworkSpec struct {
+	// clusterPoolDeviceV4 the proxmox network device the ipv4 InClusterIPPool will be added to.
+	// +optional
+	// +kubebuilder:default=net0
+	ClusterPoolDeviceV4 NetName `json:"clusterPoolDeviceV4,omitempty"`
+	// clusterPoolDeviceV6 is the proxmox network device the ipv6 InClusterIPPool will be added to.
+	// +optional
+	// +kubebuilder:default=net0
+	ClusterPoolDeviceV6 NetName `json:"clusterPoolDeviceV6,omitempty"`
+}
+
 // NetworkSpec defines the virtual machine's network configuration.
 type NetworkSpec struct {
+	// defaultNetworkSpec defines the network interfaces to which the cluster/zone pools
+	// will be added.
+	DefaultNetworkSpec `json:",inline"`
+
 	// networkDevices lists network devices.
 	// net0 is always the default device.
 	// +optional

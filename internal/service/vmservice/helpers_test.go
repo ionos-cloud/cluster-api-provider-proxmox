@@ -141,6 +141,12 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			},
 		},
 		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+			Network: ptr.To(infrav1.NetworkSpec{
+				DefaultNetworkSpec: infrav1.DefaultNetworkSpec{
+					ClusterPoolDeviceV4: ptr.To("net0"),
+					ClusterPoolDeviceV6: ptr.To("net0"),
+				},
+			}),
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
 					SourceNode: ptr.To("node1"),

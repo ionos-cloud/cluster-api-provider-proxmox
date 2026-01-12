@@ -188,17 +188,29 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 		return false, errors.New("handleDevices called without a map")
 	}
 
-	for _, net := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
+	networkSpec := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{})
+
+	poolsRef, err := GetInClusterIPPoolRefs(ctx, machineScope)
+	if err != nil {
+		return false, err
+	}
+
+	defaultIPv4 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV4
+	defaultIPv6 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV6
+
+	for _, net := range networkSpec.NetworkDevices {
 		// TODO: Where should prepending default clusterpools belong
 		// TODO: Network Zones
 		pools := []corev1.TypedLocalObjectReference{}
-		if *net.Name == infrav1.DefaultNetworkDevice {
-			poolsRef, err := GetInClusterIPPoolsFromMachine(ctx, machineScope)
-			if err != nil {
-				return false, err
-			}
-			pools = *poolsRef
+
+		// append default pools in front if they exist
+		if defaultIPv4 != nil && *defaultIPv4 == *net.Name && poolsRef.IPv4 != nil {
+			pools = append(pools, *poolsRef.IPv4)
 		}
+		if defaultIPv6 != nil && *defaultIPv6 == *net.Name && poolsRef.IPv6 != nil {
+			pools = append(pools, *poolsRef.IPv6)
+		}
+
 		for i, ipPool := range slices.Concat(pools, net.InterfaceConfig.IPPoolRef) {
 			ipAddresses, err := handleIPAddresses(ctx, machineScope, net.Name, i, &ipPool)
 			if err != nil {

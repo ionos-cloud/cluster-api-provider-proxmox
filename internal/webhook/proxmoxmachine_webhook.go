@@ -25,6 +25,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -99,36 +100,66 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
-	for i := range machine.Spec.Network.NetworkDevices {
-		err := validateNetworkDeviceMTU(&machine.Spec.Network.NetworkDevices[i])
+	defaultNetworkSpec := machine.Spec.Network.DefaultNetworkSpec
+	// TODO: This case can literally never happen because optional field with default value.
+	if defaultNetworkSpec.ClusterPoolDeviceV4 == nil && defaultNetworkSpec.ClusterPoolDeviceV6 == nil {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec", "network"),
+					defaultNetworkSpec,
+					"require any device for adding in cluster pool"),
+			})
+	}
+
+	clusterPoolDeviceV4Found := defaultNetworkSpec.ClusterPoolDeviceV4 == nil
+	clusterPoolDeviceV6Found := defaultNetworkSpec.ClusterPoolDeviceV6 == nil
+
+	for i, networkDevice := range machine.Spec.Network.NetworkDevices {
+		if ptr.Deref(machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4, "") == *networkDevice.Name {
+			clusterPoolDeviceV4Found = true
+		}
+		if ptr.Deref(machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6, "") == *networkDevice.Name {
+			clusterPoolDeviceV6Found = true
+		}
+
+		err := validateNetworkDeviceMTU(&networkDevice)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"), machine.Spec.Network.NetworkDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"),
+						networkDevice,
+						err.Error()),
 				})
 		}
 
-		err = validateInterfaceConfigMTU(&machine.Spec.Network.NetworkDevices[i].InterfaceConfig)
+		err = validateInterfaceConfigMTU(&networkDevice.InterfaceConfig)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"), machine.Spec.Network.NetworkDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"),
+						networkDevice,
+						err.Error()),
 				})
 		}
-		err = validateRoutingPolicy(&machine.Spec.Network.NetworkDevices[i].InterfaceConfig.RoutingPolicy)
+		err = validateRoutingPolicy(&networkDevice.InterfaceConfig.RoutingPolicy)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"), machine.Spec.Network.NetworkDevices[i], err.Error()),
+						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"),
+						networkDevice, err.Error(),
+					),
 				})
 		}
 	}
@@ -141,9 +172,40 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "VirtualNetworkDevices", "VRFs", fmt.Sprint(i), "Table"), machine.Spec.Network.VirtualNetworkDevices.VRFs[i], err.Error()),
+						field.NewPath("spec", "network", "VirtualNetworkDevices", "VRFs", fmt.Sprint(i), "Table"),
+						machine.Spec.Network.VirtualNetworkDevices.VRFs[i], err.Error()),
 				})
 		}
+	}
+
+	if !clusterPoolDeviceV4Found {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec", "network", "clusterPoolDeviceV4"),
+					machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4,
+					fmt.Sprintf("Network interface %s not found in NetworkDevices",
+						*machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4,
+					),
+				),
+			})
+	}
+
+	if !clusterPoolDeviceV6Found {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec", "network", "clusterPoolDeviceV6"),
+					machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6,
+					fmt.Sprintf("Network interface %s not found in NetworkDevices",
+						*machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6,
+					),
+				),
+			})
 	}
 
 	return nil

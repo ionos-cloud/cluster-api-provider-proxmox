@@ -544,6 +544,10 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: infrav1.DefaultNetworkSpec{
+			ClusterPoolDeviceV4: ptr.To("net0"),
+			ClusterPoolDeviceV6: ptr.To("net0"),
+		},
 		VirtualNetworkDevices: infrav1.VirtualNetworkDevices{
 			VRFs: []infrav1.VRFDevice{{
 				Interfaces: []infrav1.NetName{ptr.To("net1")},

@@ -191,6 +191,18 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be at least 1 chars long")))
 		})
 
+		It("Should not allow non-proxmox network name", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				NetworkDevices: []NetworkDevice{{
+					Name:   ptr.To("asdf"),
+					Bridge: ptr.To("vmbr0"),
+				}},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.network.networkDevices[0].name: Invalid value: \"asdf\":")))
+		})
+
 		It("Should not allow net0 in additional network devices", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{

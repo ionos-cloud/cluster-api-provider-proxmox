@@ -33,12 +33,20 @@ import (
 
 const ipTag = "ip_net0_10.10.10.10"
 
+func createDefaultNetworkSpec() infrav1.DefaultNetworkSpec {
+	return infrav1.DefaultNetworkSpec{
+		ClusterPoolDeviceV4: ptr.To("net0"),
+		ClusterPoolDeviceV6: ptr.To("net0"),
+	}
+}
+
 // TODO: actually prepend net0 ipaddress claim
 // TestReconcileIPAddresses_CreateDefaultClaim tests if the cluster provided InclusterIPPool IPAddressClaim gets created.
 func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{Name: ptr.To("net0")},
 		},
@@ -72,6 +80,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{Name: ptr.To("net0")},
 			{
@@ -118,6 +127,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 		Name:     getDefaultPoolRefs(machineScope)[0].Name,
 	}
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{Name: ptr.To("net0")},
 		},
@@ -160,6 +170,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{Name: ptr.To("net0")},
 			{
@@ -214,6 +225,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:            ptr.To(infrav1.DefaultNetworkDevice),
@@ -299,6 +311,7 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{Name: ptr.To("net0")},
 			{
@@ -352,6 +365,7 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:            ptr.To("net0"),

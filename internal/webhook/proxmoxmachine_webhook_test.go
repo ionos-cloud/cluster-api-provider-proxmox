@@ -78,6 +78,7 @@ var _ = Describe("Controller Test", func() {
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
+
 	})
 
 	Context("update proxmox cluster", func() {
@@ -135,6 +136,10 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 				},
 			},
 			Network: &infrav1.NetworkSpec{
+				DefaultNetworkSpec: infrav1.DefaultNetworkSpec{
+					ClusterPoolDeviceV4: ptr.To("net0"),
+					ClusterPoolDeviceV6: ptr.To("net0"),
+				},
 				NetworkDevices: []infrav1.NetworkDevice{{
 					Name:   ptr.To("net0"),
 					Bridge: ptr.To("vmbr1"),

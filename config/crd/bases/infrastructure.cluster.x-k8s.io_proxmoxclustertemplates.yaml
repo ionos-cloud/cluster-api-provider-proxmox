@@ -1080,6 +1080,20 @@ spec:
                                   description: network is the network configuration
                                     for this machine's VM.
                                   properties:
+                                    clusterPoolDeviceV4:
+                                      default: net0
+                                      description: clusterPoolDeviceV4 the proxmox
+                                        network device the ipv4 InClusterIPPool will
+                                        be added to.
+                                      pattern: ^net[0-9]+$
+                                      type: string
+                                    clusterPoolDeviceV6:
+                                      default: net0
+                                      description: clusterPoolDeviceV6 is the proxmox
+                                        network device the ipv6 InClusterIPPool will
+                                        be added to.
+                                      pattern: ^net[0-9]+$
+                                      type: string
                                     networkDevices:
                                       description: |-
                                         networkDevices lists network devices.

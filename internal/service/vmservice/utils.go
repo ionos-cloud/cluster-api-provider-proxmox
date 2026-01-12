@@ -27,8 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
@@ -41,24 +39,29 @@ const (
 	DefaultNetworkDeviceIPv6 = "net0-inet6"
 )
 
-func GetInClusterIPPoolsFromMachine(ctx context.Context, machineScope *scope.MachineScope) (*[]corev1.TypedLocalObjectReference, error) {
-	pools, _ := machineScope.IPAMHelper.GetInClusterPools(ctx, machineScope.ProxmoxMachine)
+func GetInClusterIPPoolRefs(ctx context.Context, machineScope *scope.MachineScope) (struct {
+	IPv4 *corev1.TypedLocalObjectReference
+	IPv6 *corev1.TypedLocalObjectReference
+}, error) {
 
-	ret := []corev1.TypedLocalObjectReference{}
-
-	// TODO: move one function upwards
-	for _, pool := range []*ipamicv1.InClusterIPPool{pools["ipv4"], pools["ipv6"]} {
-		if pool != nil {
-			poolRef := corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
-				Name:     pool.Name,
-				Kind:     pool.TypeMeta.Kind,
-			}
-			ret = append(ret, poolRef)
-		}
+	var ret struct {
+		IPv4 *corev1.TypedLocalObjectReference
+		IPv6 *corev1.TypedLocalObjectReference
 	}
 
-	return &ret, nil
+	pools, err := machineScope.IPAMHelper.GetInClusterPools(ctx, machineScope.ProxmoxMachine)
+	if err != nil {
+		return ret, err
+	}
+
+	if pools.IPv4 != nil {
+		ret.IPv4 = &pools.IPv4.PoolRef
+	}
+	if pools.IPv6 != nil {
+		ret.IPv6 = &pools.IPv6.PoolRef
+	}
+
+	return ret, nil
 }
 
 func extractUUID(input string) string {

@@ -70,8 +70,28 @@ func IPAddressFormat(machineName, proxDeviceName string, offset int, suffix stri
 }
 
 // GetInClusterPools returns the IPPools belonging to the ProxmoxCluster.
-func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (map[string]*ipamicv1.InClusterIPPool, error) {
-	pools := map[string]*ipamicv1.InClusterIPPool{}
+func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (
+	struct {
+		IPv4 *struct {
+			Pool    ipamicv1.InClusterIPPool
+			PoolRef corev1.TypedLocalObjectReference
+		}
+		IPv6 *struct {
+			Pool    ipamicv1.InClusterIPPool
+			PoolRef corev1.TypedLocalObjectReference
+		}
+	}, error) {
+	var pools struct {
+		IPv4 *struct {
+			Pool    ipamicv1.InClusterIPPool
+			PoolRef corev1.TypedLocalObjectReference
+		}
+		IPv6 *struct {
+			Pool    ipamicv1.InClusterIPPool
+			PoolRef corev1.TypedLocalObjectReference
+		}
+	}
+
 	namespace := moxm.ObjectMeta.Namespace
 
 	// cluster, _ := util.GetClusterFromMetadata(ctx, h.ctrlClient, machine.ObjectMeta)
@@ -82,13 +102,13 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 
 	// TODO: Per ZONE IPPoolRefs
 	for _, poolRef := range proxmoxCluster.Status.InClusterIPPoolRef {
-		pool := &ipamicv1.InClusterIPPool{}
-		err := h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: poolRef.Name}, pool)
+		pool := ipamicv1.InClusterIPPool{}
+		err := h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: poolRef.Name}, &pool)
 		if err != nil {
-			return nil, err
+			return pools, err
 		}
 		if len(pool.Spec.Addresses) == 0 {
-			return nil, errors.New(fmt.Sprintf("InClusterIPPool %s without addresses", pool.Name))
+			return pools, errors.New(fmt.Sprintf("InClusterIPPool %s without addresses", pool.Name))
 		}
 
 		// There's no way of telling if a pool is ipv4 or ipv6 except for parsing it.
@@ -98,10 +118,21 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		ipString := re.FindString(pool.Spec.Addresses[0])
 		ip, _ := netip.ParseAddr(ipString)
 
+		var poolSpec struct {
+			Pool    ipamicv1.InClusterIPPool
+			PoolRef corev1.TypedLocalObjectReference
+		}
+		poolSpec.Pool = pool
+		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
+			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+			Name:     pool.Name,
+			Kind:     pool.TypeMeta.Kind,
+		}
+
 		if ip.Is4() {
-			pools["ipv4"] = pool
+			pools.IPv4 = &poolSpec
 		} else if ip.Is6() {
-			pools["ipv6"] = pool
+			pools.IPv6 = &poolSpec
 		}
 	}
 	return pools, nil

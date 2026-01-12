@@ -158,6 +158,8 @@ func TestExtractNetworkMTU(t *testing.T) {
 func TestShouldUpdateNetworkDevices_NoNetworkConfig(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 
+	machineScope.ProxmoxMachine.Spec.Network = nil
+
 	require.False(t, shouldUpdateNetworkDevices(machineScope))
 }
 
