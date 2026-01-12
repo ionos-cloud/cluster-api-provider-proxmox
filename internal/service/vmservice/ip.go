@@ -160,7 +160,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 
 	ipAddresses, err := findIPAddress(ctx, poolRef, machineScope)
 	if err != nil {
-		// Technically this error can not occure, as fieldselectors just return empty lists
+		// Technically this error cannot occur as fieldselectors just return empty lists
 		if !apierrors.IsNotFound(err) {
 			return []ipamv1.IPAddress{}, err
 		}
