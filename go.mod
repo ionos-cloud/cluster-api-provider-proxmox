@@ -10,7 +10,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.3.1
-	github.com/luthermonson/go-proxmox v0.2.3-0.20250704032151-92d9fa56db83 // Bump when v0.2.3 is released
+	github.com/luthermonson/go-proxmox v0.3.2 // Bump when v0.2.3 is released
 	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.39.0
 	github.com/pkg/errors v0.9.1
