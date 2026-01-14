@@ -380,6 +380,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 		&proxmox.ClusterResource{VMID: 202, Name: "ubuntu-22.04-k8s-v1.30.2", Node: "capmox02", Tags: "capmox;template;v1.30.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 301, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 302, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 700, Name: "template-superset", Node: "capmox01", Tags: "template-superset;extra-tag", Template: uint64(1)},
 	}
 	tests := []struct {
 		name             string
@@ -421,7 +422,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			vmTags:           nil,
 			resolutionPolicy: "subset",
 			fails:            true,
-			err:              "VM template not found: found 4 VM templates with tags \"\"",
+			err:              "VM template not found: found 5 VM templates with tags \"\"",
 			vmTemplateNode:   "capmox01",
 			vmTemplateID:     201,
 		},
@@ -475,6 +476,16 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			err:              "VM template not found: found 2 VM templates with tags \"template;capmox;v1.29.2\"",
 			vmTemplateID:     69,
 			vmTemplateNode:   "nice",
+		},
+		{
+			name:             "find-template-superset-subset",
+			http:             []int{200, 200},
+			vmTags:           []string{"template-superset"},
+			resolutionPolicy: "subset",
+			fails:            false,
+			err:              "",
+			vmTemplateNode:   "capmox01",
+			vmTemplateID:     700,
 		},
 	}
 
