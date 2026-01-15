@@ -30,12 +30,15 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
-	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/cluster-api/util/conditions"
-	"sigs.k8s.io/cluster-api/util/patch"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"    //nolint:staticcheck
+	clustererrors "sigs.k8s.io/cluster-api/errors"       //nolint:staticcheck
+
+	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
+
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions" //nolint:staticcheck
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"      //nolint:staticcheck
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"

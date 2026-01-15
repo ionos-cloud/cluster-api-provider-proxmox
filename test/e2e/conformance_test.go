@@ -34,7 +34,9 @@ import (
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/test/framework/kubetest"
-	"sigs.k8s.io/cluster-api/util"
+
+	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 )
 
 var _ = Describe("Conformance Tests", func() {
