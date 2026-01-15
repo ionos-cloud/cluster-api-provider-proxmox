@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/luthermonson/go-proxmox"
@@ -81,43 +80,30 @@ func setupVMWithMetadata(t *testing.T, machineScope *scope.MachineScope, netSpec
 }
 
 func addDefaultIPPool(machineScope *scope.MachineScope) corev1.TypedLocalObjectReference {
-	poolRefs := getDefaultPoolRefs(machineScope)
-	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
-	if index := slices.IndexFunc(poolRefs, func(p corev1.LocalObjectReference) bool {
-		return strings.Contains(p.Name, "v4-icip")
-	}); index < 0 {
-		proxmoxCluster.Status.InClusterIPPoolRef = append(proxmoxCluster.Status.InClusterIPPoolRef,
-			corev1.LocalObjectReference{Name: "test-v4-icip"})
-	}
-
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
-		Name: getDefaultPoolRefs(machineScope)[0].Name,
+		Name: "test-v4-icip",
 	}
 
 	defaultDeviceV4 := machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4
 	// call to add defaultNic
 	addIPPool(machineScope, defaultPool, defaultDeviceV4)
+
+	setInClusterIPPoolStatus(machineScope, "test-v4-icip", infrav1.ProxmoxIPFamilyV4, nil)
 	return defaultPool
 }
 
 func addDefaultIPPoolV6(machineScope *scope.MachineScope) corev1.TypedLocalObjectReference {
-	poolRefs := getDefaultPoolRefs(machineScope)
-	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
-	if index := slices.IndexFunc(poolRefs, func(p corev1.LocalObjectReference) bool {
-		return strings.Contains(p.Name, "v6-icip")
-	}); index < 0 {
-		proxmoxCluster.Status.InClusterIPPoolRef = append(proxmoxCluster.Status.InClusterIPPoolRef,
-			corev1.LocalObjectReference{Name: "test-v6-icip"})
-	}
 	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
-		Name: getDefaultPoolRefs(machineScope)[1].Name,
+		Name: "test-v6-icip",
 	}
 
 	defaultDeviceV6 := machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6
 	// call to add defaultNic
 	addIPPool(machineScope, defaultPoolV6, defaultDeviceV6)
+
+	setInClusterIPPoolStatus(machineScope, "test-v6-icip", infrav1.ProxmoxIPFamilyV6, nil)
 	return defaultPoolV6
 }
 
@@ -162,7 +148,7 @@ func addIPPool(machineScope *scope.MachineScope, poolRef corev1.TypedLocalObject
 
 	// Add IPPoolRef unless we're dealing with default pools here
 	ipPoolRefs := networkDevices[index].InterfaceConfig.IPPoolRef
-	if !slices.ContainsFunc(getDefaultPoolRefs(machineScope), func(c corev1.LocalObjectReference) bool {
+	if !slices.ContainsFunc(machineScope.InfraCluster.ProxmoxCluster.Status.InClusterIPPoolRef, func(c corev1.LocalObjectReference) bool {
 		return c.Name == poolRef.Name
 	}) {
 		ipPoolRefs = append(ipPoolRefs, poolRef)
@@ -222,7 +208,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	createIPPools(t, kubeClient, machineScope)
 
 	// update extraPool for gateway/prefix test
-	poolObj := getIPAddressPool(t, kubeClient, machineScope, &extraPool0)
+	poolObj := getIPAddressPool(t, kubeClient, machineScope, extraPool0)
 	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix = 16
 	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway = "10.100.10.1"
 	createOrUpdateIPPool(t, kubeClient, machineScope, nil, poolObj)
@@ -451,11 +437,6 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 		Gateway:   "2001:db8::1",
 	}
 	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
-	proxmoxCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
-		{Name: "test-v4-icip"},
-		{Name: "test-v6-icip"},
-	}
-	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
 	// NetworkSetup for default pools
 	defaultPool := addDefaultIPPool(machineScope)
@@ -501,6 +482,11 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 		{Name: "test-v4-icip"},
 		{Name: "test-v6-icip"},
 	}
+	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 ptr.To("default"),
+		InClusterIPPoolRefV4: ptr.To(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: ptr.To(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+	}}
 	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
 	// create missing defaultPoolV6.
@@ -558,6 +544,11 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 		{Name: "test-v4-icip"},
 		{Name: "test-v6-icip"},
 	}
+	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 ptr.To("default"),
+		InClusterIPPoolRefV4: ptr.To(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: ptr.To(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+	}}
 	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
 	// create missing defaultPoolV6.

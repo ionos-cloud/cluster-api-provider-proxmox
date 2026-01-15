@@ -957,6 +957,113 @@ spec:
                   spec:
                     description: spec is the Proxmox Cluster spec
                     properties:
+                      ZoneConfig:
+                        description: zoneconfig defines a IPAddress config per deployment
+                          zone
+                        items:
+                          description: ZoneConfigSpec is the Network Configuration
+                            for further deployment zones
+                          properties:
+                            dnsServers:
+                              description: dnsServers contains information about nameservers
+                                used by the machines in this zone.
+                              items:
+                                type: string
+                              minItems: 1
+                              type: array
+                              x-kubernetes-list-type: set
+                            ipv4Config:
+                              description: |-
+                                ipv4Config contains information about available IPv4 address pools and the gateway.
+                                This can be combined with ipv6Config in order to enable dual stack.
+                                Either IPv4Config or IPv6Config must be provided.
+                              properties:
+                                addresses:
+                                  description: addresses is a list of IP addresses
+                                    that can be assigned. This set of addresses can
+                                    be non-contiguous.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: set
+                                gateway:
+                                  description: gateway is the network gateway
+                                  minLength: 1
+                                  type: string
+                                metric:
+                                  default: 100
+                                  description: metric is the route priority applied
+                                    to the default gateway
+                                  format: int32
+                                  minimum: 0
+                                  type: integer
+                                prefix:
+                                  description: prefix is the network prefix to use.
+                                  format: int32
+                                  maximum: 128
+                                  minimum: 1
+                                  type: integer
+                              required:
+                              - addresses
+                              - gateway
+                              - metric
+                              - prefix
+                              type: object
+                              x-kubernetes-validations:
+                              - message: IPv4Config addresses must be provided
+                                rule: self.addresses.size() > 0
+                            ipv6Config:
+                              description: |-
+                                ipv6Config contains information about available IPv6 address pools and the gateway.
+                                This can be combined with ipv4Config in order to enable dual stack.
+                                Either IPv4Config or IPv6Config must be provided.
+                              properties:
+                                addresses:
+                                  description: addresses is a list of IP addresses
+                                    that can be assigned. This set of addresses can
+                                    be non-contiguous.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: set
+                                gateway:
+                                  description: gateway is the network gateway
+                                  minLength: 1
+                                  type: string
+                                metric:
+                                  default: 100
+                                  description: metric is the route priority applied
+                                    to the default gateway
+                                  format: int32
+                                  minimum: 0
+                                  type: integer
+                                prefix:
+                                  description: prefix is the network prefix to use.
+                                  format: int32
+                                  maximum: 128
+                                  minimum: 1
+                                  type: integer
+                              required:
+                              - addresses
+                              - gateway
+                              - metric
+                              - prefix
+                              type: object
+                              x-kubernetes-validations:
+                              - message: IPv6Config addresses must be provided
+                                rule: self.addresses.size() > 0
+                            zone:
+                              description: zone is the name of your deployment zone.
+                              pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
+                              type: string
+                          required:
+                          - dnsServers
+                          - zone
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - zone
+                        x-kubernetes-list-type: map
                       allowedNodes:
                         description: |-
                           allowedNodes specifies all Proxmox nodes which will be considered
@@ -1384,6 +1491,11 @@ spec:
                                       x-kubernetes-list-map-keys:
                                       - name
                                       x-kubernetes-list-type: map
+                                    zone:
+                                      description: zone is the cluster deployment
+                                        zone this machine will refer to.
+                                      pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
+                                      type: string
                                   type: object
                                 numCores:
                                   description: |-

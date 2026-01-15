@@ -46,6 +46,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -284,19 +285,29 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 		return ctrl.Result{}, err
 	}
 
-	if clusterScope.ProxmoxCluster.Spec.IPv4Config != nil {
-		poolv4, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPv4Format)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
-			}
-
-			return ctrl.Result{}, err
-		}
-		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolv4)
+	proxmoxCluster := clusterScope.ProxmoxCluster
+	ipPools := []string{}
+	if proxmoxCluster.Spec.IPv4Config != nil {
+		ipPools = append(ipPools, ipam.InClusterPoolFormat(proxmoxCluster, nil, infrav1.IPv4Format))
 	}
-	if clusterScope.ProxmoxCluster.Spec.IPv6Config != nil {
-		poolv6, err := clusterScope.IPAMHelper.GetDefaultInClusterIPPool(ctx, infrav1.IPv6Format)
+	if proxmoxCluster.Spec.IPv6Config != nil {
+		ipPools = append(ipPools, ipam.InClusterPoolFormat(proxmoxCluster, nil, infrav1.IPv6Format))
+	}
+	for _, zone := range proxmoxCluster.Spec.ZoneConfigs {
+		if zone.IPv4Config != nil {
+			ipPools = append(ipPools, ipam.InClusterPoolFormat(proxmoxCluster, zone.Zone, infrav1.IPv4Format))
+		}
+		if zone.IPv6Config != nil {
+			ipPools = append(ipPools, ipam.InClusterPoolFormat(proxmoxCluster, zone.Zone, infrav1.IPv6Format))
+		}
+	}
+
+	for _, poolName := range ipPools {
+		pool, err := clusterScope.IPAMHelper.GetIPPool(ctx, corev1.TypedLocalObjectReference{
+			APIGroup: consts.GetIpamInClusterAPIGroup(),
+			Name:     poolName,
+			Kind:     consts.GetInClusterIPPoolKind(),
+		})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
@@ -304,7 +315,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 
 			return ctrl.Result{}, err
 		}
-		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(poolv6)
+		clusterScope.ProxmoxCluster.SetInClusterIPPoolRef(pool)
 	}
 
 	return reconcile.Result{}, nil

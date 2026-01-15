@@ -177,7 +177,7 @@ func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
 }
 
 func (s *IPAMTestSuite) Test_GetInClusterIPPool() {
-	notFound, err := s.helper.GetInClusterIPPool(s.ctx, &corev1.TypedLocalObjectReference{
+	notFound, err := s.helper.GetInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
 		Name:     "simple-pool",
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 		Kind:     InClusterIPPool,
@@ -195,7 +195,7 @@ func (s *IPAMTestSuite) Test_GetInClusterIPPool() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	found, err := s.helper.GetInClusterIPPool(s.ctx, &corev1.TypedLocalObjectReference{
+	found, err := s.helper.GetInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 		Name:     "test-cluster-v4-icip",
 		Kind:     InClusterIPPool})
@@ -204,7 +204,7 @@ func (s *IPAMTestSuite) Test_GetInClusterIPPool() {
 }
 
 func (s *IPAMTestSuite) Test_GetGlobalInClusterIPPool() {
-	notFound, err := s.helper.GetGlobalInClusterIPPool(s.ctx, &corev1.TypedLocalObjectReference{
+	notFound, err := s.helper.GetGlobalInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
 		Name:     "simple-global-pool",
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 		Kind:     GlobalInClusterIPPool})
@@ -229,7 +229,7 @@ func (s *IPAMTestSuite) Test_GetGlobalInClusterIPPool() {
 		Name: "test-global-cluster-icip",
 	}, &pool))
 
-	found, err := s.helper.GetGlobalInClusterIPPool(s.ctx, &corev1.TypedLocalObjectReference{
+	found, err := s.helper.GetGlobalInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
 		Name:     "test-global-cluster-icip",
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
 		Kind:     GlobalInClusterIPPool})
@@ -247,7 +247,11 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPv4Format, "test-cluster", nil)
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), infrav1.DefaultNetworkDevice, 0, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind:     InClusterIPPool})
+
 	s.NoError(err)
 
 	// create a dummy IPAddress.
@@ -283,7 +287,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Name: "test-ippool-annotations",
 	}, &globalPool))
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", 0, corev1.TypedLocalObjectReference{
 		Name:     "test-ippool-annotations",
 		Kind:     GlobalInClusterIPPool,
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -322,7 +326,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 	s.Equal(annotations["metric"], "100")
 }
 
-func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
+func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
 
 	// default device
@@ -332,20 +336,23 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	device := "net0"
+	device := infrav1.DefaultNetworkDevice
 
-	rootClusterName := "test"
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, infrav1.IPv4Format, rootClusterName, nil)
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, 0, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind:     InClusterIPPool})
+
 	s.NoError(err)
 
 	// Ensure cluster label is set.
 	var claim ipamv1.IPAddressClaim
-	name := fmt.Sprintf("%s-%s-%s", getCluster().GetName(), device, infrav1.DefaultSuffix)
+	name := IPAddressFormat(getCluster().GetName(), device, 0, infrav1.DefaultSuffix)
 	nn := types.NamespacedName{Name: name, Namespace: getCluster().GetNamespace()}
 	err = s.cl.Get(s.ctx, nn, &claim)
 	s.NoError(err)
 	s.Contains(claim.ObjectMeta.Labels, clusterv1.ClusterNameLabel)
-	s.Equal(rootClusterName, claim.ObjectMeta.Labels[clusterv1.ClusterNameLabel])
+	s.Equal(getCluster().GetName(), claim.ObjectMeta.Labels[clusterv1.ClusterNameLabel])
 
 	// additional device with InClusterIPPool
 	s.NoError(s.helper.ctrlClient.Create(s.ctx, &ipamicv1.InClusterIPPool{
@@ -368,7 +375,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 
 	additionalDevice := "net1"
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), additionalDevice, infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), additionalDevice, 0, corev1.TypedLocalObjectReference{
 		Name:     "test-additional-cluster-icip",
 		Kind:     InClusterIPPool,
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -394,7 +401,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 
 	globalDevice := "net2"
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), globalDevice, infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), globalDevice, 0, corev1.TypedLocalObjectReference{
 		Name:     "test-global-cluster-icip",
 		Kind:     GlobalInClusterIPPool,
 		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -415,7 +422,11 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaim() {
 		Name:      "test-cluster-v6-icip",
 	}, &poolV6))
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, infrav1.IPv6Format, "test-cluster", nil)
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, 0, corev1.TypedLocalObjectReference{
+		Name:     "test-global-cluster-icip",
+		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind:     GlobalInClusterIPPool})
+
 	s.NoError(err)
 }
 
@@ -428,7 +439,7 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", infrav1.IPv4Format, "test-cluster", &corev1.TypedLocalObjectReference{
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", 0, corev1.TypedLocalObjectReference{
 		Kind: InClusterIPPool,
 		Name: "test-cluster-v4-icip",
 	})
@@ -471,6 +482,10 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 		panic(err)
 	}
 	return &ipamv1.IPAddress{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "IPAddress",
+			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      owner.GetName(),
 			Namespace: owner.GetNamespace(),

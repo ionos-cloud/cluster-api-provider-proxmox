@@ -123,8 +123,8 @@ func setVMIPAddressTag(ctx context.Context, machineScope *scope.MachineScope, ip
 }
 
 // findIPAddress returns all IPAddresses owned by a pool and a machine.
-func findIPAddress(ctx context.Context, poolRef *corev1.TypedLocalObjectReference, machineScope *scope.MachineScope) ([]ipamv1.IPAddress, error) {
-	return machineScope.IPAMHelper.GetIPAddressV2(ctx, *poolRef, machineScope.ProxmoxMachine)
+func findIPAddress(ctx context.Context, poolRef corev1.TypedLocalObjectReference, machineScope *scope.MachineScope) ([]ipamv1.IPAddress, error) {
+	return machineScope.IPAMHelper.GetIPAddressV2(ctx, poolRef, machineScope.ProxmoxMachine)
 }
 
 func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.MachineScope, ipAddress *ipamv1.IPAddress) (*int32, error) {
@@ -155,7 +155,7 @@ func machineHasIPAddress(machine *infrav1.ProxmoxMachine) bool {
 	}
 }
 
-func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, dev *string, poolNum int, poolRef *corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {
+func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, dev *string, poolNum int, poolRef corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {
 	device := ptr.Deref(dev, infrav1.DefaultNetworkDevice)
 
 	ipAddresses, err := findIPAddress(ctx, poolRef, machineScope)
@@ -169,7 +169,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 	if len(ipAddresses) == 0 {
 		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
 		// IpAddress not yet created.
-		err = machineScope.IPAMHelper.CreateIPAddressClaimV2(ctx, machineScope.ProxmoxMachine, device, poolNum, machineScope.InfraCluster.Cluster.GetName(), poolRef)
+		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, device, poolNum, poolRef)
 		if err != nil {
 			return []ipamv1.IPAddress{}, errors.Wrapf(err, "unable to create Ip address claim for machine %s", machineScope.Name())
 		}
@@ -199,7 +199,6 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 	defaultIPv6 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV6
 
 	for _, net := range networkSpec.NetworkDevices {
-		// TODO: Where should prepending default clusterpools belong
 		// TODO: Network Zones
 		pools := []corev1.TypedLocalObjectReference{}
 
@@ -212,7 +211,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 		}
 
 		for i, ipPool := range slices.Concat(pools, net.InterfaceConfig.IPPoolRef) {
-			ipAddresses, err := handleIPAddresses(ctx, machineScope, net.Name, i, &ipPool)
+			ipAddresses, err := handleIPAddresses(ctx, machineScope, net.Name, i, ipPool)
 			if err != nil {
 				fmt.Println("handleDevices", "err", err, "ip", ipAddresses)
 				return true, errors.Wrapf(err, "unable to handle IPAddress for device %+v, pool %s", net.Name, ipPool.Name)

@@ -1271,6 +1271,11 @@ spec:
                     x-kubernetes-list-map-keys:
                     - name
                     x-kubernetes-list-type: map
+                  zone:
+                    description: zone is the cluster deployment zone this machine
+                      will refer to.
+                    pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
+                    type: string
                 type: object
               numCores:
                 description: |-

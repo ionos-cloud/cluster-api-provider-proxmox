@@ -29,6 +29,24 @@ const (
 
 	// VirtualMachineStateReady is the string representing a powered-on VM with reported IP addresses.
 	VirtualMachineStateReady VirtualMachineState = "ready"
+
+	// ProxmoxZoneLabel is a label key used for proxmox zone objects.
+	ProxmoxZoneLabel string = "topology.kubernetes.io/proxmox-zone"
+
+	// ProxmoxIPFamilyAnnotation is an annotation key used for denoting the ip family of InClusterIPPools.
+	ProxmoxIPFamilyAnnotation string = "ipam.capmox.cluster.x-k8s.io/ip-family"
+
+	// PromoxIPFamilyV4 represents an ipv4 family pool.
+	ProxmoxIPFamilyV4 string = "ipv4"
+
+	// PromoxIPFamilyV4 represents an ipv6 family pool.
+	ProxmoxIPFamilyV6 string = "ipv6"
+
+	// PromoxPoolRefCounterAnnotation allows multiple IP Addresses per IPPool
+	PromoxPoolRefCounterAnnotation string = "ipam.capmox.cluster.x-k8s.io/pool-ref-counter"
+
+	// ProxmoxGatewayMetricAnnoation is an annotation key used for denoting metric of a gateway.
+	ProxmoxGatewayMetricAnnotation string = "ipam.capmox.cluster.x-k8s.io/gateway-metric"
 )
 
 // VirtualMachine represents data about a Proxmox virtual machine object.
@@ -87,3 +105,7 @@ type NetworkStatus struct {
 // NetName is a formally verified Proxmox network name string.
 // +kubebuilder:validation:Pattern=`^net[0-9]+$`
 type NetName *string
+
+// Zone is a formally verified Proxmox network zone name. Needs to adhere to Label rules.
+// +kubebuilder:validation:Pattern=`^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$`
+type Zone *string

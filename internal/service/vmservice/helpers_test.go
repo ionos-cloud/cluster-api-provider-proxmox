@@ -123,7 +123,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			NodeLocations: &infrav1.NodeLocations{},
 		},
 	}
-	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, infrav1.IPv4Format)}}
+	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, nil, infrav1.IPv4Format)}}
+	infraCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 ptr.To("default"),
+		InClusterIPPoolRefV4: &corev1.LocalObjectReference{Name: ipam.InClusterPoolFormat(infraCluster, nil, infrav1.IPv4Format)},
+	}}
 
 	infraMachine := &infrav1.ProxmoxMachine{
 		TypeMeta: metav1.TypeMeta{
@@ -261,7 +265,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
-		poolSpec := getPoolSpec(getIPAddressPool(t, c, machineScope, pool))
+		poolSpec := getPoolSpec(getIPAddressPool(t, c, machineScope, *pool))
 		if poolSpec.prefix != 0 {
 			prefix = poolSpec.prefix
 		}
@@ -321,7 +325,11 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 
 	defaultPools := []corev1.TypedLocalObjectReference{}
 	// TODO: handle default pools beyond appending in front ... handle zones
-	for _, pool := range getDefaultPoolRefs(machineScope) {
+	inClusterZoneRef := getDefaultPoolRefs(machineScope)
+	for _, pool := range []*corev1.LocalObjectReference{inClusterZoneRef.InClusterIPPoolRefV4, inClusterZoneRef.InClusterIPPoolRefV6} {
+		if pool == nil {
+			continue
+		}
 		defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 			Kind: GetInClusterIPPoolKind(),
 			Name: pool.Name,
@@ -396,12 +404,17 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 	return poolRef
 }
 
-// todo: ZONES?
-func getDefaultPoolRefs(machineScope *scope.MachineScope) []corev1.LocalObjectReference {
+func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneRef {
 	cluster := machineScope.InfraCluster.ProxmoxCluster
 
-	// TODO: turn this into an IPv4/IPv6 situation
-	return cluster.Status.InClusterIPPoolRef
+	zone := machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.Zone
+	if zone == nil {
+		zone = ptr.To("default")
+	}
+	zoneIndex := slices.IndexFunc(cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
+		return *zone == *z.Zone
+	})
+	return cluster.Status.InClusterZoneRef[zoneIndex]
 }
 
 func getPoolSpec(pool client.Object) struct {
@@ -424,15 +437,8 @@ func getPoolSpec(pool client.Object) struct {
 	}{gateway: gateway, prefix: prefix}
 }
 
-func getIPAddressPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef *corev1.TypedLocalObjectReference) client.Object {
-	var obj client.Object
-	var err error
-
-	if poolRef.Kind == InClusterIPPool {
-		obj, err = machineScope.IPAMHelper.GetInClusterIPPool(context.Background(), poolRef)
-	} else if poolRef.Kind == GlobalInClusterIPPool {
-		obj, err = machineScope.IPAMHelper.GetGlobalInClusterIPPool(context.Background(), poolRef)
-	}
+func getIPAddressPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef corev1.TypedLocalObjectReference) client.Object {
+	obj, err := machineScope.IPAMHelper.GetIPPool(context.Background(), poolRef)
 
 	require.NoError(t, err)
 	return obj
@@ -472,6 +478,34 @@ func getNetworkConfigDataFromVM(t *testing.T, jsonData []byte) []types.NetworkCo
 	require.NoError(t, err)
 
 	return networkConfigData
+}
+
+func setInClusterIPPoolStatus(scope *scope.MachineScope, poolName string, ipFamily string, zone infrav1.Zone) {
+	// Construct fake fake ippool client object to add via API
+	var object client.Object
+	pool := &ipamicv1.InClusterIPPool{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: GetIpamInClusterAPIVersion(),
+			Kind:       GetInClusterIPPoolKind(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      poolName,
+			Namespace: scope.Namespace(),
+			Labels: func() map[string]string {
+				m := map[string]string{}
+				if zone != nil {
+					m[infrav1.ProxmoxZoneLabel] = *zone
+				}
+				return m
+			}(),
+			Annotations: map[string]string{
+				infrav1.ProxmoxIPFamilyAnnotation: ipFamily,
+			},
+		},
+	}
+
+	object = pool
+	scope.InfraCluster.ProxmoxCluster.SetInClusterIPPoolRef(object)
 }
 
 func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.MachineScope, format string) {

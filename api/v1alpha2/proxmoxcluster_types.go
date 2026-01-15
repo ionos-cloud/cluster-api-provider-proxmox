@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha2
 
 import (
+	"slices"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -80,6 +82,11 @@ type ProxmoxClusterSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers,omitempty"`
 
+	// zoneconfig defines a IPAddress config per deployment zone
+	// +listType=map
+	// +listMapKey=zone
+	ZoneConfigs []ZoneConfigSpec `json:"ZoneConfig,omitempty"`
+
 	// cloneSpec is the configuration pertaining to all items configurable
 	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
 	// +optional
@@ -90,6 +97,32 @@ type ProxmoxClusterSpec struct {
 	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
 	// +optional
 	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
+}
+
+// ZoneConfigSpec is the Network Configuration for further deployment zones
+type ZoneConfigSpec struct {
+	// zone is the name of your deployment zone.
+	Zone Zone `json:"zone,required"`
+
+	// ipv4Config contains information about available IPv4 address pools and the gateway.
+	// This can be combined with ipv6Config in order to enable dual stack.
+	// Either IPv4Config or IPv6Config must be provided.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
+	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
+
+	// ipv6Config contains information about available IPv6 address pools and the gateway.
+	// This can be combined with ipv4Config in order to enable dual stack.
+	// Either IPv4Config or IPv6Config must be provided.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
+	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
+
+	// dnsServers contains information about nameservers used by the machines in this zone.
+	// +required
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	DNSServers []string `json:"dnsServers,omitempty"`
 }
 
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
@@ -169,6 +202,13 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
 
+	// networkDevices lists network devices.
+	// net0 is always the default device.
+	// +optional
+	// +listType=map
+	// +listMapKey=zone
+	InClusterZoneRef []InClusterZoneRef `json:"inClusterZoneRef,omitempty"`
+
 	// nodeLocations keeps track of which nodes have been selected
 	// for different machines.
 	// +optional
@@ -216,6 +256,19 @@ type ProxmoxClusterStatus struct {
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
+// InClusterZoneRef holds the InClusterIPPools associated with a zone
+type InClusterZoneRef struct {
+	Zone Zone `json:"zone,required"`
+
+	// inClusterIpPoolRefV4 is the reference to the created in-cluster IP pool.
+	// +optional
+	InClusterIPPoolRefV4 *corev1.LocalObjectReference `json:"inClusterIpPoolRefV4,omitempty"`
+
+	// inClusterIpPoolRefV6 is the reference to the created in-cluster IP pool.
+	// +optional
+	InClusterIPPoolRefV6 *corev1.LocalObjectReference `json:"inClusterIpPoolRefV6,omitempty"`
+}
+
 // NodeLocations holds information about the deployment state of
 // control plane and worker nodes in Proxmox.
 type NodeLocations struct {
@@ -241,6 +294,10 @@ type NodeLocation struct {
 	// +kubebuilder:validation:MinLength=1
 	// +required
 	Node string `json:"node,omitempty"`
+
+	// zone is the zone the Machine is in.
+	// +optional
+	Zone Zone `json:"zone,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -287,6 +344,53 @@ func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
 	c.Status.Conditions = conditions
 }
 
+func (c *ProxmoxCluster) AddInClusterZoneRef(pool client.Object) {
+	if pool == nil || pool.GetName() == "" {
+		c.Status.InClusterZoneRef = nil
+		return
+	}
+
+	annotations := pool.GetAnnotations()
+	poolType, exists := annotations[ProxmoxIPFamilyAnnotation]
+
+	// Nothing to do, we can not detect ip family because that
+	// code may error.
+	if !exists {
+		return
+	}
+
+	labels := pool.GetLabels()
+	zone, exists := labels[ProxmoxZoneLabel]
+
+	// Add to default zone (as that has no label yet)
+	if !exists {
+		zone = "default"
+	}
+
+	if c.Status.InClusterZoneRef == nil {
+		c.Status.InClusterZoneRef = []InClusterZoneRef{{
+			Zone: &zone,
+		}}
+	}
+
+	index := slices.IndexFunc(c.Status.InClusterZoneRef, func(r InClusterZoneRef) bool {
+		return *r.Zone == zone
+	})
+
+	if index < 0 {
+		c.Status.InClusterZoneRef = append(c.Status.InClusterZoneRef, InClusterZoneRef{Zone: &zone})
+		index = len(c.Status.InClusterZoneRef)
+	}
+
+	poolRef := corev1.LocalObjectReference{Name: pool.GetName()}
+	if poolType == ProxmoxIPFamilyV4 {
+		c.Status.InClusterZoneRef[index].InClusterIPPoolRefV4 = &poolRef
+	} else if poolType == ProxmoxIPFamilyV4 {
+		c.Status.InClusterZoneRef[index].InClusterIPPoolRefV6 = &poolRef
+	}
+
+}
+
 // SetInClusterIPPoolRef will set the reference to the provided InClusterIPPool.
 // If nil was provided, the status field will be cleared.
 func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool client.Object) {
@@ -310,6 +414,9 @@ func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool client.Object) {
 	if !found {
 		c.Status.InClusterIPPoolRef = append(c.Status.InClusterIPPoolRef, corev1.LocalObjectReference{Name: pool.GetName()})
 	}
+
+	// also add to Zone information
+	c.AddInClusterZoneRef(pool)
 }
 
 // AddNodeLocation will add a node location to either the control plane or worker

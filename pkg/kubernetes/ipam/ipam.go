@@ -59,8 +59,11 @@ func NewHelper(c client.Client, infraCluster *infrav1.ProxmoxCluster) *Helper {
 	return h
 }
 
-// InClusterPoolFormat returns the name of the `InClusterIPPool` for a given cluster.
-func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, format string) string {
+// InClusterPoolFormat returns the name of the `InClusterIPPool` for a given cluster and deployment zone.
+func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, zone infrav1.Zone, format string) string {
+	if zone != nil {
+		return fmt.Sprintf("%s-%s-%s-icip", cluster.GetName(), *zone, format)
+	}
 	return fmt.Sprintf("%s-%s-icip", cluster.GetName(), format)
 }
 
@@ -69,9 +72,102 @@ func IPAddressFormat(machineName, proxDeviceName string, offset int, suffix stri
 	return fmt.Sprintf("%s-%s-%02d-%s", machineName, proxDeviceName, offset, suffix)
 }
 
-// GetInClusterPools returns the IPPools belonging to the ProxmoxCluster.
+func isIPv4(ip string) (bool, error) {
+	// There's no way of telling if a pool is ipv4 or ipv6 except for parsing it.
+	// cluster-api-in-cluster-ipam keeps the pool functions to tag a pool ipv4/ipv6 internal,
+	// so we need to reinvent the wheel here.
+	re := regexp.MustCompile(`^[^-/]+`)
+	ipString := re.FindString(ip)
+
+	netIp, err := netip.ParseAddr(ipString)
+	if err != nil {
+		return false, err
+	}
+
+	return netIp.Is4(), nil
+}
+
+/*
+type objectRef interface {
+	corev1.LocalObjectReference | corev1.TypedLocalObjectReference | corev1.TypedObjectReference
+}
+
+func convertRef[O corev1.LocalObjectReference] (o O) corev1.TypedLocalObjectReference {
+	return corev1.TypedLocalObjectReference{
+		Name: o.Name,
+	}
+}
+*/
+
+// poolFromObjectRef is a local helper to turn any objectRef into a pool,
+// The awkward calling convetion is due to limitations of golang (no generics on methods,
+// no type conversion of constrained types).
+func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace *string) (client.Object, error) {
+	ref := corev1.TypedObjectReference{}
+
+	// Todo: type constrained conversion without panic
+	switch t := (interface{})(o).(type) {
+	case *corev1.LocalObjectReference:
+		// Pool is InClusterIPPool, namespace is equal to the caller.
+		value, _ := o.(*corev1.LocalObjectReference)
+		ref.APIGroup = GetIpamInClusterAPIGroup()
+		ref.Kind = GetInClusterIPPoolKind()
+		ref.Name = value.Name
+
+		ref.Namespace = ptr.To(h.cluster.GetNamespace())
+	case *corev1.TypedLocalObjectReference:
+		value, _ := o.(*corev1.TypedLocalObjectReference)
+		ref.APIGroup = GetIpamInClusterAPIGroup()
+		ref.Name = value.Name
+		ref.Kind = value.Kind
+
+		if namespace != nil {
+			ref.Namespace = namespace
+		}
+	case *corev1.TypedObjectReference:
+		// Futureproofing for deployments in different namespaces.
+		ref, _ = o.(corev1.TypedObjectReference)
+	default:
+		return nil, errors.New(fmt.Sprintf("invalid Type: %s", t))
+	}
+
+	key := client.ObjectKey{Name: ref.Name}
+
+	var ret client.Object
+	var err error
+	switch ref.Kind {
+	case GetInClusterIPPoolKind():
+		key.Namespace = h.cluster.GetNamespace()
+
+		pool := new(ipamicv1.InClusterIPPool)
+		err = h.ctrlClient.Get(ctx, key, pool)
+
+		if pool != nil {
+			ret = pool
+		}
+	case GetGlobalInClusterIPPoolKind():
+		pool := new(ipamicv1.GlobalInClusterIPPool)
+		err = h.ctrlClient.Get(ctx, key, pool)
+
+		if pool != nil {
+			ret = pool
+		}
+	default:
+		return nil, errors.Errorf("unsupported pool type %s", ref.Kind)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+}
+
+// Todo: streamline codeflow (unify GetIPPools)
+// GetInClusterPools returns the IPPools belonging to the ProxmoxCluster relative to its Zone.
 func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (
 	struct {
+		Zone infrav1.Zone
 		IPv4 *struct {
 			Pool    ipamicv1.InClusterIPPool
 			PoolRef corev1.TypedLocalObjectReference
@@ -82,6 +178,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		}
 	}, error) {
 	var pools struct {
+		Zone infrav1.Zone
 		IPv4 *struct {
 			Pool    ipamicv1.InClusterIPPool
 			PoolRef corev1.TypedLocalObjectReference
@@ -94,30 +191,33 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 
 	namespace := moxm.ObjectMeta.Namespace
 
-	// cluster, _ := util.GetClusterFromMetadata(ctx, h.ctrlClient, machine.ObjectMeta)
-	clusterName := moxm.ObjectMeta.Labels["cluster.x-k8s.io/cluster-name"]
-	proxmoxCluster := &infrav1.ProxmoxCluster{}
+	zone := moxm.Spec.Network.DefaultNetworkSpec.Zone
+	if zone == nil {
+		zone = ptr.To("default")
+	}
 
-	h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: clusterName}, proxmoxCluster)
+	zoneIndex := slices.IndexFunc(h.cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
+		// todo: deepequal
+		return *zone == *z.Zone
+	})
 
-	// TODO: Per ZONE IPPoolRefs
-	for _, poolRef := range proxmoxCluster.Status.InClusterIPPoolRef {
-		pool := ipamicv1.InClusterIPPool{}
-		err := h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: poolRef.Name}, &pool)
+	if zoneIndex == -1 {
+		return pools, errors.New(fmt.Sprintf("zone %s not found", *zone))
+	}
+
+	pools.Zone = zone
+	zoneRef := h.cluster.Status.InClusterZoneRef[zoneIndex]
+
+	if zoneRef.InClusterIPPoolRefV4 != nil {
+		o, err := h.poolFromObjectRef(ctx, zoneRef.InClusterIPPoolRefV4, &namespace)
 		if err != nil {
 			return pools, err
 		}
+		pool := *o.(*ipamicv1.InClusterIPPool)
+
 		if len(pool.Spec.Addresses) == 0 {
 			return pools, errors.New(fmt.Sprintf("InClusterIPPool %s without addresses", pool.Name))
 		}
-
-		// There's no way of telling if a pool is ipv4 or ipv6 except for parsing it.
-		// cluster-api-in-cluster-ipam keeps the pool functions to tag a pool ipv4/ipv6 internal,
-		// so we need to reinvent the wheel here.
-		re := regexp.MustCompile(`^[^-/]+`)
-		ipString := re.FindString(pool.Spec.Addresses[0])
-		ip, _ := netip.ParseAddr(ipString)
-
 		var poolSpec struct {
 			Pool    ipamicv1.InClusterIPPool
 			PoolRef corev1.TypedLocalObjectReference
@@ -128,13 +228,32 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 			Name:     pool.Name,
 			Kind:     pool.TypeMeta.Kind,
 		}
-
-		if ip.Is4() {
-			pools.IPv4 = &poolSpec
-		} else if ip.Is6() {
-			pools.IPv6 = &poolSpec
-		}
+		pools.IPv4 = &poolSpec
 	}
+
+	if zoneRef.InClusterIPPoolRefV6 != nil {
+		o, err := h.poolFromObjectRef(ctx, zoneRef.InClusterIPPoolRefV6, &namespace)
+		if err != nil {
+			return pools, err
+		}
+		pool := *o.(*ipamicv1.InClusterIPPool)
+
+		if len(pool.Spec.Addresses) == 0 {
+			return pools, errors.New(fmt.Sprintf("InClusterIPPool %s without addresses", pool.Name))
+		}
+		var poolSpec struct {
+			Pool    ipamicv1.InClusterIPPool
+			PoolRef corev1.TypedLocalObjectReference
+		}
+		poolSpec.Pool = pool
+		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
+			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+			Name:     pool.Name,
+			Kind:     pool.TypeMeta.Kind,
+		}
+		pools.IPv6 = &poolSpec
+	}
+
 	return pools, nil
 }
 
@@ -146,99 +265,82 @@ var ErrMissingAddresses = errors.New("no valid ip addresses defined for the ip p
 // We also need to create this resource to pre-allocate IP addresses which are already in use
 // by Proxmox in order to avoid conflicts.
 func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
-	// ipv4
-	if h.cluster.Spec.IPv4Config != nil {
-		ipv4Config := h.cluster.Spec.IPv4Config
+	zoneSpecs := []infrav1.ZoneConfigSpec{{
+		Zone:       nil,
+		IPv4Config: h.cluster.Spec.IPv4Config,
+		IPv6Config: h.cluster.Spec.IPv6Config,
+	}}
 
-		v4Pool := &ipamicv1.InClusterIPPool{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: ipamicv1.GroupVersion.String(),
-				// Thank you ipamic for making InClusterIPPoolKind private
-				Kind: GetInClusterIPPoolKind(),
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      InClusterPoolFormat(h.cluster, infrav1.IPv4Format),
-				Namespace: h.cluster.GetNamespace(),
-				Annotations: func() map[string]string {
-					if ipv4Config.Metric != nil {
-						return map[string]string{"metric": fmt.Sprint(*ipv4Config.Metric)}
-					}
-					return nil
-				}(),
-			},
-			Spec: ipamicv1.InClusterIPPoolSpec{
-				Addresses: ipv4Config.Addresses,
-				Prefix:    int(ipv4Config.Prefix),
-				Gateway:   ipv4Config.Gateway,
-			},
-		}
-
-		desired := v4Pool.DeepCopy()
-		_, err := controllerutil.CreateOrUpdate(ctx, h.ctrlClient, v4Pool, func() error {
-			v4Pool.Spec = desired.Spec
-
-			if v4Pool.ObjectMeta.Annotations == nil && desired.ObjectMeta.Annotations != nil {
-				v4Pool.ObjectMeta.Annotations = make(map[string]string)
-			}
-			if desired.ObjectMeta.Annotations != nil {
-				v4Pool.ObjectMeta.Annotations["metric"] = desired.ObjectMeta.Annotations["metric"]
-			}
-			if v4Pool.ObjectMeta.Annotations != nil && desired.ObjectMeta.Annotations == nil {
-				delete(v4Pool.ObjectMeta.Annotations, "metric")
-			}
-
-			// set the owner reference to the cluster
-			return controllerutil.SetControllerReference(h.cluster, v4Pool, h.ctrlClient.Scheme())
-		})
-		if err != nil {
-			return err
-		}
+	for _, zone := range h.cluster.Spec.ZoneConfigs {
+		zoneSpecs = append(zoneSpecs, zone)
 	}
 
-	// ipv6
-	if h.cluster.Spec.IPv6Config != nil {
-		v6Pool := &ipamicv1.InClusterIPPool{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: ipamicv1.GroupVersion.String(),
-				// Thank you ipamic for making InClusterIPPoolKind private
-				Kind: GetInClusterIPPoolKind(),
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      InClusterPoolFormat(h.cluster, infrav1.IPv6Format),
-				Namespace: h.cluster.GetNamespace(),
-				Annotations: func() map[string]string {
-					if h.cluster.Spec.IPv6Config.Metric != nil {
-						return map[string]string{"metric": fmt.Sprint(*h.cluster.Spec.IPv6Config.Metric)}
-					}
-					return nil
-				}(),
-			},
-			Spec: ipamicv1.InClusterIPPoolSpec{
-				Addresses: h.cluster.Spec.IPv6Config.Addresses,
-				Prefix:    int(h.cluster.Spec.IPv6Config.Prefix),
-				Gateway:   h.cluster.Spec.IPv6Config.Gateway,
-			},
-		}
-
-		desired := v6Pool.DeepCopy()
-		_, err := controllerutil.CreateOrUpdate(ctx, h.ctrlClient, v6Pool, func() error {
-			v6Pool.Spec = desired.Spec
-
-			if v6Pool.ObjectMeta.Annotations == nil && desired.ObjectMeta.Annotations != nil {
-				v6Pool.ObjectMeta.Annotations = make(map[string]string)
-			}
-			if desired.ObjectMeta.Annotations != nil {
-				v6Pool.ObjectMeta.Annotations["metric"] = desired.ObjectMeta.Annotations["metric"]
-			}
-			if v6Pool.ObjectMeta.Annotations != nil && desired.ObjectMeta.Annotations == nil {
-				delete(v6Pool.ObjectMeta.Annotations, "metric")
+	for _, zoneSpec := range zoneSpecs {
+		for _, poolSpec := range []*infrav1.IPConfigSpec{zoneSpec.IPv4Config, zoneSpec.IPv6Config} {
+			if poolSpec == nil {
+				continue
 			}
 
-			// set the owner reference to the cluster
-			return controllerutil.SetControllerReference(h.cluster, v6Pool, h.ctrlClient.Scheme())
-		})
-		if err != nil {
-			return err
+			isv4, err := isIPv4(poolSpec.Addresses[0])
+			if err != nil {
+				return err
+			}
+
+			format := infrav1.IPv4Format
+			if !isv4 {
+				format = infrav1.IPv6Format
+			}
+
+			pool := &ipamicv1.InClusterIPPool{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: ipamicv1.GroupVersion.String(),
+					// Thank you ipamic for making InClusterIPPoolKind private
+					Kind: GetInClusterIPPoolKind(),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      InClusterPoolFormat(h.cluster, nil, format),
+					Namespace: h.cluster.GetNamespace(),
+					Annotations: func() map[string]string {
+						if poolSpec.Metric != nil {
+							return map[string]string{"metric": fmt.Sprint(*poolSpec.Metric)}
+						}
+						return nil
+					}(),
+					Labels: func() map[string]string {
+						if zoneSpec.Zone != nil {
+							return map[string]string{infrav1.ProxmoxZoneLabel: *zoneSpec.Zone}
+						}
+						return map[string]string{infrav1.ProxmoxZoneLabel: "default"}
+					}(),
+				},
+				Spec: ipamicv1.InClusterIPPoolSpec{
+					Addresses: poolSpec.Addresses,
+					Prefix:    int(poolSpec.Prefix),
+					Gateway:   poolSpec.Gateway,
+				},
+			}
+
+			desired := pool.DeepCopy()
+			_, err = controllerutil.CreateOrUpdate(ctx, h.ctrlClient, pool, func() error {
+				pool.Spec = desired.Spec
+
+				if pool.ObjectMeta.Annotations == nil && desired.ObjectMeta.Annotations != nil {
+					pool.ObjectMeta.Annotations = make(map[string]string)
+				}
+				if desired.ObjectMeta.Annotations != nil {
+					pool.ObjectMeta.Annotations["metric"] = desired.ObjectMeta.Annotations["metric"]
+				}
+				if pool.ObjectMeta.Annotations != nil && desired.ObjectMeta.Annotations == nil {
+					delete(pool.ObjectMeta.Annotations, "metric")
+				}
+				// Never update label "node.kubernetes.io/proxmox-zone". It's supposed to be immutable.
+
+				// set the owner reference to the cluster
+				return controllerutil.SetControllerReference(h.cluster, pool, h.ctrlClient.Scheme())
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -248,31 +350,65 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 // GetDefaultInClusterIPPool attempts to retrieve the `InClusterIPPool`
 // which is managed by the cluster.
 func (h *Helper) GetDefaultInClusterIPPool(ctx context.Context, format string) (*ipamicv1.InClusterIPPool, error) {
-	return h.GetInClusterIPPool(ctx, &corev1.TypedLocalObjectReference{
-		Name: InClusterPoolFormat(h.cluster, format),
+	return h.GetInClusterIPPool(ctx, corev1.TypedLocalObjectReference{
+		APIGroup: GetIpamInClusterAPIGroup(),
+		Name:     InClusterPoolFormat(h.cluster, nil, format),
+		Kind:     GetInClusterIPPoolKind(),
 	})
 }
 
-// GetInClusterIPPool attempts to retrieve the referenced `InClusterIPPool`.
-func (h *Helper) GetInClusterIPPool(ctx context.Context, ref *corev1.TypedLocalObjectReference) (*ipamicv1.InClusterIPPool, error) {
-	out := &ipamicv1.InClusterIPPool{}
-	err := h.ctrlClient.Get(ctx, client.ObjectKey{Namespace: h.cluster.GetNamespace(), Name: ref.Name}, out)
+// GetIPPool attempts to retrieve a pool from a reference.
+func (h *Helper) GetIPPool(ctx context.Context, ref corev1.TypedLocalObjectReference) (client.Object, error) {
+	var ret client.Object
+	var err error
+	key := client.ObjectKey{Name: ref.Name}
+
+	switch ref.Kind {
+	case GetInClusterIPPoolKind():
+		key.Namespace = h.cluster.GetNamespace()
+
+		pool := new(ipamicv1.InClusterIPPool)
+		err = h.ctrlClient.Get(ctx, key, pool)
+
+		if pool != nil {
+			ret = pool
+		}
+	case GetGlobalInClusterIPPoolKind():
+		pool := new(ipamicv1.GlobalInClusterIPPool)
+		err = h.ctrlClient.Get(ctx, key, pool)
+
+		if pool != nil {
+			ret = pool
+		}
+	default:
+		return nil, errors.Errorf("unsupported pool type %s", ref.Kind)
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	return out, nil
+	return ret, nil
+}
+
+// GetInClusterIPPool attempts to retrieve the referenced `InClusterIPPool`.
+func (h *Helper) GetInClusterIPPool(ctx context.Context, ref corev1.TypedLocalObjectReference) (*ipamicv1.InClusterIPPool, error) {
+	out, err := h.GetIPPool(ctx, ref)
+	if out == nil {
+		return nil, err
+	}
+
+	return out.(*ipamicv1.InClusterIPPool), err
 }
 
 // GetGlobalInClusterIPPool attempts to retrieve the referenced `GlobalInClusterIPPool`.
-func (h *Helper) GetGlobalInClusterIPPool(ctx context.Context, ref *corev1.TypedLocalObjectReference) (*ipamicv1.GlobalInClusterIPPool, error) {
-	out := &ipamicv1.GlobalInClusterIPPool{}
-	err := h.ctrlClient.Get(ctx, client.ObjectKey{Name: ref.Name}, out)
-	if err != nil {
+func (h *Helper) GetGlobalInClusterIPPool(ctx context.Context, ref corev1.TypedLocalObjectReference) (*ipamicv1.GlobalInClusterIPPool, error) {
+	out, err := h.GetIPPool(ctx, ref)
+	if out == nil {
 		return nil, err
 	}
 
-	return out, nil
+	return out.(*ipamicv1.GlobalInClusterIPPool), err
 }
 
 // GetIPPoolAnnotations attempts to retrieve the annotations of an ippool from an ipaddress object.
@@ -281,145 +417,51 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 		return nil, errors.New("no IPAddress object provided")
 	}
 
-	poolRef := ipAddress.Spec.PoolRef
-	var annotations map[string]string
-	var err error
-
-	key := &corev1.TypedLocalObjectReference{
-		Name: poolRef.Name,
+	ipPool, err := h.GetIPPool(ctx, ipAddress.Spec.PoolRef)
+	if err != nil {
+		return nil, err
 	}
 
-	if poolRef.Kind == InClusterIPPool {
-		ipPool, err := h.GetInClusterIPPool(ctx, key)
-		annotations = ipPool.ObjectMeta.Annotations
-		if err != nil {
-			return nil, err
-		}
-	} else if poolRef.Kind == GlobalInClusterIPPool {
-		ipPool, err := h.GetGlobalInClusterIPPool(ctx, key)
-		if err != nil {
-			return nil, err
-		}
-		annotations = ipPool.ObjectMeta.Annotations
-	}
-	// If neither of these kinds are matched, this is a test case,
-	// therefore no action is to be taken.
-
-	return annotations, err
+	return ipPool.(metav1.Object).GetAnnotations(), nil
 }
 
 // CreateIPAddressClaim creates an IPAddressClaim for a given object.
-// TODO: remove.
-func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, device, format, clusterNameLabel string, ref *corev1.TypedLocalObjectReference) error {
-	var gvk schema.GroupVersionKind
+func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, device string, poolNum int, ref corev1.TypedLocalObjectReference) error {
 	key := client.ObjectKey{
 		Namespace: owner.GetNamespace(),
 		Name:      owner.GetName(),
 	}
 	suffix := infrav1.DefaultSuffix
 
-	switch {
-	case device == infrav1.DefaultNetworkDevice && ref == nil:
-		pool, err := h.GetDefaultInClusterIPPool(ctx, format)
-		if err != nil {
-			return errors.Wrapf(err, "unable to find inclusterpool for cluster %s", h.cluster.Name)
-		}
-		key.Name = pool.GetName()
-		gvk, err = gvkForObject(pool, h.ctrlClient.Scheme())
-		if err != nil {
-			return err
-		}
-	case ref.Kind == InClusterIPPool:
-		pool, err := h.GetInClusterIPPool(ctx, ref)
-		if err != nil {
-			return errors.Wrapf(err, "unable to find inclusterpool for cluster %s", h.cluster.Name)
-		}
-		key.Name = pool.GetName()
-		gvk, err = gvkForObject(pool, h.ctrlClient.Scheme())
-		if err != nil {
-			return err
-		}
-	case ref.Kind == GlobalInClusterIPPool:
-		pool, err := h.GetGlobalInClusterIPPool(ctx, ref)
-		if err != nil {
-			return errors.Wrapf(err, "unable to find global inclusterpool for cluster %s", h.cluster.Name)
-		}
-		key.Name = pool.GetName()
-		gvk, err = gvkForObject(pool, h.ctrlClient.Scheme())
-		if err != nil {
-			return err
-		}
-	default:
-		return errors.Errorf("unsupported pool type %s", ref.Kind)
+	poolObj, err := h.GetIPPool(ctx, ref)
+	if err != nil {
+		return errors.Wrapf(err, "unable to find %s %s for cluster %s",
+			ref.Kind,
+			ref.Name,
+			owner.GetName(),
+		)
+	}
+
+	key.Name = poolObj.(metav1.Object).GetName()
+	gvk, err := gvkForObject(poolObj, h.ctrlClient.Scheme())
+	if err != nil {
+		return err
 	}
 
 	// Ensures that the claim has a reference to the cluster of the VM to
 	// support pausing reconciliation.
 	labels := map[string]string{
-		clusterv1.ClusterNameLabel: clusterNameLabel,
+		clusterv1.ClusterNameLabel: h.cluster.GetName(),
 	}
 
-	desired := &ipamv1.IPAddressClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s-%s", owner.GetName(), device, suffix),
-			Namespace: owner.GetNamespace(),
-			Labels:    labels,
-		},
-		Spec: ipamv1.IPAddressClaimSpec{
-			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.Group),
-				Kind:     gvk.Kind,
-				Name:     key.Name,
-			},
-		},
-	}
-	_, err := controllerutil.CreateOrUpdate(ctx, h.ctrlClient, desired, func() error {
-		// set the owner reference to the cluster
-		return controllerutil.SetControllerReference(owner, desired, h.ctrlClient.Scheme())
-	})
-
-	return err
-}
-
-// CreateIPAddressClaimV2 creates an IPAddressClaim for a given object.
-func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object, device string, poolNum int, clusterNameLabel string, ref *corev1.TypedLocalObjectReference) error {
-	var gvk schema.GroupVersionKind
-	key := client.ObjectKey{
-		Namespace: owner.GetNamespace(),
-		Name:      owner.GetName(),
-	}
-	suffix := infrav1.DefaultSuffix
-
-	switch {
-	case ref.Kind == InClusterIPPool:
-		pool, err := h.GetInClusterIPPool(ctx, ref)
-		if err != nil {
-			return errors.Wrapf(err, "unable to find inclusterpool for cluster %s", h.cluster.Name)
-		}
-		key.Name = pool.GetName()
-		gvk, err = gvkForObject(pool, h.ctrlClient.Scheme())
-		if err != nil {
-			return err
-		}
-	case ref.Kind == GlobalInClusterIPPool:
-		pool, err := h.GetGlobalInClusterIPPool(ctx, ref)
-		if err != nil {
-			return errors.Wrapf(err, "unable to find global inclusterpool for cluster %s", h.cluster.Name)
-		}
-		key.Name = pool.GetName()
-		gvk, err = gvkForObject(pool, h.ctrlClient.Scheme())
-		if err != nil {
-			return err
-		}
-	default:
-		return errors.Errorf("unsupported pool type %s", ref.Kind)
+	// Copy Proxmox Zone Label.
+	poolLabels := poolObj.(metav1.Object).GetLabels()
+	if key, exists := poolLabels[infrav1.ProxmoxZoneLabel]; exists {
+		labels[infrav1.ProxmoxZoneLabel] = key
 	}
 
-	// Ensures that the claim has a reference to the cluster of the VM to
-	// support pausing reconciliation.
-	labels := map[string]string{
-		clusterv1.ClusterNameLabel: clusterNameLabel,
-	}
+	// TODO: Set an annotation for IP offset
+	// poolAnnotations := poolObj.(metav1.Object).GetAnnotations()
 
 	// TODO: suffix makes no sense, fmt.Sprintf() needs to be shared with testing
 	desired := &ipamv1.IPAddressClaim{
@@ -436,7 +478,7 @@ func (h *Helper) CreateIPAddressClaimV2(ctx context.Context, owner client.Object
 			},
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, h.ctrlClient, desired, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, h.ctrlClient, desired, func() error {
 		// set the owner reference to the cluster
 		return controllerutil.SetControllerReference(owner, desired, h.ctrlClient.Scheme())
 	})

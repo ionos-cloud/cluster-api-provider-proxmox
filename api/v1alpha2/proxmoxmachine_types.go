@@ -271,6 +271,10 @@ type DefaultNetworkSpec struct {
 	// +optional
 	// +kubebuilder:default=net0
 	ClusterPoolDeviceV6 NetName `json:"clusterPoolDeviceV6,omitempty"`
+
+	// zone is the cluster deployment zone this machine will refer to.
+	// +optional
+	Zone Zone `json:"zone,omitempty"`
 }
 
 // NetworkSpec defines the virtual machine's network configuration.
