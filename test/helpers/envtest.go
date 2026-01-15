@@ -111,7 +111,6 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 			Paths: []string{filepath.Join(root, "..", "..", "config", "webhook")},
 		}
 	}
-
 	if _, err := env.Start(); err != nil {
 		err = kerrors.NewAggregate([]error{err, env.Stop()})
 		panic(err)

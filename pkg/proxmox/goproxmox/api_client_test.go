@@ -371,15 +371,30 @@ func TestProxmoxAPIClient_FindVMResource(t *testing.T) {
 	}
 }
 
-func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
+func TestProxmoxAPIClient_FindVMTemplatesByTags(t *testing.T) {
 	proxmoxClusterResources := proxmox.ClusterResources{
-		&proxmox.ClusterResource{VMID: 101, Name: "k8s-node01", Node: "capmox01", Tags: ""},
-		&proxmox.ClusterResource{VMID: 102, Name: "k8s-node02", Node: "capmox02", Tags: ""},
-		&proxmox.ClusterResource{VMID: 150, Name: "template-without-tags", Node: "capmox01", Tags: "", Template: uint64(1)},
-		&proxmox.ClusterResource{VMID: 201, Name: "ubuntu-22.04-k8s-v1.28.3", Node: "capmox01", Tags: "template;capmox;v1.28.3", Template: uint64(1)},
-		&proxmox.ClusterResource{VMID: 202, Name: "ubuntu-22.04-k8s-v1.30.2", Node: "capmox02", Tags: "capmox;template;v1.30.2", Template: uint64(1)},
-		&proxmox.ClusterResource{VMID: 301, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
-		&proxmox.ClusterResource{VMID: 302, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 101, Name: "template01", Node: "capmox01", Tags: ""},
+		&proxmox.ClusterResource{VMID: 102, Name: "template02", Node: "capmox02", Tags: ""},
+
+		&proxmox.ClusterResource{VMID: 302, Name: "template-shared-storage", Node: "capmox01", Tags: "template-shared-storage", Template: uint64(1)},
+
+		&proxmox.ClusterResource{VMID: 303, Name: "template-local-storage-other-node", Node: "capmox01", Tags: "template-local-storage-other-node", Template: uint64(1)},
+
+		&proxmox.ClusterResource{VMID: 202, Name: "template-local-storage", Node: "capmox01", Tags: "template-local-storage", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 201, Name: "template-local-storage", Node: "capmox02", Tags: "template-local-storage", Template: uint64(1)},
+
+		&proxmox.ClusterResource{VMID: 401, Name: "template-duplicate", Node: "capmox01", Tags: "template-duplicate", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 402, Name: "template-duplicate", Node: "capmox01", Tags: "template-duplicate", Template: uint64(1)},
+
+		&proxmox.ClusterResource{VMID: 403, Name: "template-duplicate-same-node", Node: "capmox01", Tags: "template-duplicate;same-node", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 404, Name: "template-duplicate-same-node", Node: "capmox01", Tags: "template-duplicate;same-node", Template: uint64(1)},
+
+		&proxmox.ClusterResource{VMID: 503, Name: "template-duplicate-multiple-nodes", Node: "capmox01", Tags: "template-duplicate;multiple-nodes", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 504, Name: "template-duplicate-multiple-nodes", Node: "capmox01", Tags: "template-duplicate;multiple-nodes", Template: uint64(1)},
+
+		&proxmox.ClusterResource{VMID: 603, Name: "template-node1", Node: "capmox01", Tags: "template-extra-node", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 604, Name: "template-node2", Node: "capmox02", Tags: "template-extra-node", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 605, Name: "template-node3", Node: "capmox03", Tags: "template-extra-node", Template: uint64(1)},
 	}
 	tests := []struct {
 		name           string
@@ -387,84 +402,142 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 		vmTags         []string
 		fails          bool
 		err            string
-		vmTemplateNode string
-		vmTemplateID   int32
+		vmTemplateNode map[string]int32
+		localStorage   bool
+		allowedNodes   []string
 	}{
 		{
-			name:  "clusterstatus broken",
+			// if tags are not defined we fail
+			name:  "no tags defined",
 			http:  []int{500, 200},
 			fails: true,
-			err:   "cannot get cluster status: 500",
+			err:   "VM template not found: no template tags defined",
 		},
 		{
-			name:  "resourcelisting broken",
-			http:  []int{200, 500},
-			fails: true,
-			err:   "could not list vm resources: 500",
+			name:   "clusterstatus broken",
+			http:   []int{500, 200},
+			fails:  true,
+			err:    "cannot get cluster status: 500",
+			vmTags: []string{"template", "capmox", "v1.28.3"},
 		},
 		{
-			name:           "find-template",
+			name:   "resourcelisting broken",
+			http:   []int{200, 500},
+			fails:  true,
+			err:    "could not list VM resources: 500",
+			vmTags: []string{"template", "capmox", "v1.28.3"},
+		},
+		{
+			// if shared template we can use template for one node.
+			name:           "find-template-shared-localstorage-false",
 			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "v1.28.3"},
+			vmTags:         []string{"template-shared-storage"},
 			fails:          false,
 			err:            "",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			vmTemplateNode: map[string]int32{"capmox01": 302},
+			localStorage:   false,
+			allowedNodes:   []string{"capmox01"},
 		},
 		{
-			name:           "find-template-nil",
+			// if shared template and localstorage
+			name:           "find-template-shared-localstorage-true",
 			http:           []int{200, 200},
-			vmTags:         nil,
+			vmTags:         []string{"template-shared-storage"},
+			fails:          false,
+			err:            "",
+			vmTemplateNode: map[string]int32{"capmox01": 302},
+			localStorage:   true,
+			allowedNodes:   []string{"capmox01"},
+		},
+		{
+			name:           "find-template-localstorage-true-not-allowed-node",
+			http:           []int{200, 200},
+			vmTags:         []string{"template-local-storage-other-node"},
 			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"\"",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			err:            "found 0 templates on allowedNodes \"capmox02\" with tags \"template-local-storage-other-node\"",
+			vmTemplateNode: map[string]int32{"capmox01": 303},
+			localStorage:   true,
+			allowedNodes:   []string{"capmox02"},
 		},
 		{
-			// Proxmox VM tags are always lowercase
-			name:           "find-template-uppercase",
+			name:           "find-template-localstorage-true",
 			http:           []int{200, 200},
-			vmTags:         []string{"TEMPLATE", "CAPMOX", "v1.28.3"},
+			vmTags:         []string{"template-local-storage"},
 			fails:          false,
 			err:            "",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			vmTemplateNode: map[string]int32{"capmox01": 202, "capmox02": 201},
+			localStorage:   true,
+			allowedNodes:   []string{"capmox01", "capmox02"},
 		},
 		{
-			name:           "find-template-unordered",
+			name:           "find-template-localstorage-false",
 			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "v1.30.2"},
-			fails:          false,
-			err:            "",
-			vmTemplateNode: "capmox02",
-			vmTemplateID:   202,
-		},
-		{
-			name:           "find-template-duplicate-tag",
-			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "capmox", "v1.30.2"},
-			fails:          false,
-			err:            "",
-			vmTemplateNode: "capmox02",
-			vmTemplateID:   202,
-		},
-		{
-			name:           "find-multiple-templates",
-			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox"},
+			vmTags:         []string{"template-local-storage"},
 			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"template;capmox\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			err:            "ErrTemplateNotFound: found 2 VM templates with tags \"template-local-storage\"",
+			vmTemplateNode: map[string]int32{"capmox01": 202, "capmox02": 301},
+			localStorage:   false,
+			allowedNodes:   []string{"capmox01", "capmox02"},
 		},
 		{
-			name:           "find-multiple-templates",
+			name:           "find-template-duplicate-shared",
 			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "v1.29.2"},
+			vmTags:         []string{"template-duplicate"},
 			fails:          true,
-			err:            "VM template not found: found 2 VM templates with tags \"template;capmox;v1.29.2\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			err:            "Multiple templates found: multiple VM templates found on node \"capmox01\" with tags \"template-duplicate\"",
+			vmTemplateNode: map[string]int32{"capmox01": 401, "capmox02": 402},
+			localStorage:   false,
+			allowedNodes:   []string{"capmox01", "capmox02"},
+		},
+		{
+			name:           "find-template-duplicate-localstorage",
+			http:           []int{200, 200},
+			vmTags:         []string{"template-duplicate"},
+			fails:          true,
+			err:            "Multiple templates found: multiple VM templates found on node \"capmox01\" with tags \"template-duplicate\"",
+			vmTemplateNode: map[string]int32{"capmox01": 401, "capmox02": 402},
+			localStorage:   true,
+			allowedNodes:   []string{"capmox01", "capmox02"},
+		},
+		{
+			name:           "find-template-duplicate-shared-same-node",
+			http:           []int{200, 200},
+			vmTags:         []string{"template-duplicate", "same-node"},
+			fails:          true,
+			err:            "Multiple templates found: multiple VM templates found on node \"capmox01\" with tags \"template-duplicate;same-node\"",
+			vmTemplateNode: map[string]int32{},
+			localStorage:   false,
+			allowedNodes:   []string{"capmox01", "capmox02"},
+		},
+		{
+			name:           "find-template-duplicate-localstorage-same-node",
+			http:           []int{200, 200},
+			vmTags:         []string{"template-duplicate", "same-node"},
+			fails:          true,
+			err:            "Multiple templates found: multiple VM templates found on node \"capmox01\" with tags \"template-duplicate;same-node\"",
+			vmTemplateNode: map[string]int32{},
+			localStorage:   true,
+			allowedNodes:   []string{"capmox01", "capmox02"},
+		},
+		{
+			name:           "find-template-duplicate-localstorage-multiple-nodes",
+			http:           []int{200, 200},
+			vmTags:         []string{"template-duplicate", "multiple-nodes"},
+			fails:          true,
+			err:            "Multiple templates found: multiple VM templates found on node \"capmox01\" with tags \"template-duplicate;multiple-nodes\"",
+			vmTemplateNode: map[string]int32{},
+			localStorage:   true,
+			allowedNodes:   []string{"capmox01", "capmox02"},
+		},
+		{
+			name:           "find-template-extra-node",
+			http:           []int{200, 200},
+			vmTags:         []string{"template-extra-node"},
+			fails:          false,
+			err:            "",
+			vmTemplateNode: map[string]int32{"capmox01": 603, "capmox02": 604},
+			localStorage:   true,
+			allowedNodes:   []string{"capmox01", "capmox02"},
 		},
 	}
 
@@ -477,14 +550,13 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/resources`,
 				newJSONResponder(test.http[1], proxmoxClusterResources))
 
-			vmTemplateNode, vmTemplateID, err := client.FindVMTemplateByTags(context.Background(), test.vmTags)
+			vmTemplateNode, err := client.FindVMTemplatesByTags(context.Background(), test.vmTags, test.allowedNodes, test.localStorage)
 
 			if test.fails {
 				require.Error(t, err)
 				require.Equal(t, test.err, err.Error())
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, vmTemplateID, test.vmTemplateID)
 				require.Equal(t, vmTemplateNode, test.vmTemplateNode)
 			}
 		})
