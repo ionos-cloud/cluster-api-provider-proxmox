@@ -36,7 +36,7 @@ import (
 	"k8s.io/klog/v2"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1" //nolint:staticcheck
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"

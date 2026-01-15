@@ -32,7 +32,7 @@ import (
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
+	clustererrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"

@@ -23,7 +23,7 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
-	capierrors "sigs.k8s.io/cluster-api/errors"
+	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"

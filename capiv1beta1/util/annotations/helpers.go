@@ -23,7 +23,7 @@ package annotations
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
 )
 
 // IsPaused returns true if the Cluster is paused or the object has the `paused` annotation.

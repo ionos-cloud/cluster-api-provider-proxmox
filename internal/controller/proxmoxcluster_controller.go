@@ -31,14 +31,14 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
+	clustererrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
 	clusterutil "github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util/annotations"
 
 	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch" //nolint:staticcheck
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
