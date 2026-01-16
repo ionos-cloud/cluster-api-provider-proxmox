@@ -100,7 +100,7 @@ type ProxmoxClusterSpec struct {
 	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
 }
 
-// ZoneConfigSpec is the Network Configuration for further deployment zones
+// ZoneConfigSpec is the Network Configuration for further deployment zones.
 type ZoneConfigSpec struct {
 	// zone is the name of your deployment zone.
 	// +required
@@ -348,6 +348,7 @@ func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
 	c.Status.Conditions = conditions
 }
 
+// AddInClusterZoneRef will set the Zone references status for the provided pool.
 func (c *ProxmoxCluster) AddInClusterZoneRef(pool client.Object) {
 	if pool == nil || pool.GetName() == "" {
 		c.Status.InClusterZoneRef = nil

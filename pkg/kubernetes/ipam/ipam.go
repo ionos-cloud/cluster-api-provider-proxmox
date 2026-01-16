@@ -79,12 +79,12 @@ func isIPv4(ip string) (bool, error) {
 	re := regexp.MustCompile(`^[^-/]+`)
 	ipString := re.FindString(ip)
 
-	netIp, err := netip.ParseAddr(ipString)
+	netIP, err := netip.ParseAddr(ipString)
 	if err != nil {
 		return false, err
 	}
 
-	return netIp.Is4(), nil
+	return netIP.Is4(), nil
 }
 
 // poolFromObjectRef is a local helper to turn any objectRef into a pool,
@@ -116,7 +116,7 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 		// Futureproofing for deployments in different namespaces.
 		ref, _ = o.(corev1.TypedObjectReference)
 	default:
-		return nil, errors.New(fmt.Sprintf("invalid Type: %s", t))
+		return nil, fmt.Errorf("invalid Type: %s", t)
 	}
 
 	key := client.ObjectKey{Name: ref.Name}
@@ -130,16 +130,12 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 		pool := new(ipamicv1.InClusterIPPool)
 		err = h.ctrlClient.Get(ctx, key, pool)
 
-		if pool != nil {
-			ret = pool
-		}
+		ret = pool
 	case GetGlobalInClusterIPPoolKind():
 		pool := new(ipamicv1.GlobalInClusterIPPool)
 		err = h.ctrlClient.Get(ctx, key, pool)
 
-		if pool != nil {
-			ret = pool
-		}
+		ret = pool
 	default:
 		return nil, errors.Errorf("unsupported pool type %s", ref.Kind)
 	}
@@ -151,8 +147,8 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 	return ret, nil
 }
 
-// Todo: streamline codeflow (unify GetIPPools)
 // GetInClusterPools returns the IPPools belonging to the ProxmoxCluster relative to its Zone.
+// TODO: streamline codeflow (unify GetIPPools).
 func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (
 	struct {
 		Zone infrav1.Zone
@@ -189,7 +185,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 	})
 
 	if zoneIndex == -1 {
-		return pools, errors.New(fmt.Sprintf("zone %s not found", *zone))
+		return pools, fmt.Errorf("zone %s not found", *zone)
 	}
 
 	pools.Zone = zone
@@ -203,7 +199,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		pool := *o.(*ipamicv1.InClusterIPPool)
 
 		if len(pool.Spec.Addresses) == 0 {
-			return pools, errors.New(fmt.Sprintf("InClusterIPPool %s without addresses", pool.Name))
+			return pools, fmt.Errorf("InClusterIPPool %s without addresses", pool.Name)
 		}
 		var poolSpec struct {
 			Pool    ipamicv1.InClusterIPPool
@@ -226,7 +222,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		pool := *o.(*ipamicv1.InClusterIPPool)
 
 		if len(pool.Spec.Addresses) == 0 {
-			return pools, errors.New(fmt.Sprintf("InClusterIPPool %s without addresses", pool.Name))
+			return pools, fmt.Errorf("InClusterIPPool %s without addresses", pool.Name)
 		}
 		var poolSpec struct {
 			Pool    ipamicv1.InClusterIPPool
@@ -252,15 +248,15 @@ var ErrMissingAddresses = errors.New("no valid ip addresses defined for the ip p
 // We also need to create this resource to pre-allocate IP addresses which are already in use
 // by Proxmox in order to avoid conflicts.
 func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
-	zoneSpecs := []infrav1.ZoneConfigSpec{{
+	// pre allocate to make the linter happy
+	zoneSpecs := make([]infrav1.ZoneConfigSpec, 0, len(h.cluster.Spec.ZoneConfigs)+1)
+	zoneSpecs = append(zoneSpecs, infrav1.ZoneConfigSpec{
 		Zone:       nil,
 		IPv4Config: h.cluster.Spec.IPv4Config,
 		IPv6Config: h.cluster.Spec.IPv6Config,
-	}}
+	})
 
-	for _, zone := range h.cluster.Spec.ZoneConfigs {
-		zoneSpecs = append(zoneSpecs, zone)
-	}
+	zoneSpecs = append(zoneSpecs, h.cluster.Spec.ZoneConfigs...)
 
 	for _, zoneSpec := range zoneSpecs {
 		for _, poolSpec := range []*infrav1.IPConfigSpec{zoneSpec.IPv4Config, zoneSpec.IPv6Config} {
@@ -375,16 +371,12 @@ func (h *Helper) GetIPPool(ctx context.Context, ref corev1.TypedLocalObjectRefer
 		pool := new(ipamicv1.InClusterIPPool)
 		err = h.ctrlClient.Get(ctx, key, pool)
 
-		if pool != nil {
-			ret = pool
-		}
+		ret = pool
 	case GetGlobalInClusterIPPoolKind():
 		pool := new(ipamicv1.GlobalInClusterIPPool)
 		err = h.ctrlClient.Get(ctx, key, pool)
 
-		if pool != nil {
-			ret = pool
-		}
+		ret = pool
 	default:
 		return nil, errors.Errorf("unsupported pool type %s", ref.Kind)
 	}
@@ -502,6 +494,8 @@ func (h *Helper) GetIPAddress(ctx context.Context, key client.ObjectKey) (*ipamv
 	return out, nil
 }
 
+// GetIPAddressV2 is the replacement for GetIPAddress.
+// TODO: Code cleanup, multiple ip addresses per pool.
 func (h *Helper) GetIPAddressV2(ctx context.Context, poolRef corev1.TypedLocalObjectReference, moxm *infrav1.ProxmoxMachine) ([]ipamv1.IPAddress, error) {
 	ipAddresses, err := h.GetIPAddressByPool(ctx, poolRef)
 

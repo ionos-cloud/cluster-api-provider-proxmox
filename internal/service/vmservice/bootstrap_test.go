@@ -68,7 +68,10 @@ func setupFakeIsoInjector(t *testing.T) *[]byte {
 	return networkData
 }
 
-func setupVMWithMetadata(t *testing.T, machineScope *scope.MachineScope, netSpecs ...string) *proxmox.VirtualMachine {
+// justification: if you needed to change the virtualmachine post hoc, it's useful to return
+//
+//nolint:unparam
+func setupVMWithMetadata(machineScope *scope.MachineScope, netSpecs ...string) *proxmox.VirtualMachine {
 	if len(netSpecs) == 0 {
 		netSpecs = []string{"virtio=A6:23:64:4D:84:CB,bridge=vmbr0"}
 	}
@@ -107,6 +110,9 @@ func addDefaultIPPoolV6(machineScope *scope.MachineScope) corev1.TypedLocalObjec
 	return defaultPoolV6
 }
 
+// justification: future proofing for symmetry
+//
+//nolint:unused
 func addInClusterIPPool(machineScope *scope.MachineScope, poolName string, netName infrav1.NetName) corev1.TypedLocalObjectReference {
 	inClusterIPPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
@@ -125,7 +131,7 @@ func addGlobalInClusterIPPool(machineScope *scope.MachineScope, poolName string,
 	return globalInClusterIPPool
 }
 
-// adds IPPool to ProxmoxMachine, and a containing network interface if it does not exist
+// adds IPPool to ProxmoxMachine, and a containing network interface if it does not exist.
 func addIPPool(machineScope *scope.MachineScope, poolRef corev1.TypedLocalObjectReference, netName infrav1.NetName) {
 	networkSpec := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{})
 	networkDevices := networkSpec.NetworkDevices
@@ -168,7 +174,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	networkDataPtr := setupFakeIsoInjector(t)
 
 	// setup VM with all metadata
-	setupVMWithMetadata(t, machineScope)
+	setupVMWithMetadata(machineScope)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	// NetworkSetup
@@ -208,7 +214,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	createIPPools(t, kubeClient, machineScope)
 
 	// update extraPool for gateway/prefix test
-	poolObj := getIPAddressPool(t, kubeClient, machineScope, extraPool0)
+	poolObj := getIPAddressPool(t, machineScope, extraPool0)
 	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix = 16
 	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway = "10.100.10.1"
 	createOrUpdateIPPool(t, kubeClient, machineScope, nil, poolObj)
@@ -216,7 +222,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10/24", 0, &defaultPool)
 	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &extraPool0)
 
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	// reconcile BootstrapData
@@ -246,7 +252,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 // TestReconcileBootstrapData_BadInjector is supposed to fail when rendering VM configuration data.
 func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope)
+	setupVMWithMetadata(machineScope)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	// NetworkSetup
@@ -320,7 +326,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope)
+	setupVMWithMetadata(machineScope)
 
 	cfg, err := getNetworkConfigDataForDevice(context.Background(), machineScope, "net0", nil)
 	require.NoError(t, err)
@@ -425,7 +431,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 
 func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
@@ -477,7 +483,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 
 func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
@@ -539,7 +545,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 
 func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
@@ -596,7 +602,7 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 
 func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
@@ -660,7 +666,7 @@ func TestVMHasMacAddress(t *testing.T) {
 
 func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
 
@@ -674,7 +680,7 @@ func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 
 func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -688,7 +694,7 @@ func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
 
 func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
 
@@ -708,7 +714,7 @@ func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 
 func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, ignition.FormatIgnition)
 
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
@@ -749,7 +755,7 @@ func TestIgnitionISOInjector(t *testing.T) {
 
 func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
-	setupVMWithMetadata(t, machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 

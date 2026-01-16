@@ -39,11 +39,12 @@ const (
 	DefaultNetworkDeviceIPv6 = "net0-inet6"
 )
 
+// GetInClusterIPPoolRefs gets only the object references (per zone) from the clusters
+// inClusterIPPools.
 func GetInClusterIPPoolRefs(ctx context.Context, machineScope *scope.MachineScope) (struct {
 	IPv4 *corev1.TypedLocalObjectReference
 	IPv6 *corev1.TypedLocalObjectReference
 }, error) {
-
 	var ret struct {
 		IPv4 *corev1.TypedLocalObjectReference
 		IPv6 *corev1.TypedLocalObjectReference

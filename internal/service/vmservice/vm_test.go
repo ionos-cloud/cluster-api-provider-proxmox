@@ -40,24 +40,17 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForCloudInitReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Twice()
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
 
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
-	// TODO: check that result is such that requeueing is necessary
-
-	// requeue the VM since it is not fully done with the state transition
-	result, err = ReconcileVM(context.Background(), machineScope)
-	require.NoError(t, err)
 
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
@@ -91,19 +84,13 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 		SkipCloudInitStatus: ptr.To(true),
 	}
 
-	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Twice()
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil)
 
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
-	// TODO: check that result is such that requeueing is necessary
-
-	// requeue the VM since it is not fully done with the state transition
-	result, err = ReconcileVM(context.Background(), machineScope)
-	require.NoError(t, err)
 
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestReconcileVM_InitCheckDisabled(t *testing.T) {

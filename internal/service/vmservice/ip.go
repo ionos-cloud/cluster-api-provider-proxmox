@@ -52,9 +52,8 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 		if requeue, err = handleDevices(ctx, machineScope, netPoolAddresses); err != nil || requeue {
 			if err == nil {
 				return true, errors.Wrap(err, "requeuing network reconcillation")
-			} else {
-				return true, errors.Wrap(err, "unable to handle network devices")
 			}
+			return true, errors.Wrap(err, "unable to handle network devices")
 		}
 	}
 
@@ -69,8 +68,11 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 		}
 		for defaultPool, ipAddresses := range defaultDevicePools {
 			if reflect.DeepEqual(defaultPool, poolRef) {
-				// Todo: This is not necessarily the default IP
-				setVMIPAddressTag(ctx, machineScope, ipAddresses[0])
+				// Todo: This is not necessarily the default IP.
+				_, err := setVMIPAddressTag(ctx, machineScope, ipAddresses[0])
+				if err != nil {
+					return false, err
+				}
 			}
 		}
 	}
@@ -152,17 +154,6 @@ func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.Machine
 	}
 
 	return rv, nil
-}
-
-// Todo: Useless, remove?
-func machineHasIPAddress(machine *infrav1.ProxmoxMachine) bool {
-	// Every machine needs to have at least one IPv4 or IPv6 host network address
-	if machine.Status.IPAddresses[infrav1.DefaultNetworkDevice] == nil {
-		return false
-	} else {
-		return len(machine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4) > 0 ||
-			len(machine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv6) > 0
-	}
 }
 
 func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, dev *string, poolNum int, poolRef corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {

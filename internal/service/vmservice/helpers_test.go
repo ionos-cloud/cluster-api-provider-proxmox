@@ -230,15 +230,6 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	return machineScope, mockClient, kubeClient
 }
 
-func getIPSuffix(addr string) string {
-	suffix := infrav1.DefaultSuffix
-	ip := netip.MustParseAddr(addr)
-	if ip.Is6() {
-		suffix += "6"
-	}
-
-	return suffix
-}
 func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, pool *corev1.TypedLocalObjectReference) {
 	prefix := ip.Bits()
 	var gateway string
@@ -263,7 +254,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
-		poolSpec := getPoolSpec(getIPAddressPool(t, c, machineScope, *pool))
+		poolSpec := getPoolSpec(getIPAddressPool(t, machineScope, *pool))
 		if poolSpec.prefix != 0 {
 			prefix = poolSpec.prefix
 		}
@@ -360,6 +351,9 @@ func createIPPools(t *testing.T, c client.Client, machineScope *scope.MachineSco
 	}
 }
 
+// Justification: if you require the poolRef for further tweaking, returning the objectRef is useful
+//
+//nolint:unparam
 func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef *corev1.TypedLocalObjectReference, pool client.Object) *corev1.TypedLocalObjectReference {
 	// literally nothing to do
 	if pool == nil && poolRef == nil {
@@ -436,7 +430,7 @@ func getPoolSpec(pool client.Object) struct {
 	}{gateway: gateway, prefix: prefix}
 }
 
-func getIPAddressPool(t *testing.T, c client.Client, machineScope *scope.MachineScope, poolRef corev1.TypedLocalObjectReference) client.Object {
+func getIPAddressPool(t *testing.T, machineScope *scope.MachineScope, poolRef corev1.TypedLocalObjectReference) client.Object {
 	obj, err := machineScope.IPAMHelper.GetIPPool(context.Background(), poolRef)
 
 	require.NoError(t, err)
@@ -446,10 +440,11 @@ func getIPAddressPool(t *testing.T, c client.Client, machineScope *scope.Machine
 func getIPAddressClaims(t *testing.T, c client.Client, machineScope *scope.MachineScope) map[string]*[]ipamv1.IPAddressClaim {
 	ipAddressClaims := &ipamv1.IPAddressClaimList{}
 
+	//TODO: this selector should probably be unified.
 	fieldSelector, _ := fields.ParseSelector("ipaddressclaim.ownerMachine=" + machineScope.Name())
 
 	listOptions := client.ListOptions{FieldSelector: fieldSelector}
-	c.List(context.Background(), ipAddressClaims, &listOptions)
+	require.NoError(t, c.List(context.Background(), ipAddressClaims, &listOptions))
 
 	claimMap := make(map[string]*[]ipamv1.IPAddressClaim)
 

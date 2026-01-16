@@ -193,20 +193,6 @@ func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope)
 	return networkConfigData, nil
 }
 
-// TODO: make this a thing
-func getClusterNetwork(ctx context.Context, machineScope *scope.MachineScope) ([]corev1.TypedLocalObjectReference, error) {
-	ipv4 := machineScope.InfraCluster.ProxmoxCluster.Spec.IPv4Config
-	ipv6 := machineScope.InfraCluster.ProxmoxCluster.Spec.IPv6Config
-
-	ret := make([]corev1.TypedLocalObjectReference, 0, 2)
-	if ipv4 != nil {
-	}
-	if ipv6 != nil {
-
-	}
-	return ret, nil
-}
-
 func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string, ipPoolRefs map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (*types.NetworkConfigData, error) {
 	if device == "" {
 		// this should never happen outwith tests

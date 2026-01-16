@@ -43,9 +43,9 @@ const (
 	IPv6Type string = "ipv6"
 
 	// ProxmoxPoolRefCounterAnnotation allows multiple IP Addresses per IPPool.
-	PromoxPoolRefCounterAnnotation string = "ipam.capmox.cluster.x-k8s.io/pool-ref-counter"
+	ProxmoxPoolRefCounterAnnotation string = "ipam.capmox.cluster.x-k8s.io/pool-ref-counter"
 
-	// ProxmoxGatewayMetricAnnoation is an annotation key used for denoting metric of a gateway.
+	// ProxmoxGatewayMetricAnnotation is an annotation key used for denoting metric of a gateway.
 	ProxmoxGatewayMetricAnnotation string = "ipam.capmox.cluster.x-k8s.io/gateway-metric"
 )
 

@@ -30,7 +30,7 @@ func GetGlobalInClusterIPPoolKind() string {
 	return reflect.ValueOf(ipamicv1.GlobalInClusterIPPool{}).Type().Name()
 }
 
-// GetGlobalInClusterIPPoolKind returns the kind string of a InClusterIPPool,
+// GetInClusterIPPoolKind returns the kind string of a InClusterIPPool,
 // which is useful for typedlocalobjectreferences.
 func GetInClusterIPPoolKind() string {
 	return reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name()

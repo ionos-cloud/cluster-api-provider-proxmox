@@ -1681,7 +1681,7 @@ spec:
                           zone.
                         items:
                           description: ZoneConfigSpec is the Network Configuration
-                            for further deployment zones
+                            for further deployment zones.
                           properties:
                             dnsServers:
                               description: dnsServers contains information about nameservers
