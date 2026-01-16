@@ -113,8 +113,9 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 		Namespace: "test",
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
-	_, exists := pool.ObjectMeta.Annotations["metric"]
-	s.Equal(exists, false)
+	metric, exists := pool.ObjectMeta.Annotations[infrav1.ProxmoxGatewayMetricAnnotation]
+	s.Equal(exists, true)
+	s.Equal("", metric)
 
 	// ipv6
 	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
@@ -265,7 +266,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 	s.Equal(ip.Spec.Address, "10.10.10.11")
 
 	annotations, err := s.helper.GetIPPoolAnnotations(s.ctx, ip)
-	s.Nil(annotations)
+	s.NotNil(annotations)
 	s.Nil(err)
 
 	s.NoError(s.helper.ctrlClient.Create(s.ctx, &ipamicv1.GlobalInClusterIPPool{

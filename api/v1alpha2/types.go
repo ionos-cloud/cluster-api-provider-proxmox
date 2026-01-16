@@ -36,13 +36,13 @@ const (
 	// ProxmoxIPFamilyAnnotation is an annotation key used for denoting the ip family of InClusterIPPools.
 	ProxmoxIPFamilyAnnotation string = "ipam.capmox.cluster.x-k8s.io/ip-family"
 
-	// PromoxIPFamilyV4 represents an ipv4 family pool.
-	ProxmoxIPFamilyV4 string = "ipv4"
+	// IPv4Type marks an object as belong to the IPv4 family.
+	IPv4Type string = "ipv4"
 
-	// PromoxIPFamilyV4 represents an ipv6 family pool.
-	ProxmoxIPFamilyV6 string = "ipv6"
+	// IPv6Type marks an object as belong to the IPv6 family.
+	IPv6Type string = "ipv6"
 
-	// PromoxPoolRefCounterAnnotation allows multiple IP Addresses per IPPool
+	// ProxmoxPoolRefCounterAnnotation allows multiple IP Addresses per IPPool.
 	PromoxPoolRefCounterAnnotation string = "ipam.capmox.cluster.x-k8s.io/pool-ref-counter"
 
 	// ProxmoxGatewayMetricAnnoation is an annotation key used for denoting metric of a gateway.

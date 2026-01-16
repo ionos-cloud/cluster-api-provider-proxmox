@@ -89,7 +89,7 @@ func addDefaultIPPool(machineScope *scope.MachineScope) corev1.TypedLocalObjectR
 	// call to add defaultNic
 	addIPPool(machineScope, defaultPool, defaultDeviceV4)
 
-	setInClusterIPPoolStatus(machineScope, "test-v4-icip", infrav1.ProxmoxIPFamilyV4, nil)
+	setInClusterIPPoolStatus(machineScope, "test-v4-icip", infrav1.IPv4Type, nil)
 	return defaultPool
 }
 
@@ -103,7 +103,7 @@ func addDefaultIPPoolV6(machineScope *scope.MachineScope) corev1.TypedLocalObjec
 	// call to add defaultNic
 	addIPPool(machineScope, defaultPoolV6, defaultDeviceV6)
 
-	setInClusterIPPoolStatus(machineScope, "test-v6-icip", infrav1.ProxmoxIPFamilyV6, nil)
+	setInClusterIPPoolStatus(machineScope, "test-v6-icip", infrav1.IPv6Type, nil)
 	return defaultPoolV6
 }
 
@@ -437,6 +437,16 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 		Gateway:   "2001:db8::1",
 	}
 	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
+	proxmoxCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
+		{Name: "test-v4-icip"},
+		{Name: "test-v6-icip"},
+	}
+	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 ptr.To("default"),
+		InClusterIPPoolRefV4: ptr.To(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: ptr.To(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+	}}
+	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
 	// NetworkSetup for default pools
 	defaultPool := addDefaultIPPool(machineScope)
@@ -445,7 +455,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	// create missing defaultPoolV6 and ipAddresses
 	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.254", 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", 0, &defaultPoolV6)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", 1, &defaultPoolV6)
 
 	// perform test
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -456,8 +466,8 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 
 	// Test if generated data is equal
 	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
-	require.True(t, len(networkConfigData) == 1)
-	require.True(t, len(networkConfigData[0].IPConfigs) == 2)
+	require.Equal(t, 1, len(networkConfigData))
+	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
 	require.Equal(t, "10.0.0.254/24", ipConfigs[0].IPAddress)

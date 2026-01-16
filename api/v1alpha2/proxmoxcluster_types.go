@@ -82,10 +82,11 @@ type ProxmoxClusterSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers,omitempty"`
 
-	// zoneconfig defines a IPAddress config per deployment zone
+	// zoneConfig defines a IPAddress config per deployment zone.
 	// +listType=map
 	// +listMapKey=zone
-	ZoneConfigs []ZoneConfigSpec `json:"ZoneConfig,omitempty"`
+	// +optional
+	ZoneConfigs []ZoneConfigSpec `json:"zoneConfig,omitempty"`
 
 	// cloneSpec is the configuration pertaining to all items configurable
 	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
@@ -102,7 +103,8 @@ type ProxmoxClusterSpec struct {
 // ZoneConfigSpec is the Network Configuration for further deployment zones
 type ZoneConfigSpec struct {
 	// zone is the name of your deployment zone.
-	Zone Zone `json:"zone,required"`
+	// +required
+	Zone Zone `json:"zone,omitempty"`
 
 	// ipv4Config contains information about available IPv4 address pools and the gateway.
 	// This can be combined with ipv6Config in order to enable dual stack.
@@ -128,9 +130,11 @@ type ZoneConfigSpec struct {
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
 type ProxmoxClusterCloneSpec struct {
-	// machineSpec is the map of machine specs
+	// machineSpec is the map of machine specs.
 	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"
 	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
+	// This field intentionally violates API spec (it exists only to store information for Cluster Classes,
+	// and is never accessed from within the controller).
 
 	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +listType=set
@@ -203,7 +207,6 @@ type ProxmoxClusterStatus struct {
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
 
 	// networkDevices lists network devices.
-	// net0 is always the default device.
 	// +optional
 	// +listType=map
 	// +listMapKey=zone
@@ -256,9 +259,10 @@ type ProxmoxClusterStatus struct {
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
-// InClusterZoneRef holds the InClusterIPPools associated with a zone
+// InClusterZoneRef holds the InClusterIPPools associated with a zone.
 type InClusterZoneRef struct {
-	Zone Zone `json:"zone,required"`
+	// +kubebuilder:default="default"
+	Zone Zone `json:"zone"`
 
 	// inClusterIpPoolRefV4 is the reference to the created in-cluster IP pool.
 	// +optional
@@ -383,12 +387,11 @@ func (c *ProxmoxCluster) AddInClusterZoneRef(pool client.Object) {
 	}
 
 	poolRef := corev1.LocalObjectReference{Name: pool.GetName()}
-	if poolType == ProxmoxIPFamilyV4 {
+	if poolType == IPv4Type {
 		c.Status.InClusterZoneRef[index].InClusterIPPoolRefV4 = &poolRef
-	} else if poolType == ProxmoxIPFamilyV4 {
+	} else if poolType == IPv6Type {
 		c.Status.InClusterZoneRef[index].InClusterIPPoolRefV6 = &poolRef
 	}
-
 }
 
 // SetInClusterIPPoolRef will set the reference to the provided InClusterIPPool.

@@ -87,18 +87,6 @@ func isIPv4(ip string) (bool, error) {
 	return netIp.Is4(), nil
 }
 
-/*
-type objectRef interface {
-	corev1.LocalObjectReference | corev1.TypedLocalObjectReference | corev1.TypedObjectReference
-}
-
-func convertRef[O corev1.LocalObjectReference] (o O) corev1.TypedLocalObjectReference {
-	return corev1.TypedLocalObjectReference{
-		Name: o.Name,
-	}
-}
-*/
-
 // poolFromObjectRef is a local helper to turn any objectRef into a pool,
 // The awkward calling convetion is due to limitations of golang (no generics on methods,
 // no type conversion of constrained types).
@@ -106,7 +94,7 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 	ref := corev1.TypedObjectReference{}
 
 	// Todo: type constrained conversion without panic
-	switch t := (interface{})(o).(type) {
+	switch t := o.(type) {
 	case *corev1.LocalObjectReference:
 		// Pool is InClusterIPPool, namespace is equal to the caller.
 		value, _ := o.(*corev1.LocalObjectReference)
@@ -197,7 +185,6 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 	}
 
 	zoneIndex := slices.IndexFunc(h.cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
-		// todo: deepequal
 		return *zone == *z.Zone
 	})
 
@@ -287,8 +274,10 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 			}
 
 			format := infrav1.IPv4Format
+			family := infrav1.IPv4Type
 			if !isv4 {
 				format = infrav1.IPv6Format
+				family = infrav1.IPv6Type
 			}
 
 			pool := &ipamicv1.InClusterIPPool{
@@ -301,10 +290,21 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 					Name:      InClusterPoolFormat(h.cluster, nil, format),
 					Namespace: h.cluster.GetNamespace(),
 					Annotations: func() map[string]string {
-						if poolSpec.Metric != nil {
-							return map[string]string{"metric": fmt.Sprint(*poolSpec.Metric)}
+						metric := ""
+						if i := ptr.Deref(poolSpec.Metric, -1); i >= 0 {
+							metric = fmt.Sprintf("%d", *poolSpec.Metric)
 						}
-						return nil
+						annotations := map[string]string{
+							infrav1.ProxmoxIPFamilyAnnotation:      family,
+							infrav1.ProxmoxGatewayMetricAnnotation: metric,
+						}
+
+						// Field deprecated by prefixed value. We need to retag all
+						// annotations before we can remove this.
+						if poolSpec.Metric != nil {
+							annotations["metric"] = metric
+						}
+						return annotations
 					}(),
 					Labels: func() map[string]string {
 						if zoneSpec.Zone != nil {
@@ -329,10 +329,15 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 				}
 				if desired.ObjectMeta.Annotations != nil {
 					pool.ObjectMeta.Annotations["metric"] = desired.ObjectMeta.Annotations["metric"]
+					pool.ObjectMeta.Annotations[infrav1.ProxmoxGatewayMetricAnnotation] =
+						desired.ObjectMeta.Annotations[infrav1.ProxmoxGatewayMetricAnnotation]
+					// IPFamily of a pool should be immutable, but nothing in ipamic
+					// protects a pool from it.
+					pool.ObjectMeta.Annotations[infrav1.ProxmoxIPFamilyAnnotation] =
+						desired.ObjectMeta.Annotations[infrav1.ProxmoxIPFamilyAnnotation]
 				}
-				if pool.ObjectMeta.Annotations != nil && desired.ObjectMeta.Annotations == nil {
-					delete(pool.ObjectMeta.Annotations, "metric")
-				}
+				// Deleting annotations no longer happens because we need to store ip family
+
 				// Never update label "node.kubernetes.io/proxmox-zone". It's supposed to be immutable.
 
 				// set the owner reference to the cluster

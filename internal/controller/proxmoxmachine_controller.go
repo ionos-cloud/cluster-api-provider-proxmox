@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -220,7 +221,11 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		return reconcile.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 	}
 
-	// TODO, check if we need to add some labels to the machine.
+	// Set proxmox deployment zone for label selectors.
+	labels := machineScope.ProxmoxMachine.GetLabels()
+	labels[infrav1.ProxmoxZoneLabel] =
+		ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.Zone, "default")
+	machineScope.ProxmoxMachine.SetLabels(labels)
 
 	machineScope.SetReady()
 	conditions.MarkTrue(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)

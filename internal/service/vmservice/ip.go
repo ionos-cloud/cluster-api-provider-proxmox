@@ -134,13 +134,23 @@ func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.Machine
 	}
 	var rv *int32
 
-	if s, exists := annotations["metric"]; exists {
+	// Remove this codepath with the next api change (field has moved to infrav1.ProxmoxGatewayMetricAnnotation).
+	if s, exists := annotations["metric"]; exists && len(s) > 0 {
 		metric, err := strconv.ParseInt(s, 0, 32)
 		if err != nil {
 			return nil, err
 		}
 		rv = ptr.To(int32(metric))
 	}
+
+	if s, exists := annotations[infrav1.ProxmoxGatewayMetricAnnotation]; exists && len(s) > 0 {
+		metric, err := strconv.ParseInt(s, 0, 32)
+		if err != nil {
+			return nil, err
+		}
+		rv = ptr.To(int32(metric))
+	}
+
 	return rv, nil
 }
 

@@ -240,8 +240,6 @@ func getIPSuffix(addr string) string {
 	return suffix
 }
 func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, pool *corev1.TypedLocalObjectReference) {
-	// gateway := netip.MustParsePrefix(fmt.Sprintf("%s/%d", ip, prefix)).Addr().Next().String()
-
 	prefix := ip.Bits()
 	var gateway string
 
@@ -292,8 +290,9 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 
 // createIPAddress creates an IP address resource from strings.
 // If no pool or nil pool is passed then a dummy pool is used.
-// If one pool is passed then that pool is used (intended for most tests, typically pass 0 for offset).
-// If two pools are passed then the first pool is used for the IP address name and the second for creating the IP address resource (intended for createNetworkSpecForMachine, pass your poolRef index for offset).
+// If one objectRefs is passed then it's used as a pool (intended for most tests, typically pass 0 for offset).
+// If two objectRefs are passed then the first pool is used for the IP address name and the second for creating
+// the IP address resource (intended for createNetworkSpecForMachine, pass your poolRef index for offset).
 func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, offset int, pool ...*corev1.TypedLocalObjectReference) {
 	ipPrefix, err := netip.ParsePrefix(ip)
 	if err != nil {
