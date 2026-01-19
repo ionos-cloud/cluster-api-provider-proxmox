@@ -33,9 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -75,7 +75,12 @@ func (f FakeIgnitionISOInjector) Inject(_ context.Context, _ inject.BootstrapDat
 func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
 	machineScope, mockClient, client := setupReconcilerTest(t)
 
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, condition, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:    string(infrav1.VMProvisionedCondition),
+		Status:  metav1.ConditionFalse,
+		Reason:  condition,
+		Message: "",
+	})
 
 	return machineScope, mockClient, client
 }
@@ -613,8 +618,8 @@ func newVMWithNets(def string, additional ...string) *proxmox.VirtualMachine {
 // requireConditionIsFalse asserts that the given conditions exists and has status "False".
 func requireConditionIsFalse(t *testing.T, getter conditions.Getter, cond clusterv1.ConditionType) {
 	t.Helper()
-	require.Truef(t, conditions.Has(getter, cond),
-		"%T %s does not have condition %v", getter, getter.GetName(), cond)
-	require.Truef(t, conditions.IsFalse(getter, cond),
-		"expected condition to be %q, got %q", cond, corev1.ConditionFalse, conditions.Get(getter, cond).Status)
+	require.Truef(t, conditions.Has(getter, string(cond)),
+		"%T does not have condition %v", getter, cond)
+	require.Truef(t, conditions.IsFalse(getter, string(cond)),
+		"expected condition to be %q, got %q", cond, corev1.ConditionFalse, conditions.Get(getter, string(cond)).Status)
 }
