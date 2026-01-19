@@ -265,7 +265,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 		Type:   string(infrav1.ProxmoxClusterReady),
 		Status: metav1.ConditionTrue,
-		Reason: "Success",
+		Reason: infrav1.ProxmoxClusterReadyReason,
 	})
 
 	clusterScope.ProxmoxCluster.Status.Ready = ptr.To(true)

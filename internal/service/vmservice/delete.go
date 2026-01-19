@@ -47,7 +47,7 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:   string(infrav1.VMProvisionedCondition),
 			Status: metav1.ConditionFalse,
-			Reason: "DeletionFailed",
+			Reason: infrav1.VMDeletionFailedReason,
 		})
 		return err
 	}

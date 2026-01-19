@@ -245,7 +245,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   string(infrav1.VMProvisionedCondition),
 		Status: metav1.ConditionTrue,
-		Reason: "Success",
+		Reason: infrav1.VMProvisionSucceededReason,
 	})
 	machineScope.Logger.Info("ProxmoxMachine is ready")
 
