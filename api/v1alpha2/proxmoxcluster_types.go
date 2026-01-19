@@ -132,9 +132,10 @@ type ZoneConfigSpec struct {
 type ProxmoxClusterCloneSpec struct {
 	// machineSpec is the map of machine specs.
 	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"
+	//nolint:kubeapilinter
 	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
-	// This field intentionally violates API spec (it exists only to store information for Cluster Classes,
-	// and is never accessed from within the controller).
+	// Justification: This field intentionally violates API spec:
+	// It exists only to store information for Cluster Classes, and is never accessed from within the controller.
 
 	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +listType=set
@@ -206,7 +207,7 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
 
-	// networkDevices lists network devices.
+	// inClusterZoneRef lists InClusterIPPools per proxmox-zone.
 	// +optional
 	// +listType=map
 	// +listMapKey=zone
@@ -255,14 +256,22 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
 
-	// conditions defines current service state of the ProxmoxCluster.
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	// conditions defines the current service state of the ProxmoxCluster.
+	// +optional
+	//nolint:kubeapilinter
+	Conditions *[]clusterv1.Condition `json:"conditions,omitempty"`
+	// Justification: kubeapilinter returns a false positive on fields called Conditions
+	// because type is assumed to be metav1.Conditions.
+	// deepcopy-gen wrongly infers the type when this is a pointer to clusterv1.Conditions,
+	// So we need to store *[]clusterv1.Condition to create correct deepcopy code.
 }
 
 // InClusterZoneRef holds the InClusterIPPools associated with a zone.
 type InClusterZoneRef struct {
+	// zone defines the deployment proxmox-zone.
 	// +kubebuilder:default="default"
-	Zone Zone `json:"zone"`
+	// +required
+	Zone Zone `json:"zone,omitempty"`
 
 	// inClusterIpPoolRefV4 is the reference to the created in-cluster IP pool.
 	// +optional
@@ -326,7 +335,10 @@ type ProxmoxCluster struct {
 	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
 
 	// status is the Proxmox Cluster status
-	Status ProxmoxClusterStatus `json:"status,omitempty"`
+	// +optional
+	//nolint:kubeapilinter
+	Status ProxmoxClusterStatus `json:"status,omitempty,omitzero"`
+	// Justification: this is the paradigm used by cluster-api.
 }
 
 // +kubebuilder:object:root=true
@@ -340,12 +352,21 @@ type ProxmoxClusterList struct {
 
 // GetConditions returns the observations of the operational state of the ProxmoxCluster resource.
 func (c *ProxmoxCluster) GetConditions() clusterv1.Conditions {
-	return c.Status.Conditions
+	conditions := ptr.Deref(c.Status.Conditions, []clusterv1.Condition{})
+
+	return conditions
 }
 
 // SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed clusterv1.Conditions.
 func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
-	c.Status.Conditions = conditions
+	// This is required because deepcopy-gen incorrectly infers the type of conditions.
+	// Justification: static assignment will not work because type assurance
+	// can not cast from type clusterv1.Conditions to []clusterv1.Condition.
+	//nolint:staticcheck
+	var typeHelper []clusterv1.Condition
+	typeHelper = conditions
+
+	c.Status.Conditions = &typeHelper
 }
 
 // AddInClusterZoneRef will set the Zone references status for the provided pool.

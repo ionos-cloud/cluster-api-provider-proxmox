@@ -529,9 +529,13 @@ func (in *ProxmoxClusterStatus) DeepCopyInto(out *ProxmoxClusterStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(v1beta1.Conditions, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+		*out = new([]v1beta1.Condition)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]v1beta1.Condition, len(*in))
+			for i := range *in {
+				(*in)[i].DeepCopyInto(&(*out)[i])
+			}
 		}
 	}
 }
@@ -877,9 +881,13 @@ func (in *ProxmoxMachineStatus) DeepCopyInto(out *ProxmoxMachineStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(v1beta1.Conditions, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+		*out = new([]v1beta1.Condition)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]v1beta1.Condition, len(*in))
+			for i := range *in {
+				(*in)[i].DeepCopyInto(&(*out)[i])
+			}
 		}
 	}
 }

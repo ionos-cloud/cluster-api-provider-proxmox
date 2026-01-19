@@ -1398,7 +1398,7 @@ spec:
                                       pattern: ^net[0-9]+$
                                       type: string
                                     type: array
-                                    x-kubernetes-list-type: set
+                                    x-kubernetes-list-type: atomic
                                   name:
                                     description: |-
                                       name is the virtual network device name.
@@ -1889,7 +1889,7 @@ spec:
             description: status is the Proxmox Cluster status
             properties:
               conditions:
-                description: conditions defines current service state of the ProxmoxCluster.
+                description: conditions defines the current service state of the ProxmoxCluster.
                 items:
                   description: Condition defines an observation of a Cluster API resource
                     operational state.
@@ -2000,7 +2000,7 @@ spec:
                 type: array
                 x-kubernetes-list-type: atomic
               inClusterZoneRef:
-                description: networkDevices lists network devices.
+                description: inClusterZoneRef lists InClusterIPPools per proxmox-zone.
                 items:
                   description: InClusterZoneRef holds the InClusterIPPools associated
                     with a zone.
@@ -2037,8 +2037,7 @@ spec:
                       x-kubernetes-map-type: atomic
                     zone:
                       default: default
-                      description: Zone is a formally verified Proxmox network zone
-                        name. Needs to adhere to Label rules.
+                      description: zone defines the deployment proxmox-zone.
                       pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                       type: string
                   required:

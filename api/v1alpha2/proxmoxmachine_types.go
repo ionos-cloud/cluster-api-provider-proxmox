@@ -377,7 +377,7 @@ type RoutingPolicySpec struct {
 type VRFDevice struct {
 	// interfaces is the list of proxmox network devices managed by this virtual device.
 	// +optional
-	// +listType=set
+	// +listType=atomic
 	Interfaces []NetName `json:"interfaces,omitempty"`
 
 	// name is the virtual network device name.
@@ -465,7 +465,9 @@ type ProxmoxMachineStatus struct {
 
 	// ipAddresses are the IP addresses used to access the virtual machine.
 	// +optional
+	//nolint:kubeapilinter
 	IPAddresses map[string]*IPAddresses `json:"ipAddresses,omitempty"`
+	// Justification: This field is not supposed to be updated from yaml (it is in status).
 
 	// network returns the network status for each of the machine's configured.
 	// network interfaces.
@@ -527,7 +529,13 @@ type ProxmoxMachineStatus struct {
 	FailureMessage *string `json:"failureMessage,omitempty"`
 
 	// conditions defines current service state of the ProxmoxMachine.
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	// +optional
+	//nolint:kubeapilinter
+	Conditions *[]clusterv1.Condition `json:"conditions,omitempty"`
+	// Justification: kubeapilinter returns a false positive on fields called Conditions
+	// because type is assumed to be metav1.Conditions.
+	// deepcopy-gen wrongly infers the type when this is a pointer to clusterv1.Conditions,
+	// So we need to store *[]clusterv1.Condition to create correct deepcopy code.
 }
 
 // IPAddresses stores the IP addresses of a network interface. Used for status.
@@ -598,7 +606,9 @@ type ProxmoxMachine struct {
 
 	// status is the status of the Proxmox machine.
 	// +optional
-	Status ProxmoxMachineStatus `json:"status,omitzero"`
+	//nolint:kubeapilinter
+	Status ProxmoxMachineStatus `json:"status,omitempty,omitzero"`
+	// Justification: this is the paradigm used by cluster-api.
 }
 
 //+kubebuilder:object:root=true
@@ -612,12 +622,21 @@ type ProxmoxMachineList struct {
 
 // GetConditions returns the observations of the operational state of the ProxmoxMachine resource.
 func (r *ProxmoxMachine) GetConditions() clusterv1.Conditions {
-	return r.Status.Conditions
+	conditions := ptr.Deref(r.Status.Conditions, []clusterv1.Condition{})
+
+	return conditions
 }
 
 // SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed clusterv1.Conditions.
 func (r *ProxmoxMachine) SetConditions(conditions clusterv1.Conditions) {
-	r.Status.Conditions = conditions
+	// This is required because deepcopy-gen incorrectly infers the type of conditions.
+	// Justification: static assignment will not work because type assurance
+	// can not cast from type clusterv1.Conditions to []clusterv1.Condition.
+	//nolint:staticcheck
+	var typeHelper []clusterv1.Condition
+	typeHelper = conditions
+
+	r.Status.Conditions = &typeHelper
 }
 
 // GetVirtualMachineID get the Proxmox "vmid".

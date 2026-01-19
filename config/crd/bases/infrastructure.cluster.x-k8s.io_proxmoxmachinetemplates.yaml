@@ -1058,7 +1058,7 @@ spec:
                                     pattern: ^net[0-9]+$
                                     type: string
                                   type: array
-                                  x-kubernetes-list-type: set
+                                  x-kubernetes-list-type: atomic
                                 name:
                                   description: |-
                                     name is the virtual network device name.

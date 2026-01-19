@@ -88,7 +88,7 @@ func isIPv4(ip string) (bool, error) {
 }
 
 // poolFromObjectRef is a local helper to turn any objectRef into a pool,
-// The awkward calling convetion is due to limitations of golang (no generics on methods,
+// The awkward calling convention is due to limitations of golang (no generics on methods,
 // no type conversion of constrained types).
 func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace *string) (client.Object, error) {
 	ref := corev1.TypedObjectReference{}
