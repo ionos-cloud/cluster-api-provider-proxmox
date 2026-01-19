@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -347,7 +346,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 			Name: "vm1000",
 		},
 		Spec: clusterv1.MachineSpec{
-			InfrastructureRef: corev1.ObjectReference{
+			InfrastructureRef: clusterv1.ContractVersionedObjectReference{
 				Kind: "ProxmoxMachine",
 				Name: "vm1000",
 			},
@@ -485,7 +484,12 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
 
 	// reset stateMachine to before VirtualMachineConfig
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.CloningReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:    string(infrav1.VMProvisionedCondition),
+		Status:  metav1.ConditionFalse,
+		Reason:  infrav1.CloningReason,
+		Message: "",
+	})
 
 	requeue, err = reconcileVirtualMachineConfig(context.Background(), machineScope)
 	require.NoError(t, err)
