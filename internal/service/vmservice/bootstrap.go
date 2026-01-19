@@ -107,10 +107,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	// Todo: This status field is now superfluous
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:    string(infrav1.VMProvisionedCondition),
-		Status:  metav1.ConditionFalse,
-		Reason:  infrav1.WaitingForVMPowerUpReason,
-		Message: "",
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.WaitingForVMPowerUpReason,
 	})
 
 	return false, nil

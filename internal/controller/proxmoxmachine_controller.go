@@ -161,10 +161,9 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope) (ctrl.Result, error) {
 	machineScope.Logger.Info("Handling deleted ProxmoxMachine")
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:    string(infrav1.VMProvisionedCondition),
-		Status:  metav1.ConditionFalse,
-		Reason:  clusterv1.DeletingReason,
-		Message: "",
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionFalse,
+		Reason: clusterv1.DeletingReason,
 	})
 
 	err := vmservice.DeleteVM(ctx, machineScope)
@@ -187,10 +186,9 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	if !conditions.IsTrue(machineScope.Cluster, clusterv1.ClusterInfrastructureReadyCondition) {
 		machineScope.Info("Cluster infrastructure is not ready yet")
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-			Type:    string(infrav1.VMProvisionedCondition),
-			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.WaitingForClusterInfrastructureReason,
-			Message: "",
+			Type:   string(infrav1.VMProvisionedCondition),
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.WaitingForClusterInfrastructureReason,
 		})
 		return ctrl.Result{}, nil
 	}
@@ -199,10 +197,9 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	if machineScope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		machineScope.Info("Bootstrap data secret reference is not yet available")
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-			Type:    string(infrav1.VMProvisionedCondition),
-			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.WaitingForBootstrapDataReason,
-			Message: "",
+			Type:   string(infrav1.VMProvisionedCondition),
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.WaitingForBootstrapDataReason,
 		})
 		return ctrl.Result{}, nil
 	}
