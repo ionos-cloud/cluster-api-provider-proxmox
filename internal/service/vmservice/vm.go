@@ -19,7 +19,6 @@ package vmservice
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -160,7 +159,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 					Type:    string(infrav1.VMProvisionedCondition),
 					Status:  metav1.ConditionFalse,
 					Reason:  infrav1.VMProvisionFailedReason,
-					Message: fmt.Sprintf("%s", err),
+					Message: err.Error(),
 				})
 				machineScope.SetFailureMessage(err)
 				machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
@@ -223,7 +222,7 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 				Type:    string(infrav1.VMProvisionedCondition),
 				Status:  metav1.ConditionFalse,
 				Reason:  infrav1.CloningFailedReason,
-				Message: fmt.Sprintf("%s", err),
+				Message: err.Error(),
 			})
 			return false, err
 		}
@@ -497,7 +496,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 					Type:    string(infrav1.VMProvisionedCondition),
 					Status:  metav1.ConditionFalse,
 					Reason:  infrav1.VMProvisionFailedReason,
-					Message: fmt.Sprintf("%s", err),
+					Message: err.Error(),
 				})
 			}
 			return proxmox.VMCloneResponse{}, err

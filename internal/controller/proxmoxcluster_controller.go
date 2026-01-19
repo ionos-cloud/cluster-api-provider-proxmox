@@ -253,7 +253,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 			Type:    string(infrav1.ProxmoxClusterReady),
 			Status:  metav1.ConditionFalse,
 			Reason:  infrav1.ProxmoxUnreachableReason,
-			Message: fmt.Sprintf("%s", err),
+			Message: err.Error(),
 		})
 		if apierrors.IsNotFound(err) {
 			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")

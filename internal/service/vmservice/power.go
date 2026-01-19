@@ -53,7 +53,7 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 			Type:    string(infrav1.VMProvisionedCondition),
 			Status:  metav1.ConditionFalse,
 			Reason:  infrav1.PoweringOnFailedReason,
-			Message: fmt.Sprintf("%s", err),
+			Message: err.Error(),
 		})
 		return false, err
 	}
