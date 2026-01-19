@@ -22,6 +22,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -159,7 +160,12 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope) (ctrl.Result, error) {
 	machineScope.Logger.Info("Handling deleted ProxmoxMachine")
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:    string(infrav1.VMProvisionedCondition),
+		Status:  metav1.ConditionFalse,
+		Reason:  clusterv1.DeletingReason,
+		Message: "",
+	})
 
 	err := vmservice.DeleteVM(ctx, machineScope)
 	if err != nil {
@@ -178,16 +184,26 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		return ctrl.Result{}, nil
 	}
 
-	if !machineScope.Cluster.Status.InfrastructureReady {
+	if !conditions.IsTrue(machineScope.Cluster, clusterv1.ClusterInfrastructureReadyCondition) {
 		machineScope.Info("Cluster infrastructure is not ready yet")
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForClusterInfrastructureReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    string(infrav1.VMProvisionedCondition),
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.WaitingForClusterInfrastructureReason,
+			Message: "",
+		})
 		return ctrl.Result{}, nil
 	}
 
 	// Make sure bootstrap data is available and populated.
 	if machineScope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		machineScope.Info("Bootstrap data secret reference is not yet available")
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReason, clusterv1.ConditionSeverityInfo, "")
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    string(infrav1.VMProvisionedCondition),
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.WaitingForBootstrapDataReason,
+			Message: "",
+		})
 		return ctrl.Result{}, nil
 	}
 
@@ -229,7 +245,11 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	machineScope.ProxmoxMachine.SetLabels(labels)
 
 	machineScope.SetReady()
-	conditions.MarkTrue(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionTrue,
+		Reason: "Success",
+	})
 	machineScope.Logger.Info("ProxmoxMachine is ready")
 
 	return reconcile.Result{}, nil

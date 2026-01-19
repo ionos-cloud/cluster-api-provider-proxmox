@@ -62,12 +62,11 @@ var _ = Describe("Controller Test", func() {
 				UID:       "1000",
 			},
 			Spec: clusterv1.ClusterSpec{
-				Paused: false,
-				InfrastructureRef: &corev1.ObjectReference{
-					Kind:       gvk.Kind,
-					Namespace:  testNS,
-					Name:       clusterName,
-					APIVersion: gvk.GroupVersion().String(),
+				Paused: ptr.To(false),
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     gvk.Kind,
+					Name:     clusterName,
+					APIGroup: gvk.Group,
 				},
 			},
 		}
@@ -484,10 +483,10 @@ func createOwnerCluster(proxmoxCluster *infrav1.ProxmoxCluster) *clusterv1.Clust
 			Namespace:    "default",
 		},
 		Spec: clusterv1.ClusterSpec{
-			InfrastructureRef: &corev1.ObjectReference{
-				APIVersion: infrav1.GroupVersion.String(),
-				Kind:       "ProxmoxCluster",
-				Name:       proxmoxCluster.Name,
+			InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+				APIGroup: infrav1.GroupVersion.Group,
+				Kind:     "ProxmoxCluster",
+				Name:     proxmoxCluster.Name,
 			},
 		},
 	}
@@ -613,7 +612,7 @@ func assertProxmoxClusterIsReady(proxmoxCluster *infrav1.ProxmoxCluster) {
 		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
 			return false
 		}
-		return conditions.IsTrue(proxmoxCluster, infrav1.ProxmoxClusterReady)
+		return conditions.IsTrue(proxmoxCluster, string(infrav1.ProxmoxClusterReady))
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
 		Should(BeTrue())
@@ -625,7 +624,7 @@ func assertProxmoxClusterIsNotReady(proxmoxCluster *infrav1.ProxmoxCluster) {
 		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
 			return false
 		}
-		return conditions.IsFalse(proxmoxCluster, infrav1.ProxmoxClusterReady)
+		return conditions.IsFalse(proxmoxCluster, string(infrav1.ProxmoxClusterReady))
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
 		Should(BeTrue())
