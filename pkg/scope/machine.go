@@ -208,19 +208,17 @@ func (m *MachineScope) SetVirtualMachine(vm *proxmox.VirtualMachine) {
 // PatchObject persists the machine spec and status.
 func (m *MachineScope) PatchObject() error {
 	// always update the readyCondition.
-	conditions.SetSummary(m.ProxmoxMachine,
-		conditions.WithConditions(
-			infrav1.VMProvisionedCondition,
-		),
+	_ = conditions.SetSummaryCondition(m.ProxmoxMachine, m.ProxmoxMachine, string(clusterv1.ReadyCondition),
+		conditions.ForConditionTypes{string(infrav1.VMProvisionedCondition)},
 	)
 
 	// Patch the ProxmoxMachine resource.
 	return m.patchHelper.Patch(
 		context.TODO(),
 		m.ProxmoxMachine,
-		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.ReadyCondition,
-			infrav1.VMProvisionedCondition,
+		patch.WithOwnedConditions{Conditions: []string{
+			string(clusterv1.ReadyCondition),
+			string(infrav1.VMProvisionedCondition),
 		}})
 }
 

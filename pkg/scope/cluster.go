@@ -206,10 +206,8 @@ func (s *ClusterScope) KubernetesClusterName() string {
 // PatchObject persists the cluster configuration and status.
 func (s *ClusterScope) PatchObject() error {
 	// always update the readyCondition.
-	conditions.SetSummary(s.ProxmoxCluster,
-		conditions.WithConditions(
-			infrav1.ProxmoxClusterReady,
-		),
+	_ = conditions.SetSummaryCondition(s.ProxmoxCluster, s.ProxmoxCluster, string(clusterv1.ReadyCondition),
+		conditions.ForConditionTypes{string(infrav1.ProxmoxClusterReady)},
 	)
 
 	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster)

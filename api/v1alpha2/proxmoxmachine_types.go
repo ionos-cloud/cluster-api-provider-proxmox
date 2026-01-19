@@ -530,11 +530,7 @@ type ProxmoxMachineStatus struct {
 
 	// conditions defines current service state of the ProxmoxMachine.
 	// +optional
-	//nolint:kubeapilinter
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-	// Justification: kubeapilinter returns a false positive on fields called Conditions
-	// because type is assumed to be metav1.Conditions.
-	// This needs to wait for cluster-api.v1beta2.
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // IPAddressesSpec stores the IP addresses of a network interface. Used for status.
@@ -661,12 +657,12 @@ func (r *ProxmoxMachine) SetIPAddresses(ipSpec IPAddressesSpec) {
 }
 
 // GetConditions returns the observations of the operational state of the ProxmoxMachine resource.
-func (r *ProxmoxMachine) GetConditions() clusterv1.Conditions {
+func (r *ProxmoxMachine) GetConditions() []metav1.Condition {
 	return r.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed clusterv1.Conditions.
-func (r *ProxmoxMachine) SetConditions(conditions clusterv1.Conditions) {
+// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed conditions.
+func (r *ProxmoxMachine) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
 }
 

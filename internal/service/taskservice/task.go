@@ -25,8 +25,7 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -120,7 +119,12 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		} else {
 			errorMessage = "task failed but its exit status is OK; this should not happen"
 		}
-		conditions.MarkFalse(scope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.TaskFailure, clusterv1.ConditionSeverityInfo, "%s", errorMessage)
+		conditions.Set(scope.ProxmoxMachine, metav1.Condition{
+			Type:    string(infrav1.VMProvisionedCondition),
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.TaskFailure,
+			Message: errorMessage,
+		})
 
 		// Instead of directly requeuing the failed task, wait for the RetryAfter duration to pass
 		// before resetting the taskRef from the ProxmoxMachine status.
