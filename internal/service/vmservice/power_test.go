@@ -25,21 +25,16 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
-/* Todo: Test is useless because of state machine
-func TestReconcilePowerState_MissingIPAddress(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
-
-	requeue, err := reconcilePowerState(context.TODO(), machineScope)
-	require.True(t, requeue)
-	require.NoError(t, err)
-	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
-}
-*/
-
 func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
+		NetName: infrav1.DefaultNetworkDevice,
+		IPv4:    []string{"10.10.10.10"},
+	}, {
+		NetName: "default",
+		IPv4:    []string{"10.10.10.10"},
+	}}
 
 	vm := newStoppedVM()
 	task := newTask()

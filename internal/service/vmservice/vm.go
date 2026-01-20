@@ -367,18 +367,24 @@ func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.Machi
 		},
 	}
 
+	machineAddresses := scope.ProxmoxMachine.GetIPAddresses()
+	index := slices.IndexFunc(machineAddresses, func(s infrav1.IPAddressesSpec) bool {
+		return s.NetName == "default"
+	})
 	// TODO: DHCP as InternalIP
-	if scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
-		addresses = append(addresses, clusterv1.MachineAddress{
-			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4[0], // TODO: Unfuck this
-		})
+	if index == -1 {
+		return addresses, errors.Errorf("Machine has no default IPAddresses")
 	}
 
-	if scope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
+	defaultAddresses := machineAddresses[index]
+
+	for _, address := range slices.Concat(defaultAddresses.IPv4, defaultAddresses.IPv6) {
+		if address == "" {
+			continue
+		}
 		addresses = append(addresses, clusterv1.MachineAddress{
 			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv6[0], // TODO: Unfuck this
+			Address: address,
 		})
 	}
 

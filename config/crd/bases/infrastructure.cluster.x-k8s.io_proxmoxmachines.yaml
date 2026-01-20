@@ -1521,9 +1521,11 @@ spec:
                   controller's output.
                 type: string
               ipAddresses:
-                additionalProperties:
-                  description: IPAddresses stores the IP addresses of a network interface.
-                    Used for status.
+                description: ipAddresses are the IP addresses used to access the virtual
+                  machine.
+                items:
+                  description: IPAddressesSpec stores the IP addresses of a network
+                    interface. Used for status.
                   properties:
                     ipv4:
                       description: ipv4 is the IPv4 address.
@@ -1537,10 +1539,19 @@ spec:
                         type: string
                       type: array
                       x-kubernetes-list-type: set
+                    net:
+                      description: net is the proxmox network name these ipaddresses
+                        are attached to.
+                      minLength: 1
+                      pattern: ^(net[0-9]+|default)$
+                      type: string
+                  required:
+                  - net
                   type: object
-                description: ipAddresses are the IP addresses used to access the virtual
-                  machine.
-                type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - net
+                x-kubernetes-list-type: map
               network:
                 description: |-
                   network returns the network status for each of the machine's configured.

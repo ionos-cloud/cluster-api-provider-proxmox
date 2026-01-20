@@ -107,7 +107,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	require.True(t, requeue)
 
 	// net1 should not exist yet, because IPAddress reconciliation should be unfinished
-	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
+	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
 
 	// test if IPAddressClaim was created
 	claimsExtraPool0 := getIPAddressClaimsPerPool(t, kubeClient, machineScope, extraPool0.Name)
@@ -194,10 +194,18 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
-	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]), infrav1.IPAddresses{IPv4: []string{"10.10.10.10"}, IPv6: nil})
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
-	require.Equal(t, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]), infrav1.IPAddresses{IPv4: []string{"10.100.10.10"}, IPv6: nil})
+	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net0"))
+	require.Equal(
+		t,
+		infrav1.IPAddressesSpec{NetName: infrav1.DefaultNetworkDevice, IPv4: []string{"10.10.10.10"}, IPv6: nil},
+		*machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice),
+	)
+	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
+	require.Equal(
+		t,
+		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10"}, IPv6: nil},
+		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
+	)
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
@@ -256,17 +264,27 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 
-	require.Len(t, machineScope.ProxmoxMachine.Status.IPAddresses, 3)
+	// Add one for default network devices
+	require.Len(t, machineScope.ProxmoxMachine.GetIPAddresses(), 3+1)
 
 	// TODO when we can ensure default ip comes first: require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4[0])
-	require.ElementsMatch(t, []string{"10.10.10.10", "10.11.10.10"}, machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4)
-	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv6)
+	require.ElementsMatch(t,
+		[]string{"10.10.10.10", "10.11.10.10"},
+		machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv4,
+	)
+	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv6)
 
-	require.ElementsMatch(t, []string{"10.100.10.10"}, machineScope.ProxmoxMachine.Status.IPAddresses["net1"].IPv4)
-	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"].IPv6)
+	require.ElementsMatch(t,
+		[]string{"10.100.10.10"},
+		machineScope.ProxmoxMachine.GetIPAddressesNet("net1").IPv4,
+	)
+	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1").IPv6)
 
-	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net2"].IPv4)
-	require.ElementsMatch(t, []string{"fe80::ffee"}, machineScope.ProxmoxMachine.Status.IPAddresses["net2"].IPv6)
+	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net2").IPv4)
+	require.ElementsMatch(t,
+		[]string{"fe80::ffee"},
+		machineScope.ProxmoxMachine.GetIPAddressesNet("net2").IPv6,
+	)
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
@@ -343,10 +361,16 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, requeue)
 
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net0"])
-	require.Equal(t, infrav1.IPAddresses{IPv4: []string{"10.10.10.10"}, IPv6: []string{"fe80::1"}}, *(machineScope.ProxmoxMachine.Status.IPAddresses["net0"]))
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
-	require.Equal(t, infrav1.IPAddresses{IPv4: []string{"10.100.10.10"}, IPv6: nil}, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]))
+	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net0"))
+	require.Equal(t,
+		infrav1.IPAddressesSpec{NetName: infrav1.DefaultNetworkDevice, IPv4: []string{"10.10.10.10"}, IPv6: []string{"fe80::1"}},
+		*machineScope.ProxmoxMachine.GetIPAddressesNet("net0"),
+	)
+	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
+	require.Equal(t,
+		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10"}, IPv6: nil},
+		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
+	)
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
@@ -397,12 +421,18 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice])
+	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice))
 	// TODO when we can ensure default ip comes first: require.Equal(t, defaultIP, machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4[0])
-	require.ElementsMatch(t, []string{defaultIP, "10.50.10.10"}, machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4)
-	require.Nil(t, machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv6)
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.IPAddresses["net1"])
-	require.Equal(t, infrav1.IPAddresses{IPv4: []string{"10.100.10.10"}, IPv6: nil}, *(machineScope.ProxmoxMachine.Status.IPAddresses["net1"]))
+	require.ElementsMatch(t,
+		[]string{defaultIP, "10.50.10.10"},
+		machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv4,
+	)
+	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv6)
+	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
+	require.Equal(t,
+		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10"}, IPv6: nil},
+		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
+	)
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }

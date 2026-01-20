@@ -19,8 +19,8 @@ package vmservice
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/netip"
-	"reflect"
 	"slices"
 	"strconv"
 
@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
-	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"         //nolint:staticcheck
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"            //nolint:staticcheck
 	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions" //nolint:staticcheck
@@ -44,11 +43,12 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	}
 
 	machineScope.Logger.V(4).Info("reconciling IPAddresses.")
+	pm := machineScope.ProxmoxMachine
 
 	// TODO: This datastructure is less bad, but still bad
 	netPoolAddresses := make(map[string]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 
-	if machineScope.ProxmoxMachine.Spec.Network != nil {
+	if pm.Spec.Network != nil {
 		if requeue, err = handleDevices(ctx, machineScope, netPoolAddresses); err != nil || requeue {
 			if err == nil {
 				return true, errors.Wrap(err, "requeuing network reconcillation")
@@ -58,46 +58,33 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	}
 
 	// TODO: move to own state machine stage. Doesn't belong here, really
-	defaultDevicePools := netPoolAddresses[infrav1.DefaultNetworkDevice]
-	defaultPools := machineScope.InfraCluster.ProxmoxCluster.Status.InClusterIPPoolRef
-	for _, pool := range defaultPools {
-		poolRef := corev1.TypedLocalObjectReference{
-			Name:     pool.Name,
-			Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
-			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
-		}
-		for defaultPool, ipAddresses := range defaultDevicePools {
-			if reflect.DeepEqual(defaultPool, poolRef) {
-				// Todo: This is not necessarily the default IP.
-				_, err := setVMIPAddressTag(ctx, machineScope, ipAddresses[0])
-				if err != nil {
-					return false, err
-				}
-			}
+	defaultDevicePools := netPoolAddresses["default"]
+	for _, ipAddresses := range defaultDevicePools {
+		// Todo: This is not necessarily the default IP.
+		_, err := setVMIPAddressTag(ctx, machineScope, ipAddresses[0])
+		if err != nil {
+			return false, err
 		}
 	}
 
 	// update status.IpAddr.
-	// TODO: This datastructure should be redundant. Too many loops too
-	statusAddresses := make(map[string]*infrav1.IPAddresses, len(netPoolAddresses))
+	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
 	for net, pools := range netPoolAddresses {
-		for _, ips := range pools {
-			for _, ip := range ips {
-				if _, e := statusAddresses[net]; !e {
-					statusAddresses[net] = new(infrav1.IPAddresses)
-				}
-				if isIPv4(ip.Spec.Address) {
-					statusAddresses[net].IPv4 = append(statusAddresses[net].IPv4, ip.Spec.Address)
-				} else {
-					statusAddresses[net].IPv6 = append(statusAddresses[net].IPv6, ip.Spec.Address)
-				}
+		addresses := slices.Concat(slices.Collect(maps.Values(pools))...)
+		ipSpec := infrav1.IPAddressesSpec{
+			NetName: net,
+		}
+		for _, address := range addresses {
+			if isIPv4(address.Spec.Address) {
+				ipSpec.IPv4 = append(ipSpec.IPv4, address.Spec.Address)
+			} else {
+				ipSpec.IPv6 = append(ipSpec.IPv6, address.Spec.Address)
 			}
 		}
+		pm.SetIPAddresses(ipSpec)
 	}
-	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
-	machineScope.ProxmoxMachine.Status.IPAddresses = statusAddresses
 
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.MarkFalse(pm, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityInfo, "")
 
 	return true, nil
 }
@@ -198,6 +185,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 
 	defaultIPv4 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV4
 	defaultIPv6 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV6
+	defaultPoolMap := make(map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 
 	for _, net := range networkSpec.NetworkDevices {
 		// TODO: Network Zones
@@ -206,9 +194,11 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 		// append default pools in front if they exist
 		if defaultIPv4 != nil && *defaultIPv4 == *net.Name && poolsRef.IPv4 != nil {
 			pools = append(pools, *poolsRef.IPv4)
+			defaultPoolMap[*poolsRef.IPv4] = []ipamv1.IPAddress{}
 		}
 		if defaultIPv6 != nil && *defaultIPv6 == *net.Name && poolsRef.IPv6 != nil {
 			pools = append(pools, *poolsRef.IPv6)
+			defaultPoolMap[*poolsRef.IPv6] = []ipamv1.IPAddress{}
 		}
 
 		for i, ipPool := range slices.Concat(pools, net.InterfaceConfig.IPPoolRef) {
@@ -230,7 +220,13 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 
 			poolMap[ipPool] = ipAddresses
 			addresses[*net.Name] = poolMap
+
+			// append default pool addresses to map
+			if _, exists := defaultPoolMap[ipPool]; exists {
+				defaultPoolMap[ipPool] = ipAddresses
+			}
 		}
+		addresses["default"] = defaultPoolMap
 	}
 
 	return false, nil

@@ -18,6 +18,7 @@ package v1alpha2
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -466,9 +467,9 @@ type ProxmoxMachineStatus struct {
 
 	// ipAddresses are the IP addresses used to access the virtual machine.
 	// +optional
-	//nolint:kubeapilinter
-	IPAddresses map[string]*IPAddresses `json:"ipAddresses,omitempty"`
-	// Justification: This field is not supposed to be updated from yaml (it is in status).
+	// +listType=map
+	// +listMapKey=net
+	IPAddresses []IPAddressesSpec `json:"ipAddresses,omitempty"`
 
 	// network returns the network status for each of the machine's configured.
 	// network interfaces.
@@ -539,9 +540,14 @@ type ProxmoxMachineStatus struct {
 	// So we need to store *[]clusterv1.Condition to create correct deepcopy code.
 }
 
-// IPAddresses stores the IP addresses of a network interface. Used for status.
-// TODO: Unfuck machine status.
-type IPAddresses struct {
+// IPAddressesSpec stores the IP addresses of a network interface. Used for status.
+type IPAddressesSpec struct {
+	// net is the proxmox network name these ipaddresses are attached to.
+	// +kubebuilder:validation:Pattern=`^(net[0-9]+|default)$`
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	NetName string `json:"net,omitempty"`
+
 	// ipv4 is the IPv4 address.
 	// +listType=set
 	// +optional
@@ -619,6 +625,42 @@ type ProxmoxMachineList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ProxmoxMachine `json:"items"`
+}
+
+// GetIPAddresses returns the ipaddress status of a machine.
+func (r *ProxmoxMachine) GetIPAddresses() []IPAddressesSpec {
+	return r.Status.IPAddresses
+}
+
+// GetIPAddressesNet returns the ipaddresses status for a network or nil.
+func (r *ProxmoxMachine) GetIPAddressesNet(name string) *IPAddressesSpec {
+	addresses := r.GetIPAddresses()
+	index := slices.IndexFunc(addresses, func(s IPAddressesSpec) bool {
+		return name == s.NetName
+	})
+
+	if index < 0 {
+		return nil
+	}
+	return &addresses[index]
+}
+
+// SetIPAddresses will set the ipAddress state of a machine.
+func (r *ProxmoxMachine) SetIPAddresses(ipSpec IPAddressesSpec) {
+	// Allocate a default spec so the first element is never empty.
+	if len(r.Status.IPAddresses) == 0 {
+		r.Status.IPAddresses = append(r.Status.IPAddresses, IPAddressesSpec{
+			NetName: "default",
+		})
+	}
+	index := slices.IndexFunc(r.Status.IPAddresses, func(s IPAddressesSpec) bool {
+		return ipSpec.NetName == s.NetName
+	})
+	if index == -1 {
+		r.Status.IPAddresses = append(r.Status.IPAddresses, ipSpec)
+	} else {
+		r.Status.IPAddresses[index] = ipSpec
+	}
 }
 
 // GetConditions returns the observations of the operational state of the ProxmoxMachine resource.
