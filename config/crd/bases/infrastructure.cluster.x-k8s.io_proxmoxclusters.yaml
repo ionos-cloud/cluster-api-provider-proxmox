@@ -1284,11 +1284,7 @@ spec:
                                     type: integer
                                     x-kubernetes-validations:
                                     - message: invalid MTU value
-                                      rule: self == 1 || ( self >= 576 && self <=
-                                        65520)
-                                    - message: invalid MTU value
-                                      rule: self == 1 || ( self >= 576 && self <=
-                                        65520)
+                                      rule: self == 1 || (self >= 576 && self <= 65520)
                                   model:
                                     default: virtio
                                     description: model is the network device model.
@@ -1306,11 +1302,7 @@ spec:
                                     type: integer
                                     x-kubernetes-validations:
                                     - message: invalid MTU value
-                                      rule: self == 1 || ( self >= 576 && self <=
-                                        65520)
-                                    - message: invalid MTU value
-                                      rule: self == 1 || ( self >= 576 && self <=
-                                        65520)
+                                      rule: self == 1 || (self >= 576 && self <= 65520)
                                   name:
                                     default: net0
                                     description: name is the network device name.
