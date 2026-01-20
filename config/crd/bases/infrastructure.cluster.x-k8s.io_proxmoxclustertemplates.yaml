@@ -972,9 +972,10 @@ spec:
                           in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
                         properties:
                           machineSpec:
-                            additionalProperties:
-                              description: ProxmoxMachineSpec defines the desired
-                                state of a ProxmoxMachine.
+                            description: machineSpec is the map of machine specs.
+                            items:
+                              description: ProxmoxClusterClassSpec defines deployment
+                                templates for ClusterClass.
                               properties:
                                 allowedNodes:
                                   description: |-
@@ -1057,6 +1058,11 @@ spec:
                                     This is always done when you clone a normal VM.
                                     Create a Full clone by default.
                                   type: boolean
+                                machineType:
+                                  description: machineType is the name of the template
+                                    for ClusterClass.
+                                  minLength: 1
+                                  type: string
                                 memoryMiB:
                                   description: |-
                                     memoryMiB is the size of a virtual machine's memory, in MiB.
@@ -1505,18 +1511,22 @@ spec:
                                   - message: end should be greater than or equal to
                                       start
                                     rule: self.end >= self.start
+                              required:
+                              - machineType
                               type: object
                               x-kubernetes-validations:
                               - message: Must set full=true when specifying format
                                 rule: self.full || !has(self.format)
                               - message: Must set full=true when specifying storage
                                 rule: self.full || !has(self.storage)
-                            description: machineSpec is the map of machine specs.
-                            type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - machineType
+                            x-kubernetes-list-type: map
                             x-kubernetes-validations:
                             - message: Cowardly refusing to deploy cluster without
                                 control plane
-                              rule: has(self.controlPlane)
+                              rule: self.exists_one(x, x.machineType == "controlPlane")
                           sshAuthorizedKeys:
                             description: sshAuthorizedKeys contains the authorized
                               keys deployed to the PROXMOX VMs.
@@ -1528,8 +1538,6 @@ spec:
                             description: virtualIPNetworkInterface is the interface
                               the k8s control plane binds to.
                             type: string
-                        required:
-                        - machineSpec
                         type: object
                       controlPlaneEndpoint:
                         description: controlPlaneEndpoint represents the endpoint

@@ -127,13 +127,26 @@ type ZoneConfigSpec struct {
 	DNSServers []string `json:"dnsServers,omitempty"`
 }
 
+// ProxmoxClusterClassSpec defines deployment templates for ClusterClass.
+type ProxmoxClusterClassSpec struct {
+	// machineType is the name of the template for ClusterClass.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	MachineType string `json:"machineType,omitempty"`
+
+	// proxmoxMachineSpec is the to be patched yaml object.
+	ProxmoxMachineSpec `json:",inline"`
+}
+
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
 type ProxmoxClusterCloneSpec struct {
 	// machineSpec is the map of machine specs.
-	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"
-	//nolint:kubeapilinter
-	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
+	// +kubebuilder:validation:XValidation:rule="self.exists_one(x, x.machineType == \"controlPlane\")",message="Cowardly refusing to deploy cluster without control plane"
+	// +listType=map
+	// +listMapKey=machineType
+	// +optional
+	ProxmoxClusterClassSpec []ProxmoxClusterClassSpec `json:"machineSpec,omitempty,omitzero"`
 	// Justification: This field intentionally violates API spec:
 	// It exists only to store information for Cluster Classes, and is never accessed from within the controller.
 

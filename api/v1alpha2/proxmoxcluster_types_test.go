@@ -90,15 +90,16 @@ func defaultCluster() *ProxmoxCluster {
 			},
 			DNSServers: []string{"1.2.3.4"},
 			CloneSpec: &ProxmoxClusterCloneSpec{
-				ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
-					"controlPlane": {
+				ProxmoxClusterClassSpec: []ProxmoxClusterClassSpec{{
+					MachineType: "controlPlane",
+					ProxmoxMachineSpec: ProxmoxMachineSpec{
 						VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 							TemplateSource: TemplateSource{
 								SourceNode: ptr.To("pve1"),
 							},
 						},
 					},
-				},
+				}},
 			},
 		},
 	}
@@ -165,7 +166,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	Context("CloneSpecs", func() {
 		It("Should not allow Cluster without ControlPlane nodes", func() {
 			dc := defaultCluster()
-			dc.Spec.CloneSpec.ProxmoxMachineSpec = map[string]ProxmoxMachineSpec{}
+			dc.Spec.CloneSpec.ProxmoxClusterClassSpec = []ProxmoxClusterClassSpec{{MachineType: "blub", ProxmoxMachineSpec: ProxmoxMachineSpec{}}}
 
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("control plane")))
 		})
