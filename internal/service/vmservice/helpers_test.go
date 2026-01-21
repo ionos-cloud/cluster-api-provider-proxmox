@@ -230,7 +230,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	return machineScope, mockClient, kubeClient
 }
 
-func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, pool *corev1.TypedLocalObjectReference) {
+func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, offset int, pool *corev1.TypedLocalObjectReference) {
 	prefix := ip.Bits()
 	var gateway string
 
@@ -240,6 +240,9 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 				APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					infrav1.ProxmoxPoolRefCounterAnnotation: fmt.Sprintf("%d", offset),
+				},
 				Name:      name,
 				Namespace: machineScope.Namespace(),
 				OwnerReferences: []metav1.OwnerReference{{
@@ -305,7 +308,7 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 
 	poolName := ptr.Deref(pools[0], corev1.TypedLocalObjectReference{Name: "dummy"}).Name
 	ipName := ipam.IPAddressFormat(machineScope.Name(), poolName, offset, device)
-	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, pools[1])
+	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, offset, pools[1])
 }
 
 // createNetworkSpecForMachine is a one stop setup. You need to provide the ipPrefixes in order of pools.
@@ -313,31 +316,25 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 	// Can't hurt to create ippools here
 	createIPPools(t, c, machineScope)
 
-	defaultPools := []corev1.TypedLocalObjectReference{}
-	// TODO: handle default pools beyond appending in front ... handle zones
-	inClusterZoneRef := getDefaultPoolRefs(machineScope)
-	for _, pool := range []*corev1.LocalObjectReference{inClusterZoneRef.InClusterIPPoolRefV4, inClusterZoneRef.InClusterIPPoolRefV6} {
-		if pool == nil {
-			continue
-		}
-		defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
-			Kind: GetInClusterIPPoolKind(),
-			Name: pool.Name,
-		}
-		defaultPools = append(defaultPools, defaultPool)
-	}
-
-	i := 0
+	defaultPools, _ := machineScope.IPAMHelper.GetInClusterPools(context.Background(), machineScope.ProxmoxMachine)
+	i := 0 // counter for ipPrefix variadic argument
 	// Create the pools sequentially by ref
 	for _, device := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
 		ipPoolRefs := device.IPPoolRef
-		// Todo: unify this with whatever approach we take on default pool adding
-		if *device.Name == infrav1.DefaultNetworkDevice {
-			ipPoolRefs = slices.Concat(defaultPools, ipPoolRefs)
+		// to do IPv4 first, we need to first append IPv6 in front and then IPv4
+		if *device.Name == ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6, "") {
+			if defaultPools.IPv6 != nil {
+				ipPoolRefs = slices.Concat([]corev1.TypedLocalObjectReference{defaultPools.IPv6.PoolRef}, ipPoolRefs)
+			}
+		}
+		if *device.Name == ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4, "") {
+			if defaultPools.IPv4 != nil {
+				ipPoolRefs = slices.Concat([]corev1.TypedLocalObjectReference{defaultPools.IPv4.PoolRef}, ipPoolRefs)
+			}
 		}
 
-		for j, poolRef := range ipPoolRefs {
-			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], j, &corev1.TypedLocalObjectReference{Name: *device.Name}, &poolRef)
+		for offset, poolRef := range ipPoolRefs {
+			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], offset, &corev1.TypedLocalObjectReference{Name: *device.Name}, &poolRef)
 			i++
 		}
 	}

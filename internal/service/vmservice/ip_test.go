@@ -40,7 +40,6 @@ func createDefaultNetworkSpec() infrav1.DefaultNetworkSpec {
 	}
 }
 
-// TODO: actually prepend net0 ipaddress claim
 // TestReconcileIPAddresses_CreateDefaultClaim tests if the cluster provided InclusterIPPool IPAddressClaim gets created.
 func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
@@ -256,7 +255,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 
 	createIPPools(t, kubeClient, machineScope)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.11.10.10", 0, &ipv4pool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.11.10.10", 1, &ipv4pool0)
 	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &ipv4pool1)
 	createIPAddress(t, kubeClient, machineScope, "net2", "fe80::ffee", 0, &ipv6pool)
 
@@ -267,8 +266,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	// Add one for default network devices
 	require.Len(t, machineScope.ProxmoxMachine.GetIPAddresses(), 3+1)
 
-	// TODO when we can ensure default ip comes first: require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4[0])
-	require.ElementsMatch(t,
+	require.Equal(t,
 		[]string{"10.10.10.10", "10.11.10.10"},
 		machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv4,
 	)
@@ -349,7 +347,7 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 	createIPPools(t, kubeClient, machineScope)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "fe80::1", 0, &defaultPoolV6)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "fe80::1", 1, &defaultPoolV6)
 	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &extraPool0)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
@@ -375,7 +373,7 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
-// TestReconcileIPAddresses_MachineIPPoolRef tests TODO: multiple claims from same pool.
+// TestReconcileIPAddresses_MachineIPPoolRef tests.
 func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
 
@@ -392,17 +390,21 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 		Kind: GlobalInClusterIPPool,
 		Name: "extrapool1",
 	}
+	extraPool2 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		Kind: GlobalInClusterIPPool,
+		Name: "extrapool2",
+	}
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		DefaultNetworkSpec: createDefaultNetworkSpec(),
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:            ptr.To("net0"),
-				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0}},
+				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0, extraPool0}},
 			},
 			{
 				Name:            ptr.To("net1"),
-				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool1}},
+				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool1, extraPool2, extraPool1, extraPool2}},
 			},
 		},
 	}
@@ -414,23 +416,26 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	defaultIP := "10.10.10.10"
 	createIPPools(t, kubeClient, machineScope)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, defaultIP, 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.50.10.10", 0, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.50.10.10", 1, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.50.10.11", 2, &extraPool0)
 	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &extraPool1)
+	createIPAddress(t, kubeClient, machineScope, "net1", "2001:db8::1", 1, &extraPool2)
+	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.11", 2, &extraPool1)
+	createIPAddress(t, kubeClient, machineScope, "net1", "2001:db8::2", 3, &extraPool2)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.True(t, requeue)
 
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice))
-	// TODO when we can ensure default ip comes first: require.Equal(t, defaultIP, machineScope.ProxmoxMachine.Status.IPAddresses[infrav1.DefaultNetworkDevice].IPv4[0])
-	require.ElementsMatch(t,
-		[]string{defaultIP, "10.50.10.10"},
+	require.Equal(t,
+		[]string{defaultIP, "10.50.10.10", "10.50.10.11"},
 		machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv4,
 	)
 	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv6)
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
 	require.Equal(t,
-		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10"}, IPv6: nil},
+		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10", "10.100.10.11"}, IPv6: []string{"2001:db8::1", "2001:db8::2"}},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
 	)
 

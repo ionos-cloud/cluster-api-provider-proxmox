@@ -457,15 +457,18 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 		labels[infrav1.ProxmoxZoneLabel] = key
 	}
 
-	// TODO: Set an annotation for IP offset
-	// poolAnnotations := poolObj.(metav1.Object).GetAnnotations()
+	// Add a reference counter to allow multiple ip addresses per owner.
+	annotations := map[string]string{
+		infrav1.ProxmoxPoolRefCounterAnnotation: fmt.Sprintf("%d", poolNum),
+	}
 
 	// TODO: suffix makes no sense, fmt.Sprintf() needs to be shared with testing
 	desired := &ipamv1.IPAddressClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      IPAddressFormat(owner.GetName(), device, poolNum, suffix),
-			Namespace: owner.GetNamespace(),
-			Labels:    labels,
+			Name:        IPAddressFormat(owner.GetName(), device, poolNum, suffix),
+			Namespace:   owner.GetNamespace(),
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: ipamv1.IPAddressClaimSpec{
 			PoolRef: corev1.TypedLocalObjectReference{
@@ -495,7 +498,7 @@ func (h *Helper) GetIPAddress(ctx context.Context, key client.ObjectKey) (*ipamv
 }
 
 // GetIPAddressV2 is the replacement for GetIPAddress.
-// TODO: Code cleanup, multiple ip addresses per pool.
+// TODO: Code cleanup.
 func (h *Helper) GetIPAddressV2(ctx context.Context, poolRef corev1.TypedLocalObjectReference, moxm *infrav1.ProxmoxMachine) ([]ipamv1.IPAddress, error) {
 	ipAddresses, err := h.GetIPAddressByPool(ctx, poolRef)
 
@@ -513,6 +516,7 @@ func (h *Helper) GetIPAddressV2(ctx context.Context, poolRef corev1.TypedLocalOb
 		}
 
 		// Get the parent to find the owner machine
+		// Todo: IPAddressClaim cache in context.
 		ipAddressClaim := &ipamv1.IPAddressClaim{}
 		err := h.ctrlClient.Get(ctx, key, ipAddressClaim)
 		if err != nil {
@@ -523,6 +527,17 @@ func (h *Helper) GetIPAddressV2(ctx context.Context, poolRef corev1.TypedLocalOb
 		isOwner, err := controllerutil.HasOwnerReference(ipAddressClaim.OwnerReferences, moxm, h.ctrlClient.Scheme())
 		if err != nil {
 			return nil, err
+		}
+
+		// Forward the offset counter so we can have multiple ip addresses per pool.
+		offset, exists := ipAddressClaim.GetAnnotations()[infrav1.ProxmoxPoolRefCounterAnnotation]
+		if exists {
+			addrAnnotations := addr.GetAnnotations()
+			if addrAnnotations == nil {
+				addrAnnotations = make(map[string]string)
+			}
+			addrAnnotations[infrav1.ProxmoxPoolRefCounterAnnotation] = offset
+			addr.SetAnnotations(addrAnnotations)
 		}
 
 		if isOwner {

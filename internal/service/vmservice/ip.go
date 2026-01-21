@@ -154,7 +154,11 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 		}
 	}
 
-	if len(ipAddresses) == 0 {
+	index := slices.IndexFunc(ipAddresses, func(ip ipamv1.IPAddress) bool {
+		return ip.GetAnnotations()[infrav1.ProxmoxPoolRefCounterAnnotation] == fmt.Sprintf("%d", poolNum)
+	})
+
+	if index < 0 {
 		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
 		// IpAddress not yet created.
 		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, device, poolNum, poolRef)
@@ -187,6 +191,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 	defaultIPv6 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV6
 	defaultPoolMap := make(map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 
+	requeue := false
 	for _, net := range networkSpec.NetworkDevices {
 		// TODO: Network Zones
 		pools := []corev1.TypedLocalObjectReference{}
@@ -204,13 +209,12 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 		for i, ipPool := range slices.Concat(pools, net.InterfaceConfig.IPPoolRef) {
 			ipAddresses, err := handleIPAddresses(ctx, machineScope, net.Name, i, ipPool)
 			if err != nil {
-				fmt.Println("handleDevices", "err", err, "ip", ipAddresses)
 				return true, errors.Wrapf(err, "unable to handle IPAddress for device %+v, pool %s", net.Name, ipPool.Name)
 			}
-
-			// requeue machine if ipaddress need creation
+			// fast track ip address generation with only one requeue
 			if len(ipAddresses) == 0 {
-				return true, nil
+				requeue = true
+				continue
 			}
 
 			poolMap := addresses[*net.Name]
@@ -229,7 +233,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 		addresses["default"] = defaultPoolMap
 	}
 
-	return false, nil
+	return requeue, nil
 }
 
 func isIPv4(ip string) bool {
