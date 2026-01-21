@@ -55,13 +55,13 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 		})
 
-		It("should disallow invalid network vlan for additional device", func() {
+		It("should disallow invalid network vlan", func() {
 			machine := validProxmoxMachine("test-machine")
 			machine.Spec.Network.NetworkDevices[0].VLAN = ptr.To(int32(0))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
 
-		It("should disallow invalid link mtu for additional device", func() {
+		It("should disallow invalid link mtu", func() {
 			machine := validProxmoxMachine("test-machine")
 			machine.Spec.Network.NetworkDevices[0].LinkMTU = ptr.To(int32(1000))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1280, but was 1000")))
@@ -79,6 +79,56 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
 
+		It("should accept MTU=1 (inherit bridge MTU) on default device", func() {
+			machine := validProxmoxMachine("net-inherit-mtu-default")
+			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(1))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+		})
+
+		It("should disallow having two devices named net0", func() {
+			machine := validProxmoxMachine("net-additional-name-net0")
+			machine.Spec.Network.NetworkDevices[1].Name = ptr.To("net0")
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("Duplicate value")))
+		})
+
+		It("should reject unknown network model values", func() {
+			machine := validProxmoxMachine("net-unknown-model")
+			machine.Spec.Network.NetworkDevices[0].Model = ptr.To("foo")
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("Unsupported value")))
+		})
+
+		It("should reject too large MTU", func() {
+			machine := validProxmoxMachine("net-mtu-too-large")
+			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(65521))
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid MTU value")))
+		})
+
+		It("should reject FIB rule priorities that match kernel rules", func() {
+			machine5 := validProxmoxMachine("net-routingpolicy-priority-32765")
+			machine5.Spec.Network.NetworkDevices[0].RoutingPolicy = []infrav1.RoutingPolicySpec{{Priority: ptr.To(int64(32765))}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine5)).To(MatchError(ContainSubstring("Cowardly refusing to insert FIB rule matching kernel rules")))
+
+			machine6 := validProxmoxMachine("net-routingpolicy-priority-32766")
+			machine6.Spec.Network.NetworkDevices[0].RoutingPolicy = []infrav1.RoutingPolicySpec{{Priority: ptr.To(int64(32766))}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine6)).To(MatchError(ContainSubstring("Cowardly refusing to insert FIB rule matching kernel rules")))
+
+		})
+
+		It("should reject VRF device tables that target kernel tables", func() {
+			machine4 := validProxmoxMachine("net-vrf-table-254")
+			machine4.Spec.Network.VirtualNetworkDevices.VRFs = []infrav1.VRFDevice{{
+				Name:  "vrf-blue",
+				Table: 254,
+			}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine4)).To(MatchError(ContainSubstring("Cowardly refusing to insert l3mdev rules into kernel tables")))
+
+			machine5 := validProxmoxMachine("net-vrf-table-255")
+			machine5.Spec.Network.VirtualNetworkDevices.VRFs = []infrav1.VRFDevice{{
+				Name:  "vrf-blue",
+				Table: 255,
+			}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine5)).To(MatchError(ContainSubstring("Cowardly refusing to insert l3mdev rules into kernel tables")))
+		})
 	})
 
 	Context("update proxmox cluster", func() {
