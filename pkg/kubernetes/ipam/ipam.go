@@ -283,7 +283,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 					Kind: GetInClusterIPPoolKind(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      InClusterPoolFormat(h.cluster, nil, format),
+					Name:      InClusterPoolFormat(h.cluster, zoneSpec.Zone, format),
 					Namespace: h.cluster.GetNamespace(),
 					Annotations: func() map[string]string {
 						metric := ""
