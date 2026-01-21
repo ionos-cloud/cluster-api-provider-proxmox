@@ -485,10 +485,9 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 
 	// reset stateMachine to before VirtualMachineConfig
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:    string(infrav1.VMProvisionedCondition),
-		Status:  metav1.ConditionFalse,
-		Reason:  infrav1.CloningReason,
-		Message: "",
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.CloningReason,
 	})
 
 	requeue, err = reconcileVirtualMachineConfig(context.Background(), machineScope)
