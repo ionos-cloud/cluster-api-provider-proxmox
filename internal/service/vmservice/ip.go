@@ -187,21 +187,18 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 		return false, err
 	}
 
-	defaultIPv4 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV4
-	defaultIPv6 := networkSpec.DefaultNetworkSpec.ClusterPoolDeviceV6
 	defaultPoolMap := make(map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 
 	requeue := false
 	for _, net := range networkSpec.NetworkDevices {
-		// TODO: Network Zones
 		pools := []corev1.TypedLocalObjectReference{}
 
-		// append default pools in front if they exist
-		if defaultIPv4 != nil && *defaultIPv4 == *net.Name && poolsRef.IPv4 != nil {
+		// append default pools in front if they exist.
+		if ptr.Deref(net.DefaultIPv4, false) && poolsRef.IPv4 != nil {
 			pools = append(pools, *poolsRef.IPv4)
 			defaultPoolMap[*poolsRef.IPv4] = []ipamv1.IPAddress{}
 		}
-		if defaultIPv6 != nil && *defaultIPv6 == *net.Name && poolsRef.IPv6 != nil {
+		if ptr.Deref(net.DefaultIPv6, false) && poolsRef.IPv6 != nil {
 			pools = append(pools, *poolsRef.IPv6)
 			defaultPoolMap[*poolsRef.IPv6] = []ipamv1.IPAddress{}
 		}

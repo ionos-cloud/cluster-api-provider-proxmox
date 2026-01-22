@@ -145,12 +145,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			},
 		},
 		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
-			Network: ptr.To(infrav1.NetworkSpec{
-				DefaultNetworkSpec: infrav1.DefaultNetworkSpec{
-					ClusterPoolDeviceV4: ptr.To("net0"),
-					ClusterPoolDeviceV6: ptr.To("net0"),
-				},
-			}),
+			Network: ptr.To(infrav1.NetworkSpec{}),
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
 					SourceNode: ptr.To("node1"),
@@ -322,12 +317,12 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 	for _, device := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
 		ipPoolRefs := device.IPPoolRef
 		// to do IPv4 first, we need to first append IPv6 in front and then IPv4
-		if *device.Name == ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6, "") {
+		if ptr.Deref(device.DefaultIPv6, false) {
 			if defaultPools.IPv6 != nil {
 				ipPoolRefs = slices.Concat([]corev1.TypedLocalObjectReference{defaultPools.IPv6.PoolRef}, ipPoolRefs)
 			}
 		}
-		if *device.Name == ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4, "") {
+		if ptr.Deref(device.DefaultIPv4, false) {
 			if defaultPools.IPv4 != nil {
 				ipPoolRefs = slices.Concat([]corev1.TypedLocalObjectReference{defaultPools.IPv4.PoolRef}, ipPoolRefs)
 			}
@@ -397,12 +392,9 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneRef {
 	cluster := machineScope.InfraCluster.ProxmoxCluster
 
-	zone := machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.Zone
-	if zone == nil {
-		zone = ptr.To("default")
-	}
+	zone := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.Zone, "default")
 	zoneIndex := slices.IndexFunc(cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
-		return *zone == *z.Zone
+		return zone == *z.Zone
 	})
 	return cluster.Status.InClusterZoneRef[zoneIndex]
 }

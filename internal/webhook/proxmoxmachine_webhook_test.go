@@ -129,6 +129,36 @@ var _ = Describe("Controller Test", func() {
 			}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine5)).To(MatchError(ContainSubstring("Cowardly refusing to insert l3mdev rules into kernel tables")))
 		})
+
+		It("should error with multiple default ipv4 pool tags", func() {
+			machine := validProxmoxMachine("multiple-default-v4-pools")
+			machine.Spec.Network.NetworkDevices[0].DefaultIPv4 = ptr.To(true)
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv4 = ptr.To(true)
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("More than one default IPv4/IPv6 interface in NetworkDevices")))
+		})
+
+		It("should error with multiple default ipv6 pool tags", func() {
+			machine := validProxmoxMachine("multiple-default-v6-pools")
+			machine.Spec.Network.NetworkDevices[0].DefaultIPv6 = ptr.To(true)
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv6 = ptr.To(true)
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("More than one default IPv4/IPv6 interface in NetworkDevices")))
+		})
+
+		It("should not add default ipv4/ipv6 pool tags when defined", func() {
+			machine := validProxmoxMachine("default-pools-exist")
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv4 = ptr.To(true)
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv6 = ptr.To(true)
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+			g.Expect(machine.Spec.Network.NetworkDevices[0].DefaultIPv4).To(BeNil())
+			g.Expect(machine.Spec.Network.NetworkDevices[0].DefaultIPv6).To(BeNil())
+		})
+
+		It("should add default ipv4/ipv6 pool tags ", func() {
+			machine := validProxmoxMachine("no-default-pools")
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+			g.Expect(*machine.Spec.Network.NetworkDevices[0].DefaultIPv4).To(Equal(true))
+			g.Expect(*machine.Spec.Network.NetworkDevices[0].DefaultIPv6).To(Equal(true))
+		})
 	})
 
 	Context("update proxmox cluster", func() {
@@ -186,10 +216,6 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 				},
 			},
 			Network: &infrav1.NetworkSpec{
-				DefaultNetworkSpec: infrav1.DefaultNetworkSpec{
-					ClusterPoolDeviceV4: ptr.To("net0"),
-					ClusterPoolDeviceV6: ptr.To("net0"),
-				},
 				NetworkDevices: []infrav1.NetworkDevice{{
 					Name:   ptr.To("net0"),
 					Bridge: ptr.To("vmbr1"),

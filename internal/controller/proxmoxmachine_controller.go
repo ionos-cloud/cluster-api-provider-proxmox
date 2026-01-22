@@ -227,7 +227,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	// Set proxmox deployment zone for label selectors.
 	labels := machineScope.ProxmoxMachine.GetLabels()
 	labels[infrav1.ProxmoxZoneLabel] =
-		ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.Zone, "default")
+		ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.Zone, "default")
 	machineScope.ProxmoxMachine.SetLabels(labels)
 
 	machineScope.SetReady()

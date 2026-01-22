@@ -82,29 +82,36 @@ func setupVMWithMetadata(machineScope *scope.MachineScope, netSpecs ...string) *
 	return vm
 }
 
-func addDefaultIPPool(machineScope *scope.MachineScope) corev1.TypedLocalObjectReference {
+// variadic so we can infer 0.
+func addDefaultIPPool(machineScope *scope.MachineScope, offset ...int) corev1.TypedLocalObjectReference {
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: "test-v4-icip",
 	}
 
-	defaultDeviceV4 := machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4
+	if len(offset) == 0 {
+		offset = append(offset, 0)
+	}
 	// call to add defaultNic
-	addIPPool(machineScope, defaultPool, defaultDeviceV4)
+	addIPPool(machineScope, defaultPool, ptr.To(fmt.Sprintf("net%d", offset[0])))
+	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv4 = ptr.To(true)
 
 	setInClusterIPPoolStatus(machineScope, "test-v4-icip", infrav1.IPv4Type, nil)
 	return defaultPool
 }
 
-func addDefaultIPPoolV6(machineScope *scope.MachineScope) corev1.TypedLocalObjectReference {
+func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...int) corev1.TypedLocalObjectReference {
 	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: "test-v6-icip",
 	}
 
-	defaultDeviceV6 := machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6
+	if len(offset) == 0 {
+		offset = append(offset, 0)
+	}
 	// call to add defaultNic
-	addIPPool(machineScope, defaultPoolV6, defaultDeviceV6)
+	addIPPool(machineScope, defaultPoolV6, ptr.To(fmt.Sprintf("net%d", offset[0])))
+	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv6 = ptr.To(true)
 
 	setInClusterIPPoolStatus(machineScope, "test-v6-icip", infrav1.IPv6Type, nil)
 	return defaultPoolV6
@@ -570,12 +577,9 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	// create missing defaultPoolV6.
 	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
-	// move ipv6 default device to net1
-	machineScope.ProxmoxMachine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6 = ptr.To("net1")
-
 	// NetworkSetup for default pools.
 	addDefaultIPPool(machineScope)
-	addDefaultIPPoolV6(machineScope)
+	addDefaultIPPoolV6(machineScope, 1)
 
 	// Create missing ip addresses and pools.
 	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "2001:db8::2")
@@ -607,10 +611,6 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
-		DefaultNetworkSpec: infrav1.DefaultNetworkSpec{
-			ClusterPoolDeviceV4: ptr.To("net0"),
-			ClusterPoolDeviceV6: ptr.To("net0"),
-		},
 		VirtualNetworkDevices: infrav1.VirtualNetworkDevices{
 			VRFs: []infrav1.VRFDevice{{
 				Interfaces: []infrav1.NetName{ptr.To("net1")},

@@ -41,11 +41,13 @@ type ProxmoxMachine struct{}
 func (p *ProxmoxMachine) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&infrav1.ProxmoxMachine{}).
+		WithDefaulter(p).
 		WithValidator(p).
 		Complete()
 }
 
 //+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachine,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,versions=v1alpha2,name=validation.proxmoxmachine.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:verbs=create;update,path=/mutate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachine,mutating=true,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,versions=v1alpha2,name=default.proxmoxmachine.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // ValidateCreate implements the creation validation function.
 func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
@@ -93,6 +95,16 @@ func (p *ProxmoxMachine) ValidateDelete(_ context.Context, _ runtime.Object) (wa
 	return nil, nil
 }
 
+func b2i(b *bool) int {
+	if b == nil {
+		return 0
+	}
+	if *b {
+		return 1
+	}
+	return 0
+}
+
 func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	if machine.Spec.Network == nil {
 		return nil
@@ -100,29 +112,22 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
-	defaultNetworkSpec := machine.Spec.Network.DefaultNetworkSpec
-	// TODO: This case can literally never happen because optional field with default value.
-	if defaultNetworkSpec.ClusterPoolDeviceV4 == nil && defaultNetworkSpec.ClusterPoolDeviceV6 == nil {
-		return apierrors.NewInvalid(
-			gk,
-			name,
-			field.ErrorList{
-				field.Invalid(
-					field.NewPath("spec", "network"),
-					defaultNetworkSpec,
-					"require any device for adding in cluster pool"),
-			})
-	}
-
-	clusterPoolDeviceV4Found := defaultNetworkSpec.ClusterPoolDeviceV4 == nil
-	clusterPoolDeviceV6Found := defaultNetworkSpec.ClusterPoolDeviceV6 == nil
-
+	defaultIPv4Count := 0
+	defaultIPv6Count := 0
 	for i, networkDevice := range machine.Spec.Network.NetworkDevices {
-		if ptr.Deref(machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4, "") == *networkDevice.Name {
-			clusterPoolDeviceV4Found = true
-		}
-		if ptr.Deref(machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6, "") == *networkDevice.Name {
-			clusterPoolDeviceV6Found = true
+		defaultIPv4Count += b2i(networkDevice.DefaultIPv4)
+		defaultIPv6Count += b2i(networkDevice.DefaultIPv6)
+		if defaultIPv4Count > 1 || defaultIPv6Count > 1 {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "networkDevices", fmt.Sprint(i)),
+						networkDevice,
+						"More than one default IPv4/IPv6 interface in NetworkDevices",
+					),
+				})
 		}
 
 		err := validateNetworkDeviceMTU(&networkDevice)
@@ -178,36 +183,6 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 		}
 	}
 
-	if !clusterPoolDeviceV4Found {
-		return apierrors.NewInvalid(
-			gk,
-			name,
-			field.ErrorList{
-				field.Invalid(
-					field.NewPath("spec", "network", "clusterPoolDeviceV4"),
-					machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4,
-					fmt.Sprintf("Network interface %s not found in NetworkDevices",
-						*machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV4,
-					),
-				),
-			})
-	}
-
-	if !clusterPoolDeviceV6Found {
-		return apierrors.NewInvalid(
-			gk,
-			name,
-			field.ErrorList{
-				field.Invalid(
-					field.NewPath("spec", "network", "clusterPoolDeviceV6"),
-					machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6,
-					fmt.Sprintf("Network interface %s not found in NetworkDevices",
-						*machine.Spec.Network.DefaultNetworkSpec.ClusterPoolDeviceV6,
-					),
-				),
-			})
-	}
-
 	return nil
 }
 
@@ -260,6 +235,36 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 		}
 
 		return fmt.Errorf("mtu must be at least 1280 or 1, but was %d", *device.MTU)
+	}
+
+	return nil
+}
+
+// Default implements the defaulting (mutating) webhook for ProxmoxMachines.
+func (p *ProxmoxMachine) Default(_ context.Context, obj runtime.Object) error {
+	machine, ok := obj.(*infrav1.ProxmoxMachine)
+	if !ok {
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", obj))
+	}
+
+	if len(machine.Spec.Network.NetworkDevices) == 0 {
+		return nil
+	}
+
+	// Patch default networks if they are unset.
+	defaultIPv4Count := 0
+	defaultIPv6Count := 0
+
+	for _, networkDevice := range machine.Spec.Network.NetworkDevices {
+		defaultIPv4Count += b2i(networkDevice.DefaultIPv4)
+		defaultIPv6Count += b2i(networkDevice.DefaultIPv6)
+	}
+
+	if defaultIPv4Count == 0 {
+		machine.Spec.Network.NetworkDevices[0].DefaultIPv4 = ptr.To(true)
+	}
+	if defaultIPv6Count == 0 {
+		machine.Spec.Network.NetworkDevices[0].DefaultIPv6 = ptr.To(true)
 	}
 
 	return nil

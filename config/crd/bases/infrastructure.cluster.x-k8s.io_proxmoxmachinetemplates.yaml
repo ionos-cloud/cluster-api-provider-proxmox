@@ -863,18 +863,6 @@ spec:
                         description: network is the network configuration for this
                           machine's VM.
                         properties:
-                          clusterPoolDeviceV4:
-                            default: net0
-                            description: clusterPoolDeviceV4 the proxmox network device
-                              the ipv4 InClusterIPPool will be added to.
-                            pattern: ^net[0-9]+$
-                            type: string
-                          clusterPoolDeviceV6:
-                            default: net0
-                            description: clusterPoolDeviceV6 is the proxmox network
-                              device the ipv6 InClusterIPPool will be added to.
-                            pattern: ^net[0-9]+$
-                            type: string
                           networkDevices:
                             description: |-
                               networkDevices lists network devices.
@@ -888,6 +876,14 @@ spec:
                                     to the machine.
                                   minLength: 1
                                   type: string
+                                defaultIPv4:
+                                  description: defaultIPv4 attaches the ipv4 host
+                                    network to this interface.
+                                  type: boolean
+                                defaultIPv6:
+                                  description: defaultIPv6 attaches the ipv6 host
+                                    network to this interface.
+                                  type: boolean
                                 dnsServers:
                                   description: |-
                                     dnsServers contains information about nameservers to be used for this interface.
