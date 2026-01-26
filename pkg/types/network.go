@@ -32,7 +32,7 @@ type NetworkConfigData struct {
 	IPConfigs  []IPConfig
 	DNSServers []string
 	Type       string
-	Name       string
+	Name       string   // Interface name for Netplan.
 	Interfaces []string // Interfaces controlled by this one.
 	Table      int32    // linux routing table number for VRF.
 	Routes     []RoutingData

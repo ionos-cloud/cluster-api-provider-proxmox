@@ -426,7 +426,7 @@ type NetworkDevice struct {
 
 	// name is the network device name.
 	// +kubebuilder:default=net0
-	// +optional
+	// +required
 	Name NetName `json:"name,omitempty"`
 
 	// InterfaceConfig contains all configurables a network interface can have.

@@ -192,11 +192,6 @@ func (in *NetworkDevice) DeepCopyInto(out *NetworkDevice) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.Name != nil {
-		in, out := &in.Name, &out.Name
-		*out = new(string)
-		**out = **in
-	}
 	in.InterfaceConfig.DeepCopyInto(&out.InterfaceConfig)
 }
 
@@ -253,7 +248,7 @@ func (in *NetworkStatus) DeepCopyInto(out *NetworkStatus) {
 	}
 	if in.NetworkName != nil {
 		in, out := &in.NetworkName, &out.NetworkName
-		*out = new(string)
+		*out = new(NetName)
 		**out = **in
 	}
 }
@@ -1202,13 +1197,7 @@ func (in *VRFDevice) DeepCopyInto(out *VRFDevice) {
 	if in.Interfaces != nil {
 		in, out := &in.Interfaces, &out.Interfaces
 		*out = make([]NetName, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(string)
-				**out = **in
-			}
-		}
+		copy(*out, *in)
 	}
 	in.Routing.DeepCopyInto(&out.Routing)
 }

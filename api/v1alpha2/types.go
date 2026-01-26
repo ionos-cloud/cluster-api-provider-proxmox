@@ -102,12 +102,18 @@ type NetworkStatus struct {
 
 	// networkName is the name of the network.
 	// +optional
-	NetworkName NetName `json:"networkName,omitempty"`
+	NetworkName *NetName `json:"networkName,omitempty"`
 }
 
 // NetName is a formally verified Proxmox network name string.
 // +kubebuilder:validation:Pattern=`^net[0-9]+$`
-type NetName *string
+// +kubebuilder:validation:MinLength=4
+type NetName string
+
+// String is the netName conversion to string function.
+func (n NetName) String() string {
+	return string(n)
+}
 
 // Zone is a formally verified Proxmox network zone name. Needs to adhere to Label rules.
 // +kubebuilder:validation:Pattern=`^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$`

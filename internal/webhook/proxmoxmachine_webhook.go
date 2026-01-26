@@ -117,7 +117,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 
 	sortedNetworks := machine.Spec.Network.NetworkDevices
 	slices.SortFunc(sortedNetworks, func(nd1, nd2 infrav1.NetworkDevice) int {
-		return strings.Compare(*nd1.Name, *nd2.Name)
+		return strings.Compare(nd1.Name.String(), nd2.Name.String())
 	})
 
 	defaultIPv4Count := 0
@@ -289,7 +289,7 @@ func (p *ProxmoxMachine) Default(_ context.Context, obj runtime.Object) error {
 	}
 
 	// We guarantee that DefaultNetworkDevice is a valid proxmox network device.
-	offset, _ := vmservice.NetNameToOffset(ptr.To(infrav1.DefaultNetworkDevice))
+	offset, _ := vmservice.NetNameToOffset(infrav1.DefaultNetworkDevice)
 	if defaultIPv4Count == 0 {
 		machine.Spec.Network.NetworkDevices[offset].DefaultIPv4 = ptr.To(true)
 	}

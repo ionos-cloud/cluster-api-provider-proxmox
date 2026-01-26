@@ -87,7 +87,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow having two devices named net0", func() {
 			machine := validProxmoxMachine("net-additional-name-net0")
-			machine.Spec.Network.NetworkDevices[1].Name = ptr.To("net0")
+			machine.Spec.Network.NetworkDevices[1].Name = "net0"
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("Duplicate value")))
 		})
 
@@ -162,7 +162,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should not allow non consecutive network interface names ", func() {
 			machine := validProxmoxMachine("non-consecutive-netname")
-			machine.Spec.Network.NetworkDevices[1].Name = ptr.To("net2")
+			machine.Spec.Network.NetworkDevices[1].Name = "net2"
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("consecutive")))
 		})
 	})
@@ -223,13 +223,13 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 			},
 			Network: &infrav1.NetworkSpec{
 				NetworkDevices: []infrav1.NetworkDevice{{
-					Name:   ptr.To("net0"),
+					Name:   "net0",
 					Bridge: ptr.To("vmbr1"),
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(int32(1500)),
 					VLAN:   ptr.To(int32(100)),
 				}, {
-					Name:   ptr.To("net1"),
+					Name:   "net1",
 					Bridge: ptr.To("vmbr2"),
 					Model:  ptr.To("virtio"),
 					MTU:    ptr.To(int32(1500)),
@@ -266,7 +266,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
-		Name:   ptr.To("net0"),
+		Name:   "net0",
 		Bridge: ptr.To("vmbr1"),
 		Model:  ptr.To("virtio"),
 		MTU:    ptr.To(int32(50)),
@@ -277,7 +277,7 @@ func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 func invalidVLANProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
-		Name:   ptr.To("net0"),
+		Name:   "net0",
 		Bridge: ptr.To("vmbr1"),
 		Model:  ptr.To("virtio"),
 		VLAN:   ptr.To(int32(0)),

@@ -49,7 +49,7 @@ const (
 var defaultNic = infrav1.NetworkDevice{
 	Bridge: ptr.To("vmbr0"),
 	Model:  ptr.To("virtio"),
-	Name:   ptr.To(infrav1.DefaultNetworkDevice),
+	Name:   infrav1.DefaultNetworkDevice,
 }
 
 func setupFakeIsoInjector(t *testing.T) *[]byte {
@@ -83,7 +83,7 @@ func setupVMWithMetadata(machineScope *scope.MachineScope, netSpecs ...string) *
 }
 
 // variadic so we can infer 0.
-func addDefaultIPPool(machineScope *scope.MachineScope, offset ...int) corev1.TypedLocalObjectReference {
+func addDefaultIPPool(machineScope *scope.MachineScope, offset ...uint8) corev1.TypedLocalObjectReference {
 	defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: "test-v4-icip",
@@ -93,14 +93,14 @@ func addDefaultIPPool(machineScope *scope.MachineScope, offset ...int) corev1.Ty
 		offset = append(offset, 0)
 	}
 	// call to add defaultNic
-	addIPPool(machineScope, defaultPool, ptr.To(fmt.Sprintf("net%d", offset[0])))
+	addIPPool(machineScope, defaultPool, OffsetToNetName(offset[0]))
 	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv4 = ptr.To(true)
 
 	setInClusterIPPoolStatus(machineScope, "test-v4-icip", infrav1.IPv4Type, nil)
 	return defaultPool
 }
 
-func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...int) corev1.TypedLocalObjectReference {
+func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...uint8) corev1.TypedLocalObjectReference {
 	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: "test-v6-icip",
@@ -110,7 +110,7 @@ func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...int) corev1.
 		offset = append(offset, 0)
 	}
 	// call to add defaultNic
-	addIPPool(machineScope, defaultPoolV6, ptr.To(fmt.Sprintf("net%d", offset[0])))
+	addIPPool(machineScope, defaultPoolV6, OffsetToNetName(offset[0]))
 	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv6 = ptr.To(true)
 
 	setInClusterIPPoolStatus(machineScope, "test-v6-icip", infrav1.IPv6Type, nil)
@@ -120,20 +120,32 @@ func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...int) corev1.
 // justification: future proofing for symmetry
 //
 //nolint:unused
-func addInClusterIPPool(machineScope *scope.MachineScope, poolName string, netName infrav1.NetName) corev1.TypedLocalObjectReference {
+func addInClusterIPPool(machineScope *scope.MachineScope, poolName string, offset ...uint8) corev1.TypedLocalObjectReference {
 	inClusterIPPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: poolName,
 	}
+
+	if len(offset) == 0 {
+		offset = append(offset, 0)
+	}
+	netName := OffsetToNetName(offset[0])
+
 	addIPPool(machineScope, inClusterIPPool, netName)
 	return inClusterIPPool
 }
 
-func addGlobalInClusterIPPool(machineScope *scope.MachineScope, poolName string, netName infrav1.NetName) corev1.TypedLocalObjectReference {
+func addGlobalInClusterIPPool(machineScope *scope.MachineScope, poolName string, offset ...uint8) corev1.TypedLocalObjectReference {
 	globalInClusterIPPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
 		Kind: GetGlobalInClusterIPPoolKind(),
 		Name: poolName,
 	}
+
+	if len(offset) == 0 {
+		offset = append(offset, 0)
+	}
+	netName := OffsetToNetName(offset[0])
+
 	addIPPool(machineScope, globalInClusterIPPool, netName)
 	return globalInClusterIPPool
 }
@@ -200,7 +212,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
-	require.Equal(t, "net0", *networkConfigData[0].ProxName)
+	require.Equal(t, infrav1.NetName("net0"), networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
 
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
@@ -216,7 +228,7 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 
 	// NetworkSetup
 	defaultPool := addDefaultIPPool(machineScope)
-	extraPool0 := addGlobalInClusterIPPool(machineScope, "extraPool0", ptr.To("net1"))
+	extraPool0 := addGlobalInClusterIPPool(machineScope, "extraPool0", 1)
 
 	createIPPools(t, kubeClient, machineScope)
 
@@ -243,13 +255,13 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
-	require.Equal(t, "net0", *networkConfigData[0].ProxName)
+	require.Equal(t, infrav1.NetName("net0"), networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
 	require.Equal(t, "10.100.10.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "10.100.10.1", networkConfigData[1].IPConfigs[0].Gateway)
 	require.Equal(t, "AA:23:64:4D:84:CD", networkConfigData[1].MacAddress)
 	require.Equal(t, "eth1", networkConfigData[1].Name)
-	require.Equal(t, "net1", *networkConfigData[1].ProxName)
+	require.Equal(t, infrav1.NetName("net1"), networkConfigData[1].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[1].Type)
 
 	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
@@ -360,7 +372,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 			{
 				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
-				Name:   ptr.To("net1"),
+				Name:   "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{
 					IPPoolRef: []corev1.TypedLocalObjectReference{{
 						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -387,7 +399,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 			{
 				Bridge: ptr.To("vmbr1"),
 				Model:  ptr.To("virtio"),
-				Name:   ptr.To("net1"),
+				Name:   "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
 					LinkMTU:    &MTU,
@@ -424,7 +436,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 			VRFs: []infrav1.VRFDevice{{
 				Name:       "vrf-blue",
 				Table:      500,
-				Interfaces: []infrav1.NetName{ptr.To("net1")},
+				Interfaces: []infrav1.NetName{"net1"},
 			}},
 		},
 	}
@@ -520,8 +532,8 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	addDefaultIPPoolV6(machineScope)
 
 	// NetworkSetup for extra pools.
-	addGlobalInClusterIPPool(machineScope, "extraPool0", ptr.To("net1"))
-	addGlobalInClusterIPPool(machineScope, "extraPool1", ptr.To("net1"))
+	addGlobalInClusterIPPool(machineScope, "extraPool0", 1)
+	addGlobalInClusterIPPool(machineScope, "extraPool1", 1)
 
 	// Create missing ip addresses and pools.
 	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "2001:db8::2", "10.0.0.10", "2001:db8::9")
@@ -613,7 +625,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		VirtualNetworkDevices: infrav1.VirtualNetworkDevices{
 			VRFs: []infrav1.VRFDevice{{
-				Interfaces: []infrav1.NetName{ptr.To("net1")},
+				Interfaces: []infrav1.NetName{"net1"},
 				Name:       "vrf-blue",
 				Table:      500,
 			}},
@@ -624,8 +636,8 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	addDefaultIPPool(machineScope)
 
 	// NetworkSetup for extra pools.
-	addGlobalInClusterIPPool(machineScope, "extraPool0", ptr.To("net0"))
-	addGlobalInClusterIPPool(machineScope, "extraPool1", ptr.To("net1"))
+	addGlobalInClusterIPPool(machineScope, "extraPool0")
+	addGlobalInClusterIPPool(machineScope, "extraPool1", 1)
 
 	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "10.20.10.10/23", "10.100.10.10/22")
 
@@ -763,7 +775,7 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	addDefaultIPPool(machineScope)
 
 	// NetworkSetup for extra pools.
-	addGlobalInClusterIPPool(machineScope, "extraPool0", ptr.To("net0"))
+	addGlobalInClusterIPPool(machineScope, "extraPool0")
 
 	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "10.5.10.10/23")
 

@@ -18,7 +18,6 @@ package vmservice
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -26,7 +25,6 @@ import (
 
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -148,7 +146,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 	devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 	for _, v := range devices {
-		net := nets[ptr.Deref(v.Name, infrav1.DefaultNetworkDevice)]
+		net := nets[v.Name.String()]
 		// device is empty.
 		if len(net) == 0 {
 			return true
@@ -210,13 +208,9 @@ func extractMACAddress(input string) string {
 
 // NetNameToOffset converts a proxmox network name to a NetworkDevice offset.
 func NetNameToOffset(name infrav1.NetName) (int, error) {
-	if name == nil {
-		return -1, errors.New("called without input")
-	}
-
-	offset, found := strings.CutPrefix(*name, "net")
+	offset, found := strings.CutPrefix(name.String(), "net")
 	if !found {
-		return -1, fmt.Errorf("invalid proxmox network name: %s", *name)
+		return -1, fmt.Errorf("invalid proxmox network name: %s", name)
 	}
 
 	return strconv.Atoi(offset)
@@ -224,5 +218,5 @@ func NetNameToOffset(name infrav1.NetName) (int, error) {
 
 // OffsetToNetName converts an integer to a proxmox network name.
 func OffsetToNetName(offset uint8) infrav1.NetName {
-	return ptr.To(fmt.Sprintf("net%d", offset))
+	return infrav1.NetName(fmt.Sprintf("net%d", offset))
 }

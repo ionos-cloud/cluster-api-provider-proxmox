@@ -196,19 +196,16 @@ func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope)
 	return networkConfigData, nil
 }
 
-func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device string, ipPoolRefs map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (*types.NetworkConfigData, error) {
-	if device == "" {
+func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, dev infrav1.NetName, ipPoolRefs map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (*types.NetworkConfigData, error) {
+	if dev == "" {
 		// this should never happen outwith tests
 		return nil, errors.New("empty device name")
 	}
 
 	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
-	// For nics supporting multiple IP addresses, we need to cut the '-inet' or '-inet6' part,
-	// to retrieve the correct MAC address.
-	formattedDevice, _, _ := strings.Cut(device, "-")
-	macAddress := extractMACAddress(nets[formattedDevice])
+	macAddress := extractMACAddress(nets[dev.String()])
 	if len(macAddress) == 0 {
-		machineScope.Logger.Error(errors.New("unable to extract mac address"), "device has no mac address", "device", device)
+		machineScope.Logger.Error(errors.New("unable to extract mac address"), "device has no mac address", "device", dev)
 		return nil, errors.New("unable to extract mac address")
 	}
 
@@ -265,7 +262,7 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 
 func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1.NetworkSpec) ([]types.NetworkConfigData, error) {
 	networkConfigData := make([]types.NetworkConfigData, 0, len(network.NetworkDevices))
-	ipAddressMap := make(map[string]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+	ipAddressMap := make(map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 
 	requeue, err := handleDevices(ctx, machineScope, ipAddressMap)
 	if requeue || err != nil {
@@ -276,13 +273,11 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 	// network devices.
 	for i, nic := range network.NetworkDevices {
 		var config = ptr.To(types.NetworkConfigData{})
+		ipPoolRefs := ipAddressMap[nic.Name]
 
-		// TODO: Default device IPPool api change
-		ipPoolRefs := ipAddressMap[*nic.Name]
-
-		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, *nic.Name, ipPoolRefs)
+		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, nic.Name, ipPoolRefs)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", *nic.Name)
+			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
 		}
 		if len(nic.DNSServers) != 0 {
 			config.DNSServers = nic.DNSServers
@@ -294,11 +289,6 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 		config.Name = fmt.Sprintf("eth%d", i)
 		config.Type = "ethernet"
 		config.ProxName = nic.Name
-
-		// TODO: Figure device names for eth0
-		if i == 0 {
-			config.ProxName = ptr.To("net0")
-		}
 
 		if len(config.MacAddress) > 0 {
 			networkConfigData = append(networkConfigData, *config)
@@ -318,12 +308,12 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 
 		for i, child := range device.Interfaces {
 			for _, net := range data {
-				if (net.Name == *child) || (ptr.Deref(net.ProxName, "") == *child) {
+				if net.Name == child.String() || net.ProxName == child {
 					config.Interfaces = append(config.Interfaces, net.Name)
 				}
 			}
 			if len(config.Interfaces)-1 < i {
-				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, *child)
+				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
 			}
 		}
 

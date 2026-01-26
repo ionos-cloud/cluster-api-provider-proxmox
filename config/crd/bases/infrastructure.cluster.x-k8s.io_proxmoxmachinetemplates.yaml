@@ -961,6 +961,7 @@ spec:
                                 name:
                                   default: net0
                                   description: name is the network device name.
+                                  minLength: 4
                                   pattern: ^net[0-9]+$
                                   type: string
                                 routes:
@@ -1030,6 +1031,8 @@ spec:
                                   maximum: 4094
                                   minimum: 1
                                   type: integer
+                              required:
+                              - name
                               type: object
                             type: array
                             x-kubernetes-list-map-keys:
@@ -1047,6 +1050,7 @@ spec:
                                   items:
                                     description: NetName is a formally verified Proxmox
                                       network name string.
+                                    minLength: 4
                                     pattern: ^net[0-9]+$
                                     type: string
                                   type: array

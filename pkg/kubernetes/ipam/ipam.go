@@ -71,7 +71,7 @@ func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, zone infrav1.Zone, for
 
 // IPAddressFormat returns an ipaddress name.
 func IPAddressFormat(machineName string, proxDeviceName infrav1.NetName, offset int, suffix string) string {
-	return fmt.Sprintf("%s-%s-%02d-%s", machineName, ptr.Deref(proxDeviceName, ""), offset, suffix)
+	return fmt.Sprintf("%s-%s-%02d-%s", machineName, proxDeviceName, offset, suffix)
 }
 
 func isIPv4(ip string) (bool, error) {

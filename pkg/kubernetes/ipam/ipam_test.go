@@ -249,7 +249,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 	}, &pool))
 
 	ipClaimDef := IPClaimDef{
-		Device: ptr.To(infrav1.DefaultNetworkDevice),
+		Device: infrav1.DefaultNetworkDevice,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
 			APIGroup: GetIpamInClusterAPIGroup(),
@@ -297,7 +297,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 	}, &globalPool))
 
 	ipClaimDef = IPClaimDef{
-		Device: ptr.To(infrav1.DefaultNetworkDevice),
+		Device: infrav1.DefaultNetworkDevice,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-ippool-annotations",
 			APIGroup: GetIpamInClusterAPIGroup(),
@@ -353,7 +353,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	device := ptr.To(infrav1.DefaultNetworkDevice)
+	device := infrav1.NetName(infrav1.DefaultNetworkDevice)
 
 	ipClaimDef := IPClaimDef{
 		Device: device,
@@ -398,7 +398,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Name:      "test-additional-cluster-icip",
 	}, &additionalPool))
 
-	additionalDevice := ptr.To("net1")
+	additionalDevice := infrav1.NetName("net1")
 
 	ipClaimDef = IPClaimDef{
 		Device: additionalDevice,
@@ -433,7 +433,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 	}, &globalPool))
 
 	ipClaimDef = IPClaimDef{
-		Device: ptr.To("net2"),
+		Device: "net2",
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-global-cluster-icip",
 			APIGroup: GetIpamInClusterAPIGroup(),
@@ -487,7 +487,7 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 	}, &pool))
 
 	ipClaimDef := IPClaimDef{
-		Device: ptr.To(infrav1.DefaultNetworkDevice),
+		Device: infrav1.DefaultNetworkDevice,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
 			APIGroup: GetIpamInClusterAPIGroup(),

@@ -302,7 +302,7 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 	}
 
 	poolName := ptr.Deref(pools[0], corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	ipName := ipam.IPAddressFormat(machineScope.Name(), &poolName, offset, device)
+	ipName := ipam.IPAddressFormat(machineScope.Name(), infrav1.NetName(poolName), offset, device)
 	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, offset, pools[1])
 }
 
@@ -329,7 +329,7 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 		}
 
 		for offset, poolRef := range ipPoolRefs {
-			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], offset, &corev1.TypedLocalObjectReference{Name: *device.Name}, &poolRef)
+			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], offset, &corev1.TypedLocalObjectReference{Name: device.Name.String()}, &poolRef)
 			i++
 		}
 	}
