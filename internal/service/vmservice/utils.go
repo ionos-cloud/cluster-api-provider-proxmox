@@ -18,6 +18,7 @@ package vmservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -205,4 +206,23 @@ func extractMACAddress(input string) string {
 		return matches[1]
 	}
 	return ""
+}
+
+// NetNameToOffset converts a proxmox network name to a NetworkDevice offset.
+func NetNameToOffset(name infrav1.NetName) (int, error) {
+	if name == nil {
+		return -1, errors.New("called without input")
+	}
+
+	offset, found := strings.CutPrefix(*name, "net")
+	if !found {
+		return -1, fmt.Errorf("nvalid proxmox network name: %s", *name)
+	}
+
+	return strconv.Atoi(offset)
+}
+
+// OffsetToNetName converts an integer to a proxmox network name.
+func OffsetToNetName(offset uint8) infrav1.NetName {
+	return ptr.To(fmt.Sprintf("net%d", offset))
 }

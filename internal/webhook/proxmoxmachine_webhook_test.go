@@ -153,11 +153,17 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(machine.Spec.Network.NetworkDevices[0].DefaultIPv6).To(BeNil())
 		})
 
-		It("should add default ipv4/ipv6 pool tags ", func() {
+		It("should add default ipv4/ipv6 pool tags", func() {
 			machine := validProxmoxMachine("no-default-pools")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 			g.Expect(*machine.Spec.Network.NetworkDevices[0].DefaultIPv4).To(Equal(true))
 			g.Expect(*machine.Spec.Network.NetworkDevices[0].DefaultIPv6).To(Equal(true))
+		})
+
+		It("should not allow non consecutive network interface names ", func() {
+			machine := validProxmoxMachine("non-consecutive-netname")
+			machine.Spec.Network.NetworkDevices[1].Name = ptr.To("net2")
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("consecutive")))
 		})
 	})
 

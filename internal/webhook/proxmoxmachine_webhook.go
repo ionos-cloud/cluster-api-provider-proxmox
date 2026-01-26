@@ -20,6 +20,8 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/vmservice"
 )
 
 // ProxmoxMachine is a type that implements
@@ -112,9 +115,34 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 
 	gk, name := machine.GroupVersionKind().GroupKind(), machine.GetName()
 
+	sortedNetworks := machine.Spec.Network.NetworkDevices
+	slices.SortFunc(sortedNetworks, func(nd1, nd2 infrav1.NetworkDevice) int {
+		return strings.Compare(*nd1.Name, *nd2.Name)
+	})
+
 	defaultIPv4Count := 0
 	defaultIPv6Count := 0
-	for i, networkDevice := range machine.Spec.Network.NetworkDevices {
+	for i, networkDevice := range sortedNetworks {
+		// We can disregard error here, because all names are validated
+		// by the CRD.
+		offset, _ := vmservice.NetNameToOffset(networkDevice.Name)
+
+		// It is possible to have non consecutive proxmox interface names,
+		// but this can only be achieved by adding and then deleting.
+		if offset != i {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "networkDevices", fmt.Sprint(i), "name"),
+						networkDevice.Name,
+						"Non-consecutive proxmox interface name",
+					),
+				},
+			)
+		}
+
 		defaultIPv4Count += b2i(networkDevice.DefaultIPv4)
 		defaultIPv6Count += b2i(networkDevice.DefaultIPv6)
 		if defaultIPv4Count > 1 || defaultIPv6Count > 1 {
@@ -260,11 +288,13 @@ func (p *ProxmoxMachine) Default(_ context.Context, obj runtime.Object) error {
 		defaultIPv6Count += b2i(networkDevice.DefaultIPv6)
 	}
 
+	// We guarantee that DefaultNetworkDevice is a valid proxmox network device.
+	offset, _ := vmservice.NetNameToOffset(ptr.To(infrav1.DefaultNetworkDevice))
 	if defaultIPv4Count == 0 {
-		machine.Spec.Network.NetworkDevices[0].DefaultIPv4 = ptr.To(true)
+		machine.Spec.Network.NetworkDevices[offset].DefaultIPv4 = ptr.To(true)
 	}
 	if defaultIPv6Count == 0 {
-		machine.Spec.Network.NetworkDevices[0].DefaultIPv6 = ptr.To(true)
+		machine.Spec.Network.NetworkDevices[offset].DefaultIPv6 = ptr.To(true)
 	}
 
 	return nil
