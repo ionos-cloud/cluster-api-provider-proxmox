@@ -18,6 +18,7 @@ limitations under the License.
 package cloudinit
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -443,7 +444,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -465,7 +466,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -489,7 +490,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -512,7 +513,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -535,7 +536,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -545,7 +546,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c3",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.11.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.11.12/24"),
 							Gateway:   "10.10.11.1",
 							Metric:    ptr.To(int32(200)),
 						}},
@@ -576,7 +577,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -585,7 +586,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type: "ethernet",
 						Name: "eth1",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.11.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.11.12/24"),
 							Gateway:   "10.10.11.1",
 							Metric:    ptr.To(int32(200)),
 						}},
@@ -626,50 +627,6 @@ func TestNetworkConfig_Render(t *testing.T) {
 				err:     ErrMissingIPAddress,
 			},
 		},
-		"InvalidNetworkConfigMalformedIp": {
-			reason: "malformed ip address",
-			args: args{
-				nics: []types.NetworkConfigData{
-					{
-						Type:       "ethernet",
-						Name:       "eth0",
-						MacAddress: "92:60:a0:5b:22:c2",
-						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12",
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
-						}},
-						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-					},
-				},
-			},
-			want: want{
-				network: "",
-				err:     ErrMalformedIPAddress,
-			},
-		},
-		"InvalidNetworkConfigMalformedIP": {
-			reason: "ip address malformed",
-			args: args{
-				nics: []types.NetworkConfigData{
-					{
-						Type:       "ethernet",
-						Name:       "eth0",
-						MacAddress: "92:60:a0:5b:22:c2",
-						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.115",
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
-						}},
-						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-					},
-				},
-			},
-			want: want{
-				network: "",
-				err:     ErrMalformedIPAddress,
-			},
-		},
 		"InvalidNetworkConfigGW": {
 			reason: "gw is not set",
 			args: args{
@@ -679,7 +636,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
@@ -699,7 +656,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type: "ethernet",
 						Name: "eth0",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.11/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.11/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -721,7 +678,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.11/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.11/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -731,7 +688,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c5",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.11.11/24",
+							IPAddress: netip.MustParsePrefix("10.10.11.11/24"),
 							Gateway:   "10.10.11.254",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -753,7 +710,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -774,7 +731,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -785,7 +742,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "196.168.100.124/24",
+							IPAddress: netip.MustParsePrefix("196.168.100.124/24"),
 							Gateway:   "196.168.100.254",
 							Metric:    ptr.To(int32(200)),
 						}},
@@ -817,11 +774,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}, {
-							IPAddress: "2001:db8::1/64",
+							IPAddress: netip.MustParsePrefix("2001:db8::1/64"),
 							Gateway:   "2001:db8::1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -843,7 +800,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "2001:db8::1/64",
+							IPAddress: netip.MustParsePrefix("2001:db8::1/64"),
 							Gateway:   "2001:db8::1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -922,7 +879,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -933,7 +890,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "196.168.100.124/24",
+							IPAddress: netip.MustParsePrefix("196.168.100.124/24"),
 							Gateway:   "196.168.100.254",
 							Metric:    ptr.To(int32(200)),
 						}},
@@ -977,7 +934,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "10.10.10.12/24",
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 							Gateway:   "10.10.10.1",
 							Metric:    ptr.To(int32(100)),
 						}},
@@ -988,7 +945,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: "196.168.100.124/24",
+							IPAddress: netip.MustParsePrefix("196.168.100.124/24"),
 							Gateway:   "196.168.100.254",
 							Metric:    ptr.To(int32(200)),
 						}},

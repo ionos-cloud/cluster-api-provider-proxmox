@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions" //nolint:staticcheck
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	ipam "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -143,10 +144,10 @@ func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.Machine
 	return rv, nil
 }
 
-func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, dev *string, poolNum int, poolRef corev1.TypedLocalObjectReference) ([]ipamv1.IPAddress, error) {
-	device := ptr.Deref(dev, infrav1.DefaultNetworkDevice)
+func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error) {
+	device := ptr.Deref(ipClaimDef.Device, infrav1.DefaultNetworkDevice)
 
-	ipAddresses, err := findIPAddress(ctx, poolRef, machineScope)
+	ipAddresses, err := findIPAddress(ctx, ipClaimDef.PoolRef, machineScope)
 	if err != nil {
 		// Technically this error cannot occur as fieldselectors just return empty lists
 		if !apierrors.IsNotFound(err) {
@@ -155,13 +156,13 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, de
 	}
 
 	index := slices.IndexFunc(ipAddresses, func(ip ipamv1.IPAddress) bool {
-		return ip.GetAnnotations()[infrav1.ProxmoxPoolRefCounterAnnotation] == fmt.Sprintf("%d", poolNum)
+		return ip.GetAnnotations()[infrav1.ProxmoxPoolRefCounterAnnotation] == ipClaimDef.Annotations[infrav1.ProxmoxPoolRefCounterAnnotation]
 	})
 
 	if index < 0 {
 		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
 		// IpAddress not yet created.
-		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, device, poolNum, poolRef)
+		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
 		if err != nil {
 			return []ipamv1.IPAddress{}, errors.Wrapf(err, "unable to create Ip address claim for machine %s", machineScope.Name())
 		}
@@ -204,7 +205,22 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 		}
 
 		for i, ipPool := range slices.Concat(pools, net.InterfaceConfig.IPPoolRef) {
-			ipAddresses, err := handleIPAddresses(ctx, machineScope, net.Name, i, ipPool)
+			ipClaimDef := ipam.IPClaimDef{
+				PoolRef: ipPool,
+				Device:  net.Name,
+				Annotations: map[string]string{
+					infrav1.ProxmoxPoolRefCounterAnnotation: fmt.Sprintf("%d", i),
+				},
+			}
+			// TODO: I hate this default pool logic
+			if ptr.Deref(net.DefaultIPv4, false) &&
+				ipPool == ptr.Deref(poolsRef.IPv4, corev1.TypedLocalObjectReference{}) ||
+				ptr.Deref(net.DefaultIPv6, false) &&
+					ipPool == ptr.Deref(poolsRef.IPv6, corev1.TypedLocalObjectReference{}) {
+				ipClaimDef.Annotations[infrav1.ProxmoxDefaultGatewayAnnotation] = "true"
+			}
+
+			ipAddresses, err := handleIPAddresses(ctx, machineScope, ipClaimDef)
 			if err != nil {
 				return true, errors.Wrapf(err, "unable to handle IPAddress for device %+v, pool %s", net.Name, ipPool.Name)
 			}
@@ -223,7 +239,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 			addresses[*net.Name] = poolMap
 
 			// append default pool addresses to map
-			if _, exists := defaultPoolMap[ipPool]; exists {
+			if _, exists := defaultPoolMap[ipPool]; exists && ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false) {
 				defaultPoolMap[ipPool] = ipAddresses
 			}
 		}

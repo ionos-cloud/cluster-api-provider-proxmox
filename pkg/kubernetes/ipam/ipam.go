@@ -21,9 +21,11 @@ package ipam
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/netip"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -68,8 +70,8 @@ func InClusterPoolFormat(cluster *infrav1.ProxmoxCluster, zone infrav1.Zone, for
 }
 
 // IPAddressFormat returns an ipaddress name.
-func IPAddressFormat(machineName, proxDeviceName string, offset int, suffix string) string {
-	return fmt.Sprintf("%s-%s-%02d-%s", machineName, proxDeviceName, offset, suffix)
+func IPAddressFormat(machineName string, proxDeviceName infrav1.NetName, offset int, suffix string) string {
+	return fmt.Sprintf("%s-%s-%02d-%s", machineName, ptr.Deref(proxDeviceName, ""), offset, suffix)
 }
 
 func isIPv4(ip string) (bool, error) {
@@ -418,13 +420,27 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 	return ipPool.(metav1.Object).GetAnnotations(), nil
 }
 
+// IPClaimDef holds all data required to make an ipAddressClaim.
+type IPClaimDef struct {
+	Device      infrav1.NetName
+	PoolRef     corev1.TypedLocalObjectReference
+	Annotations map[string]string
+}
+
 // CreateIPAddressClaim creates an IPAddressClaim for a given object.
-func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, device string, poolNum int, ref corev1.TypedLocalObjectReference) error {
+func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, ipClaimRef IPClaimDef) error {
 	key := client.ObjectKey{
 		Namespace: owner.GetNamespace(),
 		Name:      owner.GetName(),
 	}
 	suffix := infrav1.DefaultSuffix
+
+	ref := ipClaimRef.PoolRef
+	device := ipClaimRef.Device
+	annotations := ipClaimRef.Annotations
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
 
 	poolObj, err := h.GetIPPool(ctx, ref)
 	if err != nil {
@@ -453,15 +469,21 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 		labels[infrav1.ProxmoxZoneLabel] = key
 	}
 
-	// Add a reference counter to allow multiple ip addresses per owner.
-	annotations := map[string]string{
-		infrav1.ProxmoxPoolRefCounterAnnotation: fmt.Sprintf("%d", poolNum),
+	// Add a fallback for this ipAddress's offset.
+	offset, exists := annotations[infrav1.ProxmoxPoolRefCounterAnnotation]
+	if !exists {
+		offset = "0"
+	}
+
+	offsetNum, err := strconv.Atoi(offset)
+	if err != nil {
+		return err
 	}
 
 	// TODO: suffix makes no sense, fmt.Sprintf() needs to be shared with testing
 	desired := &ipamv1.IPAddressClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        IPAddressFormat(owner.GetName(), device, poolNum, suffix),
+			Name:        IPAddressFormat(owner.GetName(), device, offsetNum, suffix),
 			Namespace:   owner.GetNamespace(),
 			Labels:      labels,
 			Annotations: annotations,
@@ -525,16 +547,13 @@ func (h *Helper) GetIPAddressV2(ctx context.Context, poolRef corev1.TypedLocalOb
 			return nil, err
 		}
 
-		// Forward the offset counter so we can have multiple ip addresses per pool.
-		offset, exists := ipAddressClaim.GetAnnotations()[infrav1.ProxmoxPoolRefCounterAnnotation]
-		if exists {
-			addrAnnotations := addr.GetAnnotations()
-			if addrAnnotations == nil {
-				addrAnnotations = make(map[string]string)
-			}
-			addrAnnotations[infrav1.ProxmoxPoolRefCounterAnnotation] = offset
-			addr.SetAnnotations(addrAnnotations)
+		// Forward the offset counter and default gateway from the ippool Reference
+		annotations := addr.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
 		}
+		maps.Insert(annotations, maps.All(ipAddressClaim.GetAnnotations()))
+		addr.SetAnnotations(annotations)
 
 		if isOwner {
 			out = append(out, addr)

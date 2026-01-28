@@ -197,7 +197,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	// Check generated bootstrapData against setup
 	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
 	require.Equal(t, 1, len(networkConfigData))
-	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress)
+	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
 	require.Equal(t, "net0", *networkConfigData[0].ProxName)
@@ -240,12 +240,12 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	// Check generated bootstrapData against setup
 	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
 	require.True(t, len(networkConfigData) > 0)
-	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress)
+	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
 	require.Equal(t, "net0", *networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
-	require.Equal(t, "10.100.10.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress)
+	require.Equal(t, "10.100.10.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "10.100.10.1", networkConfigData[1].IPConfigs[0].Gateway)
 	require.Equal(t, "AA:23:64:4D:84:CD", networkConfigData[1].MacAddress)
 	require.Equal(t, "eth1", networkConfigData[1].Name)
@@ -483,9 +483,9 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.0.0.254/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "10.0.0.254/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
-	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress)
+	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress.String())
 }
 
 func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
@@ -540,14 +540,14 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	require.Equal(t, 2, len(networkConfigData[1].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
-	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress)
+	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress.String())
 	ipConfigs = networkConfigData[1].IPConfigs
 	require.Equal(t, "", ipConfigs[0].Gateway) // No Gateway assigned
-	require.Equal(t, "10.0.0.10/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "10.0.0.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "", ipConfigs[1].Gateway) // No Gateway assigned
-	require.Equal(t, "2001:db8::9/64", ipConfigs[1].IPAddress)
+	require.Equal(t, "2001:db8::9/64", ipConfigs[1].IPAddress.String())
 }
 
 func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
@@ -598,10 +598,10 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData[1].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
 	ipConfigs = networkConfigData[1].IPConfigs
 	require.Equal(t, "2001:db8::1", ipConfigs[0].Gateway)
-	require.Equal(t, "2001:db8::2/96", ipConfigs[0].IPAddress)
+	require.Equal(t, "2001:db8::2/96", ipConfigs[0].IPAddress.String())
 }
 
 func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
@@ -644,10 +644,10 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData[2].Interfaces))
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress)
-	require.Equal(t, "10.20.10.10/23", ipConfigs[1].IPAddress)
+	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "10.20.10.10/23", ipConfigs[1].IPAddress.String())
 	ipConfigs = networkConfigData[1].IPConfigs
-	require.Equal(t, "10.100.10.10/22", ipConfigs[0].IPAddress)
+	require.Equal(t, "10.100.10.10/22", ipConfigs[0].IPAddress.String())
 	// VRF Data
 	require.Equal(t, "vrf", networkConfigData[2].Type)
 	require.Equal(t, "vrf-blue", networkConfigData[2].Name)
@@ -780,7 +780,7 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress)
+	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "", ipConfigs[1].Gateway)
-	require.Equal(t, "10.5.10.10/23", ipConfigs[1].IPAddress)
+	require.Equal(t, "10.5.10.10/23", ipConfigs[1].IPAddress.String())
 }

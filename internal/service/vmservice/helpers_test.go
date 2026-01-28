@@ -302,7 +302,7 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 	}
 
 	poolName := ptr.Deref(pools[0], corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	ipName := ipam.IPAddressFormat(machineScope.Name(), poolName, offset, device)
+	ipName := ipam.IPAddressFormat(machineScope.Name(), &poolName, offset, device)
 	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, offset, pools[1])
 }
 

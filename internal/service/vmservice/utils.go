@@ -216,7 +216,7 @@ func NetNameToOffset(name infrav1.NetName) (int, error) {
 
 	offset, found := strings.CutPrefix(*name, "net")
 	if !found {
-		return -1, fmt.Errorf("nvalid proxmox network name: %s", *name)
+		return -1, fmt.Errorf("invalid proxmox network name: %s", *name)
 	}
 
 	return strconv.Atoi(offset)

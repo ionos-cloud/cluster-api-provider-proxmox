@@ -1,6 +1,7 @@
 package ignition
 
 import (
+	"net/netip"
 	"testing"
 
 	ignition "github.com/flatcar/ignition/config/v2_3"
@@ -62,8 +63,8 @@ func TestEnricher_Enrich(t *testing.T) {
 			{
 				Name: "eth0",
 				IPConfigs: []types.IPConfig{
-					{IPAddress: "10.1.1.9/24", Gateway: "10.1.1.1"},
-					{IPAddress: "2001:db8::1/64", Gateway: "2001:db8::1"},
+					{IPAddress: netip.MustParsePrefix("10.1.1.9/24"), Gateway: "10.1.1.1"},
+					{IPAddress: netip.MustParsePrefix("2001:db8::1/64"), Gateway: "2001:db8::1"},
 				},
 				DNSServers: []string{"10.1.1.1"},
 			},

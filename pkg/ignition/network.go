@@ -41,11 +41,11 @@ DHCP=ipv6
 {{- range $ipconfig := $element.IPConfigs -}}
 {{ if .IPAddress }}
 [Address]
-Address={{ .IPAddress }}
+Address={{ (.IPAddress).String }}
 {{- end -}}
 {{- if .Gateway }}
 [Route]
-{{- if is6 .IPAddress }}
+{{- if ((.IPAddress).Addr).Is6 }}
 Destination=::/0
 {{- else }}
 Destination=0.0.0.0/0

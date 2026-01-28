@@ -20,7 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/luthermonson/go-proxmox"
@@ -210,27 +213,33 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	}
 
 	// Keys need to be sorted as golang doesn't guarantee stable map iteration
-	ipAddressesPerNet := []ipamv1.IPAddress{}
-	for _, addresses := range ipPoolRefs {
-		ipAddressesPerNet = slices.Concat(ipAddressesPerNet, addresses)
-	}
-	slices.SortFunc(ipAddressesPerNet, func(a, b ipamv1.IPAddress) int {
+	ipAddresses := slices.Concat(slices.Collect(maps.Values(ipPoolRefs))...)
+	slices.SortFunc(ipAddresses, func(a, b ipamv1.IPAddress) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 
-	var ipConfigs []types.IPConfig
-	for _, ipAddr := range ipAddressesPerNet {
+	ipConfigs := make([]types.IPConfig, 0, len(ipAddresses))
+	for _, ipAddr := range ipAddresses {
 		ipConfig := types.IPConfig{}
-		// TODO: IPConfigs is stupid. No need to gather metrics here.
-		ipConfig.IPAddress = IPAddressWithPrefix(ipAddr.Spec.Address, ipAddr.Spec.Prefix)
+		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ipAddr.Spec.Prefix))
+		if err != nil {
+			return nil, errors.Wrapf(err, "error converting ip address spec to netip prefix: %+v", ipAddr.Spec)
+		}
+		ipConfig.IPAddress = ip
 		ipConfig.Gateway = ipAddr.Spec.Gateway
 
+		// TODO: IPConfigs is stupid. No need to gather metrics here.
 		metric, err := findIPAddressGatewayMetric(ctx, machineScope, &ipAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
 		}
 		ipConfig.Metric = metric
 		ipConfigs = append(ipConfigs, ipConfig)
+
+		isDefaultGateway := ipAddr.GetAnnotations()[infrav1.ProxmoxDefaultGatewayAnnotation]
+		if b, _ := strconv.ParseBool(isDefaultGateway); b {
+			ipConfig.Default = true
+		}
 	}
 
 	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers

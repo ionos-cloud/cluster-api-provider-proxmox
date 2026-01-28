@@ -94,7 +94,7 @@ const (
       {{- range $ipconfig := .IPConfigs }}
       {{- if .Gateway }}
        {{- if .Gateway }}
-        {{- if is6 .IPAddress }}
+        {{- if ((.IPAddress).Addr).Is6 }}
         - to: '::/0'
         {{- else }}
         - to: 0.0.0.0/0
@@ -122,7 +122,7 @@ const (
     {{- if .IPConfigs }}
       addresses:
         {{- range $ipconfig := .IPConfigs }}
-        - {{ .IPAddress }}
+        - {{ (.IPAddress).String }}
         {{- end }}
     {{- end -}}
 {{- end -}}
@@ -212,13 +212,13 @@ func (r *NetworkConfig) validate() error {
 
 		for _, c := range d.IPConfigs {
 			var is6 bool
-			var err error
+
+			if !c.IPAddress.IsValid() {
+				return ErrMissingIPAddress
+			}
 
 			if !d.DHCP4 || !d.DHCP6 {
-				is6, err = validIPAddress(c.IPAddress)
-				if err != nil {
-					return err
-				}
+				is6 = !c.IPAddress.Addr().Is4()
 				if c.Gateway == "" /*&& i == 0*/ {
 					return ErrMissingGateway
 				}
@@ -298,15 +298,4 @@ func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 		}
 	}
 	return nil
-}
-
-func validIPAddress(input string) (bool, error) {
-	if input == "" {
-		return false, ErrMissingIPAddress
-	}
-	p, err := netip.ParsePrefix(input)
-	if err != nil {
-		return false, ErrMalformedIPAddress
-	}
-	return p.Addr().Is6(), nil
 }

@@ -17,7 +17,11 @@ limitations under the License.
 // Package types provides common types used in cloudinit & ignition.
 package types
 
-import infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+import (
+	"net/netip"
+
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+)
 
 // NetworkConfigData is used to render network-config.
 type NetworkConfigData struct {
@@ -39,9 +43,10 @@ type NetworkConfigData struct {
 
 // IPConfig stores IP configuration.
 type IPConfig struct {
-	IPAddress string
+	IPAddress netip.Prefix
 	Gateway   string
 	Metric    *int32
+	Default   bool
 }
 
 // RoutingData stores routing configuration.

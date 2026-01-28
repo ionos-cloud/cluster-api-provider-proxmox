@@ -47,6 +47,9 @@ const (
 
 	// ProxmoxGatewayMetricAnnotation is an annotation key used for denoting metric of a gateway.
 	ProxmoxGatewayMetricAnnotation string = "ipam.capmox.cluster.x-k8s.io/gateway-metric"
+
+	// ProxmoxDefaultGatewayAnnotation marks an IPAddress spec as containing a default gateway.
+	ProxmoxDefaultGatewayAnnotation string = "ipam.capmox.cluster.x-k8s.io/default-gateway"
 )
 
 // VirtualMachine represents data about a Proxmox virtual machine object.

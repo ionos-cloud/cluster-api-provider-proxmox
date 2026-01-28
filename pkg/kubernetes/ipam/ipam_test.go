@@ -248,11 +248,19 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), infrav1.DefaultNetworkDevice, 0, corev1.TypedLocalObjectReference{
-		Name:     "test-cluster-v4-icip",
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind:     InClusterIPPool})
+	ipClaimDef := IPClaimDef{
+		Device: ptr.To(infrav1.DefaultNetworkDevice),
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     "test-cluster-v4-icip",
+			APIGroup: GetIpamInClusterAPIGroup(),
+			Kind:     GetInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+		},
+	}
 
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), ipClaimDef)
 	s.NoError(err)
 
 	// create a dummy IPAddress.
@@ -288,11 +296,19 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Name: "test-ippool-annotations",
 	}, &globalPool))
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", 0, corev1.TypedLocalObjectReference{
-		Name:     "test-ippool-annotations",
-		Kind:     GlobalInClusterIPPool,
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-	})
+	ipClaimDef = IPClaimDef{
+		Device: ptr.To(infrav1.DefaultNetworkDevice),
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     "test-ippool-annotations",
+			APIGroup: GetIpamInClusterAPIGroup(),
+			Kind:     GetGlobalInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+		},
+	}
+
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), ipClaimDef)
 	s.NoError(err)
 
 	gvk, err := apiutil.GVKForObject(&globalPool, s.cl.Scheme())
@@ -337,13 +353,21 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	device := infrav1.DefaultNetworkDevice
+	device := ptr.To(infrav1.DefaultNetworkDevice)
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, 0, corev1.TypedLocalObjectReference{
-		Name:     "test-cluster-v4-icip",
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind:     InClusterIPPool})
+	ipClaimDef := IPClaimDef{
+		Device: device,
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     "test-cluster-v4-icip",
+			APIGroup: GetIpamInClusterAPIGroup(),
+			Kind:     GetInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+		},
+	}
 
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), ipClaimDef)
 	s.NoError(err)
 
 	// Ensure cluster label is set.
@@ -374,13 +398,21 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Name:      "test-additional-cluster-icip",
 	}, &additionalPool))
 
-	additionalDevice := "net1"
+	additionalDevice := ptr.To("net1")
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), additionalDevice, 0, corev1.TypedLocalObjectReference{
-		Name:     "test-additional-cluster-icip",
-		Kind:     InClusterIPPool,
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-	})
+	ipClaimDef = IPClaimDef{
+		Device: additionalDevice,
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     "test-cluster-v4-icip",
+			APIGroup: GetIpamInClusterAPIGroup(),
+			Kind:     GetInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+		},
+	}
+
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), ipClaimDef)
 	s.NoError(err)
 
 	// additional device with GlobalInClusterIPPool
@@ -400,13 +432,19 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Name: "test-global-cluster-icip",
 	}, &globalPool))
 
-	globalDevice := "net2"
+	ipClaimDef = IPClaimDef{
+		Device: ptr.To("net2"),
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     "test-global-cluster-icip",
+			APIGroup: GetIpamInClusterAPIGroup(),
+			Kind:     GetGlobalInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+		},
+	}
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), globalDevice, 0, corev1.TypedLocalObjectReference{
-		Name:     "test-global-cluster-icip",
-		Kind:     GlobalInClusterIPPool,
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-	})
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), ipClaimDef)
 	s.NoError(err)
 
 	// IPv6.
@@ -423,11 +461,19 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Name:      "test-cluster-v6-icip",
 	}, &poolV6))
 
-	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), device, 0, corev1.TypedLocalObjectReference{
-		Name:     "test-global-cluster-icip",
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
-		Kind:     GlobalInClusterIPPool})
+	ipClaimDef = IPClaimDef{
+		Device: device,
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     "test-cluster-v6-icip",
+			APIGroup: GetIpamInClusterAPIGroup(),
+			Kind:     GetInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+		},
+	}
 
+	err = s.helper.CreateIPAddressClaim(s.ctx, getCluster(), ipClaimDef)
 	s.NoError(err)
 }
 
@@ -440,10 +486,19 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 		Name:      "test-cluster-v4-icip",
 	}, &pool))
 
-	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), "net0", 0, corev1.TypedLocalObjectReference{
-		Kind: InClusterIPPool,
-		Name: "test-cluster-v4-icip",
-	})
+	ipClaimDef := IPClaimDef{
+		Device: ptr.To(infrav1.DefaultNetworkDevice),
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     "test-cluster-v4-icip",
+			APIGroup: GetIpamInClusterAPIGroup(),
+			Kind:     GetInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+		},
+	}
+
+	err := s.helper.CreateIPAddressClaim(s.ctx, getCluster(), ipClaimDef)
 	s.NoError(err)
 
 	// create a dummy IPAddress.

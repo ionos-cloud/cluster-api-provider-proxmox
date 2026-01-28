@@ -1,6 +1,7 @@
 package ignition
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -122,8 +123,8 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: "10.0.0.98/25", Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
-							{IPAddress: "2001:db8:1::10/64", Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
 						},
 						ProxName:   ptr.To("net0"),
 						DNSServers: []string{"10.0.1.1"},
@@ -133,7 +134,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: "10.0.1.84/25", Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
+							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
 						},
 						ProxName:   ptr.To("net1"),
 						DNSServers: []string{"10.0.1.1"},
@@ -160,8 +161,8 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: "10.0.0.98/25", Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
-							{IPAddress: "2001:db8:1::10/64", Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
 						},
 						ProxName:   ptr.To("net0"),
 						DNSServers: []string{"10.0.1.1"},
@@ -171,7 +172,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: "10.0.1.84/25", Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
+							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
 						},
 						ProxName:   ptr.To("net1"),
 						DNSServers: []string{"10.0.1.1"},
