@@ -42,8 +42,8 @@ const (
 	// IPv6Type marks an object as belong to the IPv6 family.
 	IPv6Type string = "ipv6"
 
-	// ProxmoxPoolRefCounterAnnotation allows multiple IP Addresses per IPPool.
-	ProxmoxPoolRefCounterAnnotation string = "ipam.capmox.cluster.x-k8s.io/pool-ref-counter"
+	// ProxmoxPoolOffsetAnnotation allows multiple IP Addresses per IPPool.
+	ProxmoxPoolOffsetAnnotation string = "ipam.capmox.cluster.x-k8s.io/pool-ref-counter"
 
 	// ProxmoxGatewayMetricAnnotation is an annotation key used for denoting metric of a gateway.
 	ProxmoxGatewayMetricAnnotation string = "ipam.capmox.cluster.x-k8s.io/gateway-metric"

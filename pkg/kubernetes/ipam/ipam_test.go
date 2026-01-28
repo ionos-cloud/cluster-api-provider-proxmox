@@ -256,7 +256,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
-			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
 		},
 	}
 
@@ -304,7 +304,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 			Kind:     GetGlobalInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
-			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
 		},
 	}
 
@@ -363,7 +363,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
-			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
 		},
 	}
 
@@ -408,7 +408,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
-			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
 		},
 	}
 
@@ -440,7 +440,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 			Kind:     GetGlobalInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
-			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
 		},
 	}
 
@@ -469,7 +469,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
-			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
 		},
 	}
 
@@ -494,7 +494,7 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
-			infrav1.ProxmoxPoolRefCounterAnnotation: "0",
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
 		},
 	}
 

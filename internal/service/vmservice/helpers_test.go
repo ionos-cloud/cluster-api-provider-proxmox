@@ -236,7 +236,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					infrav1.ProxmoxPoolRefCounterAnnotation: fmt.Sprintf("%d", offset),
+					infrav1.ProxmoxPoolOffsetAnnotation: fmt.Sprintf("%d", offset),
 				},
 				Name:      name,
 				Namespace: machineScope.Namespace(),

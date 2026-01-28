@@ -470,7 +470,7 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 	}
 
 	// Add a fallback for this ipAddress's offset.
-	offset, exists := annotations[infrav1.ProxmoxPoolRefCounterAnnotation]
+	offset, exists := annotations[infrav1.ProxmoxPoolOffsetAnnotation]
 	if !exists {
 		offset = "0"
 	}

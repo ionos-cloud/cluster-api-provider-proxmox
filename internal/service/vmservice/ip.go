@@ -156,7 +156,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 	}
 
 	index := slices.IndexFunc(ipAddresses, func(ip ipamv1.IPAddress) bool {
-		return ip.GetAnnotations()[infrav1.ProxmoxPoolRefCounterAnnotation] == ipClaimDef.Annotations[infrav1.ProxmoxPoolRefCounterAnnotation]
+		return ip.GetAnnotations()[infrav1.ProxmoxPoolOffsetAnnotation] == ipClaimDef.Annotations[infrav1.ProxmoxPoolOffsetAnnotation]
 	})
 
 	if index < 0 {
@@ -209,7 +209,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 				PoolRef: ipPool,
 				Device:  net.Name,
 				Annotations: map[string]string{
-					infrav1.ProxmoxPoolRefCounterAnnotation: fmt.Sprintf("%d", i),
+					infrav1.ProxmoxPoolOffsetAnnotation: fmt.Sprintf("%d", i),
 				},
 			}
 			// TODO: I hate this default pool logic
