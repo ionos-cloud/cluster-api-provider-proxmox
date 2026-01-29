@@ -234,12 +234,13 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 			return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
 		}
 		ipConfig.Metric = metric
-		ipConfigs = append(ipConfigs, ipConfig)
 
 		isDefaultGateway := ipAddr.GetAnnotations()[infrav1.ProxmoxDefaultGatewayAnnotation]
 		if b, _ := strconv.ParseBool(isDefaultGateway); b {
 			ipConfig.Default = true
 		}
+
+		ipConfigs = append(ipConfigs, ipConfig)
 	}
 
 	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers

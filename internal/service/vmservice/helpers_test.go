@@ -236,7 +236,8 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					infrav1.ProxmoxPoolOffsetAnnotation: fmt.Sprintf("%d", offset),
+					infrav1.ProxmoxPoolOffsetAnnotation:     fmt.Sprintf("%d", offset),
+					infrav1.ProxmoxDefaultGatewayAnnotation: fmt.Sprintf("%t", isDefaultPool(machineScope, *pool)),
 				},
 				Name:      name,
 				Namespace: machineScope.Namespace(),
@@ -387,6 +388,17 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 	require.NoError(t, err)
 
 	return poolRef
+}
+
+func isDefaultPool(machineScope *scope.MachineScope, pool corev1.TypedLocalObjectReference) bool {
+	clusterPools := getDefaultPoolRefs(machineScope)
+
+	if clusterPools.InClusterIPPoolRefV4 != nil && clusterPools.InClusterIPPoolRefV4.Name == pool.Name ||
+		clusterPools.InClusterIPPoolRefV6 != nil && clusterPools.InClusterIPPoolRefV6.Name == pool.Name {
+		return true
+	}
+
+	return false
 }
 
 func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneRef {

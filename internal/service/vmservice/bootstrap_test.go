@@ -599,9 +599,11 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
 	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
+	require.True(t, ipConfigs[0].Default)
 	ipConfigs = networkConfigData[1].IPConfigs
 	require.Equal(t, "2001:db8::1", ipConfigs[0].Gateway)
 	require.Equal(t, "2001:db8::2/96", ipConfigs[0].IPAddress.String())
+	require.True(t, ipConfigs[0].Default)
 }
 
 func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
