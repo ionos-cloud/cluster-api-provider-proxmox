@@ -36,7 +36,7 @@ func defaultMachine() *ProxmoxMachine {
 			Name:      "test-machine",
 			Namespace: metav1.NamespaceDefault,
 		},
-		Spec: ptr.To(ProxmoxMachineSpec{
+		Spec: ProxmoxMachineSpec{
 			ProviderID:       ptr.To("proxmox://abcdef"),
 			VirtualMachineID: ptr.To[int64](100),
 			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
@@ -51,7 +51,12 @@ func defaultMachine() *ProxmoxMachine {
 					SizeGB: 100,
 				},
 			},
-		}),
+			Network: &NetworkSpec{
+				NetworkDevices: []NetworkDevice{{
+					Name: ptr.To("net0"),
+				}},
+			},
+		},
 	}
 }
 
@@ -285,6 +290,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		It("Should only allow VRFS with a non kernel routing table ", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
+				NetworkDevices: []NetworkDevice{{}},
 				VirtualNetworkDevices: VirtualNetworkDevices{
 					VRFs: []VRFDevice{{
 						Name:  "vrf-blue",
@@ -299,6 +305,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		It("Should only allow non kernel FIB rule priority", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
+				NetworkDevices: []NetworkDevice{{}},
 				VirtualNetworkDevices: VirtualNetworkDevices{
 					VRFs: []VRFDevice{{
 						Name:  "vrf-blue",

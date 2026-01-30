@@ -144,7 +144,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 				"cluster.x-k8s.io/cluster-name": "test",
 			},
 		},
-		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+		Spec: infrav1.ProxmoxMachineSpec{
 			Network: ptr.To(infrav1.NetworkSpec{}),
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
@@ -152,7 +152,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 					TemplateID: ptr.To[int32](123),
 				},
 			},
-		}),
+		},
 	}
 
 	scheme := runtime.NewScheme()

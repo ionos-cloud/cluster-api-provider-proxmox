@@ -1110,7 +1110,7 @@ spec:
                           type: array
                           x-kubernetes-list-type: set
                         checks:
-                          description: checks defines possibles checks to skip.
+                          description: checks defines possible checks to skip.
                           properties:
                             skipCloudInitStatus:
                               description: skipCloudInitStatus skip checking CloudInit
@@ -1205,9 +1205,7 @@ spec:
                             machine's VM.
                           properties:
                             networkDevices:
-                              description: |-
-                                networkDevices lists network devices.
-                                net0 is always the default device.
+                              description: networkDevices is a list of network devices.
                               items:
                                 description: NetworkDevice defines the required details
                                   of a virtual machine network device.
@@ -1485,6 +1483,8 @@ spec:
                                 machine will refer to.
                               pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                               type: string
+                          required:
+                          - networkDevices
                           type: object
                         numCores:
                           description: |-
@@ -1601,6 +1601,7 @@ spec:
                             rule: self.end >= self.start
                       required:
                       - machineType
+                      - network
                       type: object
                       x-kubernetes-validations:
                       - message: Must set full=true when specifying format

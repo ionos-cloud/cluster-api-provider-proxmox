@@ -205,7 +205,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 			Name:      name,
 			Namespace: "default",
 		},
-		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+		Spec: infrav1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
 					SourceNode: ptr.To("pve"),
@@ -259,7 +259,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 					},
 				},
 			},
-		}),
+		},
 	}
 }
 

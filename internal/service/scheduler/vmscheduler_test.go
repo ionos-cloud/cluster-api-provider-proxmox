@@ -68,9 +68,9 @@ func TestSelectNode(t *testing.T) {
 	for i, expectedNode := range expectedNodes {
 		t.Run(fmt.Sprintf("round %d", i+1), func(t *testing.T) {
 			proxmoxMachine := &infrav1.ProxmoxMachine{
-				Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+				Spec: infrav1.ProxmoxMachineSpec{
 					MemoryMiB: &requestMiB,
-				}),
+				},
 			}
 
 			client := fakeResourceClient(availableMem)
@@ -88,9 +88,9 @@ func TestSelectNode(t *testing.T) {
 
 	t.Run("out of memory", func(t *testing.T) {
 		proxmoxMachine := &infrav1.ProxmoxMachine{
-			Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+			Spec: infrav1.ProxmoxMachineSpec{
 				MemoryMiB: &requestMiB,
-			}),
+			},
 		}
 
 		client := fakeResourceClient(availableMem)
@@ -131,7 +131,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 	for i, expectedNode := range expectedNodes {
 		t.Run(fmt.Sprintf("round %d", i+1), func(t *testing.T) {
 			proxmoxMachine := &infrav1.ProxmoxMachine{
-				Spec: &infrav1.ProxmoxMachineSpec{
+				Spec: infrav1.ProxmoxMachineSpec{
 					MemoryMiB: &requestMiB,
 				},
 			}
@@ -151,7 +151,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 	t.Run("out of memory", func(t *testing.T) {
 		proxmoxMachine := &infrav1.ProxmoxMachine{
-			Spec: &infrav1.ProxmoxMachineSpec{
+			Spec: infrav1.ProxmoxMachineSpec{
 				MemoryMiB: &requestMiB,
 			},
 		}
@@ -209,9 +209,9 @@ func TestScheduleVM(t *testing.T) {
 				"cluster.x-k8s.io/cluster-name": "bar",
 			},
 		},
-		Spec: ptr.To(infrav1.ProxmoxMachineSpec{
+		Spec: infrav1.ProxmoxMachineSpec{
 			MemoryMiB: ptr.To(int32(10)),
-		}),
+		},
 	}
 
 	fakeProxmoxClient := proxmoxtest.NewMockClient(t)

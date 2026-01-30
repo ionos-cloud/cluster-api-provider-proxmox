@@ -98,6 +98,11 @@ func defaultCluster() *ProxmoxCluster {
 								SourceNode: ptr.To("pve1"),
 							},
 						},
+						Network: &NetworkSpec{
+							NetworkDevices: []NetworkDevice{{
+								Name: ptr.To("net0"),
+							}},
+						},
 					},
 				}},
 			},
@@ -166,8 +171,19 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	Context("CloneSpecs", func() {
 		It("Should not allow Cluster without ControlPlane nodes", func() {
 			dc := defaultCluster()
-			dc.Spec.CloneSpec.ProxmoxClusterClassSpec = []ProxmoxClusterClassSpec{{MachineType: "blub", ProxmoxMachineSpec: ProxmoxMachineSpec{}}}
-
+			dc.Spec.CloneSpec.ProxmoxClusterClassSpec =
+				[]ProxmoxClusterClassSpec{
+					{
+						MachineType: "blub",
+						ProxmoxMachineSpec: ProxmoxMachineSpec{
+							Network: &NetworkSpec{
+								NetworkDevices: []NetworkDevice{{
+									Name: ptr.To("net0"),
+								}},
+							},
+						},
+					},
+				}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("control plane")))
 		})
 	})

@@ -100,15 +100,17 @@ type ProxmoxMachineSpec struct {
 	Disks *Storage `json:"disks,omitempty"`
 
 	// network is the network configuration for this machine's VM.
-	// +optional
-	Network *NetworkSpec `json:"network,omitempty"`
+	// +required
+	//nolint:kubeapilinter
+	Network *NetworkSpec `json:"network,omitzero"`
+	// Justification: We need to remove this pointer, but need to coordinate with the conversion hook.
 
 	// vmIDRange is the range of VMIDs to use for VMs.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.end >= self.start",message="end should be greater than or equal to start"
 	VMIDRange *VMIDRange `json:"vmIDRange,omitempty"`
 
-	// checks defines possibles checks to skip.
+	// checks defines possible checks to skip.
 	// +optional
 	Checks *ProxmoxMachineChecks `json:"checks,omitempty"`
 
@@ -267,9 +269,8 @@ type NetworkSpec struct {
 	// +optional
 	Zone Zone `json:"zone,omitempty"`
 
-	// networkDevices lists network devices.
-	// net0 is always the default device.
-	// +optional
+	// networkDevices is a list of network devices.
+	// +required
 	// +listType=map
 	// +listMapKey=name
 	NetworkDevices []NetworkDevice `json:"networkDevices,omitempty"`
@@ -600,7 +601,7 @@ type ProxmoxMachine struct {
 	// +kubebuilder:validation:XValidation:rule="[has(self.sourceNode), has(self.templateSelector)].exists_one(c, c)",message="must define either a SourceNode with a TemplateID or a TemplateSelector"
 	// +kubebuilder:validation:XValidation:rule="[has(self.templateID), has(self.templateSelector)].exists_one(c, c)",message="must define either a SourceNode with a TemplateID or a TemplateSelector"
 	// +required
-	Spec *ProxmoxMachineSpec `json:"spec,omitempty"`
+	Spec ProxmoxMachineSpec `json:"spec,omitzero"`
 
 	// status is the status of the Proxmox machine.
 	// +optional

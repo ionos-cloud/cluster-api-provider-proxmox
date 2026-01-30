@@ -55,7 +55,7 @@ type ProxmoxMachineTemplateResource struct {
 
 	// spec is the Proxmox machine spec.
 	// +required
-	Spec *ProxmoxMachineSpec `json:"spec,omitempty"`
+	Spec ProxmoxMachineSpec `json:"spec,omitzero"`
 }
 
 //+kubebuilder:object:root=true
