@@ -24,8 +24,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
-	clusterapierrors "sigs.k8s.io/cluster-api/errors"    //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterapierrors "sigs.k8s.io/cluster-api/errors"
 )
 
 const (
@@ -609,7 +609,7 @@ type ProxmoxMachine struct {
 	// Justification: this is the paradigm used by cluster-api.
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxMachineList contains a list of ProxmoxMachine.
 type ProxmoxMachineList struct {

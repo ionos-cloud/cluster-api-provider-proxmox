@@ -31,10 +31,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"         //nolint:staticcheck
-	clustererrors "sigs.k8s.io/cluster-api/errors"               //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions" //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"      //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clustererrors "sigs.k8s.io/cluster-api/errors"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -169,7 +169,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 			// setting the connection insecure. If it is set we compare
 			// against YAML true-ish values.
 			//
-			//#nosec:G402 // Intended to enable insecure mode for unknown CAs
+			// #nosec:G402 // Intended to enable insecure mode for unknown CAs
 			InsecureSkipVerify: !tlsInsecureSet || slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
 			RootCAs:            rootCerts,
 		},

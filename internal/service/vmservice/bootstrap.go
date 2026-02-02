@@ -30,9 +30,9 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"         //nolint:staticcheck
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"            //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"

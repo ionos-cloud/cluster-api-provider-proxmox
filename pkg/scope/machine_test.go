@@ -25,7 +25,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/require"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"

@@ -18,7 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 )
 
 // ProxmoxMachineTemplateSpec defines the desired state of ProxmoxMachineTemplate.
@@ -46,7 +46,7 @@ type ProxmoxMachineTemplateResource struct {
 	Spec       ProxmoxMachineSpec   `json:"spec"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxMachineTemplateList contains a list of ProxmoxMachineTemplate.
 type ProxmoxMachineTemplateList struct {

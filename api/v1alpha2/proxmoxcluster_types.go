@@ -22,8 +22,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/errors"                     //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	"sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -272,7 +272,7 @@ type ProxmoxClusterStatus struct {
 	// conditions defines the current service state of the ProxmoxCluster.
 	// +optional
 	//nolint:kubeapilinter
-	Conditions *[]clusterv1.Condition `json:"conditions,omitempty"`
+	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 	// Justification: kubeapilinter returns a false positive on fields called Conditions
 	// because type is assumed to be metav1.Conditions.
 	// deepcopy-gen wrongly infers the type when this is a pointer to clusterv1.Conditions,
@@ -365,21 +365,12 @@ type ProxmoxClusterList struct {
 
 // GetConditions returns the observations of the operational state of the ProxmoxCluster resource.
 func (c *ProxmoxCluster) GetConditions() clusterv1.Conditions {
-	conditions := ptr.Deref(c.Status.Conditions, []clusterv1.Condition{})
-
-	return conditions
+	return c.Status.Conditions
 }
 
 // SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed clusterv1.Conditions.
 func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
-	// This is required because deepcopy-gen incorrectly infers the type of conditions.
-	// Justification: static assignment will not work because type assurance
-	// can not cast from type clusterv1.Conditions to []clusterv1.Condition.
-	//nolint:staticcheck
-	var typeHelper []clusterv1.Condition
-	typeHelper = conditions
-
-	c.Status.Conditions = &typeHelper
+	c.Status.Conditions = conditions
 }
 
 // AddInClusterZoneRef will set the Zone references status for the provided pool.

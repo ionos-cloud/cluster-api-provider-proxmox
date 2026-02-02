@@ -29,7 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions" //nolint:staticcheck
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 

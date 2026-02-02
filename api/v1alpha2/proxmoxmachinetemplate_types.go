@@ -18,7 +18,7 @@ package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 )
 
 // ProxmoxMachineTemplateSpec defines the desired state of ProxmoxMachineTemplate.
@@ -51,14 +51,14 @@ type ProxmoxMachineTemplateResource struct {
 	// metadata is the standard object metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta *clusterv1.ObjectMeta `json:"metadata,omitempty"`
+	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty,omitzero"` //nolint:kubeapilinter
 
 	// spec is the Proxmox machine spec.
 	// +required
 	Spec ProxmoxMachineSpec `json:"spec,omitzero"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxMachineTemplateList contains a list of ProxmoxMachineTemplate.
 type ProxmoxMachineTemplateList struct {

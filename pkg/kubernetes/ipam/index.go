@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1" //nolint:staticcheck
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
