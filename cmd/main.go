@@ -34,8 +34,8 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/env"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"    //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util/flags"
 	"sigs.k8s.io/cluster-api/util/record"
@@ -48,6 +48,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
@@ -84,6 +85,7 @@ func init() {
 	_ = clusterv1.AddToScheme(scheme)
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = infrav1.AddToScheme(scheme)
+	_ = infrav1alpha1.AddToScheme(scheme)
 	_ = ipamicv1.AddToScheme(scheme)
 	_ = ipamv1.AddToScheme(scheme)
 
@@ -172,6 +174,10 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachine")
 			os.Exit(1)
 		}
+		if err = (&webhook.ProxmoxMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachineTemplate")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 
@@ -227,7 +233,7 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: proxmoxInsecure, //#nosec:G402 // Default retained, user can enable cert checking
+			InsecureSkipVerify: proxmoxInsecure, // #nosec:G402 // Default retained, user can enable cert checking
 			RootCAs:            rootCerts,
 		},
 	}

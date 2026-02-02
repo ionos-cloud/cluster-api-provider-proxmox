@@ -33,7 +33,7 @@ import (
 
 	// +kubebuilder:scaffold:imports
 
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1" //nolint:staticcheck
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to

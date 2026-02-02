@@ -15,8 +15,6 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the infrastructure v1alpha1 API group
-// +kubebuilder:object:generate=true
-// +groupName=infrastructure.cluster.x-k8s.io
 package v1alpha1
 
 import (
@@ -30,10 +28,10 @@ var (
 	GroupVersion = schema.GroupVersion{Group: "infrastructure.cluster.x-k8s.io", Version: "v1alpha1"}
 
 	// schemeBuilder is used to add go types to the GroupVersionKind scheme.
-	schemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	localSchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 
 	// AddToScheme adds the types in this group-version to the given scheme.
-	AddToScheme = schemeBuilder.AddToScheme
+	AddToScheme = localSchemeBuilder.AddToScheme
 
 	// In order to reduce dependencies for API package consumers, CAPI has diverged from the default kubebuilder scheme builder.
 	// This new pattern may also be useful for reducing dependencies in provider API packages.

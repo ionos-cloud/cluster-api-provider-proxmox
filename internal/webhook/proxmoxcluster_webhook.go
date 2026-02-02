@@ -47,10 +47,17 @@ func (p *ProxmoxCluster) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&infrav1.ProxmoxCluster{}).
 		WithValidator(p).
+		WithDefaulter(p).
 		Complete()
 }
 
-//+kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxcluster,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha2,name=validation.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:verbs=create;update,path=/validate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxcluster,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha2,name=validation.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:verbs=create;update,path=/mutate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxcluster,mutating=true,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha2,name=default.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
+
+// Default implements the defaulting (mutating) webhook for ProxmoxCluster.
+func (p *ProxmoxCluster) Default(_ context.Context, _ runtime.Object) error {
+	return nil
+}
 
 // ValidateCreate implements the creation validation function.
 func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {

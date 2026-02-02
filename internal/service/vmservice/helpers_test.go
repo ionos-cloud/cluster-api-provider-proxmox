@@ -33,9 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"         //nolint:staticcheck
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"            //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -441,7 +441,7 @@ func getIPAddressPool(t *testing.T, machineScope *scope.MachineScope, poolRef co
 func getIPAddressClaims(t *testing.T, c client.Client, machineScope *scope.MachineScope) map[string]*[]ipamv1.IPAddressClaim {
 	ipAddressClaims := &ipamv1.IPAddressClaimList{}
 
-	//TODO: this selector should probably be unified.
+	// TODO: this selector should probably be unified.
 	fieldSelector, _ := fields.ParseSelector("ipaddressclaim.ownerMachine=" + machineScope.Name())
 
 	listOptions := client.ListOptions{FieldSelector: fieldSelector}

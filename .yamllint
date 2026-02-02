@@ -27,6 +27,8 @@ ignore:
 - config/certmanager
 - config/prometheus
 - config/rbac
+- config/manager
+- config/default
 - test/e2e
 - out
 - .*.yaml

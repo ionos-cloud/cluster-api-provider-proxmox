@@ -18,7 +18,6 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.38.0
-	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a
 	k8s.io/api v0.33.3
 	k8s.io/apimachinery v0.33.3
 	k8s.io/client-go v0.33.3
@@ -28,6 +27,7 @@ require (
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.0.3
 	sigs.k8s.io/cluster-api/test v1.11.4
 	sigs.k8s.io/controller-runtime v0.21.0
+	sigs.k8s.io/randfill v1.0.0
 )
 
 require (
@@ -135,8 +135,6 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
-	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.29.0 // indirect
@@ -163,7 +161,6 @@ require (
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.2 // indirect
 	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/kind v0.30.0 // indirect
-	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
