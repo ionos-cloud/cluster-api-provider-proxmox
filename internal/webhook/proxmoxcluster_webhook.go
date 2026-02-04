@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
@@ -103,7 +104,7 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 	// Skipping the validation of the Control Plane endpoint in case of externally managed Control Plane:
 	// the Cluster API Control Plane provider will eventually provide the LB.
-	if *cluster.Spec.ExternalManagedControlPlane {
+	if ptr.Deref(cluster.Spec.ExternalManagedControlPlane, false){
 		return nil
 	}
 

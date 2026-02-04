@@ -195,7 +195,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
-	if *clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane {
+	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint == nil {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
 
