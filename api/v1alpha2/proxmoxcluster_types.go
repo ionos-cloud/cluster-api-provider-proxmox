@@ -142,7 +142,6 @@ type ProxmoxClusterClassSpec struct {
 // in the configuration and cloning of a proxmox VM.
 type ProxmoxClusterCloneSpec struct {
 	// machineSpec is the map of machine specs.
-	// +kubebuilder:validation:XValidation:rule="self.exists_one(x, x.machineType == \"controlPlane\")",message="Cowardly refusing to deploy cluster without control plane"
 	// +listType=map
 	// +listMapKey=machineType
 	// +optional
