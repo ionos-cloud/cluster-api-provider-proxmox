@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -29,9 +30,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
@@ -78,6 +79,11 @@ func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (wa
 		return warnings, err
 	}
 
+	if err := validateCloneSpecHasControlPlane(cluster); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
@@ -98,13 +104,18 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 		return warnings, err
 	}
 
+	if err := validateCloneSpecHasControlPlane(newCluster); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
 func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 	// Skipping the validation of the Control Plane endpoint in case of externally managed Control Plane:
 	// the Cluster API Control Plane provider will eventually provide the LB.
-	if ptr.Deref(cluster.Spec.ExternalManagedControlPlane, false){
+	if ptr.Deref(cluster.Spec.ExternalManagedControlPlane, false) {
 		return nil
 	}
 
@@ -229,6 +240,40 @@ func buildSetFromAddresses(addresses []string) (*netipx.IPSet, error) {
 
 func hasNoIPPoolConfig(cluster *infrav1.ProxmoxCluster) bool {
 	return cluster.Spec.IPv4Config == nil && cluster.Spec.IPv6Config == nil
+}
+
+// validateCloneSpecHasControlPlane validates that if cloneSpec.machineSpec is provided,
+// it must contain an entry with machineType "controlPlane".
+// This validation is only applied to ProxmoxCluster (not ProxmoxClusterTemplate).
+func validateCloneSpecHasControlPlane(cluster *infrav1.ProxmoxCluster) error {
+	if cluster.Spec.CloneSpec == nil {
+		return nil
+	}
+
+	machineSpecs := cluster.Spec.CloneSpec.ProxmoxClusterClassSpec
+	if len(machineSpecs) == 0 {
+		return nil
+	}
+
+	// listMapKey=machineType ensures uniqueness, so we only need to check existence
+	idx := slices.IndexFunc(machineSpecs, func(spec infrav1.ProxmoxClusterClassSpec) bool {
+		return spec.MachineType == "controlPlane"
+	})
+
+	if idx < 0 {
+		return apierrors.NewInvalid(
+			cluster.GroupVersionKind().GroupKind(),
+			cluster.GetName(),
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec", "cloneSpec", "machineSpec"),
+					machineSpecs,
+					"machineSpec must contain an entry with machineType 'controlPlane'",
+				),
+			})
+	}
+
+	return nil
 }
 
 func isHostname(h string) bool {

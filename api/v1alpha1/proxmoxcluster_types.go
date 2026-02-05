@@ -90,7 +90,6 @@ type ProxmoxClusterSpec struct {
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
 type ProxmoxClusterCloneSpec struct {
-	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"
 	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
 
 	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.

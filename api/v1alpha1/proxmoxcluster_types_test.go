@@ -88,17 +88,6 @@ func defaultCluster() *ProxmoxCluster {
 				Metric:    func() *uint32 { var a uint32 = 123; return &a }(),
 			},
 			DNSServers: []string{"1.2.3.4"},
-			CloneSpec: &ProxmoxClusterCloneSpec{
-				ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
-					"controlPlane": {
-						VirtualMachineCloneSpec: VirtualMachineCloneSpec{
-							TemplateSource: TemplateSource{
-								SourceNode: "pve1",
-							},
-						},
-					},
-				},
-			},
 		},
 	}
 }
@@ -159,15 +148,6 @@ var _ = Describe("ProxmoxCluster Test", func() {
 
 	It("Should allow creating valid clusters", func() {
 		Expect(k8sClient.Create(context.Background(), defaultCluster())).To(Succeed())
-	})
-
-	Context("CloneSpecs", func() {
-		It("Should not allow Cluster without ControlPlane nodes", func() {
-			dc := defaultCluster()
-			dc.Spec.CloneSpec.ProxmoxMachineSpec = map[string]ProxmoxMachineSpec{}
-
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("control plane")))
-		})
 	})
 
 	Context("IPV6Config", func() {
