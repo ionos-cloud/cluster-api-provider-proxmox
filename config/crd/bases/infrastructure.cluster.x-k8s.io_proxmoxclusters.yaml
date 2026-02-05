@@ -697,10 +697,6 @@ spec:
                       - message: Must set full=true when specifying storage
                         rule: self.full || !has(self.storage)
                     type: object
-                    x-kubernetes-validations:
-                    - message: Cowardly refusing to deploy cluster without control
-                        plane
-                      rule: has(self.controlPlane)
                   sshAuthorizedKeys:
                     description: SshAuthorizedKeys contains the authorized keys deployed
                       to the PROXMOX VMs.
