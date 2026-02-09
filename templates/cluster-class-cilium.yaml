@@ -1,1027 +1,1160 @@
----
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: ClusterClass
 metadata:
-  name: proxmox-clusterclass-cilium-v0.1.0
+  name: proxmox-clusterclass-cilium-v0.2.0
 spec:
   controlPlane:
-    namingStrategy:
-      template: "{{ .cluster.name }}-control-plane-{{ .random }}"
-    ref:
-      apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-      kind: KubeadmControlPlaneTemplate
-      name: proxmox-clusterclass-v0.1.0-control-plane
-    machineInfrastructure:
-      ref:
-        kind: ProxmoxMachineTemplate
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-        name: proxmox-clusterclass-v0.1.0-control-plane-template
     machineHealthCheck:
       maxUnhealthy: 100%
       nodeStartupTimeout: 15m
       unhealthyConditions:
-        - type: Ready
-          status: Unknown
-          timeout: 300s
-        - type: Ready
-          status: "False"
-          timeout: 300s
+      - status: Unknown
+        timeout: 300s
+        type: Ready
+      - status: "False"
+        timeout: 300s
+        type: Ready
+    machineInfrastructure:
+      ref:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        name: proxmox-clusterclass-v0.2.0-control-plane-template
+    namingStrategy:
+      template: '{{ .cluster.name }}-control-plane-{{ .random }}'
+    ref:
+      apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+      kind: KubeadmControlPlaneTemplate
+      name: proxmox-clusterclass-v0.2.0-control-plane
   infrastructure:
     ref:
-      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
       kind: ProxmoxClusterTemplate
-      name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
-  workers:
-    machineDeployments:
-      - class: proxmox-worker
-        template:
-          bootstrap:
-            ref:
-              apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-              kind: KubeadmConfigTemplate
-              name: proxmox-clusterclass-v0.1.0-workertemplate
-          infrastructure:
-            ref:
-              apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-              kind: ProxmoxMachineTemplate
-              name: proxmox-clusterclass-v0.1.0-workertemplate
-          metadata:
-            labels:
-              node-role.kubernetes.io/node: ""
-        machineHealthCheck:
-          maxUnhealthy: 33%
-          nodeStartupTimeout: 15m
-          unhealthyConditions:
-            - type: Ready
-              status: Unknown
-              timeout: 300s
-            - type: Ready
-              status: "False"
-              timeout: 300s
-        namingStrategy:
-           template: "{{ .cluster.name }}-worker-{{ .random }}"
-      - class: proxmox-loadbalancer
-        template:
-          bootstrap:
-            ref:
-              apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-              kind: KubeadmConfigTemplate
-              name: proxmox-clusterclass-v0.1.0-loadbalancer-template
-          infrastructure:
-            ref:
-              apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-              kind: ProxmoxMachineTemplate
-              name: proxmox-clusterclass-v0.1.0-loadbalancer-template
-          metadata:
-            labels:
-              node-role.kubernetes.io/load-balancer: ""
-              node-role.kubernetes.io/node: ""
-        machineHealthCheck:
-          maxUnhealthy: 33%
-          nodeStartupTimeout: 15m
-          unhealthyConditions:
-            - type: Ready
-              status: Unknown
-              timeout: 300s
-            - type: Ready
-              status: "False"
-              timeout: 300s
-        namingStrategy:
-           template: "{{ .cluster.name }}-loadbalancer-{{ .random }}"
+      name: proxmox-clusterclass-cilium-v0.2.0-clustertemplate
+  patches:
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/allowedNodes
+        valueFrom:
+          variable: allowedNodes
+      - op: add
+        path: /spec/template/spec/controlPlaneEndpoint/host
+        valueFrom:
+          variable: controlPlaneEndpoint.host
+      - op: add
+        path: /spec/template/spec/controlPlaneEndpoint/port
+        valueFrom:
+          variable: controlPlaneEndpoint.port
+      - op: replace
+        path: /spec/template/spec/dnsServers
+        valueFrom:
+          variable: dnsServers
+      - op: replace
+        path: /spec/template/spec/cloneSpec/sshAuthorizedKeys
+        valueFrom:
+          variable: cloneSpec.sshAuthorizedKeys
+      - op: replace
+        path: /spec/template/spec/cloneSpec/virtualIPNetworkInterface
+        valueFrom:
+          variable: cloneSpec.virtualIPNetworkInterface
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxClusterTemplate
+        matchResources:
+          infrastructureCluster: true
+    description: Configure Cluster
+    name: ProxmoxClusterTemplateGeneral
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/ipv4Config
+        valueFrom:
+          variable: ipv4Config
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxClusterTemplate
+        matchResources:
+          infrastructureCluster: true
+    description: Configure Cluster IPv4 config
+    enabledIf: '{{ if .ipv4Config }}true{{ end }}'
+    name: ClusterIPv4Config
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/ipv6Config
+        valueFrom:
+          variable: ipv6Config
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxClusterTemplate
+        matchResources:
+          infrastructureCluster: true
+    description: Configure Cluster IPv6 config
+    enabledIf: '{{ if .ipv6Config }}true{{ end }}'
+    name: ClusterIPv6Config
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/kubeadmConfigSpec/users
+        valueFrom:
+          template: |
+            - name: root
+              sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
+      - op: add
+        path: /spec/template/spec/kubeadmConfigSpec/files/-
+        valueFrom:
+          template: |
+            owner: root:root
+            path: /etc/kubernetes/manifests/kube-vip.yaml
+            content: |
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                creationTimestamp: null
+                name: kube-vip
+                namespace: kube-system
+              spec:
+                containers:
+                - args:
+                  - manager
+                  env:
+                  - name: cp_enable
+                    value: "true"
+                  - name: vip_interface
+                    value: "{{ .cloneSpec.virtualIPNetworkInterface }}"
+                  - name: address
+                    value: "{{ .controlPlaneEndpoint.host }}"
+                  - name: port
+                    value: "6443"
+                  - name: vip_arp
+                    value: "true"
+                  - name: vip_leaderelection
+                    value: "true"
+                  - name: vip_leaseduration
+                    value: "15"
+                  - name: vip_renewdeadline
+                    value: "10"
+                  - name: vip_retryperiod
+                    value: "2"
+                  image: ghcr.io/kube-vip/kube-vip:v0.5.11
+                  imagePullPolicy: IfNotPresent
+                  name: kube-vip
+                  resources: {}
+                  securityContext:
+                    capabilities:
+                      add:
+                      - NET_ADMIN
+                      - NET_RAW
+                  volumeMounts:
+                  - mountPath: /etc/kubernetes/admin.conf
+                    name: kubeconfig
+                hostAliases:
+                - hostnames:
+                  - kubernetes
+                  ip: 127.0.0.1
+                hostNetwork: true
+                volumes:
+                - hostPath:
+                    path: /etc/kubernetes/admin.conf
+                    type: FileOrCreate
+                  name: kubeconfig
+      selector:
+        apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+        kind: KubeadmControlPlaneTemplate
+        matchResources:
+          controlPlane: true
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/sourceNode
+        valueFrom:
+          variable: cloneSpec.machineSpec[0].sourceNode
+      - op: replace
+        path: /spec/template/spec/templateID
+        valueFrom:
+          variable: cloneSpec.machineSpec[0].templateID
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: true
+    description: How to bind the Control Plane and what K8S version
+    name: ControlPlaneSetup
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/kubeadmConfigSpec/files/-
+        valueFrom:
+          template: |
+            content: |
+              #/bin/sh
+              cat >> /run/kubeadm/kubeadm.yaml <<EOF
+              ---
+              apiVersion: kubeproxy.config.k8s.io/v1alpha1
+              kind: KubeProxyConfiguration
+              mode: "ipvs"
+              ipvs:
+                strictARP: true
+              EOF
+            owner: root:root
+            permissions: "0755"
+            path: /tmp/kube-proxy.sh
+      - op: add
+        path: /spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-
+        value: /tmp/kube-proxy.sh
+      selector:
+        apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+        kind: KubeadmControlPlaneTemplate
+        matchResources:
+          controlPlane: true
+    description: kube-proxy configuration
+    enabledIf: '{{ if eq .kubeProxy.mode "ipvs" }}true{{ end }}'
+    name: kube-proxy-setup
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/users
+        valueFrom:
+          template: |
+            - name: root
+              sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
+      selector:
+        apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+        kind: KubeadmConfigTemplate
+        matchResources:
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/sourceNode
+        valueFrom:
+          variable: cloneSpec.machineSpec[1].sourceNode
+      - op: replace
+        path: /spec/template/spec/templateID
+        valueFrom:
+          variable: cloneSpec.machineSpec[1].templateID
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    description: Configure Worker Node Initialisation
+    name: WorkerNodeSetup
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/users
+        valueFrom:
+          template: |
+            - name: root
+              sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
+      selector:
+        apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+        kind: KubeadmConfigTemplate
+        matchResources:
+          machineDeploymentClass:
+            names:
+            - proxmox-loadbalancer
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/sourceNode
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].sourceNode
+      - op: replace
+        path: /spec/template/spec/templateID
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].templateID
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-loadbalancer
+    description: Configure LoadBalancer Node Initialisation
+    name: LoadBalancerSetup
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/numSockets
+        valueFrom:
+          variable: cloneSpec.machineSpec[0].numSockets
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: true
+    description: Configure Control Plane Sockets
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 0).numSockets }}true{{ end
+      }}'
+    name: ControlPlaneNodeSockets
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/numSockets
+        valueFrom:
+          variable: cloneSpec.machineSpec[0].numSockets
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    description: Configure Worker Node Sockets
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).numSockets }}true{{ end }}'
+    name: WorkerNodeSockets
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/numSockets
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].numSockets
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-loadbalancer
+    description: Configure LoadBalancerNode Sockets
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 2).numSockets }}true{{ end
+      }}'
+    name: LoadBalancerSockets
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/numCores
+        valueFrom:
+          variable: cloneSpec.machineSpec[0].numCores
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: true
+    description: Configure Control Plane Cores
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 0).numCores }}true{{ end }}'
+    name: ControlPlaneCores
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/numCores
+        valueFrom:
+          variable: cloneSpec.machineSpec[1].numCores
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    description: Configure Worker Node Cores
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).numCores }}true{{ end }}'
+    name: WorkerNodeCores
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/numCores
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].numCores
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    description: Configure LoadBalancer Node Cores
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 2).numCores }}true{{ end }}'
+    name: LoadBalancerCores
+  - definitions:
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/format
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].format
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: true
+    description: Configure ControlPlane Qemu Disk Format
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).format }}true{{ end }}'
+    name: ControlPlaneCloneDiskFormat
+  - definitions:
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/format
+        valueFrom:
+          variable: cloneSpec.machineSpec[1].format
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    description: Configure WorkerNode Qemu Disk Format
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).format }}true{{ end }}'
+    name: WorkerNodeCloneDiskFormat
+  - definitions:
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/format
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].format
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-loadbalancer
+    description: Configure LoadBalancer Qemu Disk Format
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 2).format }}true{{ end }}'
+    name: LoadBalancerCloneDiskFormat
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/memoryMiB
+        valueFrom:
+          variable: cloneSpec.machineSpec[0].memoryMiB
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: true
+    description: Configure ControlPlane Memory
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).memoryMiB }}true{{ end }}'
+    name: ControlPlaneMem
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/memoryMiB
+        valueFrom:
+          variable: cloneSpec.machineSpec[1].memoryMiB
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    description: Configure WorkerNode Memory
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).memoryMiB }}true{{ end }}'
+    name: WorkerNodeMem
+  - definitions:
+    - jsonPatches:
+      - op: add
+        path: /spec/template/spec/memoryMiB
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].memoryMiB
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-loadbalancer
+    description: Configure LoadBalancer Memory
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).memoryMiB }}true{{ end }}'
+    name: LoadBalancerMem
+  - definitions:
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/network
+        valueFrom:
+          variable: cloneSpec.machineSpec[0].network
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: true
+    description: Configure ControlPlane Network Adapters
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 0).network }}true{{ end }}'
+    name: ControlPlaneDefaultNetwork
+  - definitions:
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/network
+        valueFrom:
+          variable: cloneSpec.machineSpec[1].network
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-worker
+    description: Configure WorkerNode Network Adapters
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 1).network }}true{{ end }}'
+    name: WorkerNodeDefaultNetwork
+  - definitions:
+    - jsonPatches:
+      - op: replace
+        path: /spec/template/spec/network
+        valueFrom:
+          variable: cloneSpec.machineSpec[2].network
+      selector:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+        kind: ProxmoxMachineTemplate
+        matchResources:
+          controlPlane: false
+          machineDeploymentClass:
+            names:
+            - proxmox-loadbalancer
+    description: Configure LoadBalancer Network Adapters
+    enabledIf: '{{ if (index .cloneSpec.machineSpec 2).network }}true{{ end }}'
+    name: LoadBalancerDefaultNetwork
   variables:
-    - name: controlPlaneEndpoint
-      required: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            host:
-              example: 10.10.10.9
-              type: string
-            port:
-              type: integer
-              default: 6443
-    - name: ipv4Config
-      required: false
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            addresses:
-              minItems: 1
-              type: array
-              items:
-                type: string
-              default:
-              - "10.10.10.10-10.10.10.15"
-            prefix:
-              type: integer
-              default: 24
-            gateway:
-              type: string
-              default: "10.10.10.1"
-    - name: ipv6Config
-      required: false
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            addresses:
-              minItems: 1
-              type: array
-              items:
-                type: string
-              default:
-                - "2001:db8::0002-2001:db8::ffff"
-            prefix:
-              type: integer
-              default: 64
-            gateway:
-              type: string
-              default: "2001:db8::0001"
-    - name: dnsServers
-      required: true
-      schema:
-        openAPIV3Schema:
-          type: array
-          minItems: 1
-          items:
+  - name: controlPlaneEndpoint
+    required: true
+    schema:
+      openAPIV3Schema:
+        properties:
+          host:
+            example: 10.10.10.9
             type: string
-          default: [8.8.8.8, 8.8.4.4]
-          example: [8.8.8.8, 8.8.4.4]
-    - name: allowedNodes
-      required: false
-      schema:
-        openAPIV3Schema:
-          type: array
-          items:
+          port:
+            default: 6443
+            type: integer
+        type: object
+  - name: ipv4Config
+    required: false
+    schema:
+      openAPIV3Schema:
+        properties:
+          addresses:
+            default:
+            - 10.10.10.10-10.10.10.15
+            items:
+              type: string
+            minItems: 1
+            type: array
+          gateway:
+            default: 10.10.10.1
             type: string
-          example: ["pve1", "pve2", "pve3"]
-    - name: kubeProxy
-      required: false
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            mode:
+          metric:
+            default: 100
+            type: integer
+          prefix:
+            default: 24
+            type: integer
+        type: object
+  - name: ipv6Config
+    required: false
+    schema:
+      openAPIV3Schema:
+        properties:
+          addresses:
+            default:
+            - 2001:db8::0002-2001:db8::ffff
+            items:
               type: string
-              enum: ["ipvs","iptables"]
-    - name: cloneSpec
-      required: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            sshAuthorizedKeys:
-              type: array
-              items:
-                type: string
-              default: []
-              example: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 example@capmox","ssh-rsa ..."]
-            virtualIPNetworkInterface:
-              type: string
-              default: ""
-              example: "vmbr0"
-            machineSpec:
-              type: object
+            minItems: 1
+            type: array
+          gateway:
+            default: 2001:db8::0001
+            type: string
+          metric:
+            default: 100
+            type: integer
+          prefix:
+            default: 64
+            type: integer
+        type: object
+  - name: dnsServers
+    required: true
+    schema:
+      openAPIV3Schema:
+        default:
+        - 8.8.8.8
+        - 8.8.4.4
+        example:
+        - 8.8.8.8
+        - 8.8.4.4
+        items:
+          type: string
+        minItems: 1
+        type: array
+  - name: allowedNodes
+    required: false
+    schema:
+      openAPIV3Schema:
+        example:
+        - pve1
+        - pve2
+        - pve3
+        items:
+          type: string
+        type: array
+  - name: kubeProxy
+    required: false
+    schema:
+      openAPIV3Schema:
+        properties:
+          mode:
+            enum:
+            - ipvs
+            - iptables
+            type: string
+        type: object
+  - name: cloneSpec
+    required: true
+    schema:
+      openAPIV3Schema:
+        properties:
+          machineSpec:
+            items:
               properties:
-                controlPlane: &machineSpec
-                  type: object
-                  required:
-                  - sourceNode
+                allowedNodes:
+                  items:
+                    type: string
+                  type: array
+                checks:
                   properties:
-                    disks:
-                      type: object
+                    skipCloudInitStatus:
+                      type: boolean
+                    skipQemuGuestAgent:
+                      type: boolean
+                  type: object
+                description:
+                  type: string
+                disks:
+                  properties:
+                    bootVolume:
                       properties:
-                        bootVolume:
-                          type: object
-                          properties:
-                            disk:
-                              type: string
+                        disk:
+                          type: string
                         sizeGb:
-                          type: integer
-                          minimum: 5
                           format: int32
-                      required:
-                      - disk
-                      - sizeGb
-                    format:
-                      type: string
-                      enum: [raw, qcow2, vmdk]
-                    network:
+                          type: integer
                       type: object
-                      properties:
-                        additionalDevices:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              bridge:
-                                type: string
-                              dnsServers:
-                                type: array
-                                items:
-                                  type: string
-                              ipv4PoolRef:
-                                type: object
-                                properties:
-                                  apiGroup:
-                                    default: ipam.cluster.x-k8s.io
-                                    type: string
-                                  kind:
-                                    default: GlobalInClusterIPPool
-                                    type: string
-                                  name:
-                                    default: shared-inclusterippool
-                                    type: string
-                                required:
-                                - kind
-                                - name
-                              ipv6PoolRef:
-                                type: object
-                                properties:
-                                  apiGroup:
-                                    default: ipam.cluster.x-k8s.io
-                                    type: string
-                                  kind:
-                                    default: GlobalInClusterIPPool
-                                    type: string
-                                  name:
-                                    default: shared-inclusteripv4pool
-                                    type: string
-                                required:
-                                - kind
-                                - name
-                              model:
-                                type: string
-                                default: virtio
-                                enum: [e1000, virtio, rtl8139, vmxnet3]
-                              name:
-                                minLength: 1
-                                type: string
-                          required:
-                          - bridge
-                          - name
-                        default:
-                          type: object
-                          properties:
-                            bridge:
+                  type: object
+                format:
+                  enum:
+                  - raw
+                  - qcow2
+                  - vmdk
+                  type: string
+                full:
+                  default: true
+                  type: boolean
+                machineType:
+                  type: string
+                memoryMiB:
+                  format: int32
+                  type: integer
+                metadataSettings:
+                  properties:
+                    providerIDInjection:
+                      type: boolean
+                  type: object
+                network:
+                  properties:
+                    networkDevices:
+                      items:
+                        properties:
+                          bridge:
+                            type: string
+                          defaultIPv4:
+                            type: boolean
+                          defaultIPv6:
+                            type: boolean
+                          dnsServers:
+                            items:
                               type: string
-                            model:
-                              type: string
-                              default: virtio
-                              enum: [e1000, virtio, rtl8139, vmxnet3]
-                          required:
-                          - bridge
-                        vrfs:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              dnsServers:
-                                type: array
-                                items:
+                            type: array
+                          ipPoolRef:
+                            items:
+                              properties:
+                                apiGroup:
                                   type: string
-                              interfaces:
-                                type: array
-                                items:
+                                kind:
                                   type: string
-                                description: parent interfaces of a vrf device
-                              ipv4PoolRef:
-                                type: object
-                                properties:
-                                  apiGroup:
-                                    default: ipam.cluster.x-k8s.io
-                                    type: string
-                                  kind:
-                                    default: GlobalInClusterIPPool
-                                    type: string
-                                  name:
-                                    default: shared-inclusterippool
-                                    type: string
-                                required:
-                                - kind
-                                - name
-                              ipv6PoolRef:
-                                type: object
-                                properties:
-                                  apiGroup:
-                                    default: ipam.cluster.x-k8s.io
-                                    type: string
-                                  kind:
-                                    default: GlobalInClusterIPPool
-                                    type: string
-                                  name:
-                                    default: shared-inclusteripv4pool
-                                    type: string
-                                required:
-                                - kind
-                                - name
-                              name:
-                                minLength: 1
-                                type: string
-                              routes:
-                                type: array
-                                minItems: 1
-                                items:
-                                  type: object
-                                  properties:
-                                    metric:
-                                      format: int32
-                                      type: integer
-                                    table:
-                                      format: int32
-                                      type: integer
-                                    to:
-                                      type: string
-                                    via:
-                                      type: string
-                              routingPolicy:
-                                type: array
-                                minItems: 1
-                                items:
-                                  type: object
-                                  properties:
-                                    from:
-                                      type: string
-                                    priority:
-                                      type: integer
-                                      format: int32
+                                name:
+                                  type: string
+                              type: object
+                            type: array
+                          linkMtu:
+                            format: int32
+                            type: integer
+                          model:
+                            default: virtio
+                            enum:
+                            - e1000
+                            - virtio
+                            - rtl8139
+                            - vmxnet3
+                            type: string
+                          mtu:
+                            format: int32
+                            type: integer
+                          name:
+                            type: string
+                          routes:
+                            items:
+                              properties:
+                                metric:
+                                  format: int32
+                                  type: integer
                                 table:
                                   format: int32
                                   type: integer
                                 to:
                                   type: string
-                              table:
-                                format: int32
-                                type: integer
-                            required:
-                            - name
-                            - table
-                      required:
-                      - default
-                    memoryMiB:
-                      type: integer
-                      example: 2048
-                    numCores:
-                      type: integer
-                      example: 1
-                    numSockets:
-                      type: integer
-                      example: 1
-                    sourceNode:
+                                via:
+                                  type: string
+                              type: object
+                            type: array
+                          routingPolicy:
+                            items:
+                              properties:
+                                from:
+                                  type: string
+                                priority:
+                                  format: int64
+                                  type: integer
+                                table:
+                                  format: int32
+                                  type: integer
+                                to:
+                                  type: string
+                              type: object
+                            type: array
+                          vlan:
+                            format: int32
+                            type: integer
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
+                    vrfs:
+                      description: vrfs defines VRF Devices.
+                      items:
+                        description: VRFDevice defines Virtual Routing
+                          Flow devices.
+                        properties:
+                          interfaces:
+                            description: interfaces is the list of
+                              proxmox network devices managed by this
+                              virtual device.
+                            items:
+                              description: NetName is a formally verified
+                                Proxmox network name string.
+                              pattern: ^net[0-9]+$
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
+                          name:
+                            description: |-
+                              name is the virtual network device name.
+                              Must be unique within the virtual machine.
+                            minLength: 3
+                            type: string
+                          routes:
+                            description: routes are the routes associated
+                              with this interface.
+                            items:
+                              description: RouteSpec describes an
+                                IPv4/IPv6 Route.
+                              properties:
+                                metric:
+                                  description: metric is the priority
+                                    of the route in the routing table.
+                                  format: int32
+                                  minimum: 0
+                                  type: integer
+                                table:
+                                  description: table is the routing
+                                    table used for this route.
+                                  format: int32
+                                  type: integer
+                                to:
+                                  description: to is the subnet to
+                                    be routed.
+                                  type: string
+                                via:
+                                  description: via is the gateway
+                                    to the subnet.
+                                  type: string
+                              type: object
+                            minItems: 1
+                            type: array
+                            x-kubernetes-list-type: atomic
+                          routingPolicy:
+                            description: routingPolicy is an interface-specific
+                              policy inserted into FIB (forwarding
+                              information base).
+                            items:
+                              description: RoutingPolicySpec is a
+                                Linux FIB rule.
+                              properties:
+                                from:
+                                  description: from is the subnet
+                                    of the source.
+                                  type: string
+                                priority:
+                                  description: priority is the position
+                                    in the ip rule FIB table.
+                                  format: int64
+                                  maximum: 4294967295
+                                  type: integer
+                                  x-kubernetes-validations:
+                                  - message: Cowardly refusing to
+                                      insert FIB rule matching kernel
+                                      rules
+                                    rule: (self > 0 && self < 32765)
+                                      || (self > 32766)
+                                table:
+                                  description: table is the routing
+                                    table ID.
+                                  format: int32
+                                  type: integer
+                                to:
+                                  description: to is the subnet of
+                                    the target.
+                                  type: string
+                              type: object
+                            minItems: 1
+                            type: array
+                            x-kubernetes-list-type: atomic
+                          table:
+                            description: table is the ID of the routing
+                              table used for the l3mdev vrf device.
+                            format: int32
+                            maximum: 4294967295
+                            minimum: 1
+                            type: integer
+                            x-kubernetes-validations:
+                            - message: Cowardly refusing to insert
+                                l3mdev rules into kernel tables
+                              rule: (self > 0 && self < 254) || (self
+                                > 255)
+                        required:
+                        - name
+                        - table
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
+                    zone:
                       type: string
-                      example: pve1
-                    templateID:
+                  type: object
+                numCores:
+                  format: int32
+                  type: integer
+                numSockets:
+                  format: int32
+                  type: integer
+                pool:
+                  type: string
+                providerID:
+                  type: string
+                snapName:
+                  type: string
+                sourceNode:
+                  type: string
+                storage:
+                  type: string
+                tags:
+                  items:
+                    type: string
+                  minItems: 1
+                  type: array
+                target:
+                  type: string
+                templateID:
+                  format: int32
+                  type: integer
+                templateSelector:
+                  properties:
+                    matchTags:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                virtualMachineID:
+                  format: int64
+                  type: integer
+                vmIDRange:
+                  properties:
+                    end:
+                      format: int64
                       type: integer
-                      example: 100
-                workerNode: *machineSpec
-                loadBalancer: *machineSpec
-  patches:
-  - name: ProxmoxClusterTemplateGeneral
-    description: "Configure Cluster"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxClusterTemplate
-          matchResources:
-            infrastructureCluster: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/allowedNodes
-            valueFrom:
-              variable: allowedNodes
-          - op: add
-            path: /spec/template/spec/controlPlaneEndpoint/host
-            valueFrom:
-              variable: controlPlaneEndpoint.host
-          - op: add
-            path: /spec/template/spec/controlPlaneEndpoint/port
-            valueFrom:
-              variable: controlPlaneEndpoint.port
-          - op: replace
-            path: /spec/template/spec/dnsServers
-            valueFrom:
-              variable: dnsServers
-          - op: replace
-            path: /spec/template/spec/cloneSpec/sshAuthorizedKeys
-            valueFrom:
-              variable: cloneSpec.sshAuthorizedKeys
-          - op: replace
-            path: /spec/template/spec/cloneSpec/virtualIPNetworkInterface
-            valueFrom:
-              variable: cloneSpec.virtualIPNetworkInterface
-  - name: ClusterIPv4Config
-    description: "Configure Cluster IPv4 config"
-    enabledIf: "{{ if .ipv4Config }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxClusterTemplate
-          matchResources:
-            infrastructureCluster: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/ipv4Config
-            valueFrom:
-              variable: ipv4Config
-  - name: ClusterIPv6Config
-    description: "Configure Cluster IPv6 config"
-    enabledIf: "{{ if .ipv6Config }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxClusterTemplate
-          matchResources:
-            infrastructureCluster: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/ipv6Config
-            valueFrom:
-              variable: ipv6Config
-  - name: ControlPlaneSetup
-    description: "How to bind the Control Plane and what K8S version"
-    definitions:
-      - selector:
-          apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-          kind: KubeadmControlPlaneTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/kubeadmConfigSpec/users
-            valueFrom:
-              template: |
-                - name: root
-                  sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
-          - op: add
-            path: /spec/template/spec/kubeadmConfigSpec/files/-
-            valueFrom:
-              template: |
-                owner: root:root
-                path: /etc/kubernetes/manifests/kube-vip.yaml
-                content: |
-                  apiVersion: v1
-                  kind: Pod
-                  metadata:
-                    creationTimestamp: null
-                    name: kube-vip
-                    namespace: kube-system
-                  spec:
-                    containers:
-                    - args:
-                      - manager
-                      env:
-                      - name: cp_enable
-                        value: "true"
-                      - name: vip_interface
-                        value: "{{ .cloneSpec.virtualIPNetworkInterface }}"
-                      - name: address
-                        value: "{{ .controlPlaneEndpoint.host }}"
-                      - name: port
-                        value: "6443"
-                      - name: vip_arp
-                        value: "true"
-                      - name: vip_leaderelection
-                        value: "true"
-                      - name: vip_leaseduration
-                        value: "15"
-                      - name: vip_renewdeadline
-                        value: "10"
-                      - name: vip_retryperiod
-                        value: "2"
-                      image: ghcr.io/kube-vip/kube-vip:v0.5.11
-                      imagePullPolicy: IfNotPresent
-                      name: kube-vip
-                      resources: {}
-                      securityContext:
-                        capabilities:
-                          add:
-                          - NET_ADMIN
-                          - NET_RAW
-                      volumeMounts:
-                      - mountPath: /etc/kubernetes/admin.conf
-                        name: kubeconfig
-                    hostAliases:
-                    - hostnames:
-                      - kubernetes
-                      ip: 127.0.0.1
-                    hostNetwork: true
-                    volumes:
-                    - hostPath:
-                        path: /etc/kubernetes/admin.conf
-                        type: FileOrCreate
-                      name: kubeconfig
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: replace
-            path: /spec/template/spec/sourceNode
-            valueFrom:
-              variable: cloneSpec.machineSpec.controlPlane.sourceNode
-          - op: replace
-            path: /spec/template/spec/templateID
-            valueFrom:
-              variable: cloneSpec.machineSpec.controlPlane.templateID
-  - name: kube-proxy-setup
-    description: "kube-proxy configuration"
-    enabledIf: "{{ if eq .kubeProxy.mode \"ipvs\" }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-          kind: KubeadmControlPlaneTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/kubeadmConfigSpec/files/-
-            valueFrom:
-              template: |
-                content: |
-                  #/bin/sh
-                  cat >> /run/kubeadm/kubeadm.yaml <<EOF
-                  ---
-                  apiVersion: kubeproxy.config.k8s.io/v1alpha1
-                  kind: KubeProxyConfiguration
-                  mode: "ipvs"
-                  ipvs:
-                    strictARP: true
-                  EOF
-                owner: root:root
-                permissions: "0755"
-                path: /tmp/kube-proxy.sh
-          - op: add
-            path: /spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-
-            value: /tmp/kube-proxy.sh
-  - name: WorkerNodeSetup
-    description: "Configure Worker Node Initialisation"
-    definitions:
-      - selector:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-          kind: KubeadmConfigTemplate
-          matchResources:
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/users
-            valueFrom:
-              template: |
-                - name: root
-                  sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: replace
-            path: /spec/template/spec/sourceNode
-            valueFrom:
-              variable: cloneSpec.machineSpec.workerNode.sourceNode
-          - op: replace
-            path: /spec/template/spec/templateID
-            valueFrom:
-              variable: cloneSpec.machineSpec.workerNode.templateID
-  - name: LoadBalancerSetup
-    description: "Configure LoadBalancer Node Initialisation"
-    definitions:
-      - selector:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-          kind: KubeadmConfigTemplate
-          matchResources:
-            machineDeploymentClass:
-              names:
-              - proxmox-loadbalancer
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/users
-            valueFrom:
-              template: |
-                - name: root
-                  sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-loadbalancer
-        jsonPatches:
-          - op: replace
-            path: /spec/template/spec/sourceNode
-            valueFrom:
-              variable: cloneSpec.machineSpec.loadBalancer.sourceNode
-          - op: replace
-            path: /spec/template/spec/templateID
-            valueFrom:
-              variable: cloneSpec.machineSpec.loadBalancer.templateID
-  - name: ControlPlaneNodeSockets
-    description: "Configure Control Plane Sockets"
-    enabledIf: "{{ if .cloneSpec.machineSpecs.controlPlane.numSockets }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/numSockets
-            valueFrom:
-              variable: cloneSpec.machineSpec.controlPlane.numSockets
-  - name: WorkerNodeSockets
-    description: "Configure Worker Node Sockets"
-    enabledIf: "{{ if .cloneSpec.machineSpecs.workerNode.numSockets }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/numSockets
-            valueFrom:
-              variable: cloneSpec.machineSpec.workerNode.numSockets
-  - name: LoadBalancerSockets
-    description: "Configure LoadBalancerNode Sockets"
-    enabledIf: "{{ if .cloneSpec.machineSpecs.loadBalancer.numSockets }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-loadbalancer
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/numSockets
-            valueFrom:
-              variable: cloneSpec.machineSpec.loadBalancer.numSockets
-  - name: ControlPlaneCores
-    description: "Configure Control Plane Cores"
-    enabledIf: "{{ if .cloneSpec.machineSpec.controlPlane.numCores }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/numCores
-            valueFrom:
-              variable: cloneSpec.machineSpec.controlPlane.numCores
-  - name: WorkerNodeCores
-    description: "Configure Worker Node Cores"
-    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.numCores }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/numCores
-            valueFrom:
-              variable: cloneSpec.machineSpec.workerNode.numCores
-  - name: LoadBalancerCores
-    description: "Configure LoadBalancer Node Cores"
-    enabledIf: "{{ if .cloneSpec.machineSpec.loadBalancer.numCores }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/numCores
-            valueFrom:
-              variable: cloneSpec.machineSpec.loadBalancer.numCores
-  - name: ControlPlaneCloneDiskFormat
-    description: "Configure ControlPlane Qemu Disk Format"
-    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.format }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: replace
-            path: /spec/template/spec/format
-            valueFrom:
-              variable: cloneSpec.machineSpec.controlPlane.format
-  - name: WorkerNodeCloneDiskFormat
-    description: "Configure WorkerNode Qemu Disk Format"
-    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.format }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: replace
-            path: /spec/template/spec/format
-            valueFrom:
-              variable: cloneSpec.machineSpec.workerNode.format
-  - name: LoadBalancerCloneDiskFormat
-    description: "Configure LoadBalancer Qemu Disk Format"
-    enabledIf: "{{ if .cloneSpec.machineSpec.loadBalancer.format }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-loadbalancer
-        jsonPatches:
-          - op: replace
-            path: /spec/template/spec/format
-            valueFrom:
-              variable: cloneSpec.machineSpec.loadBalancer.format
-  - name: ControlPlaneMem
-    description: "Configure ControlPlane Memory"
-    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.memoryMiB }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/memoryMiB
-            valueFrom:
-              variable: cloneSpec.machineSpec.controlPlane.memoryMiB
-  - name: WorkerNodeMem
-    description: "Configure WorkerNode Memory"
-    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.memoryMiB }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/memoryMiB
-            valueFrom:
-              variable: cloneSpec.machineSpec.workerNode.memoryMiB
-  - name: LoadBalancerMem
-    description: "Configure LoadBalancer Memory"
-    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.memoryMiB }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-loadbalancer
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/memoryMiB
-            valueFrom:
-              variable: cloneSpec.machineSpec.loadBalancer.memoryMiB
-  - name: ControlPlaneDefaultNetwork
-    description: "Configure ControlPlane Network Adapters"
-    enabledIf: "{{ if .cloneSpec.machineSpec.controlPlane.network }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: true
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/network
-            valueFrom:
-              variable: cloneSpec.machineSpec.controlPlane.network
-  - name: WorkerNodeDefaultNetwork
-    description: "Configure WorkerNode Network Adapters"
-    enabledIf: "{{ if .cloneSpec.machineSpec.workerNode.network }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-worker
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/network
-            valueFrom:
-              variable: cloneSpec.machineSpec.workerNode.network
-  - name: LoadBalancerDefaultNetwork
-    description: "Configure LoadBalancer Network Adapters"
-    enabledIf: "{{ if .cloneSpec.machineSpec.loadBalancer.network }}true{{ end }}"
-    definitions:
-      - selector:
-          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-          kind: ProxmoxMachineTemplate
-          matchResources:
-            controlPlane: false
-            machineDeploymentClass:
-              names:
-              - proxmox-loadbalancer
-        jsonPatches:
-          - op: add
-            path: /spec/template/spec/network
-            valueFrom:
-              variable: cloneSpec.machineSpec.loadBalancer.network
+                    start:
+                      format: int64
+                      type: integer
+                  type: object
+                  x-kubernetes-validations:
+              required:
+              - machineType
+              - network
+              type: object
+            type: array
+            x-kubernetes-validations:
+            - message: Need exactly 3 items (controlPlane, worker, loadbalancer)
+              rule: size(self) == 3
+            - message: ControlPlane must be offset 0 in machineSpec list
+              rule: self[0].machineType == "controlPlane"
+            - message: Worker Nodes must be offset 1 in machineSpec list
+              rule: self[1].machineType == "worker"
+            - message: LoadBalancer Nodes must be offset 2 in machineSpec list
+              rule: self[2].machineType == "loadBalancer"
+            x-kubernetes-list-map-keys:
+            - machineType
+            x-kubernetes-list-type: map
+          sshAuthorizedKeys:
+            items:
+              type: string
+            type: array
+          virtualIPNetworkInterface:
+            type: string
+        type: object
+  workers:
+    machineDeployments:
+    - class: proxmox-worker
+      machineHealthCheck:
+        maxUnhealthy: 33%
+        nodeStartupTimeout: 15m
+        unhealthyConditions:
+        - status: Unknown
+          timeout: 300s
+          type: Ready
+        - status: "False"
+          timeout: 300s
+          type: Ready
+      namingStrategy:
+        template: '{{ .cluster.name }}-worker-{{ .random }}'
+      template:
+        bootstrap:
+          ref:
+            apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+            kind: KubeadmConfigTemplate
+            name: proxmox-clusterclass-v0.2.0-workertemplate
+        infrastructure:
+          ref:
+            apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+            kind: ProxmoxMachineTemplate
+            name: proxmox-clusterclass-v0.2.0-workertemplate
+        metadata:
+          labels:
+            node-role.kubernetes.io/node: ""
+    - class: proxmox-loadbalancer
+      machineHealthCheck:
+        maxUnhealthy: 33%
+        nodeStartupTimeout: 15m
+        unhealthyConditions:
+        - status: Unknown
+          timeout: 300s
+          type: Ready
+        - status: "False"
+          timeout: 300s
+          type: Ready
+      namingStrategy:
+        template: '{{ .cluster.name }}-loadbalancer-{{ .random }}'
+      template:
+        bootstrap:
+          ref:
+            apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+            kind: KubeadmConfigTemplate
+            name: proxmox-clusterclass-v0.2.0-loadbalancer-template
+        infrastructure:
+          ref:
+            apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+            kind: ProxmoxMachineTemplate
+            name: proxmox-clusterclass-v0.2.0-loadbalancer-template
+        metadata:
+          labels:
+            node-role.kubernetes.io/load-balancer: ""
+            node-role.kubernetes.io/node: ""
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlaneTemplate
 metadata:
-  name: proxmox-clusterclass-v0.1.0-control-plane
+  name: proxmox-clusterclass-v0.2.0-control-plane
 spec:
   template:
     spec:
       kubeadmConfigSpec:
         files:
-          - content: |
-              The controller sanitizes an empty files dictionary,
-              therefore we provide a useless element to keep the array.
-            owner: root:root
-            path: /dev/null
-          - path: /etc/kube-vip-prepare.sh
-            content: |
-              #!/bin/bash
+        - content: |
+            The controller sanitizes an empty files dictionary,
+            therefore we provide a useless element to keep the array.
+          owner: root:root
+          path: /dev/null
+        - content: |
+            #!/bin/bash
 
-              # Copyright 2020 The Kubernetes Authors.
-              #
-              # Licensed under the Apache License, Version 2.0 (the "License");
-              # you may not use this file except in compliance with the License.
-              # You may obtain a copy of the License at
-              #
-              #     http://www.apache.org/licenses/LICENSE-2.0
-              #
-              # Unless required by applicable law or agreed to in writing, software
-              # distributed under the License is distributed on an "AS IS" BASIS,
-              # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-              # See the License for the specific language governing permissions and
-              # limitations under the License.
+            # Copyright 2020 The Kubernetes Authors.
+            #
+            # Licensed under the Apache License, Version 2.0 (the "License");
+            # you may not use this file except in compliance with the License.
+            # You may obtain a copy of the License at
+            #
+            #     http://www.apache.org/licenses/LICENSE-2.0
+            #
+            # Unless required by applicable law or agreed to in writing, software
+            # distributed under the License is distributed on an "AS IS" BASIS,
+            # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+            # See the License for the specific language governing permissions and
+            # limitations under the License.
 
-              set -e
+            set -e
 
-              # Configure the workaround required for kubeadm init with kube-vip:
-              # xref: https://github.com/kube-vip/kube-vip/issues/684
+            # Configure the workaround required for kubeadm init with kube-vip:
+            # xref: https://github.com/kube-vip/kube-vip/issues/684
 
-              # Nothing to do for kubernetes < v1.29
-              KUBEADM_MINOR="$(kubeadm version -o short | cut -d '.' -f 2)"
-              if [[ "$KUBEADM_MINOR" -lt "29" ]]; then
-                exit 0
-              fi
+            # Nothing to do for kubernetes < v1.29
+            KUBEADM_MINOR="$(kubeadm version -o short | cut -d '.' -f 2)"
+            if [[ "$KUBEADM_MINOR" -lt "29" ]]; then
+              exit 0
+            fi
 
-              IS_KUBEADM_INIT="false"
+            IS_KUBEADM_INIT="false"
 
-              # cloud-init kubeadm init
-              if [[ -f /run/kubeadm/kubeadm.yaml ]]; then
-                IS_KUBEADM_INIT="true"
-              fi
+            # cloud-init kubeadm init
+            if [[ -f /run/kubeadm/kubeadm.yaml ]]; then
+              IS_KUBEADM_INIT="true"
+            fi
 
-              # ignition kubeadm init
-              if [[ -f /etc/kubeadm.sh ]] && grep -q -e "kubeadm init" /etc/kubeadm.sh; then
-                IS_KUBEADM_INIT="true"
-              fi
+            # ignition kubeadm init
+            if [[ -f /etc/kubeadm.sh ]] && grep -q -e "kubeadm init" /etc/kubeadm.sh; then
+              IS_KUBEADM_INIT="true"
+            fi
 
-              if [[ "$IS_KUBEADM_INIT" == "true" ]]; then
-                sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' \
-                  /etc/kubernetes/manifests/kube-vip.yaml
-              fi
-            owner: root:root
-            permissions: "0700"
-        preKubeadmCommands:
-          - /etc/kube-vip-prepare.sh
+            if [[ "$IS_KUBEADM_INIT" == "true" ]]; then
+              sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' \
+                /etc/kubernetes/manifests/kube-vip.yaml
+            fi
+          owner: root:root
+          path: /etc/kube-vip-prepare.sh
+          permissions: "0700"
         initConfiguration:
           nodeRegistration:
             kubeletExtraArgs:
-              provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+              provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
         joinConfiguration:
           nodeRegistration:
             kubeletExtraArgs:
-              provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+              provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
+        preKubeadmCommands:
+        - /etc/kube-vip-prepare.sh
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxClusterTemplate
 metadata:
-  name: proxmox-clusterclass-cilium-v0.1.0-clustertemplate
+  name: proxmox-clusterclass-cilium-v0.2.0-clustertemplate
 spec:
   template:
     spec:
+      cloneSpec:
+        machineSpec:
+        - machineType: controlPlane
+          sourceNode: pve1
+          network:
+            networkDevices:
+            - name: net0
+              bridge: ${BRIDGE}
+              model: virtio
+        sshAuthorizedKeys: []
+        virtualIPNetworkInterface: ""
       controlPlaneEndpoint:
         host: 10.10.10.9
         port: 6443
-      dnsServers: [8.8.8.8, 8.8.4.4]
-      cloneSpec:
-        virtualIPNetworkInterface: ""
-        sshAuthorizedKeys: []
-        machineSpec:
-          controlPlane:
-            sourceNode: pve1
+      dnsServers:
+      - 8.8.8.8
+      - 8.8.4.4
 ---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 metadata:
-  name: proxmox-clusterclass-v0.1.0-control-plane-template
+  name: proxmox-clusterclass-v0.2.0-control-plane-template
 spec:
   template:
     spec:
-      sourceNode: pve1
-      templateID: 100
-      format: qcow2
-      full: true
----
-kind: ProxmoxMachineTemplate
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-metadata:
-  name: proxmox-clusterclass-v0.1.0-workertemplate
-spec:
-  template:
-    spec:
-      sourceNode: pve1
-      templateID: 100
       format: qcow2
       full: true
       network:
-        default:
+        networkDevices:
+        - name: net0
           bridge: ${BRIDGE}
           model: virtio
+      sourceNode: pve1
+      templateID: 100
 ---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 metadata:
-  name: proxmox-clusterclass-v0.1.0-loadbalancer-template
+  name: proxmox-clusterclass-v0.2.0-workertemplate
 spec:
   template:
     spec:
-      sourceNode: pve1
-      templateID: 100
       format: qcow2
       full: true
       network:
-        default:
+        networkDevices:
+        - name: net0
           bridge: ${BRIDGE}
           model: virtio
+      sourceNode: pve1
+      templateID: 100
 ---
-kind: KubeadmConfigTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxMachineTemplate
+metadata:
+  name: proxmox-clusterclass-v0.2.0-loadbalancer-template
+spec:
+  template:
+    spec:
+      format: qcow2
+      full: true
+      network:
+        networkDevices:
+        - name: net0
+          bridge: ${BRIDGE}
+          model: virtio
+      sourceNode: pve1
+      templateID: 100
+---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
 metadata:
-  name: proxmox-clusterclass-v0.1.0-workertemplate
+  name: proxmox-clusterclass-v0.2.0-workertemplate
 spec:
   template:
     spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+            provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
 ---
-kind: KubeadmConfigTemplate
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
 metadata:
-  name: proxmox-clusterclass-v0.1.0-loadbalancer-template
+  name: proxmox-clusterclass-v0.2.0-loadbalancer-template
 spec:
   template:
     spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+            provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
           taints:
           - effect: NoSchedule
             key: node-role.kubernetes.io/load-balancer
@@ -1037,5 +1170,5 @@ spec:
     matchLabels:
       cluster.x-k8s.io/proxmox-cluster-cni: cilium
   resources:
-    - kind: ConfigMap
-      name: cilium
+  - kind: ConfigMap
+    name: cilium
