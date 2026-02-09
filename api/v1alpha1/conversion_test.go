@@ -43,6 +43,13 @@ func TestFuzzyConversion(t *testing.T) {
 		Spoke:       &ProxmoxMachineTemplate{},
 		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxMachineTemplateFuzzFuncs},
 	}))
+
+	t.Run("for ProxmoxClusterTemplate", utilconversion.FuzzTestFunc(utilconversion.FuzzTestFuncInput{
+		Scheme:      scheme,
+		Hub:         &v1alpha2.ProxmoxMachineTemplate{},
+		Spoke:       &ProxmoxMachineTemplate{},
+		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterFuzzFuncs},
+	}))
 }
 
 func ProxmoxMachineFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
