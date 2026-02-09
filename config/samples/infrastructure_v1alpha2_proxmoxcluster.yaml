@@ -1,5 +1,5 @@
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxCluster
 metadata:
   labels:
@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/created-by: cluster-api-provider-proxmox
   name: proxmoxcluster-sample
 spec:
-  ipamConfig:
+  ipv4Config:
     addresses:
     - 10.10.10.2
     - 10.10.10.5-10.10.10.100

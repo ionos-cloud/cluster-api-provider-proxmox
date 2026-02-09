@@ -18,7 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 )
 
 // ProxmoxClusterTemplateSpec defines the desired state of ProxmoxClusterTemplate.
@@ -38,7 +38,6 @@ type ProxmoxClusterTemplateResource struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxclustertemplates,scope=Namespaced,categories=cluster-api,shortName=pct
-// +kubebuilder:storageversion
 
 // ProxmoxClusterTemplate is the Schema for the proxmoxclustertemplates API.
 type ProxmoxClusterTemplate struct {
@@ -48,7 +47,7 @@ type ProxmoxClusterTemplate struct {
 	Spec ProxmoxClusterTemplateSpec `json:"spec,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxClusterTemplateList contains a list of ProxmoxClusterTemplate.
 type ProxmoxClusterTemplateList struct {

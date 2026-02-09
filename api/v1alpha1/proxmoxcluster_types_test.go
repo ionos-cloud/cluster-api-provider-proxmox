@@ -26,7 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -88,17 +88,6 @@ func defaultCluster() *ProxmoxCluster {
 				Metric:    func() *uint32 { var a uint32 = 123; return &a }(),
 			},
 			DNSServers: []string{"1.2.3.4"},
-			CloneSpec: &ProxmoxClusterCloneSpec{
-				ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
-					"controlPlane": {
-						VirtualMachineCloneSpec: VirtualMachineCloneSpec{
-							TemplateSource: TemplateSource{
-								SourceNode: "pve1",
-							},
-						},
-					},
-				},
-			},
 		},
 	}
 }
@@ -159,15 +148,6 @@ var _ = Describe("ProxmoxCluster Test", func() {
 
 	It("Should allow creating valid clusters", func() {
 		Expect(k8sClient.Create(context.Background(), defaultCluster())).To(Succeed())
-	})
-
-	Context("CloneSpecs", func() {
-		It("Should not allow Cluster without ControlPlane nodes", func() {
-			dc := defaultCluster()
-			dc.Spec.CloneSpec.ProxmoxMachineSpec = map[string]ProxmoxMachineSpec{}
-
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("control plane")))
-		})
 	})
 
 	Context("IPV6Config", func() {

@@ -19,4 +19,5 @@ package cloudinit
 // Renderer renders cloud-init data.
 type Renderer interface {
 	Render() ([]byte, error)
+	Inspect() ([]byte, error)
 }

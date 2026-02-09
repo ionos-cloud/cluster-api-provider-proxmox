@@ -17,41 +17,40 @@ limitations under the License.
 // Package types provides common types used in cloudinit & ignition.
 package types
 
+import (
+	"net/netip"
+
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+)
+
 // NetworkConfigData is used to render network-config.
 type NetworkConfigData struct {
-	ProxName    string // Device name in Proxmox
-	MacAddress  string
-	DHCP4       bool
-	DHCP6       bool
-	IPAddress   string
-	IPV6Address string
-	Gateway     string
-	Metric      *uint32
-	Gateway6    string
-	Metric6     *uint32
-	DNSServers  []string
-	Type        string
-	Name        string
-	Interfaces  []string // Interfaces controlled by this one.
-	Table       uint32   // linux routing table number for VRF.
-	Routes      []RoutingData
-	FIBRules    []FIBRuleData // Forwarding information block for routing.
-	LinkMTU     *uint16       // linux network device MTU
-	VRF         string        // linux VRF name // only used in networkd config.
+	ProxName   infrav1.NetName // Device name in Proxmox
+	MacAddress string
+	DHCP4      bool
+	DHCP6      bool
+	IPConfigs  []IPConfig
+	DNSServers []string
+	Type       string
+	Name       string
+	Interfaces []string // Interfaces controlled by this one.
+	Table      int32    // linux routing table number for VRF.
+	Routes     []RoutingData
+	FIBRules   []FIBRuleData // Forwarding information block for routing.
+	LinkMTU    infrav1.MTU   // linux network device MTU
+	VRF        string        // linux VRF name // only used in networkd config.
+}
+
+// IPConfig stores IP configuration.
+type IPConfig struct {
+	IPAddress netip.Prefix
+	Gateway   string
+	Metric    *int32
+	Default   bool
 }
 
 // RoutingData stores routing configuration.
-type RoutingData struct {
-	To     string
-	Via    string
-	Metric uint32
-	Table  uint32
-}
+type RoutingData = infrav1.RouteSpec
 
 // FIBRuleData stores forward information base rules (routing policies).
-type FIBRuleData struct {
-	To       string
-	From     string
-	Priority uint32
-	Table    uint32
-}
+type FIBRuleData = infrav1.RoutingPolicySpec

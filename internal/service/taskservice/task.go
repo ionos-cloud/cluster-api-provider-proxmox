@@ -25,10 +25,10 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -120,18 +120,18 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		} else {
 			errorMessage = "task failed but its exit status is OK; this should not happen"
 		}
-		conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.TaskFailure, clusterv1.ConditionSeverityInfo, "%s", errorMessage)
+		conditions.MarkFalse(scope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.TaskFailure, clusterv1.ConditionSeverityInfo, "%s", errorMessage)
 
 		// Instead of directly requeuing the failed task, wait for the RetryAfter duration to pass
 		// before resetting the taskRef from the ProxmoxMachine status.
 		if scope.ProxmoxMachine.Status.RetryAfter.IsZero() {
-			scope.ProxmoxMachine.Status.RetryAfter = metav1.Time{Time: time.Now().Add(1 * time.Minute)}
+			scope.ProxmoxMachine.Status.RetryAfter = &metav1.Time{Time: time.Now().Add(1 * time.Minute)}
 		} else {
 			scope.ProxmoxMachine.Status.TaskRef = nil
-			scope.ProxmoxMachine.Status.RetryAfter = metav1.Time{}
+			scope.ProxmoxMachine.Status.RetryAfter = nil
 		}
 		return true, nil
 	default:
-		return false, NewRequeueError(fmt.Sprintf("unknown task state %q for %q", task.ExitStatus, scope.ProxmoxMachine.Name), infrav1alpha1.DefaultReconcilerRequeue)
+		return false, NewRequeueError(fmt.Sprintf("unknown task state %q for %q", task.ExitStatus, scope.ProxmoxMachine.Name), infrav1.DefaultReconcilerRequeue)
 	}
 }

@@ -1,6 +1,8 @@
 package ignition
 
 import (
+	"encoding/json"
+	"net/netip"
 	"testing"
 
 	ignition "github.com/flatcar/ignition/config/v2_3"
@@ -60,12 +62,12 @@ func TestEnricher_Enrich(t *testing.T) {
 		ProviderID:    "proxmox://xxxx-xxx",
 		Network: []types.NetworkConfigData{
 			{
-				Name:        "eth0",
-				IPAddress:   "10.1.1.9/24",
-				IPV6Address: "2001:db8::1/64",
-				Gateway6:    "2001:db8::1",
-				Gateway:     "10.1.1.1",
-				DNSServers:  []string{"10.1.1.1"},
+				Name: "eth0",
+				IPConfigs: []types.IPConfig{
+					{IPAddress: netip.MustParsePrefix("10.1.1.9/24"), Gateway: "10.1.1.1", Default: true},
+					{IPAddress: netip.MustParsePrefix("2001:db8::1/64"), Gateway: "2001:db8::1", Default: true},
+				},
+				DNSServers: []string{"10.1.1.1"},
 			},
 		},
 	}
@@ -74,6 +76,23 @@ func TestEnricher_Enrich(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, reports)
 	require.NotEmpty(t, userdata)
+	require.True(t, json.Valid(userdata))
+
+	// Test Data. We'll only test environment variables for now.
+	var environment string
+	var jsonData interface{}
+	err = json.Unmarshal(userdata, &jsonData)
+	require.NoError(t, err)
+	files := jsonData.(map[string]interface{})["storage"].(map[string]interface{})["files"].([]interface{})
+	for _, file := range files {
+		if v, exists := file.(map[string]interface{})["path"]; exists {
+			if v.(string) == "/etc/proxmox-env" {
+				environment = file.(map[string]interface{})["contents"].(map[string]interface{})["source"].(string)
+			}
+		}
+	}
+	require.Contains(t, environment, "CUSTOM_PRIVATE_IPV4=10.1.1.9")
+	require.Contains(t, environment, "CUSTOM_PRIVATE_IPV6=2001:db8::1")
 
 	cfg, _, err := ignition.Parse(userdata)
 	require.NoError(t, err)

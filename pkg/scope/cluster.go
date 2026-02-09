@@ -31,14 +31,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util/conditions"
-	"sigs.k8s.io/cluster-api/util/patch"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clustererrors "sigs.k8s.io/cluster-api/errors"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
@@ -50,7 +50,7 @@ type ClusterScopeParams struct {
 	Client         client.Client
 	Logger         *logr.Logger
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1.ProxmoxCluster
 	ProxmoxClient  capmox.Client
 	ControllerName string
 	IPAMHelper     *ipam.Helper
@@ -63,7 +63,7 @@ type ClusterScope struct {
 	patchHelper *patch.Helper
 
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1.ProxmoxCluster
 
 	ProxmoxClient  capmox.Client
 	controllerName string
@@ -169,7 +169,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 			// setting the connection insecure. If it is set we compare
 			// against YAML true-ish values.
 			//
-			//#nosec:G402 // Intended to enable insecure mode for unknown CAs
+			// #nosec:G402 // Intended to enable insecure mode for unknown CAs
 			InsecureSkipVerify: !tlsInsecureSet || slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
 			RootCAs:            rootCerts,
 		},
@@ -208,7 +208,7 @@ func (s *ClusterScope) PatchObject() error {
 	// always update the readyCondition.
 	conditions.SetSummary(s.ProxmoxCluster,
 		conditions.WithConditions(
-			infrav1alpha1.ProxmoxClusterReady,
+			infrav1.ProxmoxClusterReady,
 		),
 	)
 
@@ -216,8 +216,8 @@ func (s *ClusterScope) PatchObject() error {
 }
 
 // ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.
-func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]infrav1alpha1.ProxmoxMachine, error) {
-	var machineList infrav1alpha1.ProxmoxMachineList
+func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]infrav1.ProxmoxMachine, error) {
+	var machineList infrav1.ProxmoxMachineList
 
 	err := s.client.List(ctx, &machineList, client.InNamespace(s.Namespace()), client.MatchingLabels{
 		clusterv1.ClusterNameLabel: s.Name(),

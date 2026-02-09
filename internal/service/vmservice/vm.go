@@ -25,12 +25,15 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	capierrors "sigs.k8s.io/cluster-api/errors"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
+
+	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
@@ -58,11 +61,11 @@ var ErrNoVMIDInRangeFree = errors.New("No free vmid found in vmIDRange")
 //  2. Updating the VM with the bootstrap data, such as the cloud-init meta and user data, before...
 //  3. Powering on the VM, and finally...
 //  4. Returning the real-time state of the VM to the caller
-func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.VirtualMachine, error) {
+func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.VirtualMachine, error) {
 	// Initialize the result.
-	vm := infrav1alpha1.VirtualMachine{
+	vm := infrav1.VirtualMachine{
 		Name:  scope.Name(),
-		State: infrav1alpha1.VirtualMachineStatePending,
+		State: infrav1.VirtualMachineStatePending,
 	}
 
 	// If there is an in-flight task associated with this VM then do not
@@ -70,37 +73,55 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 	if inFlight, err := taskservice.ReconcileInFlightTask(ctx, scope); err != nil || inFlight {
 		return vm, err
 	}
+	scope.Logger.V(4).Info("proxmox machine state", "state", conditions.GetReason(scope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 
+	// TODO: This requires a proper state machine. We're reusing
+	// the condition reasons in VMProvisionedConditions as a state machine
+	// for convenience, but this definitely needs to be refactored.
 	if requeue, err := ensureVirtualMachine(ctx, scope); err != nil || requeue {
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.CloningReason
 
 	if requeue, err := reconcileVirtualMachineConfig(ctx, scope); err != nil || requeue {
+		scope.Logger.V(4).Info("after reconcileVirtualMachineCOnfig", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForDiskReconcilationReason
 
 	if err := reconcileDisks(ctx, scope); err != nil {
+		scope.Logger.V(4).Info("after reconcileDisks", "machineName", scope.ProxmoxMachine.GetName(), "err", err)
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForStaticIPAllocationReason
 
 	if requeue, err := reconcileIPAddresses(ctx, scope); err != nil || requeue {
+		scope.Logger.V(4).Info("after reconcileIPAddresses", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForBootstrapDataReason
 
 	if requeue, err := reconcileBootstrapData(ctx, scope); err != nil || requeue {
+		scope.Logger.V(4).Info("after reconcileBootstrapData", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForVMPowerUpReason
 
 	if requeue, err := reconcilePowerState(ctx, scope); err != nil || requeue {
+		scope.Logger.V(4).Info("after reconcilePowerState", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForClusterAPIMachineAddressesReason
 
 	if err := reconcileMachineAddresses(scope); err != nil {
+		scope.Logger.V(4).Info("after reconcileMachineAddresses", "machineName", scope.ProxmoxMachine.GetName(), "err", err)
 		return vm, err
-	}
+	} // VMProvisionedCondition reason is infrav1.WaitingForCloudInitReason
 
 	if requeue, err := checkCloudInitStatus(ctx, scope); err != nil || requeue {
+		scope.Logger.V(4).Info("after checkCloudInitStatus", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err
+	} // VMProvisionedCondition reason is infrav1.WaitingForBootstrapReadyReason
+
+	// handle invalid state of the machine
+	if conditions.GetReason(scope.ProxmoxMachine, infrav1.VMProvisionedCondition) == infrav1.VMProvisionFailedReason {
+		scope.Logger.V(4).Info("invalid proxmoxmachine state", "state", conditions.GetReason(scope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+		// If you end up here, please file a bug report.
+		return vm, errors.New("invalid state (failed and no error)")
 	}
 
 	// if the root machine is ready, we can assume that the VM is ready as well.
@@ -109,16 +130,17 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 		if err := unmountCloudInitISO(ctx, scope); err != nil {
 			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
 		}
-	}
+	} // State Machine is finished
+	scope.Logger.V(4).Info("condition", "condition", conditions.GetReason(scope.ProxmoxMachine, infrav1.VMProvisionedCondition))
 
-	vm.State = infrav1alpha1.VirtualMachineStateReady
+	vm.State = infrav1.VirtualMachineStateReady
 	return vm, nil
 }
 
 func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if !machineScope.VirtualMachine.IsRunning() {
-		// skip if the vm is not running.
-		return true, nil
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForCloudInitReason {
+		// Machine is in the wrong state to reconcile, we only reconcile machines waiting for cloud init
+		return false, nil
 	}
 
 	if !machineScope.SkipQemuGuestCheck() {
@@ -127,13 +149,14 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 		}
 	}
 
+	// TODO: Is there a status for Ignition?
 	if !machineScope.SkipCloudInitCheck() {
 		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
 			if running {
 				return true, nil
 			}
 			if errors.Is(goproxmox.ErrCloudInitFailed, err) {
-				conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
+				conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
 				machineScope.SetFailureMessage(err)
 				machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
 			}
@@ -141,6 +164,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 		}
 	}
 
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapReadyReason, clusterv1.ConditionSeverityInfo, "")
 	return false, nil
 }
 
@@ -150,8 +174,20 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 	if machineScope.ProxmoxMachine.Status.TaskRef != nil {
 		return true, nil
 	}
+
+	// Initialize the state machine for proxmox machine deployment.
+	// NOTE: We are setting this condition only in case it does not exist, so we avoid to get flickering LastConditionTime
+	// in case of cloning errors or powering on errors.
+	if !conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) ||
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) == infrav1.WaitingForClusterInfrastructureReason ||
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) == infrav1.WaitingForBootstrapDataReason {
+		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.CloningReason, clusterv1.ConditionSeverityInfo, "")
+	}
+
 	// Before going further, we need the VM's managed object reference.
 	vmRef, err := FindVM(ctx, machineScope)
+
+	// TODO: Codeflow
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrVMNotFound):
@@ -167,17 +203,10 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 			return false, err
 		}
 
-		// Otherwise, this is a new machine and the VM should be created.
-		// NOTE: We are setting this condition only in case it does not exist, so we avoid to get flickering LastConditionTime
-		// in case of cloning errors or powering on errors.
-		if !conditions.Has(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition) {
-			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningReason, clusterv1.ConditionSeverityInfo, "")
-		}
-
 		// Create the VM.
 		resp, err := createVM(ctx, machineScope)
 		if err != nil {
-			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.CloningFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
 			return false, err
 		}
 		machineScope.Logger.V(4).Info("Task created", "taskID", resp.Task.ID)
@@ -186,6 +215,7 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(resp.Task.UPID))
 		machineScope.SetVirtualMachineID(resp.NewID)
 
+		// requeue until cloning is finished
 		return true, nil
 	}
 
@@ -196,35 +226,46 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 	// setting the VirtualMachine object for completing the reconciliation.
 	machineScope.SetVirtualMachine(vmRef)
 
+	// at this point the VM is found, so err must be nil
 	return false, nil
 }
 
 func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) error {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForDiskReconcilationReason {
+		// Machine is in the wrong state to reconcile, we only reconcile Cloning VMs
+		return nil
+	}
+
 	machineScope.V(4).Info("reconciling disks")
 	disks := machineScope.ProxmoxMachine.Spec.Disks
-	if disks == nil {
-		// nothing to do
-		return nil
-	}
 
-	vm := machineScope.VirtualMachine
-	if vm.IsRunning() || machineScope.ProxmoxMachine.Status.Ready {
-		// We only want to do this before the machine was started or is ready
-		return nil
-	}
+	if disks != nil {
+		vm := machineScope.VirtualMachine
+		if vm.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Ready, false) {
+			// We only want to do this before the machine was started or is ready
+			return nil
+		}
 
-	if bv := disks.BootVolume; bv != nil {
-		if _, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize()); err != nil {
-			machineScope.Error(err, "unable to set disk size", "vm", machineScope.VirtualMachine.VMID)
-			return err
+		if bv := disks.BootVolume; bv != nil {
+			if _, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize()); err != nil {
+				machineScope.Error(err, "unable to set disk size", "vm", machineScope.VirtualMachine.VMID)
+				return err
+			}
 		}
 	}
 
+	// Machine is now waiting for IPAddress Allocations, move State Machine along
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityInfo, "")
 	return nil
 }
 
 func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if machineScope.VirtualMachine.IsRunning() || machineScope.ProxmoxMachine.Status.Ready {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.CloningReason {
+		// Machine is in the wrong state to reconcile, we only reconcile Cloning VMs.
+		return false, nil
+	}
+
+	if machineScope.VirtualMachine.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Ready, false) {
 		// We only want to do this before the machine was started or is ready
 		return false, nil
 	}
@@ -233,14 +274,17 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	// CPU & Memory
 	var vmOptions []proxmox.VirtualMachineOption
-	if value := machineScope.ProxmoxMachine.Spec.NumSockets; value > 0 && vmConfig.Sockets != int(value) {
-		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionSockets, Value: value})
+	sockets := ptr.Deref(machineScope.ProxmoxMachine.Spec.NumSockets, 0)
+	cores := ptr.Deref(machineScope.ProxmoxMachine.Spec.NumCores, 0)
+	memory := ptr.Deref(machineScope.ProxmoxMachine.Spec.MemoryMiB, 0)
+	if sockets > 0 && vmConfig.Sockets != int(sockets) {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionSockets, Value: sockets})
 	}
-	if value := machineScope.ProxmoxMachine.Spec.NumCores; value > 0 && vmConfig.Cores != int(value) {
-		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCores, Value: value})
+	if cores > 0 && vmConfig.Cores != int(cores) {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCores, Value: cores})
 	}
-	if value := machineScope.ProxmoxMachine.Spec.MemoryMiB; value > 0 && int32(vmConfig.Memory) != value {
-		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: value})
+	if memory > 0 && int(vmConfig.Memory) != int(memory) {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: memory})
 	}
 
 	// Description
@@ -252,23 +296,12 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	// Network vmbrs.
 	if machineScope.ProxmoxMachine.Spec.Network != nil && shouldUpdateNetworkDevices(machineScope) {
-		// adding the default network device.
-		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
-			Name: infrav1alpha1.DefaultNetworkDevice,
-			Value: formatNetworkDevice(
-				*machineScope.ProxmoxMachine.Spec.Network.Default.Model,
-				machineScope.ProxmoxMachine.Spec.Network.Default.Bridge,
-				machineScope.ProxmoxMachine.Spec.Network.Default.MTU,
-				machineScope.ProxmoxMachine.Spec.Network.Default.VLAN,
-			),
-		})
-
 		// handing additional network devices.
-		devices := machineScope.ProxmoxMachine.Spec.Network.AdditionalDevices
+		devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 		for _, v := range devices {
 			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
-				Name:  v.Name,
-				Value: formatNetworkDevice(*v.Model, v.Bridge, v.MTU, v.VLAN),
+				Name:  *v.Name,
+				Value: formatNetworkDevice(*v.Model, *v.Bridge, v.MTU, v.VLAN),
 			})
 		}
 	}
@@ -299,25 +332,30 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	}
 
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(task.UPID))
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForDiskReconcilationReason, clusterv1.ConditionSeverityInfo, "")
 	return true, nil
 }
 
-func reconcileMachineAddresses(scope *scope.MachineScope) error {
-	addr, err := getMachineAddresses(scope)
+func reconcileMachineAddresses(machineScope *scope.MachineScope) error {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForClusterAPIMachineAddressesReason {
+		// Machine is in the wrong state to reconcile, we only reconcile powered up VMs
+		return nil
+	}
+
+	addr, err := getClusterAPIMachineAddresses(machineScope)
 	if err != nil {
-		scope.Error(err, "failed to retrieve machine addresses")
+		machineScope.Error(err, "failed to retrieve machine addresses")
 		return err
 	}
 
-	scope.SetAddresses(addr)
+	machineScope.SetAddresses(addr)
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForCloudInitReason, clusterv1.ConditionSeverityInfo, "")
 	return nil
 }
 
-func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
-	if !machineHasIPAddress(scope.ProxmoxMachine) {
-		return nil, errors.New("machine does not yet have an ip address")
-	}
-
+func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
 	if !scope.VirtualMachine.IsRunning() {
 		return nil, errors.New("unable to apply configuration as long as the virtual machine is not running")
 	}
@@ -329,17 +367,24 @@ func getMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress,
 		},
 	}
 
-	if scope.InfraCluster.ProxmoxCluster.Spec.IPv4Config != nil {
-		addresses = append(addresses, clusterv1.MachineAddress{
-			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV4,
-		})
+	machineAddresses := scope.ProxmoxMachine.GetIPAddresses()
+	index := slices.IndexFunc(machineAddresses, func(s infrav1.IPAddressesSpec) bool {
+		return s.NetName == "default"
+	})
+	// TODO: DHCP as InternalIP
+	if index == -1 {
+		return addresses, errors.Errorf("Machine has no default IPAddresses")
 	}
 
-	if scope.InfraCluster.ProxmoxCluster.Spec.IPv6Config != nil {
+	defaultAddresses := machineAddresses[index]
+
+	for _, address := range slices.Concat(defaultAddresses.IPv4, defaultAddresses.IPv6) {
+		if address == "" {
+			continue
+		}
 		addresses = append(addresses, clusterv1.MachineAddress{
 			Type:    clusterv1.MachineInternalIP,
-			Address: scope.ProxmoxMachine.Status.IPAddresses[infrav1alpha1.DefaultNetworkDevice].IPV6,
+			Address: address,
 		})
 	}
 
@@ -389,7 +434,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	if scope.InfraCluster.ProxmoxCluster.Status.NodeLocations == nil {
-		scope.InfraCluster.ProxmoxCluster.Status.NodeLocations = new(infrav1alpha1.NodeLocations)
+		scope.InfraCluster.ProxmoxCluster.Status.NodeLocations = new(infrav1.NodeLocations)
 	}
 
 	// if no target was specified but we have a set of nodes defined in the spec, we want to evenly distribute
@@ -418,7 +463,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
 				scope.SetFailureMessage(err)
 				scope.SetFailureReason(capierrors.MachineStatusError("VMTemplateNotFound"))
-				conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
+				conditions.MarkFalse(scope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
 			}
 			return proxmox.VMCloneResponse{}, err
 		}
@@ -437,7 +482,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 
 	// if the creation was successful, we store the information about the node in the
 	// cluster status
-	scope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1alpha1.NodeLocation{
+	scope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: options.Name},
 		Node:    node,
 	}, util.IsControlPlaneMachine(scope.Machine))
