@@ -43,10 +43,11 @@ import (
 type IPAMTestSuite struct {
 	suite.Suite
 	*require.Assertions
-	ctx     context.Context
-	cluster *infrav1.ProxmoxCluster
-	cl      client.Client
-	helper  *Helper
+	ctx         context.Context
+	cluster     *infrav1.ProxmoxCluster
+	capiCluster *clusterv1.Cluster
+	cl          client.Client
+	helper      *Helper
 }
 
 func TestIPAMTestSuite(t *testing.T) {
@@ -55,6 +56,22 @@ func TestIPAMTestSuite(t *testing.T) {
 
 func (s *IPAMTestSuite) SetupTest() {
 	s.cluster = getCluster()
+	s.capiCluster = &clusterv1.Cluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       clusterv1.ClusterKind,
+			APIVersion: clusterv1.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster",
+			Namespace: "test",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: clusterv1.GroupVersion.String(),
+				Name:       "test-cluster",
+				Kind:       clusterv1.ClusterKind,
+			}},
+		},
+		Spec: clusterv1.ClusterSpec{},
+	}
 
 	s.Assertions = require.New(s.T())
 	scheme := scheme.Scheme
@@ -67,6 +84,7 @@ func (s *IPAMTestSuite) SetupTest() {
 	fakeCl := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(s.cluster).
+		WithObjects(s.capiCluster).
 		Build()
 
 	s.cl = fakeCl
@@ -515,12 +533,17 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 func getCluster() *infrav1.ProxmoxCluster {
 	return &infrav1.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "PromoxCluster",
+			Kind:       infrav1.ProxmoxClusterKind,
 			APIVersion: infrav1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cluster",
 			Namespace: "test",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: clusterv1.GroupVersion.String(),
+				Name:       "test-cluster",
+				Kind:       clusterv1.ClusterKind,
+			}},
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{

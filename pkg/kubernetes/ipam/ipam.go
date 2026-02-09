@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	util "github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 )
 
@@ -459,8 +460,15 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 
 	// Ensures that the claim has a reference to the cluster of the VM to
 	// support pausing reconciliation.
+	ownerCluster, err := util.GetOwnerCluster(ctx, h.ctrlClient, h.cluster.ObjectMeta)
+	if err != nil {
+		return err
+	}
+	if ownerCluster == nil { // This can only happen in badly designed tests
+		return errors.New("ProxmoxCluster with OwnerReference but Cluster does not exist")
+	}
 	labels := map[string]string{
-		clusterv1.ClusterNameLabel: h.cluster.GetName(),
+		clusterv1.ClusterNameLabel: ownerCluster.GetName(),
 	}
 
 	// Copy Proxmox Zone Label.
