@@ -67,8 +67,8 @@ func NewAPIClient(ctx context.Context, logger logr.Logger, baseURL string, optio
 // CloneVM clones a VM based on templateID and VMCloneRequest.
 func (c *APIClient) CloneVM(ctx context.Context, templateID int, clone capmox.VMCloneRequest) (capmox.VMCloneResponse, error) {
 	// get the node
-	node, err := c.Node(ctx, clone.Node)
-	if err != nil {
+	node := (&proxmox.Node{}).New(c.Client, clone.Node)
+	if err := node.Status(ctx); err != nil {
 		return capmox.VMCloneResponse{}, fmt.Errorf("cannot find node with name %s: %w", clone.Node, err)
 	}
 
@@ -108,8 +108,8 @@ func (c *APIClient) ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine,
 
 // GetVM returns a VM based on nodeName and vmID.
 func (c *APIClient) GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error) {
-	node, err := c.Node(ctx, nodeName)
-	if err != nil {
+	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	if err := node.Status(ctx); err != nil {
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
@@ -195,8 +195,8 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		return nil, fmt.Errorf("vm with id %d does not exist", vmID)
 	}
 
-	node, err := c.Node(ctx, nodeName)
-	if err != nil {
+	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	if err := node.Status(ctx); err != nil {
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
@@ -254,8 +254,9 @@ func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, er
 
 // GetReservableMemoryBytes returns the memory that can be reserved by a new VM, in bytes.
 func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment uint64) (uint64, error) {
-	node, err := c.Client.Node(ctx, nodeName)
-	if err != nil {
+	node := (&proxmox.Node{}).New(c.Client, nodeName)
+
+	if err := node.Status(ctx); err != nil {
 		return 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
