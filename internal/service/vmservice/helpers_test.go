@@ -110,6 +110,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			Finalizers: []string{
 				infrav1.ClusterFinalizer,
 			},
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: clusterv1.GroupVersion.String(),
+				Name:       "test",
+				Kind:       clusterv1.ClusterKind,
+			}},
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{
