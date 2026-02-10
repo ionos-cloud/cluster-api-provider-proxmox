@@ -2,7 +2,7 @@
 // +build tools
 
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ package tools
 import (
 	_ "github.com/braydonk/yaml"
 	_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
-	_ "github.com/google/yamlfmt"
+	_ "github.com/google/yamlfmt/cmd/yamlfmt"
 	_ "github.com/vektra/mockery/v2"
 	_ "golang.org/x/tools/cmd/goimports"
 )
