@@ -1025,3 +1025,7 @@ mvdan.cc/unparam v0.0.0-20251027182757-5beb8c8f8f15/go.mod h1:4M5MMXl2kW6fivUT6y
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+sigs.k8s.io/kube-api-linter v0.0.0-20250819172928-066025356482 h1:Ix3F/nLG+fxAsJpazzbGwf+snKo+mTRou+HTGD8h3F4=
+sigs.k8s.io/kube-api-linter v0.0.0-20250819172928-066025356482/go.mod h1:Jxl3NU9lRf9WJ8dgwgF4U6tLF229jR/KEvtxSwRAKnE=
+sigs.k8s.io/yaml v1.6.0 h1:G8fkbMSAFqgEFgh4b1wmtzDnioxFCUgTZhlbj5P9QYs=
+sigs.k8s.io/yaml v1.6.0/go.mod h1:796bPqUfzR/0jLAl6XjHl3Ck7MiyVv8dbTdyT3/pMf4=
