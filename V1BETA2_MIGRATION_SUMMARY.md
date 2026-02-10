@@ -25,4 +25,9 @@ This branch contains the complete migration from cluster-api v1beta1 to v1beta2 
 ✅ All changes follow v1.10-to-v1.11 migration guide
 
 ## Base Branch
-This PR is based on `v1alpha2/wip` branch.
+This PR is based on `v1alpha2/wip` branch (commit `7958263`).
+
+## Branch Information
+- **New Branch**: `copilot/v1beta2-migration`
+- **Base**: `v1alpha2/wip`
+- **Total Commits**: 10 (9 migration commits + 1 summary)
