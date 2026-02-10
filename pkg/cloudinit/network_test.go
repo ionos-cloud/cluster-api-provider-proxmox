@@ -38,11 +38,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -58,11 +58,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -79,11 +79,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1`
+          via: "10.10.10.1"`
 
 	expectedValidNetworkConfigMultipleNics = `network:
   version: 2
@@ -95,11 +95,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -110,11 +110,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 196.168.100.124/24
+        - '196.168.100.124/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 200
-          via: 196.168.100.254
+          via: "196.168.100.254"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -130,15 +130,15 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
-        - 2001:db8::1/64
+        - '10.10.10.12/24'
+        - '2001:db8::1/64'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
         - to: '::/0'
           metric: 100
-          via: 2001:db8::1
+          via: "2001:db8::1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -154,11 +154,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 2001:db8::1/64
+        - '2001:db8::1/64'
       routes:
         - to: '::/0'
           metric: 100
-          via: 2001:db8::1
+          via: "2001:db8::1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -216,11 +216,11 @@ const (
       dhcp4: false
       dhcp6: true
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -236,11 +236,11 @@ const (
       dhcp4: true
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -256,11 +256,11 @@ const (
       dhcp4: false
       dhcp6: true
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -271,11 +271,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.11.12/24
+        - '10.10.11.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 200
-          via: 10.10.11.1
+          via: "10.10.11.1"
         - { "to": "172.16.24.1/24",  "via": "10.10.10.254",  "metric": 50, }
         - { "to": "2002::/64",  "via": "2001:db8::1", }`
 
@@ -289,11 +289,11 @@ const (
       dhcp4: false
       dhcp6: true
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -304,11 +304,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.11.12/24
+        - '10.10.11.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 200
-          via: 10.10.11.1
+          via: "10.10.11.1"
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "192.168.178.1/24",  "priority": 999,  "table": 100, }`
 
@@ -322,11 +322,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -337,11 +337,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 196.168.100.124/24
+        - '196.168.100.124/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 200
-          via: 196.168.100.254
+          via: "196.168.100.254"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -355,8 +355,8 @@ const (
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "192.168.178.1/24",  "priority": 999,  "table": 100, }
       interfaces:
-        - eth0
-        - eth1`
+        - 'eth0'
+        - 'eth1'`
 
 	expectedValidNetworkConfigMultipleNicsMultipleVRF = `network:
   version: 2
@@ -368,11 +368,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 10.10.10.12/24
+        - '10.10.10.12/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 100
-          via: 10.10.10.1
+          via: "10.10.10.1"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -383,11 +383,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - 196.168.100.124/24
+        - '196.168.100.124/24'
       routes:
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
           metric: 200
-          via: 196.168.100.254
+          via: "196.168.100.254"
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -401,13 +401,13 @@ const (
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "192.168.178.1/24",  "priority": 999,  "table": 100, }
       interfaces:
-        - eth0
+        - 'eth0'
     vrf-red:
       table: 501
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "192.168.100.0/24",  "priority": 999,  "table": 101, }
       interfaces:
-        - eth1`
+        - 'eth1'`
 
 	expectedValidNetworkConfigValidFIBRule = `network:
   version: 2

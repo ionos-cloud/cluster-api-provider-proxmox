@@ -54,7 +54,7 @@ const (
     {{- if $element.Interfaces }}
       interfaces:
       {{- range $element.Interfaces }}
-        - {{ . }}
+        - '{{ . }}'
       {{- end -}}
     {{- end -}}
   {{- end }}
@@ -97,12 +97,12 @@ const (
         {{- if ((.IPAddress).Addr).Is6 }}
         - to: '::/0'
         {{- else }}
-        - to: 0.0.0.0/0
+        - to: '0.0.0.0/0'
         {{- end -}}
           {{- if .Metric }}
           metric: {{ .Metric }}
           {{- end }}
-          via: {{ .Gateway }}
+          via: "{{ .Gateway }}"
        {{- end }}
       {{- end -}}
       {{- end -}}
@@ -122,7 +122,7 @@ const (
     {{- if .IPConfigs }}
       addresses:
         {{- range $ipconfig := .IPConfigs }}
-        - {{ (.IPAddress).String }}
+        - '{{ (.IPAddress).String }}'
         {{- end }}
     {{- end -}}
 {{- end -}}

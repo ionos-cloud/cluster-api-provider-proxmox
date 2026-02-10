@@ -25,6 +25,8 @@ import (
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
+
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // CloudInitISODevice default device used to inject cdrom iso.
@@ -55,6 +57,8 @@ func (i *ISOInjector) Inject(ctx context.Context, format BootstrapDataFormat) er
 }
 
 func (i *ISOInjector) injectCloudInit(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+
 	// Render metadata.
 	metadata, err := i.MetaRenderer.Render()
 	if err != nil {
@@ -67,6 +71,8 @@ func (i *ISOInjector) injectCloudInit(ctx context.Context) error {
 		return errors.Wrap(err, "unable to render network-config")
 	}
 
+	logger.V(4).Info("CloudInit:", "network-config", string(network))
+
 	// Inject an ISO with userdata, metadata and network-config into the VirtualMachine.
 	err = i.VirtualMachine.CloudInit(ctx, CloudInitISODevice, string(i.BootstrapData), string(metadata), "", string(network))
 	if err != nil {
@@ -77,6 +83,8 @@ func (i *ISOInjector) injectCloudInit(ctx context.Context) error {
 }
 
 func (i *ISOInjector) injectIgnition(ctx context.Context) error {
+	logger := log.FromContext(ctx)
+
 	if i.IgnitionEnricher == nil {
 		return errors.New("ignition enricher is not defined")
 	}
@@ -99,6 +107,8 @@ func (i *ISOInjector) injectIgnition(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "unable to enrich ignition")
 	}
+
+	logger.V(4).Info("Ingnition", "bootstrapData", bootstrapData)
 
 	// Inject an ISO with ignition userdata, metadata and an empty network-config v1 into the VirtualMachine.
 	err = i.VirtualMachine.CloudInit(ctx, CloudInitISODevice, string(bootstrapData), string(metadata), "", string(cloudinit.EmptyNetworkV1))
