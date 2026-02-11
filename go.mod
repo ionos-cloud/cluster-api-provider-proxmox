@@ -30,6 +30,8 @@ require (
 	sigs.k8s.io/randfill v1.0.0
 )
 
+require gopkg.in/yaml.v3 v3.0.1
+
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	cel.dev/expr v0.19.1 // indirect
@@ -152,7 +154,6 @@ require (
 	google.golang.org/protobuf v1.36.7 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.33.3 // indirect
 	k8s.io/apiserver v0.33.3 // indirect
 	k8s.io/cluster-bootstrap v0.33.3 // indirect

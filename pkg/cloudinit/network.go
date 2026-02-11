@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"net/netip"
 
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
@@ -169,12 +171,26 @@ func (r *NetworkConfig) Inspect() ([]byte, error) {
 
 // Render returns rendered network-config.
 func (r *NetworkConfig) Render() ([]byte, error) {
+	// Validate inputs to template
 	if err := r.validate(); err != nil {
 		return nil, err
 	}
 
-	// render network-config
-	return render("network-config", networkConfigTpl, r.data)
+	nc, err := render("network-config", networkConfigTpl, r.data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check YAML render to be valid
+	var unused interface{}
+	err = yaml.Unmarshal(nc, &unused)
+	if err != nil {
+		return nil, errors.Wrap(err,
+			"Template produced invalid YAML. Please file a bug at: "+
+				"https://github.com/ionos-cloud/cluster-api-provider-proxmox/")
+	}
+
+	return nc, nil
 }
 
 func (r *NetworkConfig) validate() error {
@@ -279,7 +295,8 @@ func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
 
 	for _, rule := range input {
 		// We only support To/From and we require a table if we're not a vrf
-		if (ptr.Deref(rule.To, "") == "" && ptr.Deref(rule.From, "") == "") || (ptr.Deref(rule.Table, 0) == 0 && !isVrf) {
+		if (ptr.Deref(rule.To, "") == "" && ptr.Deref(rule.From, "") == "") ||
+			(ptr.Deref(rule.Table, 0) == 0 && !isVrf) {
 			return ErrMalformedFIBRule
 		}
 		if ptr.Deref(rule.To, "") != "" {

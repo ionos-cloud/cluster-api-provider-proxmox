@@ -409,6 +409,49 @@ const (
       interfaces:
         - 'eth1'`
 
+	expectedYamlEdgeCases = `network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    NO &anchor:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - '10.10.10.12/24'
+      routes:
+        - to: '0.0.0.0/0'
+          metric: 100
+          via: "10.10.10.1"
+      nameservers:
+        addresses:
+          - '8.8.8.8'
+          - '8.8.4.4'
+    asdf !.tag:
+      match:
+        macaddress: b4:87:18:bf:a3:60
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - '2001:db8::ffff:0/64'
+      routes:
+        - to: '::/0'
+          metric: 200
+          via: "2001:db8::"
+      nameservers:
+        addresses:
+          - '22:22'
+          - '::'
+          - '[::]'
+  vrfs:
+    vrf-blue:
+      table: 500
+      routes:
+        - { "to": "::",  "via": "192.168.178.1", }
+      interfaces:
+        - 'on: [NO, "False"]'`
+
 	expectedValidNetworkConfigValidFIBRule = `network:
   version: 2
   renderer: networkd
@@ -1029,6 +1072,48 @@ func TestNetworkConfig_Render(t *testing.T) {
 			want: want{
 				network: "",
 				err:     ErrMalformedRoute,
+			},
+		},
+		"YamlEdgeCases": {
+			reason: "valid config multiple nics enslaved to multiple VRFs",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "NO &anchor",
+						MacAddress: "92:60:a0:5b:22:c2",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
+							Gateway:   "10.10.10.1",
+							Metric:    ptr.To(int32(100)),
+						}},
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+					{
+						Type:       "ethernet",
+						Name:       "asdf !.tag",
+						MacAddress: "b4:87:18:bf:a3:60",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: netip.MustParsePrefix("2001:db8::ffff:0/64"),
+							Gateway:   "2001:db8::",
+							Metric:    ptr.To(int32(200)),
+						}},
+						DNSServers: []string{"22:22", "::", "[::]"},
+					},
+					{
+						Type:       "vrf",
+						Name:       "vrf-blue",
+						Table:      int32(500),
+						Interfaces: []string{"on: [NO, \"False\"]"},
+						Routes: []types.RoutingData{{
+							To:  ptr.To("::"),
+							Via: ptr.To("192.168.178.1"),
+						}},
+					},
+				}},
+			want: want{
+				network: expectedYamlEdgeCases,
+				err:     nil,
 			},
 		},
 	}
