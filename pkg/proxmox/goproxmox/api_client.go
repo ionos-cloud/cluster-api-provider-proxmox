@@ -143,7 +143,7 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 }
 
 // FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
-func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string) (string, int32, error) {
+func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error) {
 	vmTemplates := make([]*proxmox.ClusterResource, 0)
 
 	sortedTags := make([]string, len(templateTags))
@@ -173,9 +173,39 @@ func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []str
 		}
 
 		vmTags := strings.Split(vm.Tags, ";")
+		for i := range vmTags {
+			vmTags[i] = strings.ToLower(strings.TrimSpace(vmTags[i]))
+		}
 		slices.Sort(vmTags)
+		vmTags = slices.Compact(vmTags)
 
-		if slices.Equal(vmTags, uniqueTags) {
+		// Check whether the template’s tags (tagsPresent) contain all the requested tags (tagsWanted)
+		isSuperset := func(tagsPresent, tagsWanted []string) bool {
+			presentIdx, wantedIdx := 0, 0
+			for presentIdx < len(tagsPresent) && wantedIdx < len(tagsWanted) {
+				switch {
+				case tagsPresent[presentIdx] == tagsWanted[wantedIdx]:
+					presentIdx++
+					wantedIdx++
+				case tagsPresent[presentIdx] < tagsWanted[wantedIdx]:
+					presentIdx++
+				default:
+					return false
+				}
+			}
+			return wantedIdx == len(tagsWanted)
+		}
+
+		matches := false
+		if resolutionPolicy == "subset" {
+			matches = isSuperset(vmTags, uniqueTags)
+		} else {
+			if len(vmTags) == len(uniqueTags) && slices.Equal(vmTags, uniqueTags) {
+				matches = true
+			}
+		}
+
+		if matches {
 			vmTemplates = append(vmTemplates, vm)
 		}
 	}

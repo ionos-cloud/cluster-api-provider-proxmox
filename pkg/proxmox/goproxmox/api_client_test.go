@@ -381,91 +381,112 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 		&proxmox.ClusterResource{VMID: 202, Name: "ubuntu-22.04-k8s-v1.30.2", Node: "capmox02", Tags: "capmox;template;v1.30.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 301, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 302, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 700, Name: "template-superset", Node: "capmox01", Tags: "template-superset;extra-tag", Template: uint64(1)},
 	}
 	tests := []struct {
-		name           string
-		http           []int
-		vmTags         []string
-		fails          bool
-		err            string
-		vmTemplateNode string
-		vmTemplateID   int32
+		name             string
+		http             []int
+		vmTags           []string
+		resolutionPolicy string
+		fails            bool
+		err              string
+		vmTemplateNode   string
+		vmTemplateID     int32
 	}{
 		{
-			name:  "clusterstatus broken",
-			http:  []int{500, 200},
-			fails: true,
-			err:   "cannot get cluster status: 500",
+			name:             "clusterstatus broken",
+			http:             []int{500, 200},
+			resolutionPolicy: "exact",
+			fails:            true,
+			err:              "cannot get cluster status: 500",
 		},
 		{
-			name:  "resourcelisting broken",
-			http:  []int{200, 500},
-			fails: true,
-			err:   "could not list vm resources: 500",
+			name:             "resourcelisting broken",
+			http:             []int{200, 500},
+			resolutionPolicy: "exact",
+			fails:            true,
+			err:              "could not list vm resources: 500",
 		},
 		{
-			name:           "find-template",
-			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "v1.28.3"},
-			fails:          false,
-			err:            "",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			name:             "find-template",
+			http:             []int{200, 200},
+			vmTags:           []string{"template", "capmox", "v1.28.3"},
+			resolutionPolicy: "exact",
+			fails:            false,
+			err:              "",
+			vmTemplateNode:   "capmox01",
+			vmTemplateID:     201,
 		},
 		{
-			name:           "find-template-nil",
-			http:           []int{200, 200},
-			vmTags:         nil,
-			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"\"",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			name:             "find-template-nil",
+			http:             []int{200, 200},
+			vmTags:           nil,
+			resolutionPolicy: "subset",
+			fails:            true,
+			err:              "VM template not found: found 5 VM templates with tags \"\"",
+			vmTemplateNode:   "capmox01",
+			vmTemplateID:     201,
 		},
 		{
 			// Proxmox VM tags are always lowercase
-			name:           "find-template-uppercase",
-			http:           []int{200, 200},
-			vmTags:         []string{"TEMPLATE", "CAPMOX", "v1.28.3"},
-			fails:          false,
-			err:            "",
-			vmTemplateNode: "capmox01",
-			vmTemplateID:   201,
+			name:             "find-template-uppercase",
+			http:             []int{200, 200},
+			vmTags:           []string{"TEMPLATE", "CAPMOX", "v1.28.3"},
+			resolutionPolicy: "exact",
+			fails:            false,
+			err:              "",
+			vmTemplateNode:   "capmox01",
+			vmTemplateID:     201,
 		},
 		{
-			name:           "find-template-unordered",
-			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "v1.30.2"},
-			fails:          false,
-			err:            "",
-			vmTemplateNode: "capmox02",
-			vmTemplateID:   202,
+			name:             "find-template-unordered",
+			http:             []int{200, 200},
+			vmTags:           []string{"template", "capmox", "v1.30.2"},
+			resolutionPolicy: "exact",
+			fails:            false,
+			err:              "",
+			vmTemplateNode:   "capmox02",
+			vmTemplateID:     202,
 		},
 		{
-			name:           "find-template-duplicate-tag",
-			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "capmox", "v1.30.2"},
-			fails:          false,
-			err:            "",
-			vmTemplateNode: "capmox02",
-			vmTemplateID:   202,
+			name:             "find-template-duplicate-tag",
+			http:             []int{200, 200},
+			vmTags:           []string{"template", "capmox", "capmox", "v1.30.2"},
+			resolutionPolicy: "exact",
+			fails:            false,
+			err:              "",
+			vmTemplateNode:   "capmox02",
+			vmTemplateID:     202,
 		},
 		{
-			name:           "find-multiple-templates",
-			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox"},
-			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"template;capmox\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			name:             "find-multiple-templates-any-version",
+			http:             []int{200, 200},
+			vmTags:           []string{"template", "capmox"},
+			resolutionPolicy: "subset",
+			fails:            true,
+			err:              "VM template not found: found 4 VM templates with tags \"template;capmox\"",
+			vmTemplateID:     69,
+			vmTemplateNode:   "nice",
 		},
 		{
-			name:           "find-multiple-templates",
-			http:           []int{200, 200},
-			vmTags:         []string{"template", "capmox", "v1.29.2"},
-			fails:          true,
-			err:            "VM template not found: found 2 VM templates with tags \"template;capmox;v1.29.2\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			name:             "find-multiple-templates-v1.29.2",
+			http:             []int{200, 200},
+			vmTags:           []string{"template", "capmox", "v1.29.2"},
+			resolutionPolicy: "exact",
+			fails:            true,
+			err:              "VM template not found: found 2 VM templates with tags \"template;capmox;v1.29.2\"",
+			vmTemplateID:     69,
+			vmTemplateNode:   "nice",
+		},
+		{
+			name:             "find-template-superset-subset",
+			http:             []int{200, 200},
+			vmTags:           []string{"template-superset"},
+			resolutionPolicy: "subset",
+			fails:            false,
+			err:              "",
+			vmTemplateNode:   "capmox01",
+			vmTemplateID:     700,
 		},
 	}
 
@@ -478,7 +499,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/resources`,
 				newJSONResponder(test.http[1], proxmoxClusterResources))
 
-			vmTemplateNode, vmTemplateID, err := client.FindVMTemplateByTags(context.Background(), test.vmTags)
+			vmTemplateNode, vmTemplateID, err := client.FindVMTemplateByTags(context.Background(), test.vmTags, test.resolutionPolicy)
 
 			if test.fails {
 				require.Error(t, err)

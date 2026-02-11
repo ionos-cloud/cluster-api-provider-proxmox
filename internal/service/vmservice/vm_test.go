@@ -175,7 +175,9 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 		Target:      "node2",
 	}
 
-	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags).Return("node1", 123, nil).Once()
+	// ResolutionPolicy is not set on the TemplateSelector in this test, so the default
+	// policy is "exact". The vmservice must therefore pass "exact" to FindVMTemplateByTags.
+	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags, "exact").Return("node1", 123, nil).Once()
 
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
@@ -209,7 +211,9 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
 	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
 
-	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags).Return("", -1, goproxmox.ErrTemplateNotFound).Once()
+	// As above, no ResolutionPolicy is set on the TemplateSelector, so "exact" is the default
+	// and must be passed to FindVMTemplateByTags. In this scenario the template lookup fails.
+	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags, "exact").Return("", -1, goproxmox.ErrTemplateNotFound).Once()
 
 	_, err := createVM(ctx, machineScope)
 
