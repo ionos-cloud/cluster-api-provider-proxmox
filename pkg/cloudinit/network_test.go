@@ -18,11 +18,13 @@ limitations under the License.
 package cloudinit
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
@@ -1029,10 +1031,93 @@ func TestNetworkConfig_Render(t *testing.T) {
 
 	for n, tc := range cases {
 		t.Run(n, func(t *testing.T) {
-			nc := NewNetworkConfig(tc.args.nics)
+			nc := NewNetworkConfig(tc.args.nics, infrav1alpha1.CloudInitNetworkConfigFormatNetplan)
 			network, err := nc.Render()
 			require.ErrorIs(t, err, tc.want.err)
 			require.Equal(t, tc.want.network, string(network))
 		})
 	}
+}
+
+func TestNetworkConfig_RenderNoCloud(t *testing.T) {
+	// Test that nocloud format strips "network:" wrapper and dedents content.
+	// Since nocloud is a post-process of netplan (which is extensively tested above),
+	// we only need one representative test case.
+	nics := []types.NetworkConfigData{
+		{
+			Type:       "ethernet",
+			Name:       "eth0",
+			MacAddress: "92:60:a0:5b:22:c2",
+			IPAddress:  "10.10.10.12/24",
+			Gateway:    "10.10.10.1",
+			Metric:     ptr.To(uint32(100)),
+			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+		},
+	}
+
+	nc := NewNetworkConfig(nics, infrav1alpha1.CloudInitNetworkConfigFormatNoCloud)
+	network, err := nc.Render()
+	require.NoError(t, err)
+
+	// Verify nocloud format: no "network:" wrapper, starts with "version: 2"
+	require.True(t, strings.HasPrefix(string(network), "version: 2"), "nocloud format should start with 'version: 2'")
+	require.NotContains(t, string(network), "network:", "nocloud format should not contain 'network:' wrapper")
+
+	// Verify content is properly dedented (ethernets at root level, not indented)
+	require.Contains(t, string(network), "\nethernets:", "ethernets should be at root level")
+}
+
+func TestNetworkConfig_DefaultFormat(t *testing.T) {
+	nics := []types.NetworkConfigData{
+		{
+			Type:       "ethernet",
+			Name:       "eth0",
+			MacAddress: "92:60:a0:5b:22:c2",
+			IPAddress:  "10.10.10.12/24",
+			Gateway:    "10.10.10.1",
+			Metric:     ptr.To(uint32(100)),
+			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+		},
+	}
+
+	// Test that empty format defaults to netplan
+	nc := NewNetworkConfig(nics, "")
+	network, err := nc.Render()
+	require.NoError(t, err)
+	require.Equal(t, expectedValidNetworkConfig, string(network))
+}
+
+func TestNetworkConfig_NoCloudRejectsVRF(t *testing.T) {
+	// VRFs are not supported by cloud-init v2, only by netplan
+	nics := []types.NetworkConfigData{
+		{
+			Type:  "vrf",
+			Name:  "vrf0",
+			Table: 100,
+		},
+	}
+
+	nc := NewNetworkConfig(nics, infrav1alpha1.CloudInitNetworkConfigFormatNoCloud)
+	_, err := nc.Render()
+	require.ErrorIs(t, err, ErrNoCloudUnsupportedFeature)
+}
+
+func TestNetworkConfig_NoCloudRejectsRoutingPolicy(t *testing.T) {
+	// routing-policy (FIBRules) is not supported by cloud-init v2
+	nics := []types.NetworkConfigData{
+		{
+			Type:       "ethernet",
+			Name:       "eth0",
+			MacAddress: "92:60:a0:5b:22:c2",
+			IPAddress:  "10.10.10.12/24",
+			Gateway:    "10.10.10.1",
+			FIBRules: []types.FIBRuleData{
+				{To: "10.0.0.0/8", Table: 100},
+			},
+		},
+	}
+
+	nc := NewNetworkConfig(nics, infrav1alpha1.CloudInitNetworkConfigFormatNoCloud)
+	_, err := nc.Render()
+	require.ErrorIs(t, err, ErrNoCloudUnsupportedFeature)
 }

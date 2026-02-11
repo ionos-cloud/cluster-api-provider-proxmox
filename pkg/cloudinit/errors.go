@@ -51,4 +51,8 @@ var (
 
 	// ErrMalformedFIBRule is returned if a FIB rule can not be assembled by netplan.
 	ErrMalformedFIBRule = errors.New("routing policy is malformed")
+
+	// ErrNoCloudUnsupportedFeature is returned when nocloud format is used with
+	// features only supported by netplan (VRFs, routing-policy).
+	ErrNoCloudUnsupportedFeature = errors.New("nocloud format does not support VRFs or routing-policy; use netplan format or remove these features")
 )

@@ -557,7 +557,7 @@ func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
 }
 
 func TestDefaultISOInjector(t *testing.T) {
-	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), cloudinit.NewNetworkConfig(nil))
+	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), cloudinit.NewNetworkConfig(nil, infrav1alpha1.CloudInitNetworkConfigFormatNetplan))
 
 	require.NotEmpty(t, injector)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).BootstrapData)
