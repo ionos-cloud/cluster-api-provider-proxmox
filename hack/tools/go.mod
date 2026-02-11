@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
-go 1.24.6 // keep in sync with root go.mod
+go 1.25 // keep in sync with root go.mod
 
 require (
 	github.com/braydonk/yaml v0.9.0
