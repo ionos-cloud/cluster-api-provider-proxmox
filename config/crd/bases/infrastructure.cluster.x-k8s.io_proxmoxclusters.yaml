@@ -1702,7 +1702,6 @@ spec:
                 required:
                 - addresses
                 - gateway
-                - metric
                 - prefix
                 type: object
                 x-kubernetes-validations:
@@ -1741,7 +1740,6 @@ spec:
                 required:
                 - addresses
                 - gateway
-                - metric
                 - prefix
                 type: object
                 x-kubernetes-validations:
@@ -1811,7 +1809,6 @@ spec:
                       required:
                       - addresses
                       - gateway
-                      - metric
                       - prefix
                       type: object
                       x-kubernetes-validations:
@@ -1850,7 +1847,6 @@ spec:
                       required:
                       - addresses
                       - gateway
-                      - metric
                       - prefix
                       type: object
                       x-kubernetes-validations:
@@ -2029,8 +2025,6 @@ spec:
                       description: zone defines the deployment proxmox-zone.
                       pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                       type: string
-                  required:
-                  - zone
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:

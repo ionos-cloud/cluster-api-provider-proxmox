@@ -229,7 +229,7 @@ type VirtualMachineCloneSpec struct {
 	// full Create a full copy of all disks.
 	// This is always done when you clone a normal VM.
 	// Create a Full clone by default.
-	// +kubebuilder:default=true
+	// +default=true
 	// +optional
 	Full *bool `json:"full,omitempty"`
 
@@ -410,7 +410,7 @@ type NetworkDevice struct {
 	// model is the network device model.
 	// +optional
 	// +kubebuilder:validation:Enum=e1000;virtio;rtl8139;vmxnet3
-	// +kubebuilder:default=virtio
+	// +default="virtio"
 	Model *string `json:"model,omitempty"`
 
 	// mtu is the network device Maximum Transmission Unit.
@@ -426,7 +426,7 @@ type NetworkDevice struct {
 	VLAN *int32 `json:"vlan,omitempty"`
 
 	// name is the network device name.
-	// +kubebuilder:default=net0
+	// +default="net0"
 	// +optional
 	Name NetName `json:"name,omitempty"`
 

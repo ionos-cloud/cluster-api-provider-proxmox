@@ -1604,7 +1604,6 @@ spec:
                         required:
                         - addresses
                         - gateway
-                        - metric
                         - prefix
                         type: object
                         x-kubernetes-validations:
@@ -1643,7 +1642,6 @@ spec:
                         required:
                         - addresses
                         - gateway
-                        - metric
                         - prefix
                         type: object
                         x-kubernetes-validations:
@@ -1714,7 +1712,6 @@ spec:
                               required:
                               - addresses
                               - gateway
-                              - metric
                               - prefix
                               type: object
                               x-kubernetes-validations:
@@ -1754,7 +1751,6 @@ spec:
                               required:
                               - addresses
                               - gateway
-                              - metric
                               - prefix
                               type: object
                               x-kubernetes-validations:

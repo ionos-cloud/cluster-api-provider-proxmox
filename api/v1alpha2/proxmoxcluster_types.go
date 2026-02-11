@@ -47,7 +47,7 @@ type ProxmoxClusterSpec struct {
 	// externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
 	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
 	// +optional
-	// +kubebuilder:default=false
+	// +default=false
 	ExternalManagedControlPlane *bool `json:"externalManagedControlPlane,omitempty"`
 
 	// allowedNodes specifies all Proxmox nodes which will be considered
@@ -178,8 +178,8 @@ type IPConfigSpec struct {
 	Gateway string `json:"gateway,omitempty"`
 
 	// metric is the route priority applied to the default gateway
-	// +required
-	// +kubebuilder:default=100
+	// +optional
+	// +default=100
 	// +kubebuilder:validation:Minimum=0
 	Metric *int32 `json:"metric,omitempty"`
 }
@@ -210,7 +210,7 @@ func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
 type ProxmoxClusterStatus struct {
 	// ready indicates that the cluster is ready.
-	// +kubebuilder:default=false
+	// +default=false
 	// +optional
 	Ready *bool `json:"ready,omitempty"`
 
@@ -281,8 +281,8 @@ type ProxmoxClusterStatus struct {
 // InClusterZoneRef holds the InClusterIPPools associated with a zone.
 type InClusterZoneRef struct {
 	// zone defines the deployment proxmox-zone.
-	// +kubebuilder:default="default"
-	// +required
+	// +default="default"
+	// +optional
 	Zone Zone `json:"zone,omitempty"`
 
 	// inClusterIpPoolRefV4 is the reference to the created in-cluster IP pool.
