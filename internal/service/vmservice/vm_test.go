@@ -119,7 +119,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
-	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node2"}
 	expectedOptions := proxmox.VMCloneRequest{
 		Node:        "node1",
 		Name:        "test",
@@ -133,6 +133,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	}
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -154,13 +155,14 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 			},
 		},
 	}
+
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
 	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1.TargetStorageFormatRaw)
 	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
-	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node1", "node2"}
 	expectedOptions := proxmox.VMCloneRequest{
 		Node:        "node1",
 		Name:        "test",
@@ -173,10 +175,17 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 		Target:      "node2",
 	}
 
-	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags).Return("node1", 123, nil).Once()
+	// ResolutionPolicy is not set on the TemplateSelector in this test, so the default
+	// policy is "exact". The vmservice must therefore pass "exact" to FindVMTemplateByTags.
+	proxmoxClient.EXPECT().
+		FindVMTemplateByTags(context.Background(), vmTemplateTags, string(infrav1.TemplateMatchPolicyExact)).
+		Return("node1", 123, nil).
+		Once()
 
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node1", int64(100)).Return(0, nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -205,9 +214,10 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	machineScope.ProxmoxMachine.Spec.Pool = ptr.To("pool")
 	machineScope.ProxmoxMachine.Spec.SnapName = ptr.To("snap")
 	machineScope.ProxmoxMachine.Spec.Storage = ptr.To("storage")
-	machineScope.ProxmoxMachine.Spec.Target = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node2"}
 
-	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags).Return("", -1, goproxmox.ErrTemplateNotFound).Once()
+	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags, "exact").Return("", -1, goproxmox.ErrTemplateNotFound).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
 
 	_, err := createVM(ctx, machineScope)
 

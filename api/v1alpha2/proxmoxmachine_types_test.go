@@ -433,4 +433,28 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).To(Succeed())
 		})
 	})
+
+	Context("TemplateMatchPolicy", func() {
+		It("defaults to exact when TemplateSelector is nil", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSelector = nil
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicyExact))
+		})
+
+		It("defaults to exact when MatchPolicy is empty", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSource.SourceNode = nil
+			dm.Spec.TemplateSource.TemplateID = nil
+			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}}
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicyExact))
+		})
+
+		It("returns subset when MatchPolicy is subset", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSource.SourceNode = nil
+			dm.Spec.TemplateSource.TemplateID = nil
+			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}, MatchPolicy: TemplateMatchPolicySubset}
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicySubset))
+		})
+	})
 })

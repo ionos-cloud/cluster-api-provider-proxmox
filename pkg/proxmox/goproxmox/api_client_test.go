@@ -27,6 +27,7 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 )
 
@@ -377,15 +378,21 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 		&proxmox.ClusterResource{VMID: 101, Name: "k8s-node01", Node: "capmox01", Tags: ""},
 		&proxmox.ClusterResource{VMID: 102, Name: "k8s-node02", Node: "capmox02", Tags: ""},
 		&proxmox.ClusterResource{VMID: 150, Name: "template-without-tags", Node: "capmox01", Tags: "", Template: uint64(1)},
-		&proxmox.ClusterResource{VMID: 201, Name: "ubuntu-22.04-k8s-v1.28.3", Node: "capmox01", Tags: "template;capmox;v1.28.3", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 201, Name: "ubuntu-22.04-k8s-v1.28.3", Node: "capmox01", Tags: "template;TEMPLATE;capmox;v1.28.3", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 202, Name: "ubuntu-22.04-k8s-v1.30.2", Node: "capmox02", Tags: "capmox;template;v1.30.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 301, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 302, Name: "ubuntu-22.04-k8s-v1.29.2", Node: "capmox02", Tags: "capmox;template;v1.29.2", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 700, Name: "template-superset", Node: "capmox01", Tags: "template-superset;extra-tag", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 401, Name: "flatcar-k8s-v1.32.2", Node: "capmox03", Tags: "capmox;flatcar;v1.32.2", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 402, Name: "flatcar-k8s-v1.33.9", Node: "capmox03", Tags: "capmox;flatcar;staging;v1.33.9", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 403, Name: "flatcar-k8s-v1.34.5", Node: "capmox03", Tags: "capic;flatcar;devel;v1.34.5", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 404, Name: "flatcar-k8s-v1.35.2", Node: "capmox03", Tags: "capmox;flatcar;devel;v1.35.1", Template: uint64(1)},
 	}
 	tests := []struct {
 		name           string
 		http           []int
 		vmTags         []string
+		matchPolicy    infrav1.TemplateMatchPolicy
 		fails          bool
 		err            string
 		vmTemplateNode string
@@ -407,6 +414,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			name:           "find-template",
 			http:           []int{200, 200},
 			vmTags:         []string{"template", "capmox", "v1.28.3"},
+			matchPolicy:    infrav1.TemplateMatchPolicyExact,
 			fails:          false,
 			err:            "",
 			vmTemplateNode: "capmox01",
@@ -416,8 +424,9 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			name:           "find-template-nil",
 			http:           []int{200, 200},
 			vmTags:         nil,
+			matchPolicy:    infrav1.TemplateMatchPolicySubset,
 			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"\"",
+			err:            "VM template not found: found 9 VM templates with tags \"\"",
 			vmTemplateNode: "capmox01",
 			vmTemplateID:   201,
 		},
@@ -426,6 +435,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			name:           "find-template-uppercase",
 			http:           []int{200, 200},
 			vmTags:         []string{"TEMPLATE", "CAPMOX", "v1.28.3"},
+			matchPolicy:    infrav1.TemplateMatchPolicyExact,
 			fails:          false,
 			err:            "",
 			vmTemplateNode: "capmox01",
@@ -435,6 +445,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			name:           "find-template-unordered",
 			http:           []int{200, 200},
 			vmTags:         []string{"template", "capmox", "v1.30.2"},
+			matchPolicy:    infrav1.TemplateMatchPolicyExact,
 			fails:          false,
 			err:            "",
 			vmTemplateNode: "capmox02",
@@ -444,28 +455,61 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			name:           "find-template-duplicate-tag",
 			http:           []int{200, 200},
 			vmTags:         []string{"template", "capmox", "capmox", "v1.30.2"},
+			matchPolicy:    infrav1.TemplateMatchPolicyExact,
 			fails:          false,
 			err:            "",
 			vmTemplateNode: "capmox02",
 			vmTemplateID:   202,
 		},
 		{
-			name:           "find-multiple-templates",
+			name:           "find-multiple-templates-any-version",
 			http:           []int{200, 200},
 			vmTags:         []string{"template", "capmox"},
+			matchPolicy:    infrav1.TemplateMatchPolicySubset,
 			fails:          true,
-			err:            "VM template not found: found 0 VM templates with tags \"template;capmox\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			err:            "VM template not found: found 4 VM templates with tags \"capmox;template\"",
+			vmTemplateID:   0x45,
+			vmTemplateNode: "satisfactory",
 		},
 		{
-			name:           "find-multiple-templates",
+			name:           "find-multiple-templates-v1.29.2",
 			http:           []int{200, 200},
 			vmTags:         []string{"template", "capmox", "v1.29.2"},
+			matchPolicy:    infrav1.TemplateMatchPolicyExact,
 			fails:          true,
-			err:            "VM template not found: found 2 VM templates with tags \"template;capmox;v1.29.2\"",
-			vmTemplateID:   69,
-			vmTemplateNode: "nice",
+			err:            "VM template not found: found 2 VM templates with tags \"capmox;template;v1.29.2\"",
+			vmTemplateID:   0x45,
+			vmTemplateNode: "agreeable",
+		},
+		{
+			name:           "find-template-superset-subset",
+			http:           []int{200, 200},
+			vmTags:         []string{"template-superset"},
+			matchPolicy:    infrav1.TemplateMatchPolicySubset,
+			fails:          false,
+			err:            "",
+			vmTemplateNode: "capmox01",
+			vmTemplateID:   700,
+		},
+		{
+			name:           "find-template-best-subset",
+			http:           []int{200, 200},
+			vmTags:         []string{"capmox", "flatcar"},
+			matchPolicy:    infrav1.TemplateMatchPolicyBest,
+			fails:          false,
+			err:            "",
+			vmTemplateNode: "capmox03",
+			vmTemplateID:   401,
+		},
+		{
+			name:           "find-multiple-templates-best-subset",
+			http:           []int{200, 200},
+			vmTags:         []string{"flatcar", "devel", "devel"},
+			matchPolicy:    infrav1.TemplateMatchPolicyBest,
+			fails:          true,
+			err:            "VM template not found: found 2 VM templates with tags \"devel;flatcar\"",
+			vmTemplateID:   19229,
+			vmTemplateNode: "we're a serious company, sir",
 		},
 	}
 
@@ -478,7 +522,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/resources`,
 				newJSONResponder(test.http[1], proxmoxClusterResources))
 
-			vmTemplateNode, vmTemplateID, err := client.FindVMTemplateByTags(context.Background(), test.vmTags)
+			vmTemplateNode, vmTemplateID, err := client.FindVMTemplateByTags(context.Background(), test.vmTags, string(test.matchPolicy))
 
 			if test.fails {
 				require.Error(t, err)

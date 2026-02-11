@@ -243,16 +243,40 @@ type VirtualMachineCloneSpec struct {
 	Target *string `json:"target,omitempty"`
 }
 
-// TemplateSelector defines MatchTags for looking up VM templates.
+// TemplateMatchPolicy defines how MatchTags are evaluated against template tags.
+type TemplateMatchPolicy string
+
+const (
+	// TemplateMatchPolicyExact requires an exact 1:1 match between MatchTags and the template's tags.
+	TemplateMatchPolicyExact TemplateMatchPolicy = "exact"
+	// TemplateMatchPolicySubset requires the template's tags to contain all MatchTags, but allows additional tags.
+	TemplateMatchPolicySubset TemplateMatchPolicy = "uniqueSubset"
+	// TemplateMatchPolicyBest selects a template with a matching subset and the least additional tags.
+	TemplateMatchPolicyBest TemplateMatchPolicy = "bestSubset"
+)
+
+// TemplateSelector defines criteria for looking up VM templates.
 type TemplateSelector struct {
 	// Specifies all tags to look for, when looking up the VM template.
-	// Passed tags must be an exact 1:1 match with the tags on the template you want to use.
-	// If multiple VM templates with the same set of tags are found, provisioning will fail.
+	// When MatchPolicy is "exact" (the default), the template's tags must be an exact 1:1 match
+	// with MatchTags. If multiple VM templates with the same set of tags are found, provisioning will fail.
+	// When MatchPolicy is "subset", the template's tags must contain all of the MatchTags, but may
+	// have additional tags.
 	//
 	// +listType=set
 	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
 	// +kubebuilder:validation:MinItems=1
 	MatchTags []string `json:"matchTags"`
+
+	// MatchPolicy controls how MatchTags are evaluated against template tags.
+	// When not set, or set to "exact", the behaviour is identical to the previous implementation
+	// and requires an exact 1:1 tag match. When set to "subset", the template's tags must contain
+	// all MatchTags, but may include additional tags.
+	//
+	// +kubebuilder:validation:Enum=exact;uniqueSubset;bestSubset
+	// +kubebuilder:default=exact
+	// +optional
+	MatchPolicy TemplateMatchPolicy `json:"matchPolicy,omitempty"`
 }
 
 // NetworkSpec defines the virtual machine's network configuration.
@@ -624,6 +648,15 @@ func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
 		return r.Spec.TemplateSelector.MatchTags
 	}
 	return nil
+}
+
+// GetTemplateMatchPolicy returns the resolution policy for selecting VM templates.
+// If no TemplateSelector or MatchPolicy is set, TemplateMatchPolicyExact is returned.
+func (r *ProxmoxMachine) GetTemplateMatchPolicy() TemplateMatchPolicy {
+	if r.Spec.TemplateSelector != nil && r.Spec.TemplateSelector.MatchPolicy != "" {
+		return r.Spec.TemplateSelector.MatchPolicy
+	}
+	return TemplateMatchPolicyExact
 }
 
 // GetNode get the Proxmox node used to provision this machine.

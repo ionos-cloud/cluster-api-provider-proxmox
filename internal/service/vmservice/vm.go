@@ -434,7 +434,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	options := proxmox.VMCloneRequest{
-		Node:  scope.ProxmoxMachine.GetNode(),
+		Node:  scope.ProxmoxMachine.GetSourceNode(),
 		NewID: int(vmid),
 		Name:  scope.ProxmoxMachine.GetName(),
 	}
@@ -459,19 +459,12 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	if scope.ProxmoxMachine.Spec.Storage != nil {
 		options.Storage = *scope.ProxmoxMachine.Spec.Storage
 	}
-	if scope.ProxmoxMachine.Spec.Target != nil {
-		options.Target = *scope.ProxmoxMachine.Spec.Target
-	}
 
 	if scope.InfraCluster.ProxmoxCluster.Status.NodeLocations == nil {
 		scope.InfraCluster.ProxmoxCluster.Status.NodeLocations = new(infrav1.NodeLocations)
 	}
 
-	// if no target was specified but we have a set of nodes defined in the spec, we want to evenly distribute
-	// the nodes across the cluster.
-	if scope.ProxmoxMachine.Spec.Target == nil &&
-		(len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 || len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0) {
-		// select next node as a target
+	if len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 || len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
 		var err error
 		options.Target, err = selectNextNode(ctx, scope)
 		if err != nil {
@@ -491,7 +484,8 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	if templateID == -1 {
 		var err error
 		templateSelectorTags := scope.ProxmoxMachine.GetTemplateSelectorTags()
-		options.Node, templateID, err = scope.InfraCluster.ProxmoxClient.FindVMTemplateByTags(ctx, templateSelectorTags)
+		templateMatchPolicy := string(scope.ProxmoxMachine.GetTemplateMatchPolicy())
+		options.Node, templateID, err = scope.InfraCluster.ProxmoxClient.FindVMTemplateByTags(ctx, templateSelectorTags, templateMatchPolicy)
 
 		if err != nil {
 			if errors.Is(err, goproxmox.ErrTemplateNotFound) {

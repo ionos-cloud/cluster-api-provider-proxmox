@@ -137,7 +137,7 @@ func (m *MachineScope) LocateProxmoxNode() string {
 
 	node := m.InfraCluster.ProxmoxCluster.GetNode(m.Name(), util.IsControlPlaneMachine(m.Machine))
 	if node == "" {
-		node = m.ProxmoxMachine.GetNode()
+		node = m.ProxmoxMachine.GetSourceNode()
 	}
 
 	return node

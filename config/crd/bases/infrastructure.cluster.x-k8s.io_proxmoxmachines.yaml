@@ -604,11 +604,25 @@ spec:
                 description: TemplateSelector defines MatchTags for looking up VM
                   templates.
                 properties:
+                  matchPolicy:
+                    default: exact
+                    description: |-
+                      MatchPolicy controls how MatchTags are evaluated against template tags.
+                      When not set, or set to "exact", the behaviour is identical to the previous implementation
+                      and requires an exact 1:1 tag match. When set to "subset", the template's tags must contain
+                      all MatchTags, but may include additional tags.
+                    enum:
+                    - exact
+                    - uniqueSubset
+                    - bestSubset
+                    type: string
                   matchTags:
                     description: |-
                       Specifies all tags to look for, when looking up the VM template.
-                      Passed tags must be an exact 1:1 match with the tags on the template you want to use.
-                      If multiple VM templates with the same set of tags are found, provisioning will fail.
+                      When MatchPolicy is "exact" (the default), the template's tags must be an exact 1:1 match
+                      with MatchTags. If multiple VM templates with the same set of tags are found, provisioning will fail.
+                      When MatchPolicy is "subset", the template's tags must contain all of the MatchTags, but may
+                      have additional tags.
                     items:
                       pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                       type: string
@@ -1331,19 +1345,28 @@ spec:
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: set
-              target:
-                description: target node. Only allowed if the original VM is on shared
-                  storage.
-                type: string
               templateID:
                 description: templateID the vm_template vmid used for cloning a new
                   VM.
                 format: int32
                 type: integer
               templateSelector:
-                description: templateSelector defines MatchTags for looking up VM
-                  templates.
+                description: |-
+                  templateSelector defines MatchTags for looking up VM templates.
+                  If a templateID is defined, templateSelector will be ignored.
                 properties:
+                  matchPolicy:
+                    default: exact
+                    description: |-
+                      matchPolicy controls how MatchTags are evaluated against template tags.
+                      When not set, or set to "exact", the behaviour is identical to the previous implementation
+                      and requires an exact 1:1 tag match. When set to "subset", the template's tags must contain
+                      all MatchTags, but may include additional tags.
+                    enum:
+                    - exact
+                    - uniqueSubset
+                    - bestSubset
+                    type: string
                   matchTags:
                     description: |-
                       matchTags specifies all tags to look for when looking up the VM template.
@@ -1401,6 +1424,8 @@ spec:
               rule: self.full || !has(self.format)
             - message: Must set full=true when specifying storage
               rule: self.full || !has(self.storage)
+            - message: Must specify either templateID or templateSelector
+              rule: has(self.templateSelector) || (has(self.templateID) && has(self.sourceNode))
           status:
             description: status is the status of the Proxmox machine.
             properties:

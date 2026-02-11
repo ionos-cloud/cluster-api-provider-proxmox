@@ -11,12 +11,12 @@ CAPMOX is a Kubernetes Cluster API provider that enables declarative management 
 - **Key Dependencies**: 
   - Cluster API v1.11.4
   - controller-runtime v0.21.0
-  - go-proxmox v0.3.2 (Proxmox API client)
+  - go-proxmox v0.4.0 (Proxmox API client)
 
 ## Repository Structure
 
-- `api/v1alpha1/` - v1alpha1 Custom Resource Definitions with conversion support (ProxmoxCluster, ProxmoxMachine, ProxmoxMachineTemplate, ProxmoxClusterTemplate)
-- `api/v1alpha2/` - v1alpha2 Custom Resource Definitions (ProxmoxCluster, ProxmoxMachine, ProxmoxMachineTemplate, ProxmoxClusterTemplate)
+- `api/v1alpha1/` - v1alpha1 (deprecated) Custom Resource Definitions with conversion support (ProxmoxCluster, ProxmoxMachine, ProxmoxMachineTemplate, ProxmoxClusterTemplate)
+- `api/v1alpha2/` - v1alpha2 (current) Custom Resource Definitions (ProxmoxCluster, ProxmoxMachine, ProxmoxMachineTemplate, ProxmoxClusterTemplate)
 - `cmd/main.go` - Controller manager entry point
 - `internal/controller/` - Reconciliation logic for controllers
 - `internal/webhook/` - Webhook handlers for validation and defaulting
@@ -37,7 +37,7 @@ This branch contains both v1alpha1 and v1alpha2 API versions:
   - Support for multiple IPv4/IPv6 addresses per device
   - Webhook v2 for enhanced validation and defaulting
 
-The conversion layer (`api/v1alpha1/*_conversion.go`) automatically handles bidirectional conversions between API versions.
+The conversion layer (`api/v1alpha1/*_conversion.go`) automatically handles conversions between API versions.
 
 ## Build and Development Workflow
 
@@ -86,7 +86,7 @@ make vet               # Run go vet
 
 **Module Management:**
 ```bash
-make tidy              # Run go mod tidy (including hack/tools)
+make tidy              # Run go mod tidy
 ```
 
 ### Development Environment Setup

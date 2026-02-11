@@ -41,7 +41,7 @@ jobs:
         run: "make test-e2e GINKGO_SKIP=${{ env.SKIP_E2E }}"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: logs

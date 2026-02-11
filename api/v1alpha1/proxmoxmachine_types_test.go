@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -461,6 +461,29 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Duplicate value")))
 			dm.Spec.Tags = []string{"foo", "bar"}
 			Expect(k8sClient.Create(context.Background(), dm)).To(Succeed())
+		})
+	})
+	Context("TemplateMatchPolicy", func() {
+		It("defaults to exact when TemplateSelector is nil", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSelector = nil
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicyExact))
+		})
+
+		It("defaults to exact when MatchPolicy is empty", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSource.SourceNode = ""
+			dm.Spec.TemplateSource.TemplateID = nil
+			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}}
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicyExact))
+		})
+
+		It("returns subset when MatchPolicy is subset", func() {
+			dm := defaultMachine()
+			dm.Spec.TemplateSource.SourceNode = ""
+			dm.Spec.TemplateSource.TemplateID = nil
+			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}, MatchPolicy: TemplateMatchPolicySubset}
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicySubset))
 		})
 	})
 })

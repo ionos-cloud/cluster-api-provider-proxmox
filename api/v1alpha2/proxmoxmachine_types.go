@@ -185,6 +185,7 @@ const (
 )
 
 // TemplateSource defines the source of the template VM.
+// +kubebuilder:validation:XValidation:rule="has(self.templateSelector) || (has(self.templateID) && has(self.sourceNode))",message="Must specify either templateID or templateSelector"
 type TemplateSource struct {
 	// sourceNode is the initially selected proxmox node.
 	// This node will be used to locate the template VM, which will
@@ -210,6 +211,7 @@ type TemplateSource struct {
 	TemplateID *int32 `json:"templateID,omitempty"`
 
 	// templateSelector defines MatchTags for looking up VM templates.
+	// If a templateID is defined, templateSelector will be ignored.
 	// +optional
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty,omitzero"`
 }
@@ -247,11 +249,19 @@ type VirtualMachineCloneSpec struct {
 	// storage for full clone.
 	// +optional
 	Storage *string `json:"storage,omitempty"`
-
-	// target node. Only allowed if the original VM is on shared storage.
-	// +optional
-	Target *string `json:"target,omitempty"`
 }
+
+// TemplateMatchPolicy defines how MatchTags are evaluated against template tags.
+type TemplateMatchPolicy string
+
+const (
+	// TemplateMatchPolicyExact requires an exact 1:1 match between MatchTags and the template's tags.
+	TemplateMatchPolicyExact TemplateMatchPolicy = "exact"
+	// TemplateMatchPolicySubset requires the template's tags to contain all MatchTags, but allows additional tags.
+	TemplateMatchPolicySubset TemplateMatchPolicy = "uniqueSubset"
+	// TemplateMatchPolicyBest selects a template with a matching subset and the least additional tags.
+	TemplateMatchPolicyBest TemplateMatchPolicy = "bestSubset"
+)
 
 // TemplateSelector defines MatchTags for looking up VM templates.
 type TemplateSelector struct {
@@ -264,6 +274,16 @@ type TemplateSelector struct {
 	// +kubebuilder:validation:MinItems=1
 	// +required
 	MatchTags []string `json:"matchTags,omitempty"`
+
+	// matchPolicy controls how MatchTags are evaluated against template tags.
+	// When not set, or set to "exact", the behaviour is identical to the previous implementation
+	// and requires an exact 1:1 tag match. When set to "subset", the template's tags must contain
+	// all MatchTags, but may include additional tags.
+	//
+	// +kubebuilder:validation:Enum=exact;uniqueSubset;bestSubset
+	// +kubebuilder:default=exact
+	// +optional
+	MatchPolicy TemplateMatchPolicy `json:"matchPolicy,omitempty"`
 }
 
 // NetworkSpec defines the virtual machine's network configuration.
@@ -669,8 +689,17 @@ func (r *ProxmoxMachine) GetTemplateSelectorTags() []string {
 	return nil
 }
 
-// GetNode get the Proxmox node used to provision this machine.
-func (r *ProxmoxMachine) GetNode() string {
+// GetTemplateMatchPolicy returns the resolution policy for selecting VM templates.
+// If no TemplateSelector or MatchPolicy is set, TemplateMatchPolicyExact is returned.
+func (r *ProxmoxMachine) GetTemplateMatchPolicy() TemplateMatchPolicy {
+	if r.Spec.TemplateSelector != nil && r.Spec.TemplateSelector.MatchPolicy != "" {
+		return r.Spec.TemplateSelector.MatchPolicy
+	}
+	return TemplateMatchPolicyExact
+}
+
+// GetSourceNode gets the Proxmox node used to clone this machine from.
+func (r *ProxmoxMachine) GetSourceNode() string {
 	return ptr.Deref(r.Spec.SourceNode, "")
 }
 

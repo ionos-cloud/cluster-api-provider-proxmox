@@ -34,6 +34,19 @@ git push origin feature-branch
 * Include details about the changes and the problem it solves.
 * Reference any relevant issues or pull requests.
 
+The ionos-cloud/cluster-api-provider-proxmox repo requires approval to run actions on external PRs.
+This includes linters, unit (go) and e2e tests, scanners.
+
+We use labels to control which e2e test contexts are run:
+
+| Label | Behaviour |
+|--|--|
+| none | Run `Generic` tests only |
+| https://github.com/ionos-cloud/cluster-api-provider-proxmox/labels/e2e%2Fnone | Do not run any e2e tests |
+| https://github.com/ionos-cloud/cluster-api-provider-proxmox/labels/e2e%2Fflatcar | Add `Flatcar` tests |
+
+The codeowner approving the run must make sure that the correct e2e labels are set.
+
 ## Development guide
 
 For more in depth development documentation please check [our development guide](./docs/Development.md)
@@ -46,10 +59,12 @@ For more in depth development documentation please check [our development guide]
 
 ## Testing
 
-Make sure to run the existing tests before submitting your contribution. If your contribution introduces new features, add appropriate tests to cover them.
+Make sure to run the existing tests before submitting your contribution.
+If your contribution introduces new features, add appropriate tests to cover them.
+Make sure that it's lint-free and that generated files are up to date.
 
 ```sh
-make test
+make lint test verify
 ```
 
 ## Documentation

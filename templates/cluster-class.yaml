@@ -1,7 +1,7 @@
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: ClusterClass
 metadata:
-  name: proxmox-clusterclass-v0.2.0
+  name: proxmox-clusterclass-v0.2.1
 spec:
   controlPlane:
     healthCheck:
@@ -21,7 +21,7 @@ spec:
       templateRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
         kind: ProxmoxMachineTemplate
-        name: proxmox-clusterclass-v0.2.0-control-plane-template
+        name: proxmox-clusterclass-v0.2.1-control-plane-template
     naming:
       template: '{{ .cluster.name }}-control-plane-{{ .random }}'
     templateRef:
@@ -158,20 +158,6 @@ spec:
         kind: KubeadmControlPlaneTemplate
         matchResources:
           controlPlane: true
-    - jsonPatches:
-      - op: replace
-        path: /spec/template/spec/sourceNode
-        valueFrom:
-          variable: cloneSpec.machineSpec[0].sourceNode
-      - op: replace
-        path: /spec/template/spec/templateID
-        valueFrom:
-          variable: cloneSpec.machineSpec[0].templateID
-      selector:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
-        kind: ProxmoxMachineTemplate
-        matchResources:
-          controlPlane: true
     description: How to bind the Control Plane and what K8S version
     name: ControlPlaneSetup
   - definitions:
@@ -216,22 +202,6 @@ spec:
         apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
         kind: KubeadmConfigTemplate
         matchResources:
-          machineDeploymentClass:
-            names:
-            - proxmox-worker
-    - jsonPatches:
-      - op: replace
-        path: /spec/template/spec/sourceNode
-        valueFrom:
-          variable: cloneSpec.machineSpec[1].sourceNode
-      - op: replace
-        path: /spec/template/spec/templateID
-        valueFrom:
-          variable: cloneSpec.machineSpec[1].templateID
-      selector:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
-        kind: ProxmoxMachineTemplate
-        matchResources:
           controlPlane: false
           machineDeploymentClass:
             names:
@@ -250,28 +220,120 @@ spec:
         apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
         kind: KubeadmConfigTemplate
         matchResources:
-          machineDeploymentClass:
-            names:
-            - proxmox-loadbalancer
-    - jsonPatches:
-      - op: replace
-        path: /spec/template/spec/sourceNode
-        valueFrom:
-          variable: cloneSpec.machineSpec[2].sourceNode
-      - op: replace
-        path: /spec/template/spec/templateID
-        valueFrom:
-          variable: cloneSpec.machineSpec[2].templateID
-      selector:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
-        kind: ProxmoxMachineTemplate
-        matchResources:
           controlPlane: false
           machineDeploymentClass:
             names:
             - proxmox-loadbalancer
     description: Configure LoadBalancer Node Initialisation
     name: LoadBalancerSetup
+  - enabledIf: '{{ if (index .cloneSpec.machineSpec 0).templateID }}true{{ end }}'
+    definitions:
+      - jsonPatches:
+          - op: add
+            path: /spec/template/spec/sourceNode
+            valueFrom:
+              variable: cloneSpec.machineSpec[0].sourceNode
+          - op: add
+            path: /spec/template/spec/templateID
+            valueFrom:
+              variable: cloneSpec.machineSpec[0].templateID
+        selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+    description: Configure ControlPlane TemplateID
+    name: TemplateID-ControlPlane
+  - enabledIf: '{{ if (index .cloneSpec.machineSpec 0).templateSelector }}true{{ end }}'
+    definitions:
+      - jsonPatches:
+          - op: add
+            path: /spec/template/spec/templateSelector
+            valueFrom:
+              variable: cloneSpec.machineSpec[0].templateSelector
+        selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: true
+    description: Configure ControlPlane TemplateSelector
+    name: TemplateSelector-ControlPlane
+  - enabledIf: '{{ if (index .cloneSpec.machineSpec 1).templateID }}true{{ end }}'
+    definitions:
+      - jsonPatches:
+          - op: add
+            path: /spec/template/spec/sourceNode
+            valueFrom:
+              variable: cloneSpec.machineSpec[1].sourceNode
+          - op: add
+            path: /spec/template/spec/templateID
+            valueFrom:
+              variable: cloneSpec.machineSpec[1].templateID
+        selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+    description: Configure Worker TemplateID
+    name: TemplateID-Worker
+  - enabledIf: '{{ if (index .cloneSpec.machineSpec 1).templateSelector }}true{{ end }}'
+    definitions:
+      - jsonPatches:
+          - op: add
+            path: /spec/template/spec/templateSelector
+            valueFrom:
+              variable: cloneSpec.machineSpec[1].templateSelector
+        selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names:
+              - proxmox-worker
+    description: Configure Worker TemplateSelector
+    name: TemplateSelector-Worker
+  - enabledIf: '{{ if (index .cloneSpec.machineSpec 2).templateID }}true{{ end }}'
+    definitions:
+      - jsonPatches:
+          - op: add
+            path: /spec/template/spec/sourceNode
+            valueFrom:
+              variable: cloneSpec.machineSpec[2].sourceNode
+          - op: add
+            path: /spec/template/spec/templateID
+            valueFrom:
+              variable: cloneSpec.machineSpec[2].templateID
+        selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names:
+              - proxmox-loadbalancer
+    description: Configure LoadBalancer TemplateID
+    name: TemplateID-LoadBalancer
+  - enabledIf: '{{ if (index .cloneSpec.machineSpec 2).templateSelector }}true{{ end }}'
+    definitions:
+      - jsonPatches:
+          - op: add
+            path: /spec/template/spec/templateSelector
+            valueFrom:
+              variable: cloneSpec.machineSpec[2].templateSelector
+        selector:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          matchResources:
+            controlPlane: false
+            machineDeploymentClass:
+              names:
+              - proxmox-loadbalancer
+    description: Configure LoadBaalancer TemplateSelector
+    name: TemplateSelector-LoadBalancer
   - definitions:
     - jsonPatches:
       - op: add
@@ -883,6 +945,11 @@ spec:
                       items:
                         type: string
                       type: array
+                    resolutionPolicy:
+                      type: string
+                      enum: ["exact","subset"]
+                  required:
+                    - matchTags
                   type: object
                 virtualMachineID:
                   format: int64
@@ -897,10 +964,19 @@ spec:
                       type: integer
                   type: object
                   x-kubernetes-validations:
+                  - message: end should be greater than or equal to start
+                    rule: self.end >= self.start
               required:
               - machineType
               - network
               type: object
+              x-kubernetes-validations:
+              - message: must define either SourceNode with TemplateID, OR TemplateSelector
+                rule: '[has(self.sourceNode), has(self.templateSelector)].exists_one(c,
+                  c)'
+              - message: must define either SourceNode with TemplateID, OR TemplateSelector.
+                rule: '[has(self.templateID), has(self.templateSelector)].exists_one(c,
+                  c)'
             type: array
             x-kubernetes-validations:
             - message: Need exactly 3 items (controlPlane, worker, loadbalancer)
@@ -948,7 +1024,7 @@ spec:
         templateRef:
           apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
           kind: ProxmoxMachineTemplate
-          name: proxmox-clusterclass-v0.2.0-workertemplate
+          name: proxmox-clusterclass-v0.2.1-workertemplate
       metadata:
         labels:
           node-role.kubernetes.io/node: ""
@@ -977,7 +1053,7 @@ spec:
         templateRef:
           apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
           kind: ProxmoxMachineTemplate
-          name: proxmox-clusterclass-v0.2.0-loadbalancer-template
+          name: proxmox-clusterclass-v0.2.1-loadbalancer-template
       metadata:
         labels:
           node-role.kubernetes.io/load-balancer: ""
@@ -1078,7 +1154,7 @@ spec:
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
 metadata:
-  name: proxmox-clusterclass-v0.2.0-control-plane-template
+  name: proxmox-clusterclass-v0.2.1-control-plane-template
 spec:
   template:
     spec:
@@ -1089,13 +1165,11 @@ spec:
         - name: net0
           bridge: ${BRIDGE}
           model: virtio
-      sourceNode: pve1
-      templateID: 100
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
 metadata:
-  name: proxmox-clusterclass-v0.2.0-workertemplate
+  name: proxmox-clusterclass-v0.2.1-workertemplate
 spec:
   template:
     spec:
@@ -1106,13 +1180,11 @@ spec:
         - name: net0
           bridge: ${BRIDGE}
           model: virtio
-      sourceNode: pve1
-      templateID: 100
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
 metadata:
-  name: proxmox-clusterclass-v0.2.0-loadbalancer-template
+  name: proxmox-clusterclass-v0.2.1-loadbalancer-template
 spec:
   template:
     spec:
@@ -1123,8 +1195,6 @@ spec:
         - name: net0
           bridge: ${BRIDGE}
           model: virtio
-      sourceNode: pve1
-      templateID: 100
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate

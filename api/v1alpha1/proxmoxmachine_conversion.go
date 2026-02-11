@@ -22,18 +22,18 @@ import (
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 // ConvertTo converts this ProxmoxMachine to the Hub version (v1alpha2).
 func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*infrav1.ProxmoxMachine)
+	dst := dstRaw.(*v1alpha2.ProxmoxMachine)
 	if err := Convert_v1alpha1_ProxmoxMachine_To_v1alpha2_ProxmoxMachine(src, dst, nil); err != nil {
 		return err
 	}
 
 	// Manually restore data from annotations
-	restored := &infrav1.ProxmoxMachine{}
+	restored := &v1alpha2.ProxmoxMachine{}
 	ok, err := utilconversion.UnmarshalData(src, restored)
 	if err != nil {
 		return err
@@ -57,7 +57,7 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 
 // ConvertFrom converts from the Hub version (v1alpha2) to this version.
 func (dst *ProxmoxMachine) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*infrav1.ProxmoxMachine)
+	src := srcRaw.(*v1alpha2.ProxmoxMachine)
 	if err := Convert_v1alpha2_ProxmoxMachine_To_v1alpha1_ProxmoxMachine(src, dst, nil); err != nil {
 		return err
 	}
@@ -68,17 +68,17 @@ func (dst *ProxmoxMachine) ConvertFrom(srcRaw conversion.Hub) error {
 
 // ConvertTo converts this DOClusterList to the Hub version (v1alpha2).
 func (src *ProxmoxMachineList) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*infrav1.ProxmoxMachineList)
+	dst := dstRaw.(*v1alpha2.ProxmoxMachineList)
 	return Convert_v1alpha1_ProxmoxMachineList_To_v1alpha2_ProxmoxMachineList(src, dst, nil)
 }
 
 // ConvertFrom converts from the Hub version (v1beta1) to this version.
 func (dst *ProxmoxMachineList) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*infrav1.ProxmoxMachineList)
+	src := srcRaw.(*v1alpha2.ProxmoxMachineList)
 	return Convert_v1alpha2_ProxmoxMachineList_To_v1alpha1_ProxmoxMachineList(src, dst, nil)
 }
 
-func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMachineSpec, restored *infrav1.ProxmoxMachineSpec, ok bool) {
+func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMachineSpec, restored *v1alpha2.ProxmoxMachineSpec, ok bool) {
 	if dst.MetadataSettings != nil && restored.MetadataSettings != nil && src.MetadataSettings != nil {
 		clusterv1.Convert_bool_To_Pointer_bool(src.MetadataSettings.ProviderIDInjection, ok, restored.MetadataSettings.ProviderIDInjection, &dst.MetadataSettings.ProviderIDInjection)
 	}
@@ -86,6 +86,12 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMach
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumCores, ok, restored.NumCores, &dst.NumCores)
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumSockets, ok, restored.NumSockets, &dst.NumSockets)
 	clusterv1.Convert_int32_To_Pointer_int32(src.MemoryMiB, ok, restored.MemoryMiB, &dst.MemoryMiB)
+
+	// Turn ProxmoxMachineSpec.Target into allowedNodes. in v1alpha1, target will
+	// ignore AllowedNodes, so we can literally overwrite these.
+	if src.Target != nil {
+		dst.AllowedNodes = []string{*src.Target}
+	}
 
 	// restore fields that don't exist in v1alpha1
 	if dst.Network != nil && restored.Network != nil {
@@ -120,7 +126,7 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMach
 
 			Convert_string_To_Pointer_string(model, ok, restored.Network.NetworkDevices[i].Model, &dst.Network.NetworkDevices[i].Model)
 			Convert_string_To_Pointer_string(bridge, ok, restored.Network.NetworkDevices[i].Bridge, &dst.Network.NetworkDevices[i].Bridge)
-			dst.Network.NetworkDevices[i].Name = infrav1.NetName(name)
+			dst.Network.NetworkDevices[i].Name = v1alpha2.NetName(name)
 
 			if dst.Network.NetworkDevices[i].Routing.Routes != nil {
 				for j := range dst.Network.NetworkDevices[i].Routing.Routes {
@@ -151,9 +157,9 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMach
 	// NetworkSpec is required, therefore a default interface must be added.
 	// Push a dummy interface as a default device.
 	if dst.Network == nil {
-		dst.Network = &infrav1.NetworkSpec{
-			NetworkDevices: []infrav1.NetworkDevice{{
-				Name:        infrav1.DefaultNetworkDevice,
+		dst.Network = &v1alpha2.NetworkSpec{
+			NetworkDevices: []v1alpha2.NetworkDevice{{
+				Name:        v1alpha2.DefaultNetworkDevice,
 				DefaultIPv4: ptr.To(true),
 				DefaultIPv6: ptr.To(true),
 				Bridge:      ptr.To("vmbr0"),
