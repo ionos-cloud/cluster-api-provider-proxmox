@@ -22,7 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterapierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 )
 
@@ -520,7 +520,7 @@ type ProxmoxMachineStatus struct {
 
 	// Conditions defines current service state of the ProxmoxMachine.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // IPAddress defines the IP addresses of a network interface.
@@ -592,12 +592,12 @@ type ProxmoxMachineList struct {
 }
 
 // GetConditions returns the observations of the operational state of the ProxmoxMachine resource.
-func (r *ProxmoxMachine) GetConditions() clusterv1.Conditions {
+func (r *ProxmoxMachine) GetConditions() []metav1.Condition {
 	return r.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed clusterv1.Conditions.
-func (r *ProxmoxMachine) SetConditions(conditions clusterv1.Conditions) {
+// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed conditions.
+func (r *ProxmoxMachine) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
 }
 

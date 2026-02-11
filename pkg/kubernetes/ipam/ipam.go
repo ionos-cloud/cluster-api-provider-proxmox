@@ -36,8 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2" //nolint:staticcheck
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -88,6 +88,24 @@ func isIPv4(ip string) (bool, error) {
 	}
 
 	return netIP.Is4(), nil
+}
+
+// ipPoolRefToTypedLocalObjectRef converts an ipamv1.IPPoolReference to corev1.TypedLocalObjectReference.
+func ipPoolRefToTypedLocalObjectRef(ref ipamv1.IPPoolReference) corev1.TypedLocalObjectReference {
+	return corev1.TypedLocalObjectReference{
+		APIGroup: ptr.To(ref.APIGroup),
+		Kind:     ref.Kind,
+		Name:     ref.Name,
+	}
+}
+
+// typedLocalObjectRefToIPPoolRef converts a corev1.TypedLocalObjectReference to ipamv1.IPPoolReference.
+func typedLocalObjectRefToIPPoolRef(ref corev1.TypedLocalObjectReference) ipamv1.IPPoolReference {
+	return ipamv1.IPPoolReference{
+		APIGroup: ptr.Deref(ref.APIGroup, ""),
+		Kind:     ref.Kind,
+		Name:     ref.Name,
+	}
 }
 
 // poolFromObjectRef is a local helper to turn any objectRef into a pool,
@@ -413,7 +431,7 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 		return nil, errors.New("no IPAddress object provided")
 	}
 
-	ipPool, err := h.GetIPPool(ctx, ipAddress.Spec.PoolRef)
+	ipPool, err := h.GetIPPool(ctx, ipPoolRefToTypedLocalObjectRef(ipAddress.Spec.PoolRef))
 	if err != nil {
 		return nil, err
 	}
@@ -497,11 +515,11 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 			Annotations: annotations,
 		},
 		Spec: ipamv1.IPAddressClaimSpec{
-			PoolRef: corev1.TypedLocalObjectReference{
+			PoolRef: typedLocalObjectRefToIPPoolRef(corev1.TypedLocalObjectReference{
 				APIGroup: ptr.To(gvk.Group),
 				Kind:     gvk.Kind,
 				Name:     key.Name,
-			},
+			}),
 		},
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, h.ctrlClient, desired, func() error {

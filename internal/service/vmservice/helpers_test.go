@@ -34,7 +34,7 @@ import (
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -241,7 +241,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 	if pool != nil {
 		ipAddrClaim := &ipamv1.IPAddressClaim{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+				APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
@@ -271,7 +271,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 
 	ipAddr := &ipamv1.IPAddress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+			APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
