@@ -190,7 +190,7 @@ var _ = Describe("Controller Test", func() {
 				g.Expect(ipAddr).ToNot(BeNil())
 				g.Expect(ipAddr.Spec.PoolRef.Name).To(BeEquivalentTo(pool.GetName()))
 				g.Expect(ipAddr.Spec.Address).ToNot(BeEmpty())
-				g.Expect(ipAddr.Spec.Prefix).To(BeEquivalentTo(pool.Spec.Prefix))
+				g.Expect(ptr.Deref(ipAddr.Spec.Prefix, 0)).To(BeEquivalentTo(pool.Spec.Prefix))
 				g.Expect(ipAddr.Spec.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
 
 				// check controlPlaneEndpoint is updated
@@ -394,16 +394,16 @@ func dummyIPAddress(client client.Client, owner client.Object, poolName string) 
 			Namespace: owner.GetNamespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
-			ClaimRef: corev1.LocalObjectReference{
+			ClaimRef: ipamv1.IPAddressClaimReference{
 				Name: owner.GetName(),
 			},
-			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.GroupVersion().String()),
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
 			Address: "10.10.10.11",
-			Prefix:  24,
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.10.1",
 		},
 	}

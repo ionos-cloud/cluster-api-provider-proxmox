@@ -275,7 +275,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 
 func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Context, clusterScope *scope.ClusterScope) error {
 	var clusterFailureReason, clusterFailureMessage string
-	
+
 	// Check for failure information in deprecated v1beta1 fields (for clusters migrated from v1beta1)
 	if clusterScope.Cluster.Status.Deprecated != nil && clusterScope.Cluster.Status.Deprecated.V1Beta1 != nil {
 		clusterFailureReason = string(ptr.Deref(clusterScope.Cluster.Status.Deprecated.V1Beta1.FailureReason, ""))

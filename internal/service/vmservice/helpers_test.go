@@ -235,10 +235,16 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 }
 
 func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, offset int, pool *corev1.TypedLocalObjectReference) {
-	prefix := ip.Bits()
+	prefix := int32(ip.Bits())
 	var gateway string
+	var poolRef ipamv1.IPPoolReference
 
 	if pool != nil {
+		poolRef = ipamv1.IPPoolReference{
+			APIGroup: ptr.Deref(pool.APIGroup, ""),
+			Kind:     pool.Kind,
+			Name:     pool.Name,
+		}
 		ipAddrClaim := &ipamv1.IPAddressClaim{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
@@ -257,14 +263,14 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 				}},
 			},
 			Spec: ipamv1.IPAddressClaimSpec{
-				PoolRef: *pool,
+				PoolRef: poolRef,
 			},
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
 		poolSpec := getPoolSpec(getIPAddressPool(t, machineScope, *pool))
 		if poolSpec.prefix != 0 {
-			prefix = poolSpec.prefix
+			prefix = int32(poolSpec.prefix)
 		}
 		gateway = poolSpec.gateway
 	}
@@ -279,9 +285,9 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		},
 		Spec: ipamv1.IPAddressSpec{
 			Address: ip.Addr().String(),
-			Prefix:  prefix,
+			Prefix:  ptr.To(prefix),
 			Gateway: gateway,
-			PoolRef: ptr.Deref(pool, corev1.TypedLocalObjectReference{}),
+			PoolRef: poolRef,
 		},
 	}
 	require.NoError(t, c.Create(context.Background(), ipAddr))

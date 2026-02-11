@@ -30,7 +30,7 @@ const (
 
 	// VMTerminatedReason used when vm is being terminated.
 	VMTerminatedReason = "VMTerminated"
-	
+
 	// VMDeletionFailedReason used when VM deletion fails.
 	VMDeletionFailedReason = "VMDeletionFailed"
 

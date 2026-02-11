@@ -340,16 +340,16 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 			Namespace: getCluster().GetNamespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
-			ClaimRef: corev1.LocalObjectReference{
+			ClaimRef: ipamv1.IPAddressClaimReference{
 				Name: getCluster().GetName(),
 			},
-			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.GroupVersion().String()),
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     "test-ippool-annotations",
 			},
 			Address: "10.10.11.11",
-			Prefix:  24,
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.11.254",
 		},
 	}
@@ -570,16 +570,16 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 			Namespace: owner.GetNamespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
-			ClaimRef: corev1.LocalObjectReference{
+			ClaimRef: ipamv1.IPAddressClaimReference{
 				Name: owner.GetName(),
 			},
-			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.GroupVersion().String()),
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
 			Address: "10.10.10.11",
-			Prefix:  24,
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.10.1",
 		},
 	}
