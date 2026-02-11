@@ -104,7 +104,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			client := newTestClient(t)
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
-				newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}}))
+				newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}, Name: "test"}))
 
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu`,
 				// Somehow, setting proxmox.VirtualMachines{} ALWAYS has `Template: true` when defined this way.
@@ -168,7 +168,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 	t.Run("Fail to list VMs", func(t *testing.T) {
 		client := newTestClient(t)
 		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
-			newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}}))
+			newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}, Name: "test"}))
 		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu`,
 			newJSONResponder(401, nil))
 		reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", 1)
@@ -201,7 +201,7 @@ func TestProxmoxAPIClient_CloneVM(t *testing.T) {
 			client := newTestClient(t)
 
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
-				newJSONResponder(test.http[0], proxmox.Node{}))
+				newJSONResponder(test.http[0], proxmox.Node{Name: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/100/status/current`,
 				newJSONResponder(test.http[1], proxmox.VirtualMachine{Node: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/100/config`,
@@ -248,7 +248,7 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 			upid := "UPID:test:00303F51:09D93CFE:61CCA568:download:test.iso:root@pam:"
 
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
-				newJSONResponder(200, proxmox.Node{}))
+				newJSONResponder(200, proxmox.Node{Name: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/status/current`,
 				newJSONResponder(200, proxmox.VirtualMachine{Node: "test", VMID: 101}))
 			httpmock.RegisterResponder(http.MethodPost, `=~/nodes/test/qemu/101/config`,
@@ -259,7 +259,8 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 				newJSONResponder(200,
 					proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
 
-			node, err := client.Client.Node(context.Background(), "test")
+			node := (&proxmox.Node{}).New(client.Client, "test")
+			err := node.Status(context.Background())
 			require.NoError(t, err)
 			vm, err := node.VirtualMachine(context.Background(), 101)
 			require.NoError(t, err)
@@ -305,7 +306,7 @@ func TestProxmoxAPIClient_GetVM(t *testing.T) {
 			client := newTestClient(t)
 
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
-				newJSONResponder(200, proxmox.Node{}))
+				newJSONResponder(200, proxmox.Node{Name: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/enoent/status`,
 				newJSONResponder(500, nil))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/status/current`,
@@ -515,7 +516,7 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
 				newJSONResponder(400, fmt.Sprintf("VM %d already exists", test.vmID)))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
-				newJSONResponder(200, proxmox.Node{}))
+				newJSONResponder(200, proxmox.Node{Name: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/enoent/status`,
 				newJSONResponder(500, nil))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/status/current`,

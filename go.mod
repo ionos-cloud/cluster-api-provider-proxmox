@@ -10,7 +10,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.3.1
-	github.com/luthermonson/go-proxmox v0.2.3-0.20250704032151-92d9fa56db83 // Bump when v0.2.3 is released
+	github.com/luthermonson/go-proxmox v0.3.2
 	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.39.0
 	github.com/pkg/errors v0.9.1
@@ -18,6 +18,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.38.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.33.3
 	k8s.io/apimachinery v0.33.3
 	k8s.io/client-go v0.33.3
@@ -55,7 +56,7 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/diskfs/go-diskfs v1.5.0 // indirect
+	github.com/diskfs/go-diskfs v1.7.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/docker/docker v28.3.3+incompatible // indirect
