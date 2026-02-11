@@ -4,7 +4,7 @@ go 1.25 // keep in sync with root go.mod
 
 require (
 	github.com/braydonk/yaml v0.9.0
-	github.com/golangci/golangci-lint/v2 v2.8.0
+	github.com/golangci/golangci-lint/v2 v2.8.0 // remember to update version in lint action
 	github.com/google/yamlfmt v0.21.0
 	github.com/vektra/mockery/v2 v2.53.4
 	golang.org/x/tools v0.40.0
