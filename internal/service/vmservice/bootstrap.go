@@ -241,7 +241,12 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	ipConfigs := make([]types.IPConfig, 0, len(ipAddresses))
 	for _, ipAddr := range ipAddresses {
 		ipConfig := types.IPConfig{}
-		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ipAddr.Spec.Prefix))
+		// In v1beta2, Prefix is a *int32 pointer, so we need to dereference it
+		prefix := int32(24) // default prefix if not specified
+		if ipAddr.Spec.Prefix != nil {
+			prefix = *ipAddr.Spec.Prefix
+		}
+		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, prefix))
 		if err != nil {
 			return nil, errors.Wrapf(err, "error converting ip address spec to netip prefix: %+v", ipAddr.Spec)
 		}
