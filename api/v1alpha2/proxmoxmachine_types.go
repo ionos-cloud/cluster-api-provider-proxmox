@@ -273,7 +273,9 @@ type NetworkSpec struct {
 	// +required
 	// +listType=map
 	// +listMapKey=name
+	//nolint:kubeapilinter
 	NetworkDevices []NetworkDevice `json:"networkDevices,omitempty"`
+	// justification: NetworkDevice legitimately consists of optional fields.
 
 	// VirtualNetworkDevices defines virtual network devices (e.g. bridges, vlans ...).
 	VirtualNetworkDevices `json:",inline"`
@@ -312,13 +314,17 @@ type Routing struct {
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
+	//nolint:kubeapilinter
 	Routes []RouteSpec `json:"routes,omitempty"`
+	// justification: RouteSpec legitimately consists of optional fields.
 
 	// routingPolicy is an interface-specific policy inserted into FIB (forwarding information base).
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
+	//nolint:kubeapilinter
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
+	// justification: RoutingPolicySpec legitimately consists of optional fields.
 }
 
 // RouteSpec describes an IPv4/IPv6 Route.

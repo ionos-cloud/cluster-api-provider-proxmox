@@ -223,7 +223,11 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=zone
+	//nolint:kubeapilinter
 	InClusterZoneRef []InClusterZoneRef `json:"inClusterZoneRef,omitempty"`
+	// justification: InClusterZoneRef legitimately consists of optional fields.
+	// It has an AtLeastOneOf validation rule but that's not enough to pay the linter.
+	// We should come up with a better data structure but for now, nolint.
 
 	// nodeLocations keeps track of which nodes have been selected
 	// for different machines.
@@ -279,6 +283,7 @@ type ProxmoxClusterStatus struct {
 }
 
 // InClusterZoneRef holds the InClusterIPPools associated with a zone.
+// +kubebuilder:validation:AtLeastOneOf=InClusterIPPoolRefV4,InClusterIPPoolRefV6
 type InClusterZoneRef struct {
 	// zone defines the deployment proxmox-zone.
 	// +default="default"
