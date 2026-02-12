@@ -213,7 +213,7 @@ func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *
 	if err := autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in, out, s); err != nil {
 		return err
 	}
-	
+
 	// Manually convert conditions from metav1.Condition to v1beta1.Condition
 	if in.Conditions != nil {
 		out.Conditions = make(clusterv1beta1.Conditions, len(in.Conditions))
@@ -223,7 +223,7 @@ func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -232,7 +232,7 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 	if err != nil {
 		return err
 	}
-	
+
 	// Manually convert conditions from metav1.Condition to v1beta1.Condition
 	if in.Conditions != nil {
 		out.Conditions = make(clusterv1beta1.Conditions, len(in.Conditions))
@@ -409,7 +409,7 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 	if err != nil {
 		return err
 	}
-	
+
 	// Manually convert conditions from v1beta1.Condition to metav1.Condition
 	if in.Conditions != nil {
 		out.Conditions = make([]metav1.Condition, len(in.Conditions))
@@ -454,7 +454,7 @@ func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *
 	if err := autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s); err != nil {
 		return err
 	}
-	
+
 	// Manually convert conditions from v1beta1.Condition to metav1.Condition
 	if in.Conditions != nil {
 		out.Conditions = make([]metav1.Condition, len(in.Conditions))
@@ -464,7 +464,7 @@ func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *
 			}
 		}
 	}
-	
+
 	return nil
 }
 

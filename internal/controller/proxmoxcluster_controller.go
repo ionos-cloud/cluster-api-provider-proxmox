@@ -277,6 +277,7 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Conte
 	var clusterFailureReason, clusterFailureMessage string
 
 	// Check for failure information in deprecated v1beta1 fields (for clusters migrated from v1beta1)
+	//nolint:staticcheck // indeed these are deprecated
 	if clusterScope.Cluster.Status.Deprecated != nil && clusterScope.Cluster.Status.Deprecated.V1Beta1 != nil {
 		clusterFailureReason = string(ptr.Deref(clusterScope.Cluster.Status.Deprecated.V1Beta1.FailureReason, ""))
 		clusterFailureMessage = ptr.Deref(clusterScope.Cluster.Status.Deprecated.V1Beta1.FailureMessage, "")
@@ -293,6 +294,7 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Conte
 		}
 
 		// Clear the failure reason and patch the root cluster (only if deprecated fields exist).
+		//nolint:staticcheck // indeed these are deprecated
 		if clusterScope.Cluster.Status.Deprecated != nil && clusterScope.Cluster.Status.Deprecated.V1Beta1 != nil {
 			newCluster := clusterScope.Cluster.DeepCopy()
 			newCluster.Status.Deprecated.V1Beta1.FailureMessage = nil

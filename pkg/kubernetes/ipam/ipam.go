@@ -108,13 +108,6 @@ func typedLocalObjectRefToIPPoolRef(ref corev1.TypedLocalObjectReference) ipamv1
 	}
 }
 
-// localObjectRefToIPAddressClaimRef converts a corev1.LocalObjectReference to ipamv1.IPAddressClaimReference.
-func localObjectRefToIPAddressClaimRef(ref corev1.LocalObjectReference) ipamv1.IPAddressClaimReference {
-	return ipamv1.IPAddressClaimReference{
-		Name: ref.Name,
-	}
-}
-
 // poolFromObjectRef is a local helper to turn any objectRef into a pool,
 // The awkward calling convention is due to limitations of golang (no generics on methods,
 // no type conversion of constrained types).

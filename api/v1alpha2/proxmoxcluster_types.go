@@ -207,6 +207,14 @@ func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
 
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
 type ProxmoxClusterStatus struct {
+	// conditions defines the current service state of the ProxmoxCluster.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
 	// ready indicates that the cluster is ready.
 	// +default=false
 	// +optional
@@ -269,14 +277,6 @@ type ProxmoxClusterStatus struct {
 	// controller's output.
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
-
-	// conditions defines the current service state of the ProxmoxCluster.
-	// +optional
-	// +listType=map
-	// +listMapKey=type
-	// +patchStrategy=merge
-	// +patchMergeKey=type
-	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // InClusterZoneRef holds the InClusterIPPools associated with a zone.

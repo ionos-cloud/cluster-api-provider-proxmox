@@ -446,6 +446,14 @@ type MTU *int32
 
 // ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
 type ProxmoxMachineStatus struct {
+	// conditions defines current service state of the ProxmoxMachine.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
 	// ready indicates the Docker infrastructure has been provisioned and is ready.
 	// +optional
 	Ready *bool `json:"ready,omitempty"`
@@ -527,14 +535,6 @@ type ProxmoxMachineStatus struct {
 	// controller's output.
 	// +optional
 	FailureMessage *string `json:"failureMessage,omitempty"`
-
-	// conditions defines current service state of the ProxmoxMachine.
-	// +optional
-	// +listType=map
-	// +listMapKey=type
-	// +patchStrategy=merge
-	// +patchMergeKey=type
-	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // IPAddressesSpec stores the IP addresses of a network interface. Used for status.
