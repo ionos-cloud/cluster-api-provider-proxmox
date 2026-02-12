@@ -1071,8 +1071,9 @@ func Convert_v1alpha2_ProxmoxClusterTemplateList_To_v1alpha1_ProxmoxClusterTempl
 }
 
 func autoConvert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in *ProxmoxClusterTemplateResource, out *v1alpha2.ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	// FIXME: Provide conversion function to convert v1beta1.ObjectMeta to v1beta2.ObjectMeta
-	compileErrorOnMissingConversion()
+	if err := Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
@@ -1080,8 +1081,9 @@ func autoConvert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClus
 }
 
 func autoConvert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *v1alpha2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	// FIXME: Provide conversion function to convert v1beta2.ObjectMeta to v1beta1.ObjectMeta
-	compileErrorOnMissingConversion()
+	if err := Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
@@ -1445,8 +1447,9 @@ func Convert_v1alpha2_ProxmoxMachineTemplateList_To_v1alpha1_ProxmoxMachineTempl
 }
 
 func autoConvert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *v1alpha2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	// FIXME: Provide conversion function to convert v1beta1.ObjectMeta to v1beta2.ObjectMeta
-	compileErrorOnMissingConversion()
+	if err := Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
@@ -1454,8 +1457,9 @@ func autoConvert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMach
 }
 
 func autoConvert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *v1alpha2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	// FIXME: Provide conversion function to convert v1beta2.ObjectMeta to v1beta1.ObjectMeta
-	compileErrorOnMissingConversion()
+	if err := Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
