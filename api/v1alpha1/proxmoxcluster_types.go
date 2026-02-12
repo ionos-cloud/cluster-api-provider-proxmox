@@ -20,8 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	"sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	"sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -198,7 +198,7 @@ type ProxmoxClusterStatus struct {
 
 	// Conditions defines current service state of the ProxmoxCluster.
 	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 }
 
 // NodeLocations holds information about the deployment state of
@@ -250,12 +250,12 @@ type ProxmoxClusterList struct {
 }
 
 // GetConditions returns the observations of the operational state of the ProxmoxCluster resource.
-func (c *ProxmoxCluster) GetConditions() []metav1.Condition {
+func (c *ProxmoxCluster) GetConditions() clusterv1.Conditions {
 	return c.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed conditions.
-func (c *ProxmoxCluster) SetConditions(conditions []metav1.Condition) {
+// SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed clusterv1.Conditions.
+func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
 	c.Status.Conditions = conditions
 }
 

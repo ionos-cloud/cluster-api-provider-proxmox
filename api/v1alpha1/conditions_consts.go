@@ -16,9 +16,11 @@ limitations under the License.
 
 package v1alpha1
 
+import clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+
 const (
 	// VMProvisionedCondition documents the status of the provisioning of a ProxmoxMachine and its underlying ProxmoxVM.
-	VMProvisionedCondition = "VMProvisioned"
+	VMProvisionedCondition clusterv1.ConditionType = "VMProvisioned"
 
 	// VMProvisionFailedReason used for failures during instance provisioning.
 	VMProvisionFailedReason = "VMProvisionFailed"
@@ -83,7 +85,7 @@ const (
 
 const (
 	// ProxmoxClusterReady documents the status of ProxmoxCluster and its underlying resources.
-	ProxmoxClusterReady = "ClusterReady"
+	ProxmoxClusterReady clusterv1.ConditionType = "ClusterReady"
 
 	// ProxmoxUnreachableReason (Severity=Error) documents a controller detecting
 	// issues with Proxmox reachability.

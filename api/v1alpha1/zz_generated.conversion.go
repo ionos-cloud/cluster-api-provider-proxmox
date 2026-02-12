@@ -13,6 +13,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	v1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	v1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	errors "sigs.k8s.io/cluster-api/errors"
 )
@@ -883,7 +884,7 @@ func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *Prox
 }
 
 func autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
-	out.ControlPlaneEndpoint = (*v1beta2.APIEndpoint)(unsafe.Pointer(in.ControlPlaneEndpoint))
+	out.ControlPlaneEndpoint = (*v1beta1.APIEndpoint)(unsafe.Pointer(in.ControlPlaneEndpoint))
 	if err := v1.Convert_Pointer_bool_To_bool(&in.ExternalManagedControlPlane, &out.ExternalManagedControlPlane, s); err != nil {
 		return err
 	}
@@ -946,7 +947,16 @@ func autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(
 	}
 	out.FailureReason = (*errors.ClusterStatusError)(unsafe.Pointer(in.FailureReason))
 	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*[]v1.Condition)(unsafe.Pointer(&in.Conditions))
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			// FIXME: Provide conversion function to convert v1beta1.Condition to v1.Condition
+			compileErrorOnMissingConversion()
+		}
+	} else {
+		out.Conditions = nil
+	}
 	return nil
 }
 
@@ -972,7 +982,16 @@ func autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(
 	}
 	out.FailureReason = (*errors.ClusterStatusError)(unsafe.Pointer(in.FailureReason))
 	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*[]v1.Condition)(unsafe.Pointer(&in.Conditions))
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make(v1beta1.Conditions, len(*in))
+		for i := range *in {
+			// FIXME: Provide conversion function to convert v1.Condition to v1beta1.Condition
+			compileErrorOnMissingConversion()
+		}
+	} else {
+		out.Conditions = nil
+	}
 	return nil
 }
 
@@ -1045,7 +1064,8 @@ func Convert_v1alpha2_ProxmoxClusterTemplateList_To_v1alpha1_ProxmoxClusterTempl
 }
 
 func autoConvert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in *ProxmoxClusterTemplateResource, out *v1alpha2.ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	// FIXME: Provide conversion function to convert v1beta1.ObjectMeta to v1beta2.ObjectMeta
+	compileErrorOnMissingConversion()
 	if err := Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
@@ -1058,7 +1078,8 @@ func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterT
 }
 
 func autoConvert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *v1alpha2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	// FIXME: Provide conversion function to convert v1beta2.ObjectMeta to v1beta1.ObjectMeta
+	compileErrorOnMissingConversion()
 	if err := Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
@@ -1306,7 +1327,16 @@ func autoConvert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(
 	// WARNING: in.RetryAfter requires manual conversion: inconvertible types (k8s.io/apimachinery/pkg/apis/meta/v1.Time vs *k8s.io/apimachinery/pkg/apis/meta/v1.Time)
 	out.FailureReason = (*errors.MachineStatusError)(unsafe.Pointer(in.FailureReason))
 	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*[]v1.Condition)(unsafe.Pointer(&in.Conditions))
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			// FIXME: Provide conversion function to convert v1beta1.Condition to v1.Condition
+			compileErrorOnMissingConversion()
+		}
+	} else {
+		out.Conditions = nil
+	}
 	return nil
 }
 
@@ -1314,7 +1344,7 @@ func autoConvert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(
 	if err := v1.Convert_Pointer_bool_To_bool(&in.Ready, &out.Ready, s); err != nil {
 		return err
 	}
-	out.Addresses = *(*[]v1beta2.MachineAddress)(unsafe.Pointer(&in.Addresses))
+	out.Addresses = *(*[]v1beta1.MachineAddress)(unsafe.Pointer(&in.Addresses))
 	// WARNING: in.VMStatus requires manual conversion: inconvertible types (*github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2.VirtualMachineState vs github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1.VirtualMachineState)
 	out.BootstrapDataProvided = (*bool)(unsafe.Pointer(in.BootstrapDataProvided))
 	// WARNING: in.IPAddresses requires manual conversion: inconvertible types ([]github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2.IPAddressesSpec vs map[string]github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1.IPAddress)
@@ -1334,7 +1364,16 @@ func autoConvert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(
 	// WARNING: in.RetryAfter requires manual conversion: inconvertible types (*k8s.io/apimachinery/pkg/apis/meta/v1.Time vs k8s.io/apimachinery/pkg/apis/meta/v1.Time)
 	out.FailureReason = (*errors.MachineStatusError)(unsafe.Pointer(in.FailureReason))
 	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*[]v1.Condition)(unsafe.Pointer(&in.Conditions))
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make(v1beta1.Conditions, len(*in))
+		for i := range *in {
+			// FIXME: Provide conversion function to convert v1.Condition to v1beta1.Condition
+			compileErrorOnMissingConversion()
+		}
+	} else {
+		out.Conditions = nil
+	}
 	return nil
 }
 
@@ -1407,7 +1446,8 @@ func Convert_v1alpha2_ProxmoxMachineTemplateList_To_v1alpha1_ProxmoxMachineTempl
 }
 
 func autoConvert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *v1alpha2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	// FIXME: Provide conversion function to convert v1beta1.ObjectMeta to v1beta2.ObjectMeta
+	compileErrorOnMissingConversion()
 	if err := Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
@@ -1420,7 +1460,8 @@ func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineT
 }
 
 func autoConvert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *v1alpha2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	// FIXME: Provide conversion function to convert v1beta2.ObjectMeta to v1beta1.ObjectMeta
+	compileErrorOnMissingConversion()
 	if err := Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
