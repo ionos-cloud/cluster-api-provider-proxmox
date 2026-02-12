@@ -2,7 +2,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.30.0
+ENVTEST_K8S_VERSION = 1.33.0
 
 TOOLS_DIR := hack/tools
 
@@ -185,10 +185,10 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.0.0
 CONTROLLER_TOOLS_VERSION ?= v0.18.0
-ENVTEST_VERSION ?= 42a14a36c13b95dd6bc8b4ba69c181b16d50e3c0 # last version to support go1.24
+ENVTEST_VERSION ?= 42a14a36c13b95dd6bc8b4ba69c181b16d50e3c0 # last version to support go1.24, don't update until we're on k8s/0.34
 
 ## Conversion gen
-CONVERSION_GEN_VER := v0.32.11
+CONVERSION_GEN_VER := v0.33.3
 CONVERSION_GEN := $(LOCALBIN)/conversion-gen
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
