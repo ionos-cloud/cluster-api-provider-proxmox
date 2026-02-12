@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	clusterapierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
+	clusterapierrors "sigs.k8s.io/cluster-api/errors"
 )
 
 const (
@@ -530,7 +530,11 @@ type ProxmoxMachineStatus struct {
 
 	// conditions defines current service state of the ProxmoxMachine.
 	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // IPAddressesSpec stores the IP addresses of a network interface. Used for status.
