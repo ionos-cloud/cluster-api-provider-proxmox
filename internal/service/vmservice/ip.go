@@ -72,6 +72,11 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
 	for net, pools := range netPoolAddresses {
 		addresses := slices.Concat(slices.Collect(maps.Values(pools))...)
+		slices.SortFunc(addresses, func(a, b ipamv1.IPAddress) int {
+			aOffset, _ := strconv.Atoi(a.GetAnnotations()[infrav1.ProxmoxPoolOffsetAnnotation])
+			bOffset, _ := strconv.Atoi(b.GetAnnotations()[infrav1.ProxmoxPoolOffsetAnnotation])
+			return aOffset - bOffset
+		})
 		ipSpec := infrav1.IPAddressesSpec{
 			NetName: net,
 		}
