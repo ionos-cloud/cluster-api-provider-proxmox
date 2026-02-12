@@ -16,8 +16,12 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+      # Build kube-api-linter plugin with CGO enabled and pinned GOOS/GOARCH for stable plugin loading.
+      # Go plugins require matching build environment between the plugin and the loader (golangci-lint).
       - name: build kube-api-linter
-        run: go -C hack/tools build -buildmode=plugin -o ${{ github.workspace }}/bin/kube-api-linter.so sigs.k8s.io/kube-api-linter/pkg/plugin
+        run: |
+          mkdir -p ${{ github.workspace }}/bin
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go -C hack/tools build -buildmode=plugin -o ${{ github.workspace }}/bin/kube-api-linter.so sigs.k8s.io/kube-api-linter/pkg/plugin
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
