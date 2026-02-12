@@ -74,6 +74,7 @@ func ProxmoxMachineFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 		hubProxmoxMachineStatus,
 		hubRoutingPolicySpec,
 		spokeProxmoxMachineSpec,
+		spokeProxmoxMachineStatus,
 	}
 }
 
@@ -202,6 +203,13 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 
 	if in.RetryAfter != nil && in.RetryAfter.IsZero() {
 		in.RetryAfter = nil
+	}
+
+	// Normalize Conditions: metav1.Condition doesn't have Severity field,
+	// and ObservedGeneration is not preserved during v1beta1 <-> metav1 conversion
+	for i := range in.Conditions {
+		// ObservedGeneration is set to 0 when converting from v1beta1.Condition (which doesn't have it)
+		in.Conditions[i].ObservedGeneration = 0
 	}
 
 	// Normalize IPAddresses IPv4/IPv6 empty strings
@@ -357,6 +365,7 @@ func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
 		spokeProxmoxMachineSpec,
+		spokeProxmoxClusterStatus,
 	}
 }
 
@@ -395,6 +404,13 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 			in.NodeLocations.Workers[i].Zone = nil
 		}
 	}
+
+	// Normalize Conditions: metav1.Condition doesn't have Severity field,
+	// and ObservedGeneration is not preserved during v1beta1 <-> metav1 conversion
+	for i := range in.Conditions {
+		// ObservedGeneration is set to 0 when converting from v1beta1.Condition (which doesn't have it)
+		in.Conditions[i].ObservedGeneration = 0
+	}
 }
 
 func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
@@ -405,4 +421,30 @@ func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 		in.Priority = nil
 	}
 
+}
+
+func spokeProxmoxMachineStatus(in *ProxmoxMachineStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// Normalize Conditions: v1beta1.Condition has Severity field, but metav1.Condition doesn't.
+	// When converting hub (metav1) -> spoke (v1beta1), Severity is set to "" (empty string),
+	// but during spoke -> hub -> spoke, it should remain consistent.
+	// We normalize to empty string to match the conversion behavior.
+	for i := range in.Conditions {
+		// Severity is lost when going through metav1.Condition (hub)
+		in.Conditions[i].Severity = ""
+	}
+}
+
+func spokeProxmoxClusterStatus(in *ProxmoxClusterStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// Normalize Conditions: v1beta1.Condition has Severity field, but metav1.Condition doesn't.
+	// When converting hub (metav1) -> spoke (v1beta1), Severity is set to "" (empty string),
+	// but during spoke -> hub -> spoke, it should remain consistent.
+	// We normalize to empty string to match the conversion behavior.
+	for i := range in.Conditions {
+		// Severity is lost when going through metav1.Condition (hub)
+		in.Conditions[i].Severity = ""
+	}
 }

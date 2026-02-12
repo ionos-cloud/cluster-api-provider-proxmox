@@ -642,36 +642,48 @@ func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out
 
 // Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta converts clusterv1beta1.ObjectMeta to clusterv1beta2.ObjectMeta.
 // Both versions have the same structure (Labels and Annotations maps), so we copy the fields.
+// Preserves nil vs empty map distinction for fuzzy conversion compatibility.
 func Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in *clusterv1beta1.ObjectMeta, out *clusterv1beta2.ObjectMeta, s conversion.Scope) error {
+	// Only create maps if source is non-nil
 	if in.Labels != nil {
 		out.Labels = make(map[string]string, len(in.Labels))
 		for k, v := range in.Labels {
 			out.Labels[k] = v
 		}
+	} else {
+		out.Labels = nil
 	}
 	if in.Annotations != nil {
 		out.Annotations = make(map[string]string, len(in.Annotations))
 		for k, v := range in.Annotations {
 			out.Annotations[k] = v
 		}
+	} else {
+		out.Annotations = nil
 	}
 	return nil
 }
 
 // Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta converts clusterv1beta2.ObjectMeta to clusterv1beta1.ObjectMeta.
 // Both versions have the same structure (Labels and Annotations maps), so we copy the fields.
+// Preserves nil vs empty map distinction for fuzzy conversion compatibility.
 func Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in *clusterv1beta2.ObjectMeta, out *clusterv1beta1.ObjectMeta, s conversion.Scope) error {
+	// Only create maps if source is non-nil
 	if in.Labels != nil {
 		out.Labels = make(map[string]string, len(in.Labels))
 		for k, v := range in.Labels {
 			out.Labels[k] = v
 		}
+	} else {
+		out.Labels = nil
 	}
 	if in.Annotations != nil {
 		out.Annotations = make(map[string]string, len(in.Annotations))
 		for k, v := range in.Annotations {
 			out.Annotations[k] = v
 		}
+	} else {
+		out.Annotations = nil
 	}
 	return nil
 }
