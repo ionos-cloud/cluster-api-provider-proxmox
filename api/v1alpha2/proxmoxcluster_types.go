@@ -144,19 +144,17 @@ type ProxmoxClusterCloneSpec struct {
 	// machineSpec is the map of machine specs.
 	// +listType=map
 	// +listMapKey=machineType
-	// +optional
+	// +required
 	ProxmoxClusterClassSpec []ProxmoxClusterClassSpec `json:"machineSpec,omitempty,omitzero"`
-	// Justification: This field intentionally violates API spec:
-	// It exists only to store information for Cluster Classes, and is never accessed from within the controller.
 
 	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +listType=set
 	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitzero"`
 
 	// virtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
-	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty"`
+	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty,omitzero"`
 }
 
 // IPConfigSpec contains information about available IP config.

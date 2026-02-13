@@ -78,6 +78,12 @@ func (dst *ProxmoxClusterTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 		return err
 	}
 
+	// Restore fields which do not survive empty conversion but need to be defined.
+	// This is required to keep ClusterClasses v0.1.0 working
+	if dst.Spec.Template.Spec.CloneSpec.SSHAuthorizedKeys == nil {
+		dst.Spec.Template.Spec.CloneSpec.SSHAuthorizedKeys = []string{}
+	}
+
 	// Preserve Hub data on down-conversion.
 	return utilconversion.MarshalData(src, dst)
 }
@@ -96,7 +102,10 @@ func (dst *ProxmoxClusterTemplateList) ConvertFrom(srcRaw conversion.Hub) error 
 
 func getRestoredVirtualIPNetworkInterface(restored *infrav1.ProxmoxClusterSpec, ok bool) *string {
 	if ok && restored.CloneSpec != nil {
-		return restored.CloneSpec.VirtualIPNetworkInterface
+		if restored.CloneSpec.VirtualIPNetworkInterface != nil {
+			return restored.CloneSpec.VirtualIPNetworkInterface
+		}
 	}
+
 	return nil
 }
