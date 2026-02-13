@@ -23,7 +23,7 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 		return err
 	}
 
-	restorePromoxMachineSpec(&src.Spec, &dst.Spec, &restored.Spec, ok)
+	restoreProxmoxMachineSpec(&src.Spec, &dst.Spec, &restored.Spec, ok)
 
 	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok, restored.Status.Ready, &dst.Status.Ready)
 	if dst.Status.VMStatus != nil && *dst.Status.VMStatus == "" {
@@ -59,7 +59,7 @@ func (dst *ProxmoxMachineList) ConvertFrom(srcRaw conversion.Hub) error {
 	return Convert_v1alpha2_ProxmoxMachineList_To_v1alpha1_ProxmoxMachineList(src, dst, nil)
 }
 
-func restorePromoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMachineSpec, restored *infrav1.ProxmoxMachineSpec, ok bool) {
+func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMachineSpec, restored *infrav1.ProxmoxMachineSpec, ok bool) {
 	if dst.MetadataSettings != nil && restored.MetadataSettings != nil && src.MetadataSettings != nil {
 		clusterv1.Convert_bool_To_Pointer_bool(src.MetadataSettings.ProviderIDInjection, ok, restored.MetadataSettings.ProviderIDInjection, &dst.MetadataSettings.ProviderIDInjection)
 	}
@@ -84,7 +84,7 @@ func restorePromoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMachi
 	Convert_string_To_Pointer_string(src.TemplateSource.SourceNode, ok, restored.TemplateSource.SourceNode, &dst.TemplateSource.SourceNode)
 
 	if dst.Network != nil && restored.Network != nil {
-		for i := range dst.Network.NetworkDevices {
+		for i := range restored.Network.NetworkDevices {
 			device := getNetDeviceByName(src.Network.AdditionalDevices, *dst.Network.NetworkDevices[i].Name)
 			var name, model, bridge string
 			if dst.Network.NetworkDevices[i].Name != nil && *dst.Network.NetworkDevices[i].Name == DefaultNetworkDevice {

@@ -20,7 +20,7 @@ func (src *ProxmoxMachineTemplate) ConvertTo(dstRaw conversion.Hub) error {
 		return err
 	}
 
-	restorePromoxMachineSpec(&src.Spec.Template.Spec, &dst.Spec.Template.Spec, &restored.Spec.Template.Spec, ok)
+	restoreProxmoxMachineSpec(&src.Spec.Template.Spec, &dst.Spec.Template.Spec, &restored.Spec.Template.Spec, ok)
 
 	// Normalize ProxmoxMachineSpec after auto-conversion
 	normalizeProxmoxMachineSpec(&dst.Spec.Template.Spec)

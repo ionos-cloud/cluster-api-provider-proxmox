@@ -51,7 +51,7 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 
 				if ok && restored.Spec.CloneSpec != nil &&
 					i < len(restored.Spec.CloneSpec.ProxmoxClusterClassSpec) {
-					restorePromoxMachineSpec(srcSpec,
+					restoreProxmoxMachineSpec(srcSpec,
 						&dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec,
 						&restored.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec, ok)
 				} else {
