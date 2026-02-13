@@ -61,8 +61,8 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: ## Run lint.
-	go -C $(TOOLS_DIR) build -buildmode=plugin -o $(LOCALBIN)/kube-api-linter.so sigs.k8s.io/kube-api-linter/pkg/plugin
-	go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
+	go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint custom
+	./bin/golangci-lint-custom run
 
 # Package names to test
 WHAT ?= ./...

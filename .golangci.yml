@@ -34,9 +34,9 @@ linters:
   settings:
     custom:
       kubeapilinter:
-        path: bin/kube-api-linter.so
-        description: Kube API LInter lints Kube like APIs based on API conventions and best practices.
-        original-url: sigs.k8s.io/kube-api-linter
+        type: module
+        description: Kube API Linter lints Kube like APIs based on API conventions and best practices.
+        settings: {}
     importas:
       alias:
         - pkg: k8s.io/api/(\w+)/(v[\w\d]+)
