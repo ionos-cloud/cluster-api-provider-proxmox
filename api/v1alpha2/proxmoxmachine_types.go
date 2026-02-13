@@ -259,7 +259,6 @@ type TemplateSelector struct {
 	// +listType=set
 	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
 	// +kubebuilder:validation:MinItems=1
-	// +required
 	MatchTags []string `json:"matchTags,omitempty"`
 }
 
