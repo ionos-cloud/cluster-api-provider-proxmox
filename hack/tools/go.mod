@@ -4,11 +4,11 @@ go 1.25.0 // keep in sync with root go.mod
 
 require (
 	github.com/braydonk/yaml v0.9.0
-	github.com/golangci/golangci-lint/v2 v2.9.0 // remember to update version in lint action
+	github.com/golangci/golangci-lint/v2 v2.9.0 // keep in sync with .custom-gcl.yml
 	github.com/google/yamlfmt v0.21.0
 	github.com/vektra/mockery/v2 v2.53.5
 	golang.org/x/tools v0.42.0
-	sigs.k8s.io/kube-api-linter v0.0.0-20260206102632-39e3d06a2850
+	sigs.k8s.io/kube-api-linter v0.0.0-20260206102632-39e3d06a2850 // keep in sync with .custom-gcl.yml
 )
 
 require (
