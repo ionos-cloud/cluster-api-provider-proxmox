@@ -63,17 +63,12 @@ func (*ProxmoxClusterTemplate) ValidateCreate(_ context.Context, obj runtime.Obj
 
 	if hasNoIPPoolConfig(&cluster.Spec.Template.Spec) {
 		err = errors.New("proxmox cluster must define at least one IP pool config")
-		warnings = append(warnings, fmt.Sprintf("proxmox cluster must define at least one IP pool config %s", cluster.GetName()))
+		warnings = append(warnings, fmt.Sprintf("proxmox cluster template must define at least one IP pool config %s", cluster.GetName()))
 		return warnings, err
 	}
 
 	if err := validateControlPlaneEndpoint(&cluster.Spec.Template.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
-		return warnings, err
-	}
-
-	if err := validateCloneSpecHasControlPlane(&cluster.Spec.Template.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster template %s", cluster.GetName()))
 		return warnings, err
 	}
 
@@ -89,15 +84,10 @@ func (*ProxmoxClusterTemplate) ValidateDelete(_ context.Context, _ runtime.Objec
 func (*ProxmoxClusterTemplate) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
 	newCluster, ok := newObj.(*infrav1.ProxmoxClusterTemplate)
 	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
+		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxClusterTemplate but got %T", newCluster))
 	}
 
 	if err := validateControlPlaneEndpoint(&newCluster.Spec.Template.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
-		return warnings, err
-	}
-
-	if err := validateCloneSpecHasControlPlane(&newCluster.Spec.Template.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
