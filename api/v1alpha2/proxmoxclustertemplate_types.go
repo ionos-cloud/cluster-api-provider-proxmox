@@ -37,7 +37,46 @@ type ProxmoxClusterTemplateResource struct {
 
 	// spec is the Proxmox Cluster spec
 	// +required
-	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
+	Spec ProxmoxClusterClassTemplateSpec `json:"spec,omitzero"`
+}
+
+// ProxmoxClusterClassSpec defines the Cluster and its machine resources for Cluster Classes.
+type ProxmoxClusterClassTemplateSpec struct {
+	// ProxmoxClusterSpec is used as a template for Clusters.
+	ProxmoxClusterSpec `json:",inline"`
+
+	// ProxomxClusterCloneSpec holds all data required to clone proxmox machines.
+	ProxmoxClusterCloneSpec `json:",inline"`
+}
+
+// ProxmoxClusterClassSpec defines deployment templates for ClusterClass.
+type ProxmoxClusterClassSpec struct {
+	// machineType is the name of the template for ClusterClass.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	MachineType string `json:"machineType,omitempty"`
+
+	// proxmoxMachineSpec is the to be patched yaml object.
+	ProxmoxMachineSpec `json:",inline"`
+}
+
+// ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
+// in the configuration and cloning of a proxmox VM.
+type ProxmoxClusterCloneSpec struct {
+	// machineSpec is the map of machine specs.
+	// +listType=map
+	// +listMapKey=machineType
+	// +required
+	ProxmoxClusterClassSpec []ProxmoxClusterClassSpec `json:"machineSpec,omitempty,omitzero"`
+
+	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
+	// +listType=set
+	// +optional
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitzero"`
+
+	// virtualIPNetworkInterface is the interface the k8s control plane binds to.
+	// +optional
+	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty,omitzero"`
 }
 
 // +kubebuilder:object:root=true

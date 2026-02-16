@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -108,11 +107,13 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("addresses may not contain the endpoint IP")))
 		})
 
-		It("should disallow clusterClassSpec without controlPlane", func() {
-			cluster := validProxmoxCluster("test-cluster")
-			cluster.Spec.CloneSpec.ProxmoxClusterClassSpec[0].MachineType = "coward"
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("machineSpec must contain an entry with machineType 'controlPlane'")))
-		})
+		/*
+			It("should disallow clusterClassSpec without controlPlane", func() {
+				cluster := validProxmoxCluster("test-cluster")
+				cluster.Spec.CloneSpec.ProxmoxClusterClassSpec[0].MachineType = "coward"
+				g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("machineSpec must contain an entry with machineType 'controlPlane'")))
+			})
+		*/
 	})
 
 	Context("update proxmox cluster", func() {
@@ -154,19 +155,21 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 				Prefix:  24,
 			},
 			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-			CloneSpec: &infrav1.ProxmoxClusterCloneSpec{
-				ProxmoxClusterClassSpec: []infrav1.ProxmoxClusterClassSpec{{
-					MachineType: "controlPlane",
-					ProxmoxMachineSpec: infrav1.ProxmoxMachineSpec{
-						Network: &infrav1.NetworkSpec{
-							NetworkDevices: []infrav1.NetworkDevice{{
-								Name:   ptr.To("net0"),
-								Bridge: ptr.To("vmbr0"),
-							}},
+			/*
+				CloneSpec: &infrav1.ProxmoxClusterCloneSpec{
+					ProxmoxClusterClassSpec: []infrav1.ProxmoxClusterClassSpec{{
+						MachineType: "controlPlane",
+						ProxmoxMachineSpec: infrav1.ProxmoxMachineSpec{
+							Network: &infrav1.NetworkSpec{
+								NetworkDevices: []infrav1.NetworkDevice{{
+									Name:   ptr.To("net0"),
+									Bridge: ptr.To("vmbr0"),
+								}},
+							},
 						},
-					},
-				}},
-			},
+					}},
+				},
+			*/
 		},
 	}
 }

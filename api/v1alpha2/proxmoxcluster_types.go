@@ -88,11 +88,6 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	ZoneConfigs []ZoneConfigSpec `json:"zoneConfig,omitempty"`
 
-	// cloneSpec is the configuration pertaining to all items configurable
-	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
-	// +optional
-	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
-
 	// credentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
 	// supplied then the credentials of the controller will be used.
 	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
@@ -125,36 +120,6 @@ type ZoneConfigSpec struct {
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers,omitempty"`
-}
-
-// ProxmoxClusterClassSpec defines deployment templates for ClusterClass.
-type ProxmoxClusterClassSpec struct {
-	// machineType is the name of the template for ClusterClass.
-	// +required
-	// +kubebuilder:validation:MinLength=1
-	MachineType string `json:"machineType,omitempty"`
-
-	// proxmoxMachineSpec is the to be patched yaml object.
-	ProxmoxMachineSpec `json:",inline"`
-}
-
-// ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
-// in the configuration and cloning of a proxmox VM.
-type ProxmoxClusterCloneSpec struct {
-	// machineSpec is the map of machine specs.
-	// +listType=map
-	// +listMapKey=machineType
-	// +required
-	ProxmoxClusterClassSpec []ProxmoxClusterClassSpec `json:"machineSpec,omitempty,omitzero"`
-
-	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
-	// +listType=set
-	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitzero"`
-
-	// virtualIPNetworkInterface is the interface the k8s control plane binds to.
-	// +optional
-	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty,omitzero"`
 }
 
 // IPConfigSpec contains information about available IP config.

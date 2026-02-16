@@ -46,9 +46,9 @@ func TestFuzzyConversion(t *testing.T) {
 
 	t.Run("for ProxmoxClusterTemplate", utilconversion.FuzzTestFunc(utilconversion.FuzzTestFuncInput{
 		Scheme:      scheme,
-		Hub:         &v1alpha2.ProxmoxMachineTemplate{},
-		Spoke:       &ProxmoxMachineTemplate{},
-		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterFuzzFuncs},
+		Hub:         &v1alpha2.ProxmoxClusterTemplate{},
+		Spoke:       &ProxmoxClusterTemplate{},
+		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterTemplateFuzzFuncs},
 	}))
 }
 
@@ -338,31 +338,24 @@ func ensureIPPoolNaming(cfg *IPPoolConfig) {
 func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
 		hubProxmoxClusterSpec,
-		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
-		spokeProxmoxMachineSpec,
+		spokeProxmoxClusterSpec,
 	}
+}
+
+func spokeProxmoxClusterSpec(in *ProxmoxClusterSpec, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// Throw CloneSpec away. It serves no function and will not survive conversion.
+	in.CloneSpec = nil
 }
 
 func hubProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, c randfill.Continue) {
-	c.FillNoCustom(in)
-
 	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
 	// Always set to nil to match conversion behavior
 	in.ZoneConfigs = nil
-
-	if in.CloneSpec != nil {
-		if in.CloneSpec.VirtualIPNetworkInterface != nil && *in.CloneSpec.VirtualIPNetworkInterface == "" {
-			in.CloneSpec.VirtualIPNetworkInterface = nil
-		}
-
-		// Normalize ProxmoxClusterClassSpec - use hubProxmoxMachineSpec for each machine spec
-		for i := range in.CloneSpec.ProxmoxClusterClassSpec {
-			spec := &in.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec
-			hubProxmoxMachineSpec(spec, c)
-		}
-	}
 }
+
 
 func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
@@ -389,4 +382,35 @@ func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 		in.Priority = nil
 	}
 
+}
+
+func ProxmoxClusterTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
+	return []interface{}{
+		//		hubProxmoxClusterTemplateSpec,
+		hubProxmoxClusterTemplateSpec,
+		spokeProxmoxClusterTemplateSpec,
+	}
+}
+
+func hubProxmoxClusterTemplateSpec(in *v1alpha2.ProxmoxClusterTemplateSpec, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
+	// Always set to nil to match conversion behavior
+	in.Template.Spec.ZoneConfigs = nil
+
+	if in.Template.Spec.ProxmoxClusterCloneSpec.VirtualIPNetworkInterface != nil &&
+		*in.Template.Spec.ProxmoxClusterCloneSpec.VirtualIPNetworkInterface == "" {
+		in.Template.Spec.ProxmoxClusterCloneSpec.VirtualIPNetworkInterface = nil
+	}
+
+	// Normalize ProxmoxClusterClassSpec - use hubProxmoxMachineSpec for each machine spec
+	for i := range in.Template.Spec.ProxmoxClusterCloneSpec.ProxmoxClusterClassSpec {
+		spec := &in.Template.Spec.ProxmoxClusterCloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec
+		hubProxmoxMachineSpec(spec, c)
+	}
+}
+
+func spokeProxmoxClusterTemplateSpec(in *ProxmoxClusterTemplateSpec, c randfill.Continue) {
+	c.FillNoCustom(in)
 }

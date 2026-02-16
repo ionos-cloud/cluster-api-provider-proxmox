@@ -168,6 +168,11 @@ func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capm
 }
 
 func Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in *capmoxv2.ProxmoxClusterCloneSpec, out *ProxmoxClusterCloneSpec, s conversion.Scope) error {
+	// ProxmoxClusterTemplate can have an empty CloneSpec
+	if in == nil {
+		return nil
+	}
+
 	err := autoConvert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in, out, s)
 	if err != nil {
 		return err
@@ -232,9 +237,93 @@ func Convert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in *capmoxv2.NodeLoc
 	return autoConvert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in, out, s)
 }
 
+// This actually converts template to template, but the subfield names changed.
+func Convert_v1alpha2_ProxmoxClusterClassTemplateSpec_To_v1alpha1_ProxmoxClusterSpec(in *capmoxv2.ProxmoxClusterClassTemplateSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
+	err := Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.ProxmoxClusterSpec, out, s)
+	if err != nil {
+		return err
+	}
+
+	out.CloneSpec = &ProxmoxClusterCloneSpec{}
+	err = Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(&in.ProxmoxClusterCloneSpec, out.CloneSpec, s)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // //
 // v1alpha1 To v1alpha2 conversion functions
 // //
+
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
+	out.ControlPlaneEndpoint = in.ControlPlaneEndpoint
+	out.ExternalManagedControlPlane = &in.ExternalManagedControlPlane
+	out.AllowedNodes = in.AllowedNodes
+
+	if in.SchedulerHints != nil {
+		out.SchedulerHints = &capmoxv2.SchedulerHints{}
+		err := autoConvert_v1alpha1_SchedulerHints_To_v1alpha2_SchedulerHints(in.SchedulerHints, out.SchedulerHints, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if in.IPv4Config != nil {
+		out.IPv4Config = &capmoxv2.IPConfigSpec{}
+		err := autoConvert_v1alpha1_IPConfigSpec_To_v1alpha2_IPConfigSpec(in.IPv4Config, out.IPv4Config, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if in.IPv6Config != nil {
+		out.IPv6Config = &capmoxv2.IPConfigSpec{}
+		err := autoConvert_v1alpha1_IPConfigSpec_To_v1alpha2_IPConfigSpec(in.IPv6Config, out.IPv6Config, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	out.DNSServers = in.DNSServers
+	out.ZoneConfigs = []capmoxv2.ZoneConfigSpec{}
+	out.CredentialsRef = in.CredentialsRef
+
+	return nil
+}
+
+// This actually converts template to template, but the subfield names changed.
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterClassTemplateSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterClassTemplateSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
+	out.ProxmoxClusterSpec = capmoxv2.ProxmoxClusterSpec{}
+	err := Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, &out.ProxmoxClusterSpec, s)
+	if err != nil {
+		return err
+	}
+
+	out.ProxmoxClusterCloneSpec = capmoxv2.ProxmoxClusterCloneSpec{}
+	err = Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in.CloneSpec, &out.ProxmoxClusterCloneSpec, s)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func Convert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in *NetworkSpec, out *capmoxv2.NetworkSpec, s conversion.Scope) error {
 	err := autoConvert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in, out, s)
@@ -335,6 +424,10 @@ func Convert_v1alpha1_RoutingPolicySpec_To_v1alpha2_RoutingPolicySpec(in *Routin
 }
 
 func Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in *ProxmoxClusterCloneSpec, out *capmoxv2.ProxmoxClusterCloneSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
 	err := autoConvert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in, out, s)
 	if err != nil {
 		return err

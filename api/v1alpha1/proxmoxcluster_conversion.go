@@ -28,48 +28,7 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 
 	clusterv1.Convert_bool_To_Pointer_bool(src.Spec.ExternalManagedControlPlane, ok, restored.Spec.ExternalManagedControlPlane, &dst.Spec.ExternalManagedControlPlane)
 
-	if dst.Spec.CloneSpec != nil {
-		Convert_string_To_Pointer_string(src.Spec.CloneSpec.VirtualIPNetworkInterface,
-			ok,
-			getRestoredVirtualIPNetworkInterface(&restored.Spec, ok),
-			&dst.Spec.CloneSpec.VirtualIPNetworkInterface,
-		)
-
-		if len(dst.Spec.CloneSpec.ProxmoxClusterClassSpec) > 0 {
-
-			for i := range dst.Spec.CloneSpec.ProxmoxClusterClassSpec {
-				var srcSpec *ProxmoxMachineSpec
-
-				machineType := dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].MachineType
-				if src.Spec.CloneSpec != nil {
-					cp, found := src.Spec.CloneSpec.ProxmoxMachineSpec[machineType]
-					if !found {
-						continue
-					}
-					srcSpec = &cp
-				}
-
-				if ok && restored.Spec.CloneSpec != nil &&
-					i < len(restored.Spec.CloneSpec.ProxmoxClusterClassSpec) {
-					restoreProxmoxMachineSpec(srcSpec,
-						&dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec,
-						&restored.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec, ok)
-				} else {
-					// No restored data - use conversion helper with ok=false
-					dstSpec := &dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec
-					clusterv1.Convert_int32_To_Pointer_int32(srcSpec.NumCores, false, nil, &dstSpec.NumCores)
-					clusterv1.Convert_int32_To_Pointer_int32(srcSpec.NumSockets, false, nil, &dstSpec.NumSockets)
-					clusterv1.Convert_int32_To_Pointer_int32(srcSpec.MemoryMiB, false, nil, &dstSpec.MemoryMiB)
-				}
-
-				// Normalize each machine spec in CloneSpec
-				normalizeProxmoxMachineSpec(&dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec)
-
-			}
-
-		}
-
-	}
+	// CloneSpec is moved to ProxmoxClusterTemplates. The field serves no function in ProxmoxClusters.
 
 	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok, restored.Status.Ready, &dst.Status.Ready)
 
