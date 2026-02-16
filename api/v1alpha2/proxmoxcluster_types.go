@@ -212,10 +212,10 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	Ready *bool `json:"ready,omitempty"`
 
-	// inClusterIpPoolRef is the reference to the created in-cluster IP pool.
+	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.
 	// +listType=atomic
 	// +optional
-	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
+	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIPPoolRef,omitempty"`
 
 	// inClusterZoneRef lists InClusterIPPools per proxmox-zone.
 	// +optional
@@ -288,13 +288,13 @@ type InClusterZoneRef struct {
 	// +optional
 	Zone Zone `json:"zone,omitempty"`
 
-	// inClusterIpPoolRefV4 is the reference to the created in-cluster IP pool.
+	// inClusterIPPoolRefV4 is the reference to the created in-cluster IP pool.
 	// +optional
-	InClusterIPPoolRefV4 *corev1.LocalObjectReference `json:"inClusterIpPoolRefV4,omitempty"`
+	InClusterIPPoolRefV4 *corev1.LocalObjectReference `json:"inClusterIPPoolRefV4,omitempty"`
 
-	// inClusterIpPoolRefV6 is the reference to the created in-cluster IP pool.
+	// inClusterIPPoolRefV6 is the reference to the created in-cluster IP pool.
 	// +optional
-	InClusterIPPoolRefV6 *corev1.LocalObjectReference `json:"inClusterIpPoolRefV6,omitempty"`
+	InClusterIPPoolRefV6 *corev1.LocalObjectReference `json:"inClusterIPPoolRefV6,omitempty"`
 }
 
 // NodeLocations holds information about the deployment state of

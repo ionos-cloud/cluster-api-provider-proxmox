@@ -1965,8 +1965,8 @@ spec:
                   can be added as events to the ProxmoxCluster object and/or logged in the
                   controller's output.
                 type: string
-              inClusterIpPoolRef:
-                description: inClusterIpPoolRef is the reference to the created in-cluster
+              inClusterIPPoolRef:
+                description: inClusterIPPoolRef is the reference to the created in-cluster
                   IP pool.
                 items:
                   description: |-
@@ -1992,8 +1992,8 @@ spec:
                   description: InClusterZoneRef holds the InClusterIPPools associated
                     with a zone.
                   properties:
-                    inClusterIpPoolRefV4:
-                      description: inClusterIpPoolRefV4 is the reference to the created
+                    inClusterIPPoolRefV4:
+                      description: inClusterIPPoolRefV4 is the reference to the created
                         in-cluster IP pool.
                       properties:
                         name:
@@ -2007,8 +2007,8 @@ spec:
                           type: string
                       type: object
                       x-kubernetes-map-type: atomic
-                    inClusterIpPoolRefV6:
-                      description: inClusterIpPoolRefV6 is the reference to the created
+                    inClusterIPPoolRefV6:
+                      description: inClusterIPPoolRefV6 is the reference to the created
                         in-cluster IP pool.
                       properties:
                         name:

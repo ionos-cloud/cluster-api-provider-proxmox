@@ -649,7 +649,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 				err:     nil,
 			},
 		},
-		"InvalidNetworkConfigIp": {
+		"InvalidNetworkConfigIP": {
 			reason: "ip address is not set",
 			args: args{
 				nics: []types.NetworkConfigData{
