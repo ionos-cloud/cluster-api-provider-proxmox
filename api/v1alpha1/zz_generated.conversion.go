@@ -339,6 +339,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddConversionFunc((*ProxmoxClusterSpec)(nil), (*v1alpha2.ProxmoxClusterClassTemplateSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterClassTemplateSpec(a.(*ProxmoxClusterSpec), b.(*v1alpha2.ProxmoxClusterClassTemplateSpec), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddConversionFunc((*ProxmoxClusterSpec)(nil), (*v1alpha2.ProxmoxClusterSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(a.(*ProxmoxClusterSpec), b.(*v1alpha2.ProxmoxClusterSpec), scope)
 	}); err != nil {
@@ -396,6 +401,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*v1alpha2.NodeLocation)(nil), (*NodeLocation)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(a.(*v1alpha2.NodeLocation), b.(*NodeLocation), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1alpha2.ProxmoxClusterClassTemplateSpec)(nil), (*ProxmoxClusterSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha2_ProxmoxClusterClassTemplateSpec_To_v1alpha1_ProxmoxClusterSpec(a.(*v1alpha2.ProxmoxClusterClassTemplateSpec), b.(*ProxmoxClusterSpec), scope)
 	}); err != nil {
 		return err
 	}
@@ -884,15 +894,7 @@ func autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *
 		out.IPv6Config = nil
 	}
 	out.DNSServers = *(*[]string)(unsafe.Pointer(&in.DNSServers))
-	if in.CloneSpec != nil {
-		in, out := &in.CloneSpec, &out.CloneSpec
-		*out = new(v1alpha2.ProxmoxClusterCloneSpec)
-		if err := Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.CloneSpec = nil
-	}
+	// WARNING: in.CloneSpec requires manual conversion: does not exist in peer-type
 	out.CredentialsRef = (*corev1.SecretReference)(unsafe.Pointer(in.CredentialsRef))
 	return nil
 }
@@ -932,15 +934,6 @@ func autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *
 	}
 	out.DNSServers = *(*[]string)(unsafe.Pointer(&in.DNSServers))
 	// WARNING: in.ZoneConfigs requires manual conversion: does not exist in peer-type
-	if in.CloneSpec != nil {
-		in, out := &in.CloneSpec, &out.CloneSpec
-		*out = new(ProxmoxClusterCloneSpec)
-		if err := Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.CloneSpec = nil
-	}
 	out.CredentialsRef = (*corev1.SecretReference)(unsafe.Pointer(in.CredentialsRef))
 	return nil
 }
@@ -1072,7 +1065,7 @@ func autoConvert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClus
 	if err := Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
 		return err
 	}
-	if err := Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
+	if err := Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterClassTemplateSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil
@@ -1082,7 +1075,7 @@ func autoConvert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClus
 	if err := Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
 		return err
 	}
-	if err := Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
+	if err := Convert_v1alpha2_ProxmoxClusterClassTemplateSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil
