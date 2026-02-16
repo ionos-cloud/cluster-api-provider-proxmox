@@ -40,6 +40,17 @@ type ProxmoxClusterTemplateResource struct {
 	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
 }
 
+// ProxmoxClusterClassSpec defines deployment templates for ClusterClass.
+type ProxmoxClusterClassSpec struct {
+	// machineType is the name of the template for ClusterClass.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	MachineType string `json:"machineType,omitempty"`
+
+	// proxmoxMachineSpec is the to be patched yaml object.
+	ProxmoxMachineSpec `json:",inline"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=proxmoxclustertemplates,scope=Namespaced,categories=cluster-api,shortName=pct
 // +kubebuilder:storageversion

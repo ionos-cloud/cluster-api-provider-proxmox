@@ -66,7 +66,7 @@ func TestFuzzyConversion(t *testing.T) {
 		Scheme:      scheme,
 		Hub:         &v1alpha2.ProxmoxClusterTemplate{},
 		Spoke:       &ProxmoxClusterTemplate{},
-		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterFuzzFuncs},
+		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterTemplateFuzzFuncs},
 	}))
 }
 
@@ -185,6 +185,19 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 			}
 		}
 	}
+
+	// nil Network does not survive hub→spoke→hub: restoreProxmoxMachineSpec always adds a default
+	// net0 device when Network is nil. Normalize to a minimal net0 device.
+	if in.Network == nil {
+		in.Network = &v1alpha2.NetworkSpec{
+			NetworkDevices: []v1alpha2.NetworkDevice{{
+				Name: ptr.To(DefaultNetworkDevice),
+				InterfaceConfig: v1alpha2.InterfaceConfig{
+					IPPoolRef: []corev1.TypedLocalObjectReference{},
+				},
+			}},
+		}
+	}
 }
 
 func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
@@ -259,59 +272,68 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 func spokeProxmoxMachineSpec(in *ProxmoxMachineSpec, c randfill.Continue) {
 	c.FillNoCustom(in)
 
-	// ProviderID: nil *string → "" string → &"" *string during spoke→hub→spoke
 	if in.ProviderID == nil {
 		in.ProviderID = ptr.To("")
 	}
 
-	if in.Network != nil {
-		// Handle Default Network Device
-		if in.Network.Default != nil {
-			ensureIPPoolNaming(&in.Network.Default.IPPoolConfig)
-			// Normalize empty slices to nil
-			if len(in.Network.Default.DNSServers) == 0 {
-				in.Network.Default.DNSServers = nil
-			}
-		}
+	// DefaultDevice is unconditionally added in conversion, since
+	// v1alpha2 NetworkDevices needs to contain at least one element.
+	if in.Network == nil {
+		in.Network = &NetworkSpec{}
+	}
 
-		// Handle Additional Network Devices
-		if len(in.Network.AdditionalDevices) == 0 {
-			in.Network.AdditionalDevices = nil
+	// Handle Default Network Device
+	if in.Network.Default == nil {
+		in.Network.Default = &NetworkDevice{
+			Bridge: "vmbr0",
 		}
-		for i := range in.Network.AdditionalDevices {
-			ensureIPPoolNaming(&in.Network.AdditionalDevices[i].NetworkDevice.IPPoolConfig)
-			// Normalize empty slices
-			if len(in.Network.AdditionalDevices[i].NetworkDevice.DNSServers) == 0 {
-				in.Network.AdditionalDevices[i].NetworkDevice.DNSServers = nil
-			}
-		}
+	}
 
-		// Handle VRFs - normalize Interfaces to nil if empty
-		for i := range in.Network.VirtualNetworkDevices.VRFs {
-			// Filter out empty strings from Interfaces (they become &"" in hub)
-			if len(in.Network.VirtualNetworkDevices.VRFs[i].Interfaces) > 0 {
-				filtered := make([]string, 0, len(in.Network.VirtualNetworkDevices.VRFs[i].Interfaces))
-				for _, iface := range in.Network.VirtualNetworkDevices.VRFs[i].Interfaces {
-					if iface != "" {
-						filtered = append(filtered, iface)
-					}
+	if in.Network.Default != nil {
+		ensureIPPoolNaming(&in.Network.Default.IPPoolConfig)
+		// Normalize empty slices to nil
+		if len(in.Network.Default.DNSServers) == 0 {
+			in.Network.Default.DNSServers = nil
+		}
+	}
+
+	// Handle Additional Network Devices
+	if len(in.Network.AdditionalDevices) == 0 {
+		in.Network.AdditionalDevices = nil
+	}
+	for i := range in.Network.AdditionalDevices {
+		ensureIPPoolNaming(&in.Network.AdditionalDevices[i].NetworkDevice.IPPoolConfig)
+		// Normalize empty slices
+		if len(in.Network.AdditionalDevices[i].NetworkDevice.DNSServers) == 0 {
+			in.Network.AdditionalDevices[i].NetworkDevice.DNSServers = nil
+		}
+	}
+
+	// Handle VRFs - normalize Interfaces to nil if empty
+	for i := range in.Network.VirtualNetworkDevices.VRFs {
+		// Filter out empty strings from Interfaces (they become &"" in hub)
+		if len(in.Network.VirtualNetworkDevices.VRFs[i].Interfaces) > 0 {
+			filtered := make([]string, 0, len(in.Network.VirtualNetworkDevices.VRFs[i].Interfaces))
+			for _, iface := range in.Network.VirtualNetworkDevices.VRFs[i].Interfaces {
+				if iface != "" {
+					filtered = append(filtered, iface)
 				}
-				if len(filtered) == 0 {
-					in.Network.VirtualNetworkDevices.VRFs[i].Interfaces = nil
-				} else {
-					in.Network.VirtualNetworkDevices.VRFs[i].Interfaces = filtered
-				}
-			} else {
+			}
+			if len(filtered) == 0 {
 				in.Network.VirtualNetworkDevices.VRFs[i].Interfaces = nil
+			} else {
+				in.Network.VirtualNetworkDevices.VRFs[i].Interfaces = filtered
 			}
-			// Normalize Routes to nil if empty
-			if len(in.Network.VirtualNetworkDevices.VRFs[i].Routing.Routes) == 0 {
-				in.Network.VirtualNetworkDevices.VRFs[i].Routing.Routes = nil
-			}
-			// Normalize RoutingPolicy to nil if empty
-			if len(in.Network.VirtualNetworkDevices.VRFs[i].Routing.RoutingPolicy) == 0 {
-				in.Network.VirtualNetworkDevices.VRFs[i].Routing.RoutingPolicy = nil
-			}
+		} else {
+			in.Network.VirtualNetworkDevices.VRFs[i].Interfaces = nil
+		}
+		// Normalize Routes to nil if empty
+		if len(in.Network.VirtualNetworkDevices.VRFs[i].Routing.Routes) == 0 {
+			in.Network.VirtualNetworkDevices.VRFs[i].Routing.Routes = nil
+		}
+		// Normalize RoutingPolicy to nil if empty
+		if len(in.Network.VirtualNetworkDevices.VRFs[i].Routing.RoutingPolicy) == 0 {
+			in.Network.VirtualNetworkDevices.VRFs[i].Routing.RoutingPolicy = nil
 		}
 	}
 }
@@ -369,31 +391,23 @@ func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 		fuzzV1beta1Condition,
 		fuzzMetav1Condition,
 		hubProxmoxClusterSpec,
-		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
 		spokeProxmoxClusterStatus,
-		spokeProxmoxMachineSpec,
+		spokeProxmoxClusterSpec,
 	}
 }
 
-func hubProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, c randfill.Continue) {
+func spokeProxmoxClusterSpec(in *ProxmoxClusterSpec, c randfill.Continue) {
 	c.FillNoCustom(in)
 
+	// Throw CloneSpec away. It serves no function and will not survive conversion.
+	in.CloneSpec = nil
+}
+
+func hubProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, c randfill.Continue) {
 	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
 	// Always set to nil to match conversion behavior
 	in.ZoneConfigs = nil
-
-	if in.CloneSpec != nil {
-		if in.CloneSpec.VirtualIPNetworkInterface != nil && *in.CloneSpec.VirtualIPNetworkInterface == "" {
-			in.CloneSpec.VirtualIPNetworkInterface = nil
-		}
-
-		// Normalize ProxmoxClusterClassSpec - use hubProxmoxMachineSpec for each machine spec
-		for i := range in.CloneSpec.ProxmoxClusterClassSpec {
-			spec := &in.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec
-			hubProxmoxMachineSpec(spec, c)
-		}
-	}
 }
 
 func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Continue) {
@@ -451,14 +465,68 @@ func fuzzObjectMeta(in *metav1.ObjectMeta, c randfill.Continue) {
 
 // fuzzV1beta1Condition normalizes v1beta1 Condition fields that are lossy during conversion.
 // Severity doesn't exist in metav1.Condition, so it's lost during spoke→hub→spoke roundtrip.
+// Empty Reason becomes "APIConversionReason" and empty Message becomes "API Conversion" after roundtrip.
 func fuzzV1beta1Condition(in *clusterv1.Condition, c randfill.Continue) {
 	c.FillNoCustom(in)
 	in.Severity = ""
+	if in.Reason == "" {
+		in.Reason = "APIConversionReason"
+	}
+	if in.Message == "" {
+		in.Message = "API Conversion"
+	}
 }
 
 // fuzzMetav1Condition normalizes metav1.Condition fields that are lossy during conversion.
 // ObservedGeneration doesn't exist in v1beta1 Condition, so it's lost during hub→spoke→hub roundtrip.
+// Empty Reason becomes "APIConversionReason" and empty Message becomes "API Conversion" after roundtrip.
 func fuzzMetav1Condition(in *metav1.Condition, c randfill.Continue) {
 	c.FillNoCustom(in)
 	in.ObservedGeneration = 0
+	if in.Reason == "" {
+		in.Reason = "APIConversionReason"
+	}
+	if in.Message == "" {
+		in.Message = "API Conversion"
+	}
+}
+
+func ProxmoxClusterTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
+	return []interface{}{
+		fuzzObjectMeta,
+		fuzzV1beta1Condition,
+		fuzzMetav1Condition,
+		hubProxmoxMachineSpec,
+		spokeProxmoxMachineSpec,
+		hubProxmoxClusterTemplateSpec,
+		spokeProxmoxClusterTemplateSpec,
+	}
+}
+
+func hubProxmoxClusterTemplateSpec(in *v1alpha2.ProxmoxClusterTemplateSpec, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
+	// Always set to nil to match conversion behavior
+	in.Template.Spec.ZoneConfigs = nil
+}
+
+func spokeProxmoxClusterTemplateSpec(in *ProxmoxClusterTemplateSpec, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// CloneSpec is replaced by this dummy Spec. This is because it's not
+	// actually required to roll a ClusterClass.
+	in.Template.Spec.CloneSpec = &ProxmoxClusterCloneSpec{
+		ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
+			"controlPlane": ProxmoxMachineSpec{
+				VirtualMachineCloneSpec: VirtualMachineCloneSpec{
+					TemplateSource: TemplateSource{
+						SourceNode: "pve1",
+					},
+				},
+			},
+		},
+		SSHAuthorizedKeys:         []string{},
+		VirtualIPNetworkInterface: "",
+	}
 }

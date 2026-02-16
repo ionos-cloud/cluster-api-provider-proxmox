@@ -147,4 +147,17 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMach
 
 		}
 	}
+
+	// NetworkSpec is required, therefore a default interface must be added.
+	// Push a dummy interface as a default device.
+	if dst.Network == nil {
+		dst.Network = &infrav1.NetworkSpec{
+			NetworkDevices: []infrav1.NetworkDevice{{
+				Name:        ptr.To(DefaultNetworkDevice),
+				DefaultIPv4: ptr.To(true),
+				DefaultIPv6: ptr.To(true),
+				Bridge:      ptr.To("vmbr0"),
+			}},
+		}
+	}
 }

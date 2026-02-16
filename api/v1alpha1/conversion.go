@@ -180,22 +180,6 @@ func Convert_v1alpha2_RoutingPolicySpec_To_v1alpha1_RoutingPolicySpec(in *capmox
 	return nil
 }
 
-func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
-	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
-		return err
-	}
-
-	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
-	if in.ControlPlaneEndpoint != nil {
-		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
-			Host: in.ControlPlaneEndpoint.Host,
-			Port: in.ControlPlaneEndpoint.Port,
-		}
-	}
-
-	return nil
-}
-
 func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capmoxv2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
 	if err := autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s); err != nil {
 		return err
@@ -206,29 +190,6 @@ func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capm
 		out.ControlPlaneEndpoint = &clusterv1beta1.APIEndpoint{
 			Host: in.ControlPlaneEndpoint.Host,
 			Port: in.ControlPlaneEndpoint.Port,
-		}
-	}
-
-	return nil
-}
-
-func Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in *capmoxv2.ProxmoxClusterCloneSpec, out *ProxmoxClusterCloneSpec, s conversion.Scope) error {
-	err := autoConvert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in, out, s)
-	if err != nil {
-		return err
-	}
-
-	if in.ProxmoxClusterClassSpec != nil {
-		out.ProxmoxMachineSpec = make(map[string]ProxmoxMachineSpec, len(in.ProxmoxClusterClassSpec))
-
-		for _, pc := range in.ProxmoxClusterClassSpec {
-			pms := ProxmoxMachineSpec{}
-			err := Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&pc.ProxmoxMachineSpec, &pms, s)
-			if err != nil {
-				return err
-			}
-
-			out.ProxmoxMachineSpec[pc.MachineType] = pms
 		}
 	}
 
@@ -305,12 +266,63 @@ func Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in *clusterv1beta2.ObjectM
 	if err := clusterv1beta1.Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in, out, s); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // //
 // v1alpha1 To v1alpha2 conversion functions
 // //
+
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
+	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
+	if in.ControlPlaneEndpoint != nil {
+		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
+			Host: in.ControlPlaneEndpoint.Host,
+			Port: in.ControlPlaneEndpoint.Port,
+		}
+	}
+
+	out.ExternalManagedControlPlane = &in.ExternalManagedControlPlane
+	out.AllowedNodes = in.AllowedNodes
+
+	if in.SchedulerHints != nil {
+		out.SchedulerHints = &capmoxv2.SchedulerHints{}
+		err := autoConvert_v1alpha1_SchedulerHints_To_v1alpha2_SchedulerHints(in.SchedulerHints, out.SchedulerHints, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if in.IPv4Config != nil {
+		out.IPv4Config = &capmoxv2.IPConfigSpec{}
+		err := autoConvert_v1alpha1_IPConfigSpec_To_v1alpha2_IPConfigSpec(in.IPv4Config, out.IPv4Config, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if in.IPv6Config != nil {
+		out.IPv6Config = &capmoxv2.IPConfigSpec{}
+		err := autoConvert_v1alpha1_IPConfigSpec_To_v1alpha2_IPConfigSpec(in.IPv6Config, out.IPv6Config, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	out.DNSServers = in.DNSServers
+	out.ZoneConfigs = []capmoxv2.ZoneConfigSpec{}
+	out.CredentialsRef = in.CredentialsRef
+
+	return nil
+}
 
 func Convert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in *NetworkSpec, out *capmoxv2.NetworkSpec, s conversion.Scope) error {
 	err := autoConvert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in, out, s)
@@ -410,34 +422,6 @@ func Convert_v1alpha1_RoutingPolicySpec_To_v1alpha2_RoutingPolicySpec(in *Routin
 	return nil
 }
 
-func Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in *ProxmoxClusterCloneSpec, out *capmoxv2.ProxmoxClusterCloneSpec, s conversion.Scope) error {
-	err := autoConvert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in, out, s)
-	if err != nil {
-		return err
-	}
-
-	if in.ProxmoxMachineSpec != nil {
-		out.ProxmoxClusterClassSpec = make([]capmoxv2.ProxmoxClusterClassSpec, 0, len(in.ProxmoxMachineSpec))
-
-		for k, v := range in.ProxmoxMachineSpec {
-			pms := capmoxv2.ProxmoxMachineSpec{}
-			err := Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&v, &pms, s)
-			if err != nil {
-				return err
-			}
-
-			pc := capmoxv2.ProxmoxClusterClassSpec{
-				MachineType:        k,
-				ProxmoxMachineSpec: pms,
-			}
-
-			out.ProxmoxClusterClassSpec = append(out.ProxmoxClusterClassSpec, pc)
-		}
-	}
-
-	return nil
-}
-
 func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *ProxmoxMachineStatus, out *capmoxv2.ProxmoxMachineStatus, s conversion.Scope) error {
 	err := autoConvert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in, out, s)
 	if err != nil {
@@ -483,6 +467,7 @@ func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterT
 		Labels:      in.ObjectMeta.Labels,
 		Annotations: in.ObjectMeta.Annotations,
 	}
+
 	return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
 }
 
@@ -622,6 +607,14 @@ func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out
 	out.LastTransitionTime = in.LastTransitionTime
 	out.Reason = in.Reason
 	out.Message = in.Message
+
+	if len(out.Reason) == 0 {
+		out.Reason = "APIConversionReason"
+	}
+	if len(out.Message) == 0 {
+		out.Message = "API Conversion"
+	}
+
 	return nil
 }
 
@@ -633,6 +626,14 @@ func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *cluste
 	out.LastTransitionTime = in.LastTransitionTime
 	out.Reason = in.Reason
 	out.Message = in.Message
+
+	if len(out.Reason) == 0 {
+		out.Reason = "APIConversionReason"
+	}
+	if len(out.Message) == 0 {
+		out.Message = "API Conversion"
+	}
+
 	return nil
 }
 
