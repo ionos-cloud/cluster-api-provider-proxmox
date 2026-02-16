@@ -16,14 +16,10 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: build kube-api-linter
-        run: go -C hack/tools build -buildmode=plugin -o ${{ github.workspace }}/bin/kube-api-linter.so sigs.k8s.io/kube-api-linter/pkg/plugin
+      - name: build custom golangci-lint with kube-api-linter module
+        run: go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint custom
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.8.0
-          install-mode: goinstall
-          args: '--timeout 10m'
+        run: ./bin/golangci-lint-custom run --timeout 10m
 
   yamllint:
     name: yamllint

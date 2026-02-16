@@ -1519,6 +1519,8 @@ spec:
                             description: virtualIPNetworkInterface is the interface
                               the k8s control plane binds to.
                             type: string
+                        required:
+                        - machineSpec
                         type: object
                       controlPlaneEndpoint:
                         description: controlPlaneEndpoint represents the endpoint
@@ -1604,7 +1606,6 @@ spec:
                         required:
                         - addresses
                         - gateway
-                        - metric
                         - prefix
                         type: object
                         x-kubernetes-validations:
@@ -1643,7 +1644,6 @@ spec:
                         required:
                         - addresses
                         - gateway
-                        - metric
                         - prefix
                         type: object
                         x-kubernetes-validations:
@@ -1714,7 +1714,6 @@ spec:
                               required:
                               - addresses
                               - gateway
-                              - metric
                               - prefix
                               type: object
                               x-kubernetes-validations:
@@ -1754,7 +1753,6 @@ spec:
                               required:
                               - addresses
                               - gateway
-                              - metric
                               - prefix
                               type: object
                               x-kubernetes-validations:

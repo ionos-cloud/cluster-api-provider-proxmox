@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import (
 	"go4.org/netipx"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -68,18 +69,18 @@ func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (wa
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", obj))
 	}
 
-	if hasNoIPPoolConfig(cluster) {
+	if hasNoIPPoolConfig(&cluster.Spec) {
 		err = errors.New("proxmox cluster must define at least one IP pool config")
 		warnings = append(warnings, fmt.Sprintf("proxmox cluster must define at least one IP pool config %s", cluster.GetName()))
 		return warnings, err
 	}
 
-	if err := validateControlPlaneEndpoint(cluster); err != nil {
+	if err := validateControlPlaneEndpoint(&cluster.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
 		return warnings, err
 	}
 
-	if err := validateCloneSpecHasControlPlane(cluster); err != nil {
+	if err := validateCloneSpecHasControlPlane(&cluster.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
 		return warnings, err
 	}
@@ -99,12 +100,12 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
 	}
 
-	if err := validateControlPlaneEndpoint(newCluster); err != nil {
+	if err := validateControlPlaneEndpoint(&newCluster.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
 
-	if err := validateCloneSpecHasControlPlane(newCluster); err != nil {
+	if err := validateCloneSpecHasControlPlane(&newCluster.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
@@ -112,16 +113,14 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 	return warnings, nil
 }
 
-func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
+func validateControlPlaneEndpoint(spec *infrav1.ProxmoxClusterSpec, gk schema.GroupKind, name string) error {
 	// Skipping the validation of the Control Plane endpoint in case of externally managed Control Plane:
 	// the Cluster API Control Plane provider will eventually provide the LB.
-	if ptr.Deref(cluster.Spec.ExternalManagedControlPlane, false) {
+	if ptr.Deref(spec.ExternalManagedControlPlane, false) {
 		return nil
 	}
 
-	gk, name := cluster.GroupVersionKind().GroupKind(), cluster.GetName()
-
-	endpoint := cluster.Spec.ControlPlaneEndpoint.Host
+	endpoint := spec.ControlPlaneEndpoint.Host
 
 	addr, err := netip.ParseAddr(endpoint)
 
@@ -153,15 +152,15 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 	}
 
 	// IPv4
-	if cluster.Spec.IPv4Config != nil {
-		set, err := buildSetFromAddresses(cluster.Spec.IPv4Config.Addresses)
+	if spec.IPv4Config != nil {
+		set, err := buildSetFromAddresses(spec.IPv4Config.Addresses)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "IPv4Config", "addresses"), cluster.Spec.IPv4Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
+						field.NewPath("spec", "IPv4Config", "addresses"), spec.IPv4Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
 				})
 		}
 
@@ -171,21 +170,21 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "IPv4Config", "addresses"), cluster.Spec.IPv4Config.Addresses, "addresses may not contain the endpoint IP"),
+						field.NewPath("spec", "IPv4Config", "addresses"), spec.IPv4Config.Addresses, "addresses may not contain the endpoint IP"),
 				})
 		}
 	}
 
 	// IPv6
-	if cluster.Spec.IPv6Config != nil {
-		set6, err := buildSetFromAddresses(cluster.Spec.IPv6Config.Addresses)
+	if spec.IPv6Config != nil {
+		set6, err := buildSetFromAddresses(spec.IPv6Config.Addresses)
 		if err != nil {
 			return apierrors.NewInvalid(
 				gk,
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "IPv6Config", "addresses"), cluster.Spec.IPv6Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
+						field.NewPath("spec", "IPv6Config", "addresses"), spec.IPv6Config.Addresses, "provided addresses are not valid IP addresses, ranges or CIDRs"),
 				})
 		}
 
@@ -195,7 +194,7 @@ func validateControlPlaneEndpoint(cluster *infrav1.ProxmoxCluster) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "IPv6Config", "addresses"), cluster.Spec.IPv6Config.Addresses, "addresses may not contain the endpoint IP"),
+						field.NewPath("spec", "IPv6Config", "addresses"), spec.IPv6Config.Addresses, "addresses may not contain the endpoint IP"),
 				})
 		}
 	}
@@ -238,19 +237,19 @@ func buildSetFromAddresses(addresses []string) (*netipx.IPSet, error) {
 	return set, nil
 }
 
-func hasNoIPPoolConfig(cluster *infrav1.ProxmoxCluster) bool {
-	return cluster.Spec.IPv4Config == nil && cluster.Spec.IPv6Config == nil
+func hasNoIPPoolConfig(spec *infrav1.ProxmoxClusterSpec) bool {
+	return spec.IPv4Config == nil && spec.IPv6Config == nil
 }
 
 // validateCloneSpecHasControlPlane validates that if cloneSpec.machineSpec is provided,
 // it must contain an entry with machineType "controlPlane".
 // This validation is only applied to ProxmoxCluster (not ProxmoxClusterTemplate).
-func validateCloneSpecHasControlPlane(cluster *infrav1.ProxmoxCluster) error {
-	if cluster.Spec.CloneSpec == nil {
+func validateCloneSpecHasControlPlane(spec *infrav1.ProxmoxClusterSpec, gk schema.GroupKind, name string) error {
+	if spec.CloneSpec == nil {
 		return nil
 	}
 
-	machineSpecs := cluster.Spec.CloneSpec.ProxmoxClusterClassSpec
+	machineSpecs := spec.CloneSpec.ProxmoxClusterClassSpec
 	if len(machineSpecs) == 0 {
 		return nil
 	}
@@ -262,8 +261,8 @@ func validateCloneSpecHasControlPlane(cluster *infrav1.ProxmoxCluster) error {
 
 	if idx < 0 {
 		return apierrors.NewInvalid(
-			cluster.GroupVersionKind().GroupKind(),
-			cluster.GetName(),
+			gk,
+			name,
 			field.ErrorList{
 				field.Invalid(
 					field.NewPath("spec", "cloneSpec", "machineSpec"),

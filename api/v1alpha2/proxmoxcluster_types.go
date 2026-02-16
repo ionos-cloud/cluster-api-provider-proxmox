@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ type ProxmoxClusterSpec struct {
 	// externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
 	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
 	// +optional
-	// +kubebuilder:default=false
+	// +default=false
 	ExternalManagedControlPlane *bool `json:"externalManagedControlPlane,omitempty"`
 
 	// allowedNodes specifies all Proxmox nodes which will be considered
@@ -144,19 +144,17 @@ type ProxmoxClusterCloneSpec struct {
 	// machineSpec is the map of machine specs.
 	// +listType=map
 	// +listMapKey=machineType
-	// +optional
+	// +required
 	ProxmoxClusterClassSpec []ProxmoxClusterClassSpec `json:"machineSpec,omitempty,omitzero"`
-	// Justification: This field intentionally violates API spec:
-	// It exists only to store information for Cluster Classes, and is never accessed from within the controller.
 
 	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +listType=set
 	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty,omitzero"`
 
 	// virtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
-	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty"`
+	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty,omitzero"`
 }
 
 // IPConfigSpec contains information about available IP config.
@@ -178,8 +176,8 @@ type IPConfigSpec struct {
 	Gateway string `json:"gateway,omitempty"`
 
 	// metric is the route priority applied to the default gateway
-	// +required
-	// +kubebuilder:default=100
+	// +optional
+	// +default=100
 	// +kubebuilder:validation:Minimum=0
 	Metric *int32 `json:"metric,omitempty"`
 }
@@ -210,20 +208,24 @@ func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
 type ProxmoxClusterStatus struct {
 	// ready indicates that the cluster is ready.
-	// +kubebuilder:default=false
+	// +default=false
 	// +optional
 	Ready *bool `json:"ready,omitempty"`
 
-	// inClusterIpPoolRef is the reference to the created in-cluster IP pool.
+	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.
 	// +listType=atomic
 	// +optional
-	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
+	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIPPoolRef,omitempty"`
 
 	// inClusterZoneRef lists InClusterIPPools per proxmox-zone.
 	// +optional
 	// +listType=map
 	// +listMapKey=zone
+	//nolint:kubeapilinter
 	InClusterZoneRef []InClusterZoneRef `json:"inClusterZoneRef,omitempty"`
+	// justification: InClusterZoneRef legitimately consists of optional fields.
+	// It has an AtLeastOneOf validation rule but that's not enough to pay the linter.
+	// We should come up with a better data structure but for now, nolint.
 
 	// nodeLocations keeps track of which nodes have been selected
 	// for different machines.
@@ -279,19 +281,20 @@ type ProxmoxClusterStatus struct {
 }
 
 // InClusterZoneRef holds the InClusterIPPools associated with a zone.
+// +kubebuilder:validation:AtLeastOneOf=InClusterIPPoolRefV4,InClusterIPPoolRefV6
 type InClusterZoneRef struct {
 	// zone defines the deployment proxmox-zone.
-	// +kubebuilder:default="default"
-	// +required
+	// +default="default"
+	// +optional
 	Zone Zone `json:"zone,omitempty"`
 
-	// inClusterIpPoolRefV4 is the reference to the created in-cluster IP pool.
+	// inClusterIPPoolRefV4 is the reference to the created in-cluster IP pool.
 	// +optional
-	InClusterIPPoolRefV4 *corev1.LocalObjectReference `json:"inClusterIpPoolRefV4,omitempty"`
+	InClusterIPPoolRefV4 *corev1.LocalObjectReference `json:"inClusterIPPoolRefV4,omitempty"`
 
-	// inClusterIpPoolRefV6 is the reference to the created in-cluster IP pool.
+	// inClusterIPPoolRefV6 is the reference to the created in-cluster IP pool.
 	// +optional
-	InClusterIPPoolRefV6 *corev1.LocalObjectReference `json:"inClusterIpPoolRefV6,omitempty"`
+	InClusterIPPoolRefV6 *corev1.LocalObjectReference `json:"inClusterIPPoolRefV6,omitempty"`
 }
 
 // NodeLocations holds information about the deployment state of

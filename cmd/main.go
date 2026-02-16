@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -176,6 +176,10 @@ func main() {
 		}
 		if err = (&webhook.ProxmoxMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachineTemplate")
+			os.Exit(1)
+		}
+		if err = (&webhook.ProxmoxClusterTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxClusterTemplate")
 			os.Exit(1)
 		}
 	}

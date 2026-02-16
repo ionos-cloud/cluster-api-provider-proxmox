@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -307,7 +307,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 
 	for _, poolName := range ipPools {
 		pool, err := clusterScope.IPAMHelper.GetIPPool(ctx, corev1.TypedLocalObjectReference{
-			APIGroup: consts.GetIpamInClusterAPIGroup(),
+			APIGroup: consts.GetIPAMInClusterAPIGroup(),
 			Name:     poolName,
 			Kind:     consts.GetInClusterIPPoolKind(),
 		})

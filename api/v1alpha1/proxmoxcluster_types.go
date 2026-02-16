@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -94,11 +94,11 @@ type ProxmoxClusterCloneSpec struct {
 
 	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitzero"`
 
 	// VirtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
-	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface,omitempty"`
+	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
 }
 
 // IPConfigSpec contains information about available IP config.

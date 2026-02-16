@@ -1,3 +1,19 @@
+/*
+Copyright 2026 IONOS Cloud.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha1
 
 import (
@@ -28,21 +44,39 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 
 	clusterv1.Convert_bool_To_Pointer_bool(src.Spec.ExternalManagedControlPlane, ok, restored.Spec.ExternalManagedControlPlane, &dst.Spec.ExternalManagedControlPlane)
 
-	if restored.Spec.CloneSpec != nil {
-		Convert_string_To_Pointer_string(src.Spec.CloneSpec.VirtualIPNetworkInterface, ok, restored.Spec.CloneSpec.VirtualIPNetworkInterface, &dst.Spec.CloneSpec.VirtualIPNetworkInterface)
+	if dst.Spec.CloneSpec != nil {
+		Convert_string_To_Pointer_string(src.Spec.CloneSpec.VirtualIPNetworkInterface,
+			ok,
+			getRestoredVirtualIPNetworkInterface(&restored.Spec, ok),
+			&dst.Spec.CloneSpec.VirtualIPNetworkInterface,
+		)
 
-		if len(restored.Spec.CloneSpec.ProxmoxClusterClassSpec) > 0 {
+		if len(dst.Spec.CloneSpec.ProxmoxClusterClassSpec) > 0 {
 
-			for i := range restored.Spec.CloneSpec.ProxmoxClusterClassSpec {
+			for i := range dst.Spec.CloneSpec.ProxmoxClusterClassSpec {
+				var srcSpec *ProxmoxMachineSpec
 
-				spec, found := src.Spec.CloneSpec.ProxmoxMachineSpec[restored.Spec.CloneSpec.ProxmoxClusterClassSpec[i].MachineType]
-				if !found {
-					continue
+				machineType := dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].MachineType
+				if src.Spec.CloneSpec != nil {
+					cp, found := src.Spec.CloneSpec.ProxmoxMachineSpec[machineType]
+					if !found {
+						continue
+					}
+					srcSpec = &cp
 				}
 
-				restorePromoxMachineSpec(&spec,
-					&dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec,
-					&restored.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec, ok)
+				if ok && restored.Spec.CloneSpec != nil &&
+					i < len(restored.Spec.CloneSpec.ProxmoxClusterClassSpec) {
+					restoreProxmoxMachineSpec(srcSpec,
+						&dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec,
+						&restored.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec, ok)
+				} else {
+					// No restored data - use conversion helper with ok=false
+					dstSpec := &dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec
+					clusterv1.Convert_int32_To_Pointer_int32(srcSpec.NumCores, false, nil, &dstSpec.NumCores)
+					clusterv1.Convert_int32_To_Pointer_int32(srcSpec.NumSockets, false, nil, &dstSpec.NumSockets)
+					clusterv1.Convert_int32_To_Pointer_int32(srcSpec.MemoryMiB, false, nil, &dstSpec.MemoryMiB)
+				}
 
 				// Normalize each machine spec in CloneSpec
 				normalizeProxmoxMachineSpec(&dst.Spec.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec)
@@ -69,7 +103,7 @@ func (dst *ProxmoxCluster) ConvertFrom(srcRaw conversion.Hub) error {
 	return utilconversion.MarshalData(src, dst)
 }
 
-// ConvertTo converts this DOClusterList to the Hub version (v1alpha2).
+// ConvertTo converts this ProxmoxClusterList to the Hub version (v1alpha2).
 func (src *ProxmoxClusterList) ConvertTo(dstRaw conversion.Hub) error {
 	dst := dstRaw.(*infrav1.ProxmoxClusterList)
 	return Convert_v1alpha1_ProxmoxClusterList_To_v1alpha2_ProxmoxClusterList(src, dst, nil)

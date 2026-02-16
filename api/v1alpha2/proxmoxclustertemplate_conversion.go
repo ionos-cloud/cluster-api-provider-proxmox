@@ -1,8 +1,5 @@
-//go:build tools
-// +build tools
-
 /*
-Copyright 2023-2026 IONOS Cloud.
+Copyright 2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,13 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tools
+package v1alpha2
 
-import (
-	_ "github.com/braydonk/yaml"
-	_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
-	_ "github.com/google/yamlfmt/cmd/yamlfmt"
-	_ "github.com/vektra/mockery/v2"
-	_ "golang.org/x/tools/cmd/goimports"
-	_ "sigs.k8s.io/kube-api-linter/pkg/plugin"
-)
+// Hub marks ProxmoxClusterTemplate type as a conversion hub.
+func (*ProxmoxClusterTemplate) Hub() {}
+
+// Hub marks ProxmoxMachineList as a conversion hub.
+func (*ProxmoxClusterTemplateList) Hub() {}

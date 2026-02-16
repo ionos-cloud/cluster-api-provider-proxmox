@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -68,10 +68,14 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 		}
 	}
 
-	// update status.IpAddr.
-	machineScope.Logger.V(4).Info("updating ProxmoxMachine.status.ipAddresses.")
+	machineScope.Logger.V(4).Info("updating the ProxmoxMachine's IP addresses.")
 	for net, pools := range netPoolAddresses {
 		addresses := slices.Concat(slices.Collect(maps.Values(pools))...)
+		slices.SortFunc(addresses, func(a, b ipamv1.IPAddress) int {
+			aOffset, _ := strconv.Atoi(a.GetAnnotations()[infrav1.ProxmoxPoolOffsetAnnotation])
+			bOffset, _ := strconv.Atoi(b.GetAnnotations()[infrav1.ProxmoxPoolOffsetAnnotation])
+			return aOffset - bOffset
+		})
 		ipSpec := infrav1.IPAddressesSpec{
 			NetName: net,
 		}
@@ -103,7 +107,7 @@ func setVMIPAddressTag(ctx context.Context, machineScope *scope.MachineScope, ip
 		machineScope.Logger.V(4).Info("adding virtual machine ip tag.", "ip", ipAddress.Spec.Address)
 		t, err := machineScope.InfraCluster.ProxmoxClient.TagVM(ctx, vm, ipTag)
 		if err != nil {
-			return false, errors.Wrapf(err, "unable to add Ip tag to VirtualMachine %s", machineScope.Name())
+			return false, errors.Wrapf(err, "unable to add IP tag to VirtualMachine %s", machineScope.Name())
 		}
 		machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(t.UPID))
 		requeue = true
@@ -161,10 +165,10 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 
 	if index < 0 {
 		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
-		// IpAddress not yet created.
+		// IP address not yet created.
 		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
 		if err != nil {
-			return []ipamv1.IPAddress{}, errors.Wrapf(err, "unable to create Ip address claim for machine %s", machineScope.Name())
+			return []ipamv1.IPAddress{}, errors.Wrapf(err, "unable to create IP address claim for machine %s", machineScope.Name())
 		}
 
 		// send the machine to requeue so ipaddresses can be created

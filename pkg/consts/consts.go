@@ -1,5 +1,5 @@
 /*
-Copyright 2025 IONOS Cloud.
+Copyright 2025-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,14 +36,14 @@ func GetInClusterIPPoolKind() string {
 	return reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name()
 }
 
-// GetIpamInClusterAPIGroup returns a pointer to APIGroupVersion as required by
+// GetIPAMInClusterAPIGroup returns a pointer to APIGroupVersion as required by
 // typedlocalobjectreferences.
-func GetIpamInClusterAPIGroup() *string {
+func GetIPAMInClusterAPIGroup() *string {
 	return ptr.To(ipamicv1.GroupVersion.String())
 }
 
-// GetIpamInClusterAPIVersion returns the APIGroup as required for TypeMeta.
-func GetIpamInClusterAPIVersion() string {
+// GetIPAMInClusterAPIVersion returns the APIGroup as required for TypeMeta.
+func GetIPAMInClusterAPIVersion() string {
 	return ipamicv1.GroupVersion.Group
 }
 

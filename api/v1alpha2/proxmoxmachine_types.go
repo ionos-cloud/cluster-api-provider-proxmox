@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -229,7 +229,7 @@ type VirtualMachineCloneSpec struct {
 	// full Create a full copy of all disks.
 	// This is always done when you clone a normal VM.
 	// Create a Full clone by default.
-	// +kubebuilder:default=true
+	// +default=true
 	// +optional
 	Full *bool `json:"full,omitempty"`
 
@@ -273,7 +273,9 @@ type NetworkSpec struct {
 	// +required
 	// +listType=map
 	// +listMapKey=name
+	//nolint:kubeapilinter
 	NetworkDevices []NetworkDevice `json:"networkDevices,omitempty"`
+	// justification: NetworkDevice legitimately consists of optional fields.
 
 	// VirtualNetworkDevices defines virtual network devices (e.g. bridges, vlans ...).
 	VirtualNetworkDevices `json:",inline"`
@@ -312,13 +314,17 @@ type Routing struct {
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
+	//nolint:kubeapilinter
 	Routes []RouteSpec `json:"routes,omitempty"`
+	// justification: RouteSpec legitimately consists of optional fields.
 
 	// routingPolicy is an interface-specific policy inserted into FIB (forwarding information base).
 	// +optional
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
+	//nolint:kubeapilinter
 	RoutingPolicy []RoutingPolicySpec `json:"routingPolicy,omitempty"`
+	// justification: RoutingPolicySpec legitimately consists of optional fields.
 }
 
 // RouteSpec describes an IPv4/IPv6 Route.
@@ -410,7 +416,7 @@ type NetworkDevice struct {
 	// model is the network device model.
 	// +optional
 	// +kubebuilder:validation:Enum=e1000;virtio;rtl8139;vmxnet3
-	// +kubebuilder:default=virtio
+	// +default="virtio"
 	Model *string `json:"model,omitempty"`
 
 	// mtu is the network device Maximum Transmission Unit.
@@ -426,7 +432,7 @@ type NetworkDevice struct {
 	VLAN *int32 `json:"vlan,omitempty"`
 
 	// name is the network device name.
-	// +kubebuilder:default=net0
+	// +default="net0"
 	// +optional
 	Name NetName `json:"name,omitempty"`
 

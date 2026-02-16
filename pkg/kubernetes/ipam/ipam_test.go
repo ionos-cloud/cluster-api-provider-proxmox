@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,10 +43,11 @@ import (
 type IPAMTestSuite struct {
 	suite.Suite
 	*require.Assertions
-	ctx     context.Context
-	cluster *infrav1.ProxmoxCluster
-	cl      client.Client
-	helper  *Helper
+	ctx         context.Context
+	cluster     *infrav1.ProxmoxCluster
+	capiCluster *clusterv1.Cluster
+	cl          client.Client
+	helper      *Helper
 }
 
 func TestIPAMTestSuite(t *testing.T) {
@@ -55,6 +56,22 @@ func TestIPAMTestSuite(t *testing.T) {
 
 func (s *IPAMTestSuite) SetupTest() {
 	s.cluster = getCluster()
+	s.capiCluster = &clusterv1.Cluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       clusterv1.ClusterKind,
+			APIVersion: clusterv1.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster",
+			Namespace: "test",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: clusterv1.GroupVersion.String(),
+				Name:       "test-cluster",
+				Kind:       clusterv1.ClusterKind,
+			}},
+		},
+		Spec: clusterv1.ClusterSpec{},
+	}
 
 	s.Assertions = require.New(s.T())
 	scheme := scheme.Scheme
@@ -67,6 +84,7 @@ func (s *IPAMTestSuite) SetupTest() {
 	fakeCl := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(s.cluster).
+		WithObjects(s.capiCluster).
 		Build()
 
 	s.cl = fakeCl
@@ -252,7 +270,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Device: ptr.To(infrav1.DefaultNetworkDevice),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -300,7 +318,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Device: ptr.To(infrav1.DefaultNetworkDevice),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-ippool-annotations",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetGlobalInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -359,7 +377,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: device,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -404,7 +422,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: additionalDevice,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -436,7 +454,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: ptr.To("net2"),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-global-cluster-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetGlobalInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -465,7 +483,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: device,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v6-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -490,7 +508,7 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 		Device: ptr.To(infrav1.DefaultNetworkDevice),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -515,12 +533,17 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 func getCluster() *infrav1.ProxmoxCluster {
 	return &infrav1.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "PromoxCluster",
+			Kind:       infrav1.ProxmoxClusterKind,
 			APIVersion: infrav1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cluster",
 			Namespace: "test",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: clusterv1.GroupVersion.String(),
+				Name:       "test-cluster",
+				Kind:       clusterv1.ClusterKind,
+			}},
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{

@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -110,6 +110,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			Finalizers: []string{
 				infrav1.ClusterFinalizer,
 			},
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: clusterv1.GroupVersion.String(),
+				Name:       "test",
+				Kind:       clusterv1.ClusterKind,
+			}},
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{
@@ -480,7 +485,7 @@ func setInClusterIPPoolStatus(scope *scope.MachineScope, poolName string, ipFami
 	var object client.Object
 	pool := &ipamicv1.InClusterIPPool{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: GetIpamInClusterAPIVersion(),
+			APIVersion: GetIPAMInClusterAPIVersion(),
 			Kind:       GetInClusterIPPoolKind(),
 		},
 		ObjectMeta: metav1.ObjectMeta{

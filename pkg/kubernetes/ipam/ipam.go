@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	util "github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 )
 
@@ -100,14 +101,14 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 	case *corev1.LocalObjectReference:
 		// Pool is InClusterIPPool, namespace is equal to the caller.
 		value, _ := o.(*corev1.LocalObjectReference)
-		ref.APIGroup = GetIpamInClusterAPIGroup()
+		ref.APIGroup = GetIPAMInClusterAPIGroup()
 		ref.Kind = GetInClusterIPPoolKind()
 		ref.Name = value.Name
 
 		ref.Namespace = ptr.To(h.cluster.GetNamespace())
 	case *corev1.TypedLocalObjectReference:
 		value, _ := o.(*corev1.TypedLocalObjectReference)
-		ref.APIGroup = GetIpamInClusterAPIGroup()
+		ref.APIGroup = GetIPAMInClusterAPIGroup()
 		ref.Name = value.Name
 		ref.Kind = value.Kind
 
@@ -350,7 +351,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 // which is managed by the cluster.
 func (h *Helper) GetDefaultInClusterIPPool(ctx context.Context, format string) (*ipamicv1.InClusterIPPool, error) {
 	return h.GetInClusterIPPool(ctx, corev1.TypedLocalObjectReference{
-		APIGroup: GetIpamInClusterAPIGroup(),
+		APIGroup: GetIPAMInClusterAPIGroup(),
 		Name:     InClusterPoolFormat(h.cluster, nil, format),
 		Kind:     GetInClusterIPPoolKind(),
 	})
@@ -459,8 +460,15 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 
 	// Ensures that the claim has a reference to the cluster of the VM to
 	// support pausing reconciliation.
+	ownerCluster, err := util.GetOwnerCluster(ctx, h.ctrlClient, h.cluster.ObjectMeta)
+	if err != nil {
+		return err
+	}
+	if ownerCluster == nil { // This can only happen in badly designed tests
+		return errors.New("ProxmoxCluster with OwnerReference but Cluster does not exist")
+	}
 	labels := map[string]string{
-		clusterv1.ClusterNameLabel: h.cluster.GetName(),
+		clusterv1.ClusterNameLabel: ownerCluster.GetName(),
 	}
 
 	// Copy Proxmox Zone Label.
@@ -582,7 +590,7 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 	addresses.Items = slices.DeleteFunc(addresses.Items, func(n ipamv1.IPAddress) bool {
 		// Check if we are actually dealing with the right resource kind.
 		groupVersion, _ := schema.ParseGroupVersion(n.APIVersion)
-		return groupVersion.Group != GetIpamInClusterAPIVersion()
+		return groupVersion.Group != GetIPAMInClusterAPIVersion()
 	})
 
 	// Sort result by IPAddress.Name to provide stability to testing.
