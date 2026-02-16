@@ -307,7 +307,7 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 
 	for _, poolName := range ipPools {
 		pool, err := clusterScope.IPAMHelper.GetIPPool(ctx, corev1.TypedLocalObjectReference{
-			APIGroup: consts.GetIpamInClusterAPIGroup(),
+			APIGroup: consts.GetIPAMInClusterAPIGroup(),
 			Name:     poolName,
 			Kind:     consts.GetInClusterIPPoolKind(),
 		})

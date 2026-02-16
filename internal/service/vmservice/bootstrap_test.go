@@ -84,7 +84,7 @@ func setupVMWithMetadata(machineScope *scope.MachineScope, netSpecs ...string) *
 
 // variadic so we can infer 0.
 func addDefaultIPPool(machineScope *scope.MachineScope, offset ...int) corev1.TypedLocalObjectReference {
-	defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
+	defaultPool := corev1.TypedLocalObjectReference{APIGroup: GetIPAMInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: "test-v4-icip",
 	}
@@ -101,7 +101,7 @@ func addDefaultIPPool(machineScope *scope.MachineScope, offset ...int) corev1.Ty
 }
 
 func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...int) corev1.TypedLocalObjectReference {
-	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
+	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: GetIPAMInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: "test-v6-icip",
 	}
@@ -121,7 +121,7 @@ func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...int) corev1.
 //
 //nolint:unused
 func addInClusterIPPool(machineScope *scope.MachineScope, poolName string, netName infrav1.NetName) corev1.TypedLocalObjectReference {
-	inClusterIPPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
+	inClusterIPPool := corev1.TypedLocalObjectReference{APIGroup: GetIPAMInClusterAPIGroup(),
 		Kind: GetInClusterIPPoolKind(),
 		Name: poolName,
 	}
@@ -130,7 +130,7 @@ func addInClusterIPPool(machineScope *scope.MachineScope, poolName string, netNa
 }
 
 func addGlobalInClusterIPPool(machineScope *scope.MachineScope, poolName string, netName infrav1.NetName) corev1.TypedLocalObjectReference {
-	globalInClusterIPPool := corev1.TypedLocalObjectReference{APIGroup: GetIpamInClusterAPIGroup(),
+	globalInClusterIPPool := corev1.TypedLocalObjectReference{APIGroup: GetIPAMInClusterAPIGroup(),
 		Kind: GetGlobalInClusterIPPoolKind(),
 		Name: poolName,
 	}

@@ -270,7 +270,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Device: ptr.To(infrav1.DefaultNetworkDevice),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -318,7 +318,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 		Device: ptr.To(infrav1.DefaultNetworkDevice),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-ippool-annotations",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetGlobalInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -377,7 +377,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: device,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -422,7 +422,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: additionalDevice,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -454,7 +454,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: ptr.To("net2"),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-global-cluster-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetGlobalInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -483,7 +483,7 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 		Device: device,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v6-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -508,7 +508,7 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 		Device: ptr.To(infrav1.DefaultNetworkDevice),
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     "test-cluster-v4-icip",
-			APIGroup: GetIpamInClusterAPIGroup(),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{

@@ -36,14 +36,14 @@ func GetInClusterIPPoolKind() string {
 	return reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name()
 }
 
-// GetIpamInClusterAPIGroup returns a pointer to APIGroupVersion as required by
+// GetIPAMInClusterAPIGroup returns a pointer to APIGroupVersion as required by
 // typedlocalobjectreferences.
-func GetIpamInClusterAPIGroup() *string {
+func GetIPAMInClusterAPIGroup() *string {
 	return ptr.To(ipamicv1.GroupVersion.String())
 }
 
-// GetIpamInClusterAPIVersion returns the APIGroup as required for TypeMeta.
-func GetIpamInClusterAPIVersion() string {
+// GetIPAMInClusterAPIVersion returns the APIGroup as required for TypeMeta.
+func GetIPAMInClusterAPIVersion() string {
 	return ipamicv1.GroupVersion.Group
 }
 

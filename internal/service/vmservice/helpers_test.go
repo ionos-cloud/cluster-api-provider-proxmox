@@ -485,7 +485,7 @@ func setInClusterIPPoolStatus(scope *scope.MachineScope, poolName string, ipFami
 	var object client.Object
 	pool := &ipamicv1.InClusterIPPool{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: GetIpamInClusterAPIVersion(),
+			APIVersion: GetIPAMInClusterAPIVersion(),
 			Kind:       GetInClusterIPPoolKind(),
 		},
 		ObjectMeta: metav1.ObjectMeta{

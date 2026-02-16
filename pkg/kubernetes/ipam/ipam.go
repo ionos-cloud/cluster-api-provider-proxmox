@@ -101,14 +101,14 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 	case *corev1.LocalObjectReference:
 		// Pool is InClusterIPPool, namespace is equal to the caller.
 		value, _ := o.(*corev1.LocalObjectReference)
-		ref.APIGroup = GetIpamInClusterAPIGroup()
+		ref.APIGroup = GetIPAMInClusterAPIGroup()
 		ref.Kind = GetInClusterIPPoolKind()
 		ref.Name = value.Name
 
 		ref.Namespace = ptr.To(h.cluster.GetNamespace())
 	case *corev1.TypedLocalObjectReference:
 		value, _ := o.(*corev1.TypedLocalObjectReference)
-		ref.APIGroup = GetIpamInClusterAPIGroup()
+		ref.APIGroup = GetIPAMInClusterAPIGroup()
 		ref.Name = value.Name
 		ref.Kind = value.Kind
 
@@ -351,7 +351,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 // which is managed by the cluster.
 func (h *Helper) GetDefaultInClusterIPPool(ctx context.Context, format string) (*ipamicv1.InClusterIPPool, error) {
 	return h.GetInClusterIPPool(ctx, corev1.TypedLocalObjectReference{
-		APIGroup: GetIpamInClusterAPIGroup(),
+		APIGroup: GetIPAMInClusterAPIGroup(),
 		Name:     InClusterPoolFormat(h.cluster, nil, format),
 		Kind:     GetInClusterIPPoolKind(),
 	})
@@ -590,7 +590,7 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 	addresses.Items = slices.DeleteFunc(addresses.Items, func(n ipamv1.IPAddress) bool {
 		// Check if we are actually dealing with the right resource kind.
 		groupVersion, _ := schema.ParseGroupVersion(n.APIVersion)
-		return groupVersion.Group != GetIpamInClusterAPIVersion()
+		return groupVersion.Group != GetIPAMInClusterAPIVersion()
 	})
 
 	// Sort result by IPAddress.Name to provide stability to testing.
