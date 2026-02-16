@@ -150,7 +150,7 @@ type ProxmoxClusterCloneSpec struct {
 	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +listType=set
 	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitzero"`
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty,omitzero"`
 
 	// virtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
