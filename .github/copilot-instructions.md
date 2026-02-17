@@ -15,8 +15,7 @@ CAPMOX is a Kubernetes Cluster API provider that enables declarative management 
 
 ## Repository Structure
 
-- `api/v1alpha1/` - v1alpha1 Custom Resource Definitions with conversion support (ProxmoxCluster, ProxmoxMachine, ProxmoxMachineTemplate, ProxmoxClusterTemplate)
-- `api/v1alpha2/` - v1alpha2 Custom Resource Definitions (ProxmoxCluster, ProxmoxMachine, ProxmoxMachineTemplate, ProxmoxClusterTemplate)
+- `api/v1alpha1/` - Custom Resource Definitions (ProxmoxCluster, ProxmoxMachine, ProxmoxMachineTemplate, ProxmoxClusterTemplate)
 - `cmd/main.go` - Controller manager entry point
 - `internal/controller/` - Reconciliation logic for controllers
 - `internal/webhook/` - Webhook handlers for validation and defaulting
@@ -26,18 +25,7 @@ CAPMOX is a Kubernetes Cluster API provider that enables declarative management 
 - `test/e2e/` - End-to-end tests
 - `hack/` - Helper scripts and tools
 
-## API Versions
-
-This branch contains both v1alpha1 and v1alpha2 API versions:
-
-- **v1alpha1**: Original API version with conversion support to v1alpha2
-- **v1alpha2**: Enhanced API version with improved network configuration and cluster class support
-  - Unified `NetworkDevices` array (replacing separate `Default` and `AdditionalDevices`)
-  - Array-based machine type configuration with `ProxmoxClusterClassSpec`
-  - Support for multiple IPv4/IPv6 addresses per device
-  - Webhook v2 for enhanced validation and defaulting
-
-The conversion layer (`api/v1alpha1/*_conversion.go`) automatically handles bidirectional conversions between API versions.
+**Note:** This branch (v1alpha2/wip) is in active development. The v1alpha2 API version is not yet available in this branch.
 
 ## Build and Development Workflow
 
@@ -111,7 +99,6 @@ See `docs/Development.md` for detailed manual setup instructions.
 2. **After modifying API types**, run `make manifests generate` to update generated code and CRDs
 3. **After adding new dependencies**, run `make tidy` to update go.mod and go.sum
 4. **When adding mocks**, update `.mockery.yaml` and run `make mockgen`
-5. **When modifying API types**, ensure conversion functions in `api/v1alpha1/*_conversion.go` are updated accordingly
 
 ## CI/CD Pipeline
 
@@ -130,7 +117,6 @@ All PRs must pass these checks before merging.
 2. **Build Failures**: Ensure Go version matches go.mod (1.25.0). Run `make tidy` to fix module issues.
 3. **Generated Files Out of Date**: Run `make verify-gen` to check, then `make manifests generate mockgen` to fix.
 4. **Module Issues**: Run `make verify-modules` to check, then `make tidy` to fix.
-5. **Conversion Errors**: If you encounter conversion errors between v1alpha1 and v1alpha2, check the conversion functions in `api/v1alpha1/*_conversion.go`.
 
 ## Testing Strategy
 
@@ -138,7 +124,6 @@ All PRs must pass these checks before merging.
 - Use testify for assertions and gomega for BDD-style tests
 - Mock interfaces are generated using mockery (see `.mockery.yaml`)
 - E2E tests are in `test/e2e/` and require a Proxmox VE instance
-- Conversion tests ensure data integrity between API versions
 
 ## Key Conventions
 
@@ -147,7 +132,6 @@ All PRs must pass these checks before merging.
 - Error handling uses pkg/errors for wrapping
 - Network configuration supports both cloud-init and Ignition
 - Support for IPAM provider for IP address management
-- API conversion maintains backward compatibility between v1alpha1 and v1alpha2
 
 ## Environment Variables
 
