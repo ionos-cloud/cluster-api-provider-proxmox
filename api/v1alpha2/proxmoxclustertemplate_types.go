@@ -18,7 +18,7 @@ package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 // ProxmoxClusterTemplateSpec defines the desired state of ProxmoxClusterTemplate.
@@ -33,7 +33,7 @@ type ProxmoxClusterTemplateResource struct {
 	// metadata is the standard object metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty"` //nolint:kubeapilinter
+	ObjectMeta clusterv1.ObjectMeta `json:"metadata,omitempty,omitzero"`
 
 	// spec is the Proxmox Cluster spec
 	// +required
@@ -41,7 +41,6 @@ type ProxmoxClusterTemplateResource struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxclustertemplates,scope=Namespaced,categories=cluster-api,shortName=pct
 // +kubebuilder:storageversion
 

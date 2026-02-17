@@ -25,7 +25,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/require"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -105,10 +105,10 @@ func TestMachineScope_SetReady(t *testing.T) {
 	}
 
 	scope.SetReady()
-	require.True(t, *scope.ProxmoxMachine.Status.Ready)
+	require.True(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
 
 	scope.SetNotReady()
-	require.False(t, *scope.ProxmoxMachine.Status.Ready)
+	require.False(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
 }
 
 func TestMachineScope_HasFailed(t *testing.T) {

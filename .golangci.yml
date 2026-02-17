@@ -18,7 +18,6 @@ linters:
     - govet
     - importas
     - ineffassign
-    - kubeapilinter
     - loggercheck
     - misspell
     - nakedret
@@ -32,11 +31,6 @@ linters:
     - unused
     - whitespace
   settings:
-    custom:
-      kubeapilinter:
-        type: module
-        description: Kube API Linter lints Kube like APIs based on API conventions and best practices.
-        settings: {}
     importas:
       alias:
         - pkg: k8s.io/api/(\w+)/(v[\w\d]+)
@@ -116,17 +110,10 @@ linters:
       - linters:
           - revive
         text: 'var-naming: avoid meaningless package names'
-      - path-except: api/v1alpha2
-        linters:
-          - kubeapilinter
       - path: (.+)\.go$
         linters:
           - staticcheck
         text: '(SA1019): "sigs.k8s.io/cluster-api/.*/v1beta1.*" is deprecated: .*'
-      - path: (.+)\.go$
-        linters:
-          - staticcheck
-        text: '(SA1019): "sigs.k8s.io/cluster-api/errors" is deprecated: .*'
     paths:
       - zz_generated.*\.go$
       - .*conversion.*\.go$

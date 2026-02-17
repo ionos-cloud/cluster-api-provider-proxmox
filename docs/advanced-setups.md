@@ -104,7 +104,7 @@ If you're using cilium, be aware that Cilium's helm chart requires `ipv6.enabled
 #### Generate a Cluster
 
 ```bash
-clusterctl generate cluster test-duacl-stack  \
+clusterctl generate cluster test-dual-stack  \
   --infrastructure proxmox \
   --kubernetes-version v1.33.3  \
   --control-plane-machine-count=1 \
