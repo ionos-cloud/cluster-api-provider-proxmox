@@ -12,7 +12,7 @@ require (
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/luthermonson/go-proxmox v0.3.2
 	github.com/onsi/ginkgo/v2 v2.28.1
-	github.com/onsi/gomega v1.39.0
+	github.com/onsi/gomega v1.39.1
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
