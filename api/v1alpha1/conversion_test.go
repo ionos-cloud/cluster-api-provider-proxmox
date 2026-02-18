@@ -402,9 +402,6 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 	// InClusterZoneRef doesn't exist in v1alpha1, so it will be lost during hub→spoke→hub
 	in.InClusterZoneRef = nil
 
-	// FailureDomains doesn't exist in v1alpha1, so it will be lost during hub→spoke→hub
-	in.FailureDomains = nil
-
 	// Zone field does not exist in v1alpha1 NodeLocation, so it will be lost during hub→spoke→hub
 	if in.NodeLocations != nil {
 		for i := range in.NodeLocations.ControlPlane {

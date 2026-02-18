@@ -976,7 +976,6 @@ func autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(
 		out.Conditions = nil
 	}
 	// WARNING: in.Initialization requires manual conversion: does not exist in peer-type
-	// WARNING: in.FailureDomains requires manual conversion: does not exist in peer-type
 	out.InClusterIPPoolRef = *(*[]corev1.LocalObjectReference)(unsafe.Pointer(&in.InClusterIPPoolRef))
 	// WARNING: in.InClusterZoneRef requires manual conversion: does not exist in peer-type
 	if in.NodeLocations != nil {

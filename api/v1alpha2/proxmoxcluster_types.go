@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -258,15 +257,6 @@ type ProxmoxClusterStatus struct {
 	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
 	// +optional
 	Initialization ProxmoxClusterInitializationStatus `json:"initialization,omitempty,omitzero"`
-
-	// failureDomains is a list of failure domain objects synced from the infrastructure provider.
-	// TODO: check if needed for the Proxmox provider, if not remove it.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:MaxItems=100
-	FailureDomains []clusterv1.FailureDomain `json:"failureDomains,omitempty"`
 
 	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.
 	// +listType=atomic

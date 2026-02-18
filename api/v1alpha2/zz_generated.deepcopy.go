@@ -534,13 +534,6 @@ func (in *ProxmoxClusterStatus) DeepCopyInto(out *ProxmoxClusterStatus) {
 		}
 	}
 	in.Initialization.DeepCopyInto(&out.Initialization)
-	if in.FailureDomains != nil {
-		in, out := &in.FailureDomains, &out.FailureDomains
-		*out = make([]v1beta2.FailureDomain, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	if in.InClusterIPPoolRef != nil {
 		in, out := &in.InClusterIPPoolRef, &out.InClusterIPPoolRef
 		*out = make([]v1.LocalObjectReference, len(*in))
