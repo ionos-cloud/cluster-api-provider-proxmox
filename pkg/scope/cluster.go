@@ -30,11 +30,10 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/utils/ptr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -111,9 +110,12 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	if clusterScope.ProxmoxClient == nil {
 		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
 			// Fail the cluster if no credentials found.
-			// set failure reason
-			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Message: "No credentials found, ProxmoxCluster missing credentialsRef",
+			})
 
 			if err = clusterScope.Close(); err != nil {
 				return nil, err
@@ -144,9 +146,12 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	}, &secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// set failure reason
-			s.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			s.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			conditions.Set(s.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Message: "credentials secret not found",
+			})
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
@@ -206,13 +211,16 @@ func (s *ClusterScope) KubernetesClusterName() string {
 // PatchObject persists the cluster configuration and status.
 func (s *ClusterScope) PatchObject() error {
 	// always update the readyCondition.
-	conditions.SetSummary(s.ProxmoxCluster,
-		conditions.WithConditions(
-			infrav1.ProxmoxClusterReady,
-		),
+	_ = conditions.SetSummaryCondition(s.ProxmoxCluster, s.ProxmoxCluster, "Ready",
+		conditions.ForConditionTypes{infrav1.ProxmoxClusterProxmoxAvailableCondition},
 	)
 
-	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster)
+	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster,
+		patch.WithOwnedConditions{Conditions: []string{
+			"Ready",
+			infrav1.ProxmoxClusterProxmoxAvailableCondition,
+		}},
+	)
 }
 
 // ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.

@@ -1040,7 +1040,7 @@ spec:
       name: Cluster
       type: string
     - description: Cluster infrastructure is ready
-      jsonPath: .status.ready
+      jsonPath: .status.initialization.provisioned
       name: Ready
       type: string
     - description: API Endpoint
@@ -1078,7 +1078,9 @@ spec:
                   for operations. This implies that VMs can be cloned on different nodes from
                   the node which holds the VM template.
                 items:
+                  maxLength: 256
                   type: string
+                maxItems: 32
                 type: array
                 x-kubernetes-list-type: set
               cloneSpec:
@@ -1102,7 +1104,9 @@ spec:
                             the nodes where the VM can be cloned.
                             If not set, the ProxmoxCluster will be used to determine the nodes.
                           items:
+                            maxLength: 256
                             type: string
+                          maxItems: 32
                           type: array
                           x-kubernetes-list-type: set
                         checks:
@@ -1121,6 +1125,7 @@ spec:
                           type: object
                         description:
                           description: description for the new VM.
+                          maxLength: 2048
                           type: string
                         disks:
                           description: |-
@@ -1137,6 +1142,7 @@ spec:
                                   description: |-
                                     disk is the name of the disk device that should be resized.
                                     Example values are: ide[0-3], scsi[0-30], sata[0-5].
+                                  maxLength: 256
                                   minLength: 1
                                   type: string
                                 sizeGb:
@@ -1166,15 +1172,15 @@ spec:
                           - vmdk
                           type: string
                         full:
-                          default: true
                           description: |-
-                            full Create a full copy of all disks.
+                            full creates a full copy of all disks.
                             This is always done when you clone a normal VM.
-                            Create a Full clone by default.
+                            Defaults to true when not specified.
                           type: boolean
                         machineType:
                           description: machineType is the name of the template for
                             ClusterClass.
+                          maxLength: 256
                           minLength: 1
                           type: string
                         memoryMiB:
@@ -1209,6 +1215,7 @@ spec:
                                   bridge:
                                     description: bridge is the network bridge to attach
                                       to the machine.
+                                    maxLength: 256
                                     minLength: 1
                                     type: string
                                   defaultIPv4:
@@ -1224,7 +1231,9 @@ spec:
                                       dnsServers contains information about nameservers to be used for this interface.
                                       If this field is not set, it will use the default dns servers from the ProxmoxCluster.
                                     items:
+                                      maxLength: 256
                                       type: string
+                                    maxItems: 32
                                     minItems: 1
                                     type: array
                                     x-kubernetes-list-type: set
@@ -1265,6 +1274,7 @@ spec:
                                           or GlobalInClusterIPPool
                                         rule: self.kind == 'InClusterIPPool' || self.kind
                                           == 'GlobalInClusterIPPool'
+                                    maxItems: 16
                                     type: array
                                     x-kubernetes-list-type: atomic
                                   linkMtu:
@@ -1276,8 +1286,9 @@ spec:
                                     - message: invalid MTU value
                                       rule: self == 1 || (self >= 576 && self <= 65520)
                                   model:
-                                    default: virtio
-                                    description: model is the network device model.
+                                    description: |-
+                                      model is the network device model.
+                                      Defaults to "virtio" when not specified.
                                     enum:
                                     - e1000
                                     - virtio
@@ -1296,6 +1307,7 @@ spec:
                                   name:
                                     default: net0
                                     description: name is the network device name.
+                                    maxLength: 256
                                     pattern: ^net[0-9]+$
                                     type: string
                                   routes:
@@ -1318,9 +1330,11 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet to be routed.
+                                          maxLength: 256
                                           type: string
                                         via:
                                           description: via is the gateway to the subnet.
+                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1336,6 +1350,7 @@ spec:
                                       properties:
                                         from:
                                           description: from is the subnet of the source.
+                                          maxLength: 256
                                           type: string
                                         priority:
                                           description: priority is the position in
@@ -1355,6 +1370,7 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet of the target.
+                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1383,14 +1399,17 @@ spec:
                                     items:
                                       description: NetName is a formally verified
                                         Proxmox network name string.
+                                      maxLength: 256
                                       pattern: ^net[0-9]+$
                                       type: string
+                                    maxItems: 32
                                     type: array
                                     x-kubernetes-list-type: atomic
                                   name:
                                     description: |-
                                       name is the virtual network device name.
                                       Must be unique within the virtual machine.
+                                    maxLength: 256
                                     minLength: 3
                                     type: string
                                   routes:
@@ -1413,9 +1432,11 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet to be routed.
+                                          maxLength: 256
                                           type: string
                                         via:
                                           description: via is the gateway to the subnet.
+                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1431,6 +1452,7 @@ spec:
                                       properties:
                                         from:
                                           description: from is the subnet of the source.
+                                          maxLength: 256
                                           type: string
                                         priority:
                                           description: priority is the position in
@@ -1450,6 +1472,7 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet of the target.
+                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1470,6 +1493,7 @@ spec:
                                 - name
                                 - table
                                 type: object
+                              maxItems: 32
                               type: array
                               x-kubernetes-list-map-keys:
                               - name
@@ -1477,6 +1501,7 @@ spec:
                             zone:
                               description: zone is the cluster deployment zone this
                                 machine will refer to.
+                              maxLength: 63
                               pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                               type: string
                           required:
@@ -1497,15 +1522,19 @@ spec:
                           minimum: 1
                           type: integer
                         pool:
-                          description: pool Add the new VM to the specified pool.
+                          description: pool adds the new VM to the specified pool.
+                          maxLength: 256
                           type: string
                         providerID:
                           description: |-
                             providerID is the virtual machine BIOS UUID formatted as
                             proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
+                          maxLength: 512
+                          minLength: 1
                           type: string
                         snapName:
-                          description: snapName The name of the snapshot.
+                          description: snapName is the name of the snapshot.
+                          maxLength: 256
                           type: string
                         sourceNode:
                           description: |-
@@ -1523,23 +1552,28 @@ spec:
 
                             If neither a `Target` nor `AllowedNodes` was set, the VM
                             will be cloned onto the same node as SourceNode.
+                          maxLength: 256
                           minLength: 1
                           type: string
                         storage:
                           description: storage for full clone.
+                          maxLength: 256
                           type: string
                         tags:
                           description: tags is a list of tags to be applied to the
                             virtual machine.
                           items:
+                            maxLength: 256
                             pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                             type: string
+                          maxItems: 32
                           minItems: 1
                           type: array
                           x-kubernetes-list-type: set
                         target:
                           description: target node. Only allowed if the original VM
                             is on shared storage.
+                          maxLength: 256
                           type: string
                         templateID:
                           description: templateID the vm_template vmid used for cloning
@@ -1556,8 +1590,10 @@ spec:
                                 Passed tags must be an exact 1:1 match with the tags on the template you want to use.
                                 If multiple VM templates with the same set of tags are found, provisioning will fail.
                               items:
+                                maxLength: 256
                                 pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                                 type: string
+                              maxItems: 32
                               minItems: 1
                               type: array
                               x-kubernetes-list-type: set
@@ -1604,6 +1640,7 @@ spec:
                         rule: self.full || !has(self.format)
                       - message: Must set full=true when specifying storage
                         rule: self.full || !has(self.storage)
+                    maxItems: 32
                     type: array
                     x-kubernetes-list-map-keys:
                     - machineType
@@ -1612,12 +1649,15 @@ spec:
                     description: sshAuthorizedKeys contains the authorized keys deployed
                       to the PROXMOX VMs.
                     items:
+                      maxLength: 16384
                       type: string
+                    maxItems: 32
                     type: array
                     x-kubernetes-list-type: set
                   virtualIPNetworkInterface:
                     description: virtualIPNetworkInterface is the interface the k8s
                       control plane binds to.
+                    maxLength: 256
                     type: string
                 required:
                 - machineSpec
@@ -1625,22 +1665,20 @@ spec:
               controlPlaneEndpoint:
                 description: controlPlaneEndpoint represents the endpoint used to
                   communicate with the control plane.
+                minProperties: 1
                 properties:
                   host:
                     description: host is the hostname on which the API server is serving.
                     maxLength: 512
+                    minLength: 1
                     type: string
                   port:
                     description: port is the port on which the API server is serving.
                     format: int32
+                    maximum: 65535
+                    minimum: 1
                     type: integer
-                required:
-                - host
-                - port
                 type: object
-                x-kubernetes-validations:
-                - message: port must be within 1-65535
-                  rule: self.port > 0 && self.port < 65536
               credentialsRef:
                 description: |-
                   credentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
@@ -1661,12 +1699,13 @@ spec:
                 description: dnsServers contains information about nameservers used
                   by the machines.
                 items:
+                  maxLength: 256
                   type: string
+                maxItems: 32
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: set
               externalManagedControlPlane:
-                default: false
                 description: |-
                   externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
                   Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
@@ -1681,17 +1720,20 @@ spec:
                     description: addresses is a list of IP addresses that can be assigned.
                       This set of addresses can be non-contiguous.
                     items:
+                      maxLength: 256
                       type: string
+                    maxItems: 256
                     type: array
                     x-kubernetes-list-type: set
                   gateway:
                     description: gateway is the network gateway
+                    maxLength: 256
                     minLength: 1
                     type: string
                   metric:
-                    default: 100
-                    description: metric is the route priority applied to the default
-                      gateway
+                    description: |-
+                      metric is the route priority applied to the default gateway.
+                      When not specified, the metric is omitted from the network configuration.
                     format: int32
                     minimum: 0
                     type: integer
@@ -1719,17 +1761,20 @@ spec:
                     description: addresses is a list of IP addresses that can be assigned.
                       This set of addresses can be non-contiguous.
                     items:
+                      maxLength: 256
                       type: string
+                    maxItems: 256
                     type: array
                     x-kubernetes-list-type: set
                   gateway:
                     description: gateway is the network gateway
+                    maxLength: 256
                     minLength: 1
                     type: string
                   metric:
-                    default: 100
-                    description: metric is the route priority applied to the default
-                      gateway
+                    description: |-
+                      metric is the route priority applied to the default gateway.
+                      When not specified, the metric is omitted from the network configuration.
                     format: int32
                     minimum: 0
                     type: integer
@@ -1774,7 +1819,9 @@ spec:
                       description: dnsServers contains information about nameservers
                         used by the machines in this zone.
                       items:
+                        maxLength: 256
                         type: string
+                      maxItems: 32
                       minItems: 1
                       type: array
                       x-kubernetes-list-type: set
@@ -1788,17 +1835,20 @@ spec:
                           description: addresses is a list of IP addresses that can
                             be assigned. This set of addresses can be non-contiguous.
                           items:
+                            maxLength: 256
                             type: string
+                          maxItems: 256
                           type: array
                           x-kubernetes-list-type: set
                         gateway:
                           description: gateway is the network gateway
+                          maxLength: 256
                           minLength: 1
                           type: string
                         metric:
-                          default: 100
-                          description: metric is the route priority applied to the
-                            default gateway
+                          description: |-
+                            metric is the route priority applied to the default gateway.
+                            When not specified, the metric is omitted from the network configuration.
                           format: int32
                           minimum: 0
                           type: integer
@@ -1826,17 +1876,20 @@ spec:
                           description: addresses is a list of IP addresses that can
                             be assigned. This set of addresses can be non-contiguous.
                           items:
+                            maxLength: 256
                             type: string
+                          maxItems: 256
                           type: array
                           x-kubernetes-list-type: set
                         gateway:
                           description: gateway is the network gateway
+                          maxLength: 256
                           minLength: 1
                           type: string
                         metric:
-                          default: 100
-                          description: metric is the route priority applied to the
-                            default gateway
+                          description: |-
+                            metric is the route priority applied to the default gateway.
+                            When not specified, the metric is omitted from the network configuration.
                           format: int32
                           minimum: 0
                           type: integer
@@ -1856,12 +1909,14 @@ spec:
                         rule: self.addresses.size() > 0
                     zone:
                       description: zone is the name of your deployment zone.
+                      maxLength: 63
                       pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                       type: string
                   required:
                   - dnsServers
                   - zone
                   type: object
+                maxItems: 32
                 type: array
                 x-kubernetes-list-map-keys:
                 - zone
@@ -1876,95 +1931,68 @@ spec:
             description: status is the Proxmox Cluster status
             properties:
               conditions:
-                description: conditions defines the current service state of the ProxmoxCluster.
+                description: |-
+                  conditions represents the observations of a ProxmoxCluster's current state.
+                  Known condition types are Ready, ProxmoxAvailable and Paused.
                 items:
-                  description: Condition defines an observation of a Cluster API resource
-                    operational state.
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
                         lastTransitionTime is the last time the condition transitioned from one status to another.
-                        This should be when the underlying condition changed. If that is not known, then using the time when
-                        the API field changed is acceptable.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
                       format: date-time
                       type: string
                     message:
                       description: |-
                         message is a human readable message indicating details about the transition.
-                        This field may be empty.
-                      maxLength: 10240
-                      minLength: 1
+                        This may be an empty string.
+                      maxLength: 32768
                       type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
                     reason:
                       description: |-
-                        reason is the reason for the condition's last transition in CamelCase.
-                        The specific API may choose whether or not this field is considered a guaranteed API.
-                        This field may be empty.
-                      maxLength: 256
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
                       minLength: 1
-                      type: string
-                    severity:
-                      description: |-
-                        severity provides an explicit classification of Reason code, so the users or machines can immediately
-                        understand the current situation and act accordingly.
-                        The Severity field MUST be set only when Status=False.
-                      maxLength: 32
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                       type: string
                     status:
                       description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions
-                        can be useful (see .node.status.conditions), the ability to deconflict is important.
-                      maxLength: 256
-                      minLength: 1
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
                   required:
                   - lastTransitionTime
+                  - message
+                  - reason
                   - status
                   - type
                   type: object
+                maxItems: 32
                 type: array
-              failureMessage:
-                description: |-
-                  failureMessage will be set in the event that there is a terminal problem
-                  reconciling the Machine and will contain a more verbose string suitable
-                  for logging and human consumption.
-
-                  This field should not be set for transitive errors that a controller
-                  faces that are expected to be fixed automatically over
-                  time (like service outages), but instead indicate that something is
-                  fundamentally wrong with the Machine's spec or the configuration of
-                  the controller, and that manual intervention is required. Examples
-                  of terminal errors would be invalid combinations of settings in the
-                  spec, values that are unsupported by the controller, or the
-                  responsible controller itself being critically misconfigured.
-
-                  Any transient errors that occur during the reconciliation of ProxmoxMachines
-                  can be added as events to the ProxmoxCluster object and/or logged in the
-                  controller's output.
-                type: string
-              failureReason:
-                description: |-
-                  failureReason will be set in the event that there is a terminal problem
-                  reconciling the Machine and will contain a succinct value suitable
-                  for machine interpretation.
-
-                  This field should not be set for transitive errors that a controller
-                  faces that are expected to be fixed automatically over
-                  time (like service outages), but instead indicate that something is
-                  fundamentally wrong with the Machine's spec or the configuration of
-                  the controller, and that manual intervention is required. Examples
-                  of terminal errors would be invalid combinations of settings in the
-                  spec, values that are unsupported by the controller, or the
-                  responsible controller itself being critically misconfigured.
-
-                  Any transient errors that occur during the reconciliation of ProxmoxCluster
-                  can be added as events to the ProxmoxCluster object and/or logged in the
-                  controller's output.
-                type: string
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               inClusterIPPoolRef:
                 description: inClusterIPPoolRef is the reference to the created in-cluster
                   IP pool.
@@ -1984,6 +2012,7 @@ spec:
                       type: string
                   type: object
                   x-kubernetes-map-type: atomic
+                maxItems: 32
                 type: array
                 x-kubernetes-list-type: atomic
               inClusterZoneRef:
@@ -2025,6 +2054,7 @@ spec:
                     zone:
                       default: default
                       description: zone defines the deployment proxmox-zone.
+                      maxLength: 63
                       pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                       type: string
                   type: object
@@ -2032,6 +2062,18 @@ spec:
                 x-kubernetes-list-map-keys:
                 - zone
                 x-kubernetes-list-type: map
+              initialization:
+                description: |-
+                  initialization provides observations of the ProxmoxCluster initialization process.
+                  NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
+                minProperties: 1
+                properties:
+                  provisioned:
+                    description: |-
+                      provisioned is true when the infrastructure provider reports that the Cluster's infrastructure is fully provisioned.
+                      NOTE: this field is part of the Cluster API contract, and it is used to orchestrate initial Cluster provisioning.
+                    type: boolean
+                type: object
               nodeLocations:
                 description: |-
                   nodeLocations keeps track of which nodes have been selected
@@ -2062,16 +2104,19 @@ spec:
                           x-kubernetes-map-type: atomic
                         node:
                           description: node is the Proxmox node.
+                          maxLength: 256
                           minLength: 1
                           type: string
                         zone:
                           description: zone is the zone the Machine is in.
+                          maxLength: 63
                           pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                           type: string
                       required:
                       - machine
                       - node
                       type: object
+                    maxItems: 100
                     type: array
                     x-kubernetes-list-type: atomic
                   workers:
@@ -2098,23 +2143,22 @@ spec:
                           x-kubernetes-map-type: atomic
                         node:
                           description: node is the Proxmox node.
+                          maxLength: 256
                           minLength: 1
                           type: string
                         zone:
                           description: zone is the zone the Machine is in.
+                          maxLength: 63
                           pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                           type: string
                       required:
                       - machine
                       - node
                       type: object
+                    maxItems: 1000
                     type: array
                     x-kubernetes-list-type: atomic
                 type: object
-              ready:
-                default: false
-                description: ready indicates that the cluster is ready.
-                type: boolean
             type: object
         required:
         - spec

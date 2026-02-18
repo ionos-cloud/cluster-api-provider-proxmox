@@ -22,12 +22,14 @@ import (
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	capierrors "sigs.k8s.io/cluster-api/errors"
+	"sigs.k8s.io/cluster-api/util/conditions"
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -107,8 +109,12 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 	machineName := s.ProxmoxMachine.GetName()
 	if vm.VirtualMachineConfig.Name != machineName {
 		err := fmt.Errorf("expected VM name to match %q but it was %q", vm.Name, machineName)
-		s.SetFailureMessage(err)
-		s.SetFailureReason(capierrors.MachineStatusError("UnkownMachine"))
+		conditions.Set(s.ProxmoxMachine, metav1.Condition{
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+			Message: fmt.Sprintf("%s", err),
+		})
 		return err
 	}
 
