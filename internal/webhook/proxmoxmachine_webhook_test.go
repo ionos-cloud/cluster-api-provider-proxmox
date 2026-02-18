@@ -151,7 +151,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 			NumCores:   1,
 			MemoryMiB:  1024,
 			Disks: &infrav1.Storage{
-				BootVolume: &infrav1.DiskSize{
+				BootVolume: &infrav1.DiskSpec{
 					Disk:   "scsi[0]",
 					SizeGB: 10,
 				},

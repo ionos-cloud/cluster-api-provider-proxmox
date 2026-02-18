@@ -44,7 +44,7 @@ func defaultMachine() *ProxmoxMachine {
 				},
 			},
 			Disks: &Storage{
-				BootVolume: &DiskSize{
+				BootVolume: &DiskSpec{
 					Disk:   "scsi0",
 					SizeGB: 100,
 				},
