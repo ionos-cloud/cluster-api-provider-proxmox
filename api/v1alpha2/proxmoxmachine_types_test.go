@@ -37,7 +37,7 @@ func defaultMachine() *ProxmoxMachine {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ProxmoxMachineSpec{
-			ProviderID:       ptr.To("proxmox://abcdef"),
+			ProviderID:       "proxmox://abcdef",
 			VirtualMachineID: ptr.To[int64](100),
 			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 				TemplateSource: TemplateSource{

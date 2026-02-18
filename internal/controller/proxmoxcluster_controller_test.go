@@ -32,13 +32,12 @@ import (
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -198,7 +197,7 @@ var _ = Describe("Controller Test", func() {
 				g.Expect(ipAddr.Spec.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
 
 				// check controlPlaneEndpoint is updated
-				g.Expect(cl.Spec.ControlPlaneEndpoint.IsZero()).NotTo(BeTrue())
+				g.Expect(cl.Spec.ControlPlaneEndpoint.Host != "" || cl.Spec.ControlPlaneEndpoint.Port != 0).To(BeTrue())
 				g.Expect(cl.Spec.ControlPlaneEndpoint.Port).To(BeEquivalentTo(ControlPlaneEndpointPort))
 				g.Expect(cl.Spec.ControlPlaneEndpoint.Host).To(BeEquivalentTo(ipAddr.Spec.Address))
 			}).WithTimeout(time.Second * 10).
@@ -207,9 +206,15 @@ var _ = Describe("Controller Test", func() {
 		})
 		It("Should reconcile failed cluster state", func() {
 			cl := buildProxmoxCluster(clusterName)
-			cl.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
-			cl.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
+
+			// Set a failure condition on the cluster status.
+			conditions.Set(&cl, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Message: "No credentials found, ProxmoxCluster missing credentialsRef",
+			})
 			g.Expect(k8sClient.Status().Update(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
 
 			defer cleanupResources(testEnv.GetContext(), g, cl)
@@ -221,8 +226,8 @@ var _ = Describe("Controller Test", func() {
 					Name:      clusterName,
 				}, &res)).To(Succeed())
 
-				g.Expect(res.Status.FailureReason).To(BeNil())
-				g.Expect(res.Status.FailureMessage).To(BeNil())
+				// After reconciliation, the cluster should become ready.
+				g.Expect(conditions.IsTrue(&res, infrav1.ProxmoxClusterProxmoxAvailableCondition)).To(BeTrue())
 			}).WithTimeout(time.Second * 20).
 				WithPolling(time.Second).
 				Should(Succeed())
@@ -353,7 +358,7 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			},
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
+			ControlPlaneEndpoint: infrav1.APIEndpoint{
 				Host: "10.10.10.11",
 				Port: 6443,
 			},
@@ -381,7 +386,7 @@ func assertClusterIsReady(ctx context.Context, g Gomega, clusterName string) {
 			Name:      clusterName,
 		}, &res)).To(Succeed())
 
-		g.Expect(ptr.Deref(res.Status.Ready, false)).To(BeTrue())
+		g.Expect(ptr.Deref(res.Status.Initialization.Provisioned, false)).To(BeTrue())
 	}).WithTimeout(time.Second * 20).
 		WithPolling(time.Second).
 		Should(Succeed())
@@ -616,7 +621,7 @@ func assertProxmoxClusterIsReady(proxmoxCluster *infrav1.ProxmoxCluster) {
 		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
 			return false
 		}
-		return conditions.IsTrue(proxmoxCluster, infrav1.ProxmoxClusterReady)
+		return conditions.IsTrue(proxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
 		Should(BeTrue())
@@ -628,7 +633,7 @@ func assertProxmoxClusterIsNotReady(proxmoxCluster *infrav1.ProxmoxCluster) {
 		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
 			return false
 		}
-		return conditions.IsFalse(proxmoxCluster, infrav1.ProxmoxClusterReady)
+		return conditions.IsFalse(proxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
 		Should(BeTrue())

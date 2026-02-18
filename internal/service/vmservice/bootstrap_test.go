@@ -29,7 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/conditions"
 
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 
@@ -175,7 +175,7 @@ func addIPPool(machineScope *scope.MachineScope, poolRef corev1.TypedLocalObject
 // TestReconcileBootsrapData_NoNetworkConfig_UpdateStatus tests the simplest setup
 // with only a default network pool being reconciled correctly.
 func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
 	// setup bootstrapdata injection fake
 	networkDataPtr := setupFakeIsoInjector(t)
@@ -203,13 +203,13 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	require.Equal(t, "net0", *networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
 
-	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
 // TestReconcileBootstrapData_UpdateStatus.
 func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
 	// setup bootstrapdata injection fake
 	networkDataPtr := setupFakeIsoInjector(t)
@@ -252,13 +252,13 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	require.Equal(t, "net1", *networkConfigData[1].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[1].Type)
 
-	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
 // TestReconcileBootstrapData_BadInjector is supposed to fail when rendering VM configuration data.
 func TestReconcileBootstrapData_BadInjector(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
@@ -277,12 +277,12 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to inject bootstrap data: bad FakeISOInjector")
 	require.False(t, requeue)
-	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.Nil(t, machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 
 func TestGetBootstrapData_MissingSecretName(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
 	data, _, err := getBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
@@ -291,7 +291,7 @@ func TestGetBootstrapData_MissingSecretName(t *testing.T) {
 }
 
 func TestGetBootstrapData_MissingSecretNotName(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
 	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To("foo")
 	data, _, err := getBootstrapData(context.Background(), machineScope)
@@ -302,7 +302,7 @@ func TestGetBootstrapData_MissingSecretNotName(t *testing.T) {
 }
 
 func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
-	machineScope, _, client := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, client := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
 	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
 	// missing format
@@ -332,7 +332,7 @@ func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 }
 
 func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope)
 
 	cfg, err := getNetworkConfigDataForDevice(context.Background(), machineScope, "net0", nil)
@@ -342,7 +342,7 @@ func TestGetNetworkConfigDataForDevice_MissingIPAddress(t *testing.T) {
 }
 
 func TestGetNetworkConfigDataForDevice_MissingMACAddress(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	machineScope.SetVirtualMachine(newStoppedVM())
 
 	cfg, err := getNetworkConfigDataForDevice(context.Background(), machineScope, "net2", nil)
@@ -352,7 +352,7 @@ func TestGetNetworkConfigDataForDevice_MissingMACAddress(t *testing.T) {
 }
 
 func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
@@ -379,7 +379,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 }
 
 func TestGetCommonInterfaceConfig(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
 	var MTU int32 = 9000
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
@@ -416,7 +416,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 }
 
 func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	machineScope.SetVirtualMachine(newStoppedVM())
 
 	networkSpec := infrav1.NetworkSpec{
@@ -437,7 +437,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 }
 
 func TestReconcileBootstrapData_DualStack(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
@@ -474,7 +474,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
-	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 
 	// Test if generated data is equal
@@ -489,7 +489,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 }
 
 func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
@@ -530,7 +530,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
-	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 
 	// Test if generated data is equal.
@@ -551,7 +551,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 }
 
 func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
@@ -588,7 +588,7 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
-	require.Equal(t, infrav1.WaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 
 	// Test if generated data is equal.
@@ -607,7 +607,7 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 }
 
 func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
@@ -634,7 +634,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
-	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 
 	// Test if generated data is equal.
@@ -667,7 +667,7 @@ func TestVMHasMacAddress(t *testing.T) {
 }
 
 func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
@@ -675,27 +675,27 @@ func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
 	require.False(t, requeue)
-	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
-	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
-	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) == infrav1.CloningFailedReason)
+	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason)
 }
 
 func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
 	require.False(t, requeue)
-	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
-	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
-	require.Equal(t, infrav1.VMProvisionFailedReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.ErrorContains(t, err, "network config data is not set")
 }
 
 func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
@@ -715,7 +715,7 @@ func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 }
 
 func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, ignition.FormatIgnition)
 
@@ -756,7 +756,7 @@ func TestIgnitionISOInjector(t *testing.T) {
 }
 
 func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForBootstrapDataReconcilationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	networkDataPtr := setupFakeIsoInjector(t)
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
@@ -773,7 +773,7 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
-	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition))
+	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 
 	// Test if generated data is equal

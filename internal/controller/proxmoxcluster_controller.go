@@ -20,7 +20,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -31,14 +30,14 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
+	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
 	clusterutil "github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util/annotations"
 
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -196,24 +195,27 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
-		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint == nil {
-			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
-
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterReady, infrav1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint")
-
-			return ctrl.Result{Requeue: true}, nil
-		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host == "" {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
 
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterReady, infrav1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host")
+			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
+				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host",
+			})
 
 			return ctrl.Result{Requeue: true}, nil
 		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Port == 0 {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint port")
 
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterReady, infrav1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port")
+			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
+				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port",
+			})
 
 			return ctrl.Result{Requeue: true}, nil
 		}
@@ -237,43 +239,54 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	}
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
-		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterReady, infrav1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, "%s", err)
-		if apierrors.IsNotFound(err) {
-			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
-		}
+		conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+			Message: fmt.Sprintf("%s", err),
+		})
 		return reconcile.Result{}, err
 	}
 
-	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterReady)
+	conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+		Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
+		Status: metav1.ConditionTrue,
+		Reason: clusterv1beta2.ProvisionedReason,
+	})
 
-	clusterScope.ProxmoxCluster.Status.Ready = ptr.To(true)
+	clusterScope.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
 
 	return ctrl.Result{}, nil
 }
 
 func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Context, clusterScope *scope.ClusterScope) error {
-	if clusterScope.ProxmoxClient != nil &&
-		ptr.Deref(clusterScope.Cluster.Status.FailureReason, "") == clustererrors.InvalidConfigurationClusterError &&
-		strings.Contains(ptr.Deref(clusterScope.Cluster.Status.FailureMessage, ""), "No credentials found") {
-		// Clear the failure reason and patch the proxmox cluster.
-		clusterScope.ProxmoxCluster.Status.FailureMessage = nil
-		clusterScope.ProxmoxCluster.Status.FailureReason = nil
-		if err := clusterScope.PatchObject(); err != nil {
-			return err
+	if clusterScope.ProxmoxClient != nil {
+		cond := conditions.Get(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
+		if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason {
+			// Clear the failure condition on the proxmox cluster.
+			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+				Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status: metav1.ConditionTrue,
+				Reason: clusterv1beta2.ProvisionedReason,
+			})
+			if err := clusterScope.PatchObject(); err != nil {
+				return err
+			}
+
+			// Clear the failure reason on the root cluster if present.
+			if ptr.Deref(clusterScope.Cluster.Status.FailureMessage, "") != "" {
+				newCluster := clusterScope.Cluster.DeepCopy()
+				newCluster.Status.FailureMessage = nil
+				newCluster.Status.FailureReason = nil
+
+				err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
+				if err != nil {
+					return errors.Wrapf(err, "failed to patch cluster %s/%s", newCluster.Namespace, newCluster.Name)
+				}
+			}
+
+			return errors.New("reconciling cluster failure state")
 		}
-
-		// Clear the failure reason and patch the root cluster.
-		newCluster := clusterScope.Cluster.DeepCopy()
-		newCluster.Status.FailureMessage = nil
-		newCluster.Status.FailureReason = nil
-
-		err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
-		if err != nil {
-			return errors.Wrapf(err, "failed to patch cluster %s/%s", newCluster.Namespace, newCluster.Name)
-		}
-
-		return errors.New("reconciling cluster failure state")
 	}
 
 	return nil

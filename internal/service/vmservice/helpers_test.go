@@ -35,7 +35,7 @@ import (
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -75,7 +75,11 @@ func (f FakeIgnitionISOInjector) Inject(_ context.Context, _ inject.BootstrapDat
 func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
 	machineScope, mockClient, client := setupReconcilerTest(t)
 
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, condition, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status: metav1.ConditionFalse,
+		Reason: condition,
+	})
 
 	return machineScope, mockClient, client
 }
@@ -610,11 +614,11 @@ func newVMWithNets(def string, additional ...string) *proxmox.VirtualMachine {
 	return vm
 }
 
-// requireConditionIsFalse asserts that the given conditions exists and has status "False".
-func requireConditionIsFalse(t *testing.T, getter conditions.Getter, cond clusterv1.ConditionType) {
+// requireConditionIsFalse asserts that the given condition exists and has status "False".
+func requireConditionIsFalse(t *testing.T, obj *infrav1.ProxmoxMachine, cond string) {
 	t.Helper()
-	require.Truef(t, conditions.Has(getter, cond),
-		"%T %s does not have condition %v", getter, getter.GetName(), cond)
-	require.Truef(t, conditions.IsFalse(getter, cond),
-		"expected condition to be %q, got %q", cond, corev1.ConditionFalse, conditions.Get(getter, cond).Status)
+	require.Truef(t, conditions.Has(obj, cond),
+		"%T %s does not have condition %v", obj, obj.GetName(), cond)
+	require.Truef(t, conditions.IsFalse(obj, cond),
+		"expected condition %q to be False, got %q", cond, conditions.Get(obj, cond).Status)
 }

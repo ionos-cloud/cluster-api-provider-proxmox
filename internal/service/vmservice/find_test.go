@@ -119,7 +119,8 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
-	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
+	// After v1beta2 migration, HasFailed() was removed. Check condition instead.
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
 func TestUpdateVMLocation_UpdateNode(t *testing.T) {
@@ -167,5 +168,6 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
-	require.True(t, machineScope.HasFailed(), "expected failureReason and failureMessage to be set")
+	// After v1beta2 migration, HasFailed() was removed. Check condition instead.
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }

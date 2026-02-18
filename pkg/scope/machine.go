@@ -27,13 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	capierrors "sigs.k8s.io/cluster-api/errors"
+	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
 
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -148,10 +148,7 @@ func (m *MachineScope) LocateProxmoxNode() string {
 
 // GetProviderID returns the ProxmoxMachine providerID from the spec.
 func (m *MachineScope) GetProviderID() string {
-	if m.ProxmoxMachine.Spec.ProviderID != nil {
-		return *m.ProxmoxMachine.Spec.ProviderID
-	}
-	return ""
+	return m.ProxmoxMachine.Spec.ProviderID
 }
 
 // GetVirtualMachineID returns the ProxmoxMachine vmid from the spec.
@@ -162,7 +159,7 @@ func (m *MachineScope) GetVirtualMachineID() int64 {
 // SetProviderID sets the ProxmoxMachine providerID in spec.
 func (m *MachineScope) SetProviderID(biosUUID string) {
 	providerID := fmt.Sprintf("proxmox://%s", biosUUID)
-	m.ProxmoxMachine.Spec.ProviderID = ptr.To(providerID)
+	m.ProxmoxMachine.Spec.ProviderID = providerID
 }
 
 // SetVirtualMachineID sets the ProxmoxMachine instanceID in spec.
@@ -172,22 +169,12 @@ func (m *MachineScope) SetVirtualMachineID(vmID int64) {
 
 // SetReady sets the ProxmoxMachine Ready Status.
 func (m *MachineScope) SetReady() {
-	m.ProxmoxMachine.Status.Ready = ptr.To(true)
+	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 }
 
 // SetNotReady sets the ProxmoxMachine Ready Status to false.
 func (m *MachineScope) SetNotReady() {
-	m.ProxmoxMachine.Status.Ready = ptr.To(false)
-}
-
-// SetFailureMessage sets the ProxmoxMachine status failure message.
-func (m *MachineScope) SetFailureMessage(v error) {
-	m.ProxmoxMachine.Status.FailureMessage = ptr.To(v.Error())
-}
-
-// SetFailureReason sets the ProxmoxMachine status failure reason.
-func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
-	m.ProxmoxMachine.Status.FailureReason = &v
+	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(false)
 }
 
 // SetAnnotation sets a key value annotation on the ProxmoxMachine.
@@ -198,11 +185,6 @@ func (m *MachineScope) SetAnnotation(key, value string) {
 	m.ProxmoxMachine.Annotations[key] = value
 }
 
-// HasFailed returns the failure state of the machine scope.
-func (m *MachineScope) HasFailed() bool {
-	return m.ProxmoxMachine.Status.FailureReason != nil || m.ProxmoxMachine.Status.FailureMessage != nil
-}
-
 // SetVirtualMachine sets the Proxmox VirtualMachine object to the machinescope.
 func (m *MachineScope) SetVirtualMachine(vm *proxmox.VirtualMachine) {
 	m.VirtualMachine = vm
@@ -211,24 +193,22 @@ func (m *MachineScope) SetVirtualMachine(vm *proxmox.VirtualMachine) {
 // PatchObject persists the machine spec and status.
 func (m *MachineScope) PatchObject() error {
 	// always update the readyCondition.
-	conditions.SetSummary(m.ProxmoxMachine,
-		conditions.WithConditions(
-			infrav1.VMProvisionedCondition,
-		),
+	_ = conditions.SetSummaryCondition(m.ProxmoxMachine, m.ProxmoxMachine, "Ready",
+		conditions.ForConditionTypes{infrav1.ProxmoxMachineVirtualMachineProvisionedCondition},
 	)
 
 	// Patch the ProxmoxMachine resource.
 	return m.patchHelper.Patch(
 		context.TODO(),
 		m.ProxmoxMachine,
-		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.ReadyCondition,
-			infrav1.VMProvisionedCondition,
+		patch.WithOwnedConditions{Conditions: []string{
+			"Ready",
+			infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		}})
 }
 
 // SetAddresses sets the addresses in the status.
-func (m *MachineScope) SetAddresses(addr []clusterv1.MachineAddress) {
+func (m *MachineScope) SetAddresses(addr []clusterv1beta2.MachineAddress) {
 	m.ProxmoxMachine.Status.Addresses = addr
 }
 

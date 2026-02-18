@@ -23,9 +23,11 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/apitesting/fuzzer"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/randfill"
 
@@ -70,10 +72,14 @@ func TestFuzzyConversion(t *testing.T) {
 
 func ProxmoxMachineFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
+		fuzzObjectMeta,
+		fuzzV1beta1Condition,
+		fuzzMetav1Condition,
 		hubProxmoxMachineSpec,
 		hubProxmoxMachineStatus,
 		hubRoutingPolicySpec,
 		spokeProxmoxMachineSpec,
+		spokeProxmoxMachineStatus,
 	}
 }
 
@@ -183,6 +189,7 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 
 func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
+		fuzzObjectMeta,
 		hubProxmoxMachineSpec,
 		spokeProxmoxMachineSpec,
 	}
@@ -191,9 +198,9 @@ func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interfa
 func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
 
-	// Status: Ready boolean nil -> false conversion
-	if in.Ready == nil {
-		in.Ready = ptr.To(false)
+	// Initialization.Provisioned: nil → false during hub→spoke→hub (Ready bool defaults to false)
+	if in.Initialization.Provisioned == nil {
+		in.Initialization.Provisioned = ptr.To(false)
 	}
 
 	if in.VMStatus != nil && *in.VMStatus == "" {
@@ -251,6 +258,11 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 
 func spokeProxmoxMachineSpec(in *ProxmoxMachineSpec, c randfill.Continue) {
 	c.FillNoCustom(in)
+
+	// ProviderID: nil *string → "" string → &"" *string during spoke→hub→spoke
+	if in.ProviderID == nil {
+		in.ProviderID = ptr.To("")
+	}
 
 	if in.Network != nil {
 		// Handle Default Network Device
@@ -353,9 +365,13 @@ func ensureIPPoolNaming(cfg *IPPoolConfig) {
 
 func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
+		fuzzObjectMeta,
+		fuzzV1beta1Condition,
+		fuzzMetav1Condition,
 		hubProxmoxClusterSpec,
 		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
+		spokeProxmoxClusterStatus,
 		spokeProxmoxMachineSpec,
 	}
 }
@@ -386,6 +402,9 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 	// InClusterZoneRef doesn't exist in v1alpha1, so it will be lost during hub→spoke→hub
 	in.InClusterZoneRef = nil
 
+	// FailureDomains doesn't exist in v1alpha1, so it will be lost during hub→spoke→hub
+	in.FailureDomains = nil
+
 	// Zone field does not exist in v1alpha1 NodeLocation, so it will be lost during hub→spoke→hub
 	if in.NodeLocations != nil {
 		for i := range in.NodeLocations.ControlPlane {
@@ -397,6 +416,24 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 	}
 }
 
+func spokeProxmoxClusterStatus(in *ProxmoxClusterStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// FailureReason and FailureMessage don't exist in v1alpha2, so they are
+	// dropped during spoke→hub up-conversion.
+	in.FailureReason = nil
+	in.FailureMessage = nil
+}
+
+func spokeProxmoxMachineStatus(in *ProxmoxMachineStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// FailureReason and FailureMessage don't exist in v1alpha2, so they are
+	// dropped during spoke→hub up-conversion.
+	in.FailureReason = nil
+	in.FailureMessage = nil
+}
+
 func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 	c.FillNoCustom(in)
 
@@ -404,5 +441,27 @@ func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 	if in.Priority != nil && *in.Priority < 0 {
 		in.Priority = nil
 	}
+}
 
+// fuzzObjectMeta normalizes ObjectMeta for conversion fuzzing.
+// MarshalData always initializes annotations, so nil becomes empty map after roundtrip.
+func fuzzObjectMeta(in *metav1.ObjectMeta, c randfill.Continue) {
+	c.FillNoCustom(in)
+	if in.Annotations == nil {
+		in.Annotations = map[string]string{}
+	}
+}
+
+// fuzzV1beta1Condition normalizes v1beta1 Condition fields that are lossy during conversion.
+// Severity doesn't exist in metav1.Condition, so it's lost during spoke→hub→spoke roundtrip.
+func fuzzV1beta1Condition(in *clusterv1.Condition, c randfill.Continue) {
+	c.FillNoCustom(in)
+	in.Severity = ""
+}
+
+// fuzzMetav1Condition normalizes metav1.Condition fields that are lossy during conversion.
+// ObservedGeneration doesn't exist in v1beta1 Condition, so it's lost during hub→spoke→hub roundtrip.
+func fuzzMetav1Condition(in *metav1.Condition, c randfill.Continue) {
+	c.FillNoCustom(in)
+	in.ObservedGeneration = 0
 }

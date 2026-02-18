@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -102,18 +101,18 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	Context("ClusterPort", func() {
 		It("Should not allow ports higher than 65535", func() {
 			dc := defaultCluster()
-			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+			dc.Spec.ControlPlaneEndpoint = APIEndpoint{
 				Port: 65536,
 			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be less than or equal to 65535")))
 		})
 
-		It("Should not allow port 0", func() {
+		It("Should not allow negative ports", func() {
 			dc := defaultCluster()
-			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
-				Port: 0,
+			dc.Spec.ControlPlaneEndpoint = APIEndpoint{
+				Port: -1,
 			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
 		})
 	})
 

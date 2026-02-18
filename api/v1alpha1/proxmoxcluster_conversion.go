@@ -87,7 +87,7 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 
 	}
 
-	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok, restored.Status.Ready, &dst.Status.Ready)
+	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok, restored.Status.Initialization.Provisioned, &dst.Status.Initialization.Provisioned)
 
 	return nil
 }
