@@ -192,9 +192,9 @@ func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interfa
 func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
 
-	// Status: Ready boolean nil -> false conversion
-	if in.Ready == nil {
-		in.Ready = ptr.To(false)
+	// Status: Initialization.Provisioned boolean nil -> false conversion
+	if in.Initialization.Provisioned == nil {
+		in.Initialization.Provisioned = ptr.To(false)
 	}
 
 	if in.VMStatus != nil && *in.VMStatus == "" {
