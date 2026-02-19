@@ -412,7 +412,7 @@ func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *Prox
 
 	// Manual ControlPlaneEndpoint conversion: v1alpha1 pointer → v1alpha2 value
 	if in.ControlPlaneEndpoint != nil {
-		out.ControlPlaneEndpoint = clusterv1beta2.APIEndpoint{
+		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
 			Host: in.ControlPlaneEndpoint.Host,
 			Port: in.ControlPlaneEndpoint.Port,
 		}
