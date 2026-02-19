@@ -23,9 +23,11 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/apitesting/fuzzer"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/randfill"
 
@@ -70,6 +72,9 @@ func TestFuzzyConversion(t *testing.T) {
 
 func ProxmoxMachineFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
+		fuzzObjectMeta,
+		fuzzV1beta1Condition,
+		fuzzMetav1Condition,
 		hubProxmoxMachineSpec,
 		hubProxmoxMachineStatus,
 		hubRoutingPolicySpec,
@@ -184,6 +189,7 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 
 func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
+		fuzzObjectMeta,
 		hubProxmoxMachineSpec,
 		spokeProxmoxMachineSpec,
 	}
@@ -203,13 +209,6 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 
 	if in.RetryAfter != nil && in.RetryAfter.IsZero() {
 		in.RetryAfter = nil
-	}
-
-	// Normalize Conditions: metav1.Condition doesn't have Severity field,
-	// and ObservedGeneration is not preserved during v1beta1 <-> metav1 conversion
-	for i := range in.Conditions {
-		// ObservedGeneration is set to 0 when converting from v1beta1.Condition (which doesn't have it)
-		in.Conditions[i].ObservedGeneration = 0
 	}
 
 	// Normalize IPAddresses IPv4/IPv6 empty strings
@@ -374,6 +373,9 @@ func ensureIPPoolNaming(cfg *IPPoolConfig) {
 
 func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
+		fuzzObjectMeta,
+		fuzzV1beta1Condition,
+		fuzzMetav1Condition,
 		hubProxmoxClusterSpec,
 		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
@@ -418,13 +420,6 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 		}
 	}
 
-	// Normalize Conditions: metav1.Condition doesn't have Severity field,
-	// and ObservedGeneration is not preserved during v1beta1 <-> metav1 conversion
-	for i := range in.Conditions {
-		// ObservedGeneration is set to 0 when converting from v1beta1.Condition (which doesn't have it)
-		in.Conditions[i].ObservedGeneration = 0
-	}
-
 	// Normalize Deprecated status to match hub→spoke→hub round-trip behavior.
 	// During round-trip:
 	// - V1Beta1.FailureReason/FailureMessage survive through v1alpha1 top-level fields
@@ -459,26 +454,31 @@ func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 
 func spokeProxmoxMachineStatus(in *ProxmoxMachineStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
-
-	// Normalize Conditions: v1beta1.Condition has Severity field, but metav1.Condition doesn't.
-	// When converting hub (metav1) -> spoke (v1beta1), Severity is set to "" (empty string),
-	// but during spoke -> hub -> spoke, it should remain consistent.
-	// We normalize to empty string to match the conversion behavior.
-	for i := range in.Conditions {
-		// Severity is lost when going through metav1.Condition (hub)
-		in.Conditions[i].Severity = ""
-	}
 }
 
 func spokeProxmoxClusterStatus(in *ProxmoxClusterStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
+}
 
-	// Normalize Conditions: v1beta1.Condition has Severity field, but metav1.Condition doesn't.
-	// When converting hub (metav1) -> spoke (v1beta1), Severity is set to "" (empty string),
-	// but during spoke -> hub -> spoke, it should remain consistent.
-	// We normalize to empty string to match the conversion behavior.
-	for i := range in.Conditions {
-		// Severity is lost when going through metav1.Condition (hub)
-		in.Conditions[i].Severity = ""
+// fuzzObjectMeta normalizes ObjectMeta for conversion fuzzing.
+// MarshalData always initializes annotations, so nil becomes empty map after roundtrip.
+func fuzzObjectMeta(in *metav1.ObjectMeta, c randfill.Continue) {
+	c.FillNoCustom(in)
+	if in.Annotations == nil {
+		in.Annotations = map[string]string{}
 	}
+}
+
+// fuzzV1beta1Condition normalizes v1beta1 Condition fields that are lossy during conversion.
+// Severity doesn't exist in metav1.Condition, so it's lost during spoke→hub→spoke roundtrip.
+func fuzzV1beta1Condition(in *clusterv1.Condition, c randfill.Continue) {
+	c.FillNoCustom(in)
+	in.Severity = ""
+}
+
+// fuzzMetav1Condition normalizes metav1.Condition fields that are lossy during conversion.
+// ObservedGeneration doesn't exist in v1beta1 Condition, so it's lost during hub→spoke→hub roundtrip.
+func fuzzMetav1Condition(in *metav1.Condition, c randfill.Continue) {
+	c.FillNoCustom(in)
+	in.ObservedGeneration = 0
 }

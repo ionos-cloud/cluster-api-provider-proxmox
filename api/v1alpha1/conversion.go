@@ -225,16 +225,6 @@ func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *
 		return err
 	}
 
-	// Manually convert conditions from metav1.Condition to v1beta1.Condition
-	if in.Conditions != nil {
-		out.Conditions = make(clusterv1beta1.Conditions, len(in.Conditions))
-		for i := range in.Conditions {
-			if err := Convert_v1_Condition_To_v1beta1_Condition(&in.Conditions[i], &out.Conditions[i], s); err != nil {
-				return err
-			}
-		}
-	}
-
 	// Map Initialization.Provisioned → Ready (bool)
 	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
 
@@ -251,16 +241,6 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 	err := autoConvert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in, out, s)
 	if err != nil {
 		return err
-	}
-
-	// Manually convert conditions from metav1.Condition to v1beta1.Condition
-	if in.Conditions != nil {
-		out.Conditions = make(clusterv1beta1.Conditions, len(in.Conditions))
-		for i := range in.Conditions {
-			if err := Convert_v1_Condition_To_v1beta1_Condition(&in.Conditions[i], &out.Conditions[i], s); err != nil {
-				return err
-			}
-		}
 	}
 
 	// Map Initialization.Provisioned → Ready (bool)
@@ -455,16 +435,6 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 		return err
 	}
 
-	// Manually convert conditions from v1beta1.Condition to metav1.Condition
-	if in.Conditions != nil {
-		out.Conditions = make([]metav1.Condition, len(in.Conditions))
-		for i := range in.Conditions {
-			if err := Convert_v1beta1_Condition_To_v1_Condition(&in.Conditions[i], &out.Conditions[i], s); err != nil {
-				return err
-			}
-		}
-	}
-
 	// Map Ready → Initialization.Provisioned
 	if in.Ready {
 		out.Initialization.Provisioned = ptr.To(true)
@@ -512,19 +482,8 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 }
 
 func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *ProxmoxClusterStatus, out *capmoxv2.ProxmoxClusterStatus, s conversion.Scope) error {
-	// Call the auto-generated conversion first
 	if err := autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s); err != nil {
 		return err
-	}
-
-	// Manually convert conditions from v1beta1.Condition to metav1.Condition
-	if in.Conditions != nil {
-		out.Conditions = make([]metav1.Condition, len(in.Conditions))
-		for i := range in.Conditions {
-			if err := Convert_v1beta1_Condition_To_v1_Condition(&in.Conditions[i], &out.Conditions[i], s); err != nil {
-				return err
-			}
-		}
 	}
 
 	// Map Ready → Initialization.Provisioned
