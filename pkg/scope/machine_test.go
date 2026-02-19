@@ -107,12 +107,12 @@ func TestMachineScope_SetReady(t *testing.T) {
 	scope.SetReady()
 	require.True(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
 	require.NotNil(t, scope.ProxmoxMachine.Status.Deprecated)
-	require.NotNil(t, scope.ProxmoxMachine.Status.Deprecated.V1Beta1)
-	require.True(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready)
+	require.NotNil(t, scope.ProxmoxMachine.Status.Deprecated.V1Beta1) //nolint:staticcheck // v1beta1 compat
+	require.True(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready) //nolint:staticcheck // v1beta1 compat
 
 	scope.SetNotReady()
 	require.False(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
-	require.False(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready)
+	require.False(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready) //nolint:staticcheck // v1beta1 compat
 }
 
 func TestMachineScope_HasFailed(t *testing.T) {

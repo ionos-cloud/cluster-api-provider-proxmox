@@ -112,8 +112,8 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
 			// Fail the cluster if no credentials found.
 			// set failure reason
-			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef") //nolint:staticcheck // v1beta1 compat
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError) //nolint:staticcheck // v1beta1 compat
 
 			if err = clusterScope.Close(); err != nil {
 				return nil, err
@@ -145,8 +145,8 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// set failure reason
-			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found")
-			s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found") //nolint:staticcheck // v1beta1 compat
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError) //nolint:staticcheck // v1beta1 compat
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
@@ -234,36 +234,36 @@ func (s *ClusterScope) Close() error {
 
 // ensureDeprecatedV1Beta1ClusterStatus returns the V1Beta1 deprecated status,
 // initializing the nested structs if necessary.
-func (s *ClusterScope) ensureDeprecatedV1Beta1ClusterStatus() *infrav1.ProxmoxClusterV1Beta1DeprecatedStatus {
+func (s *ClusterScope) ensureDeprecatedV1Beta1ClusterStatus() *infrav1.ProxmoxClusterV1Beta1DeprecatedStatus { //nolint:staticcheck // v1beta1 compat
 	if s.ProxmoxCluster.Status.Deprecated == nil {
 		s.ProxmoxCluster.Status.Deprecated = &infrav1.ProxmoxClusterDeprecatedStatus{}
 	}
-	if s.ProxmoxCluster.Status.Deprecated.V1Beta1 == nil {
-		s.ProxmoxCluster.Status.Deprecated.V1Beta1 = &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{}
+	if s.ProxmoxCluster.Status.Deprecated.V1Beta1 == nil { //nolint:staticcheck // v1beta1 compat
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1 = &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{} //nolint:staticcheck // v1beta1 compat
 	}
-	return s.ProxmoxCluster.Status.Deprecated.V1Beta1
+	return s.ProxmoxCluster.Status.Deprecated.V1Beta1 //nolint:staticcheck // v1beta1 compat
 }
 
 // SetReady sets the ProxmoxCluster as provisioned.
 func (s *ClusterScope) SetReady() {
 	s.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
-	s.ensureDeprecatedV1Beta1ClusterStatus().Ready = ptr.To(true)
+	s.ensureDeprecatedV1Beta1ClusterStatus().Ready = ptr.To(true) //nolint:staticcheck // v1beta1 compat
 }
 
 // SetFailureMessage sets the ProxmoxCluster failure message in the deprecated status.
 func (s *ClusterScope) SetFailureMessage(msg string) {
-	s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To(msg)
+	s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To(msg) //nolint:staticcheck // v1beta1 compat
 }
 
 // SetFailureReason sets the ProxmoxCluster failure reason in the deprecated status.
 func (s *ClusterScope) SetFailureReason(v clustererrors.ClusterStatusError) {
-	s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(v)
+	s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(v) //nolint:staticcheck // v1beta1 compat
 }
 
 // ClearFailure clears the failure reason and message from the deprecated status.
 func (s *ClusterScope) ClearFailure() {
 	if s.ProxmoxCluster.Status.Deprecated != nil && s.ProxmoxCluster.Status.Deprecated.V1Beta1 != nil {
-		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureMessage = nil
-		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureReason = nil
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureMessage = nil //nolint:staticcheck // v1beta1 compat
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureReason = nil //nolint:staticcheck // v1beta1 compat
 	}
 }
