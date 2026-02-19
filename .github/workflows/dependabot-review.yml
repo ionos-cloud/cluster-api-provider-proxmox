@@ -66,7 +66,7 @@ jobs:
             echo "" >> /tmp/review_comment.md
             
             # Parse go.mod diff to extract version changes
-            git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- go.mod | grep -E "^[\-\+]\s+(github\.com|golang\.org|k8s\.io|sigs\.k8s\.io|go\.uber\.org)" > /tmp/mod_changes.txt || true
+            git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- go.mod | grep -E "^[-+]" | grep -E "(github\.com|golang\.org|k8s\.io|sigs\.k8s\.io|go\.uber\.org)" | grep -v "^---" | grep -v "^+++" > /tmp/mod_changes.txt || true
             
             if [ -s /tmp/mod_changes.txt ]; then
               # Group changes by module
