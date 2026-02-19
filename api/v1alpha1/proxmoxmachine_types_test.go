@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -44,7 +45,7 @@ func defaultMachine() *ProxmoxMachine {
 				},
 			},
 			Disks: &Storage{
-				BootVolume: &DiskSize{
+				BootVolume: &DiskSpec{
 					Disk:   "scsi0",
 					SizeGB: 100,
 				},
@@ -62,7 +63,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 	Context("VirtualMachineCloneSpec", func() {
 		It("Should not allow specifying format if full clone is disabled", func() {
 			dm := defaultMachine()
-			dm.Spec.Format = ptr.To(TargetStorageFormatRaw)
+			dm.Spec.Format = ptr.To(TargetFileStorageFormatRaw)
 			dm.Spec.Full = ptr.To(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying format")))
@@ -174,6 +175,272 @@ var _ = Describe("ProxmoxMachine Test", func() {
 
 			dm.Spec.Disks.BootVolume.SizeGB = 4
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("greater than or equal to 5")))
+		})
+	})
+
+	Context("AdditionalVolumes format/storage - JSON marshalling", func() {
+		It("includes format and storage when set", func() {
+			f := TargetFileStorageFormat("qcow2")
+			s := "nfs-templates"
+			ds := DiskSpec{
+				Disk:    "scsi1",
+				SizeGB:  80,
+				Format:  &f,
+				Storage: &s,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi1"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":80`))
+			Expect(js).To(ContainSubstring(`"format":"qcow2"`))
+			Expect(js).To(ContainSubstring(`"storage":"nfs-templates"`))
+		})
+		It("omits format and storage when nil", func() {
+			ds := DiskSpec{
+				Disk:    "scsi2",
+				SizeGB:  120,
+				Format:  nil,
+				Storage: nil,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi2"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":120`))
+			Expect(js).NotTo(ContainSubstring(`"format"`))
+			Expect(js).NotTo(ContainSubstring(`"storage"`))
+		})
+	})
+
+	Context("AdditionalVolumes format/storage - DeepCopy", func() {
+		It("preserves per-volume format and storage and performs a deep copy", func() {
+			qcow2 := TargetFileStorageFormat("qcow2")
+			store := "filestore-a"
+			src := &Storage{
+				AdditionalVolumes: []DiskSpec{
+					{Disk: "scsi1", SizeGB: 80, Format: &qcow2, Storage: &store},
+				},
+			}
+			dst := src.DeepCopy()
+			Expect(dst).NotTo(BeNil())
+			Expect(dst.AdditionalVolumes).To(HaveLen(1))
+			got := dst.AdditionalVolumes[0]
+			Expect(got.Disk).To(Equal("scsi1"))
+			Expect(got.SizeGB).To(Equal(int32(80)))
+			Expect(got.Format).NotTo(BeNil())
+			Expect(*got.Format).To(Equal(TargetFileStorageFormat("qcow2")))
+			Expect(got.Storage).NotTo(BeNil())
+			Expect(*got.Storage).To(Equal("filestore-a"))
+			newFmt := TargetFileStorageFormat("raw")
+			newStore := "filestore-b"
+			*src.AdditionalVolumes[0].Format = newFmt
+			*src.AdditionalVolumes[0].Storage = newStore
+			Expect(dst.AdditionalVolumes[0].Format).NotTo(BeNil())
+			Expect(*dst.AdditionalVolumes[0].Format).To(Equal(TargetFileStorageFormat("qcow2")))
+			Expect(dst.AdditionalVolumes[0].Storage).NotTo(BeNil())
+			Expect(*dst.AdditionalVolumes[0].Storage).To(Equal("filestore-a"))
+		})
+	})
+
+	Context("AdditionalVolumes discard - JSON marshalling", func() {
+		It("includes discard when explicitly true", func() {
+			dTrue := true
+			ds := DiskSpec{
+				Disk:    "scsi3",
+				SizeGB:  60,
+				Discard: &dTrue,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi3"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":60`))
+			Expect(js).To(ContainSubstring(`"discard":true`))
+		})
+		It("includes discard when explicitly false (non-nil pointer)", func() {
+			dFalse := false
+			ds := DiskSpec{
+				Disk:    "scsi4",
+				SizeGB:  70,
+				Discard: &dFalse,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi4"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":70`))
+			// Because Discard is a bool, omitempty does NOT drop a false:
+			Expect(js).To(ContainSubstring(`"discard":false`))
+		})
+		It("omits discard when nil", func() {
+			ds := DiskSpec{
+				Disk:    "scsi5",
+				SizeGB:  80,
+				Discard: nil,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi5"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":80`))
+			Expect(js).NotTo(ContainSubstring(`"discard"`))
+		})
+	})
+
+	Context("AdditionalVolumes discard - DeepCopy", func() {
+		It("preserves per-volume discard and performs a deep copy", func() {
+			dTrue := true
+			src := &Storage{
+				AdditionalVolumes: []DiskSpec{
+					{Disk: "scsi6", SizeGB: 90, Discard: &dTrue},
+				},
+			}
+			dst := src.DeepCopy()
+			Expect(dst).NotTo(BeNil())
+			Expect(dst.AdditionalVolumes).To(HaveLen(1))
+			got := dst.AdditionalVolumes[0]
+			Expect(got.Disk).To(Equal("scsi6"))
+			Expect(got.SizeGB).To(Equal(int32(90)))
+			Expect(got.Discard).NotTo(BeNil())
+			Expect(*got.Discard).To(BeTrue())
+			*src.AdditionalVolumes[0].Discard = false
+			Expect(dst.AdditionalVolumes[0].Discard).NotTo(BeNil())
+			Expect(*dst.AdditionalVolumes[0].Discard).To(BeTrue())
+		})
+	})
+	Context("AdditionalVolumes iothread - JSON marshalling", func() {
+		It("includes iothread when explicitly true", func() {
+			tTrue := true
+			ds := DiskSpec{
+				Disk:     "scsi7",
+				SizeGB:   60,
+				IOThread: &tTrue,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi7"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":60`))
+			Expect(js).To(ContainSubstring(`"ioThread":true`))
+		})
+		It("includes iothread when explicitly false", func() {
+			tFalse := false
+			ds := DiskSpec{
+				Disk:     "scsi8",
+				SizeGB:   70,
+				IOThread: &tFalse,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi8"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":70`))
+			Expect(js).To(ContainSubstring(`"ioThread":false`)) // non-nil -> present
+		})
+
+		It("omits iothread when nil", func() {
+			ds := DiskSpec{
+				Disk:     "scsi9",
+				SizeGB:   80,
+				IOThread: nil,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi9"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":80`))
+			Expect(js).NotTo(ContainSubstring(`"ioThread"`))
+		})
+	})
+
+	Context("AdditionalVolumes iothread - DeepCopy", func() {
+		It("preserves per-volume iothread and performs a deep copy", func() {
+			tTrue := true
+			src := &Storage{
+				AdditionalVolumes: []DiskSpec{
+					{Disk: "scsi10", SizeGB: 90, IOThread: &tTrue},
+				},
+			}
+			dst := src.DeepCopy()
+			Expect(dst).NotTo(BeNil())
+			Expect(dst.AdditionalVolumes).To(HaveLen(1))
+			got := dst.AdditionalVolumes[0]
+			Expect(got.Disk).To(Equal("scsi10"))
+			Expect(got.SizeGB).To(Equal(int32(90)))
+			Expect(got.IOThread).NotTo(BeNil())
+			Expect(*got.IOThread).To(BeTrue())
+			*src.AdditionalVolumes[0].IOThread = false
+			Expect(dst.AdditionalVolumes[0].IOThread).NotTo(BeNil())
+			Expect(*dst.AdditionalVolumes[0].IOThread).To(BeTrue())
+		})
+	})
+	Context("AdditionalVolumes ssd - JSON marshalling", func() {
+		It("includes ssd when explicitly true", func() {
+			sTrue := true
+			ds := DiskSpec{
+				Disk:   "scsi11",
+				SizeGB: 60,
+				SSD:    &sTrue,
+			}
+
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+
+			Expect(js).To(ContainSubstring(`"disk":"scsi11"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":60`))
+			Expect(js).To(ContainSubstring(`"ssd":true`))
+		})
+		It("includes ssd when explicitly false", func() {
+			sFalse := false
+			ds := DiskSpec{
+				Disk:   "scsi12",
+				SizeGB: 70,
+				SSD:    &sFalse,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi12"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":70`))
+			Expect(js).To(ContainSubstring(`"ssd":false`)) // non-nil -> present
+		})
+		It("omits ssd when nil", func() {
+			ds := DiskSpec{
+				Disk:   "scsi13",
+				SizeGB: 80,
+				SSD:    nil,
+			}
+			b, err := json.Marshal(ds)
+			Expect(err).NotTo(HaveOccurred())
+			js := string(b)
+			Expect(js).To(ContainSubstring(`"disk":"scsi13"`))
+			Expect(js).To(ContainSubstring(`"sizeGb":80`))
+			Expect(js).NotTo(ContainSubstring(`"ssd"`))
+		})
+	})
+
+	Context("AdditionalVolumes ssd - DeepCopy", func() {
+		It("preserves per-volume ssd and performs a deep copy", func() {
+			sTrue := true
+			src := &Storage{
+				AdditionalVolumes: []DiskSpec{
+					{Disk: "scsi14", SizeGB: 90, SSD: &sTrue},
+				},
+			}
+			dst := src.DeepCopy()
+			Expect(dst).NotTo(BeNil())
+			Expect(dst.AdditionalVolumes).To(HaveLen(1))
+			got := dst.AdditionalVolumes[0]
+			Expect(got.Disk).To(Equal("scsi14"))
+			Expect(got.SizeGB).To(Equal(int32(90)))
+			Expect(got.SSD).NotTo(BeNil())
+			Expect(*got.SSD).To(BeTrue())
+			// Mutate source; destination should remain unchanged
+			*src.AdditionalVolumes[0].SSD = false
+			Expect(dst.AdditionalVolumes[0].SSD).NotTo(BeNil())
+			Expect(*dst.AdditionalVolumes[0].SSD).To(BeTrue())
 		})
 	})
 

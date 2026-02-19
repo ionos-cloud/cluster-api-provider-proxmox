@@ -136,41 +136,65 @@ type ProxmoxMachineSpec struct {
 // Storage is the physical storage on the node.
 type Storage struct {
 	// BootVolume defines the storage size for the boot volume.
+	// Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (one item
+	// with boot:true). Use BootVolume for v1alpha1/v1alpha2, but plan to migrate to `volumes[]` when
+	// available.
 	// This field is optional, and should only be set if you want
 	// to change the size of the boot volume.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +optional
-	BootVolume *DiskSize `json:"bootVolume,omitempty"`
+	BootVolume *DiskSpec `json:"bootVolume,omitempty"`
 
-	// TODO Intended to add handling for additional volumes,
-	// which will be added to the node.
-	// e.g. AdditionalVolumes []DiskSize.
+	// AdditionalVolumes defines additional volumes to be added to the virtual machine.
+	// Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (additional
+	// items with boot:false). Use for v1alpha1/v1alpha2; plan to migrate to `volumes[]` when available.
+	// +optional
+	AdditionalVolumes []DiskSpec `json:"additionalVolumes,omitempty"`
 }
 
-// DiskSize is contains values for the disk device and size.
-type DiskSize struct {
+// DiskSpec is contains values for the disk device and size.
+type DiskSpec struct {
 	// Disk is the name of the disk device, that should be resized.
 	// Example values are: ide[0-3], scsi[0-30], sata[0-5].
 	Disk string `json:"disk"`
-
 	// Size defines the size in gigabyte.
-	//
 	// As Proxmox does not support shrinking, the size
 	// must be bigger than the already configured size in the
 	// template.
-	//
 	// +kubebuilder:validation:Minimum=5
 	SizeGB int32 `json:"sizeGb"`
+	// Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
+	// If omitted, falls back to the machine's .spec.storage if exists, otherwise the Proxmox node’s default storage.
+	// +optional
+	Storage *string `json:"storage,omitempty"`
+	// Format is optional:
+	// +optional
+	Format *TargetFileStorageFormat `json:"format,omitempty"`
+	// Discard enables TRIM/UNMAP support for this virtual disk.
+	// Safe on IDE/SATA/SCSI/VirtIO; maps to Proxmox "discard=on".
+	// If omitted or false, the flag is not set.
+	// +optional
+	Discard *bool `json:"discard,omitempty"`
+	// IOThread enables the option IO Thread,
+	// With IO Thread enabled, QEMU creates one I/O thread per storage controller rather than handling all I/O in the main event loop or vCPU threads.
+	// The option IO Thread can only be used when using a disk with the VirtIO controller, or with the SCSI controller
+	IOThread *bool `json:"ioThread,omitempty"`
+	// SSD enables SSD emulation feature
+	// SSD emulation sets a drive to be presented to the guest as a solid-state drive rather than a rotational hard disk
+	// There is no requirement that the underlying storage actually be backed by SSDs; this feature can be used with physical media of any type
+	// SSD emulation is not supported on VirtIO Block drives.
+	SSD *bool `json:"ssd,omitempty"`
 }
 
 // TargetFileStorageFormat the target format of the cloned disk.
+// +kubebuilder:validation:Enum=raw;qcow2;vmdk
 type TargetFileStorageFormat string
 
 // Supported disk formats.
 const (
-	TargetStorageFormatRaw   TargetFileStorageFormat = "raw"
-	TargetStorageFormatQcow2 TargetFileStorageFormat = "qcow2"
-	TargetStorageFormatVmdk  TargetFileStorageFormat = "vmdk"
+	TargetFileStorageFormatRaw   TargetFileStorageFormat = "raw"
+	TargetFileStorageFormatQCOW2 TargetFileStorageFormat = "qcow2"
+	TargetFileStorageFormatVMDK  TargetFileStorageFormat = "vmdk"
 )
 
 // TemplateSource defines the source of the template VM.
@@ -632,7 +656,7 @@ func (r *ProxmoxMachine) GetNode() string {
 }
 
 // FormatSize returns the format required for the Proxmox API.
-func (d *DiskSize) FormatSize() string {
+func (d *DiskSpec) FormatSize() string {
 	return fmt.Sprintf("%dG", d.SizeGB)
 }
 
