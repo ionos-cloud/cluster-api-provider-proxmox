@@ -169,22 +169,24 @@ func (m *MachineScope) SetVirtualMachineID(vmID int64) {
 
 // SetReady sets the ProxmoxMachine Ready Status.
 func (m *MachineScope) SetReady() {
-	m.ProxmoxMachine.Status.Ready = ptr.To(true)
+	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
+	m.ensureDeprecatedV1Beta1MachineStatus().Ready = ptr.To(true)
 }
 
 // SetNotReady sets the ProxmoxMachine Ready Status to false.
 func (m *MachineScope) SetNotReady() {
-	m.ProxmoxMachine.Status.Ready = ptr.To(false)
+	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(false)
+	m.ensureDeprecatedV1Beta1MachineStatus().Ready = ptr.To(false)
 }
 
 // SetFailureMessage sets the ProxmoxMachine status failure message.
 func (m *MachineScope) SetFailureMessage(v error) {
-	m.ProxmoxMachine.Status.FailureMessage = ptr.To(v.Error())
+	m.ensureDeprecatedV1Beta1MachineStatus().FailureMessage = ptr.To(v.Error())
 }
 
 // SetFailureReason sets the ProxmoxMachine status failure reason.
 func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
-	m.ProxmoxMachine.Status.FailureReason = &v
+	m.ensureDeprecatedV1Beta1MachineStatus().FailureReason = &v
 }
 
 // SetAnnotation sets a key value annotation on the ProxmoxMachine.
@@ -197,7 +199,22 @@ func (m *MachineScope) SetAnnotation(key, value string) {
 
 // HasFailed returns the failure state of the machine scope.
 func (m *MachineScope) HasFailed() bool {
-	return m.ProxmoxMachine.Status.FailureReason != nil || m.ProxmoxMachine.Status.FailureMessage != nil
+	if dep := m.ProxmoxMachine.Status.Deprecated; dep != nil && dep.V1Beta1 != nil {
+		return dep.V1Beta1.FailureReason != nil || dep.V1Beta1.FailureMessage != nil
+	}
+	return false
+}
+
+// ensureDeprecatedV1Beta1MachineStatus returns the V1Beta1 deprecated status,
+// initializing the nested structs if necessary.
+func (m *MachineScope) ensureDeprecatedV1Beta1MachineStatus() *infrav1.ProxmoxMachineV1Beta1DeprecatedStatus {
+	if m.ProxmoxMachine.Status.Deprecated == nil {
+		m.ProxmoxMachine.Status.Deprecated = &infrav1.ProxmoxMachineDeprecatedStatus{}
+	}
+	if m.ProxmoxMachine.Status.Deprecated.V1Beta1 == nil {
+		m.ProxmoxMachine.Status.Deprecated.V1Beta1 = &infrav1.ProxmoxMachineV1Beta1DeprecatedStatus{}
+	}
+	return m.ProxmoxMachine.Status.Deprecated.V1Beta1
 }
 
 // SetVirtualMachine sets the Proxmox VirtualMachine object to the machinescope.

@@ -112,8 +112,8 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
 			// Fail the cluster if no credentials found.
 			// set failure reason
-			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
 
 			if err = clusterScope.Close(); err != nil {
 				return nil, err
@@ -145,8 +145,8 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// set failure reason
-			s.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			s.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found")
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
@@ -230,4 +230,16 @@ func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]inf
 // Close closes the current scope persisting the cluster configuration and status.
 func (s *ClusterScope) Close() error {
 	return s.PatchObject()
+}
+
+// ensureDeprecatedV1Beta1ClusterStatus returns the V1Beta1 deprecated status,
+// initializing the nested structs if necessary.
+func (s *ClusterScope) ensureDeprecatedV1Beta1ClusterStatus() *infrav1.ProxmoxClusterV1Beta1DeprecatedStatus {
+	if s.ProxmoxCluster.Status.Deprecated == nil {
+		s.ProxmoxCluster.Status.Deprecated = &infrav1.ProxmoxClusterDeprecatedStatus{}
+	}
+	if s.ProxmoxCluster.Status.Deprecated.V1Beta1 == nil {
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1 = &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{}
+	}
+	return s.ProxmoxCluster.Status.Deprecated.V1Beta1
 }
