@@ -203,8 +203,12 @@ var _ = Describe("Controller Test", func() {
 		})
 		It("Should reconcile failed cluster state", func() {
 			cl := buildProxmoxCluster(clusterName)
-			cl.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
-			cl.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
+			cl.Status.Deprecated = &infrav1.ProxmoxClusterDeprecatedStatus{
+				V1Beta1: &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{
+					FailureReason:  ptr.To(clustererrors.InvalidConfigurationClusterError),
+					FailureMessage: ptr.To("No credentials found, ProxmoxCluster missing credentialsRef"),
+				},
+			}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
 			g.Expect(k8sClient.Status().Update(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
 
@@ -217,8 +221,10 @@ var _ = Describe("Controller Test", func() {
 					Name:      clusterName,
 				}, &res)).To(Succeed())
 
-				g.Expect(res.Status.FailureReason).To(BeNil())
-				g.Expect(res.Status.FailureMessage).To(BeNil())
+				if res.Status.Deprecated != nil && res.Status.Deprecated.V1Beta1 != nil {
+					g.Expect(res.Status.Deprecated.V1Beta1.FailureReason).To(BeNil())
+					g.Expect(res.Status.Deprecated.V1Beta1.FailureMessage).To(BeNil())
+				}
 			}).WithTimeout(time.Second * 20).
 				WithPolling(time.Second).
 				Should(Succeed())
@@ -349,7 +355,7 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			},
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
 				Host: "10.10.10.11",
 				Port: 6443,
 			},
@@ -377,7 +383,7 @@ func assertClusterIsReady(ctx context.Context, g Gomega, clusterName string) {
 			Name:      clusterName,
 		}, &res)).To(Succeed())
 
-		g.Expect(ptr.Deref(res.Status.Ready, false)).To(BeTrue())
+		g.Expect(ptr.Deref(res.Status.Initialization.Provisioned, false)).To(BeTrue())
 	}).WithTimeout(time.Second * 20).
 		WithPolling(time.Second).
 		Should(Succeed())

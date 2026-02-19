@@ -105,10 +105,14 @@ func TestMachineScope_SetReady(t *testing.T) {
 	}
 
 	scope.SetReady()
-	require.True(t, *scope.ProxmoxMachine.Status.Ready)
+	require.True(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
+	require.NotNil(t, scope.ProxmoxMachine.Status.Deprecated)
+	require.NotNil(t, scope.ProxmoxMachine.Status.Deprecated.V1Beta1)
+	require.True(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready)
 
 	scope.SetNotReady()
-	require.False(t, *scope.ProxmoxMachine.Status.Ready)
+	require.False(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
+	require.False(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready)
 }
 
 func TestMachineScope_HasFailed(t *testing.T) {

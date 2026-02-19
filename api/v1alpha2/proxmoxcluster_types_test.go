@@ -102,7 +102,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	Context("ClusterPort", func() {
 		It("Should not allow ports higher than 65535", func() {
 			dc := defaultCluster()
-			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+			dc.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
 				Port: 65536,
 			}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
@@ -110,7 +110,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 
 		It("Should not allow port 0", func() {
 			dc := defaultCluster()
-			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+			dc.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
 				Port: 0,
 			}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))

@@ -142,7 +142,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
 				Host: "10.10.10.1",
 				Port: 6443,
 			},
@@ -173,7 +173,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 
 func invalidProxmoxCluster(name string) infrav1.ProxmoxCluster {
 	cl := validProxmoxCluster(name)
-	cl.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+	cl.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
 		Host: "10.10.10.2",
 		Port: 6443,
 	}

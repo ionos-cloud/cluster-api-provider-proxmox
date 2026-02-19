@@ -87,7 +87,9 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewClusterScope(test.params)
 			require.Error(t, err)
-			require.Equal(t, proxmoxCluster.Status.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError))
+			require.NotNil(t, proxmoxCluster.Status.Deprecated)
+			require.NotNil(t, proxmoxCluster.Status.Deprecated.V1Beta1)
+			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError))
 		})
 	}
 }
