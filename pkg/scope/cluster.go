@@ -213,7 +213,11 @@ func (s *ClusterScope) PatchObject() error {
 		conditions.ForConditionTypes{string(infrav1.ProxmoxClusterReady)},
 	)
 
-	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster)
+	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster,
+		patch.WithOwnedConditions{Conditions: []string{
+			string(clusterv1.ReadyCondition),
+			string(infrav1.ProxmoxClusterReady),
+		}})
 }
 
 // ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.
