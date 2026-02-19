@@ -221,9 +221,10 @@ var _ = Describe("Controller Test", func() {
 					Name:      clusterName,
 				}, &res)).To(Succeed())
 
-				if res.Status.Deprecated != nil && res.Status.Deprecated.V1Beta1 != nil { //nolint:staticcheck // v1beta1 compat
-					g.Expect(res.Status.Deprecated.V1Beta1.FailureReason).To(BeNil())  //nolint:staticcheck // v1beta1 compat
-					g.Expect(res.Status.Deprecated.V1Beta1.FailureMessage).To(BeNil()) //nolint:staticcheck // v1beta1 compat
+				//nolint:staticcheck // v1beta1 compat
+				if res.Status.Deprecated != nil && res.Status.Deprecated.V1Beta1 != nil {
+					g.Expect(res.Status.Deprecated.V1Beta1.FailureReason).To(BeNil())
+					g.Expect(res.Status.Deprecated.V1Beta1.FailureMessage).To(BeNil())
 				}
 			}).WithTimeout(time.Second * 20).
 				WithPolling(time.Second).
