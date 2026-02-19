@@ -1,0 +1,263 @@
+name: Dependabot PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review-dependabot-pr:
+    # Only run for Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout base branch
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Analyze Dependency Changes
+        id: analyze
+        run: |
+          # Create a script to analyze the dependency changes
+          cat > /tmp/analyze_deps.sh << 'ANALYZE_SCRIPT'
+          #!/bin/bash
+          set -e
+          
+          echo "## 🤖 Dependabot Dependency Review" > /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          echo "This is an automated review of the dependency changes in this PR." >> /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          
+          # Get changed files
+          git diff origin/${{ github.event.pull_request.base.ref }}..HEAD --name-only > /tmp/changed_files.txt
+          
+          # Check if go.mod or go.sum changed
+          if grep -q "go.mod" /tmp/changed_files.txt || grep -q "go.sum" /tmp/changed_files.txt; then
+            echo "### 📦 Go Module Changes" >> /tmp/review_comment.md
+            echo "" >> /tmp/review_comment.md
+            
+            # Get the diff for go.mod
+            if grep -q "go.mod" /tmp/changed_files.txt; then
+              echo "#### Changes in \`go.mod\`:" >> /tmp/review_comment.md
+              echo "\`\`\`diff" >> /tmp/review_comment.md
+              git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- go.mod | grep -E "^[\+\-].*" | grep -v "^[\+\-][\+\-][\+\-]" >> /tmp/review_comment.md || echo "No direct dependency changes" >> /tmp/review_comment.md
+              echo "\`\`\`" >> /tmp/review_comment.md
+              echo "" >> /tmp/review_comment.md
+            fi
+            
+            # Extract dependency changes
+            echo "#### 📊 Dependency Analysis:" >> /tmp/review_comment.md
+            echo "" >> /tmp/review_comment.md
+            
+            # Parse go.mod diff to extract version changes
+            git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- go.mod | grep -E "^[-+]" | grep -E "(github\.com|golang\.org|k8s\.io|sigs\.k8s\.io|go\.uber\.org)" | grep -v "^---" | grep -v "^+++" > /tmp/mod_changes.txt || true
+            
+            if [ -s /tmp/mod_changes.txt ]; then
+              # Group changes by module
+              MODULES=$(cat /tmp/mod_changes.txt | sed 's/^[+-]\s*//' | awk '{print $1}' | sort -u)
+              
+              for MODULE in $MODULES; do
+                OLD_LINE=$(cat /tmp/mod_changes.txt | grep "^-.*$MODULE" | head -1 | sed 's/^-\s*//')
+                NEW_LINE=$(cat /tmp/mod_changes.txt | grep "^+.*$MODULE" | head -1 | sed 's/^+\s*//')
+                
+                if [ -n "$OLD_LINE" ] && [ -n "$NEW_LINE" ]; then
+                  OLD_VERSION=$(echo "$OLD_LINE" | awk '{print $2}')
+                  NEW_VERSION=$(echo "$NEW_LINE" | awk '{print $2}')
+                  
+                  echo "- **$MODULE**: \`$OLD_VERSION\` → \`$NEW_VERSION\`" >> /tmp/review_comment.md
+                  
+                  # Try to generate a GitHub release URL for GitHub-hosted modules
+                  if [[ "$MODULE" == github.com/* ]]; then
+                    REPO_PATH=$(echo "$MODULE" | sed 's/github\.com\///')
+                    echo "  - [Release Notes](https://github.com/$REPO_PATH/releases)" >> /tmp/review_comment.md
+                    echo "  - [Compare Changes](https://github.com/$REPO_PATH/compare/$OLD_VERSION...$NEW_VERSION)" >> /tmp/review_comment.md
+                  fi
+                elif [ -n "$NEW_LINE" ]; then
+                  NEW_VERSION=$(echo "$NEW_LINE" | awk '{print $2}')
+                  echo "- **$MODULE**: ➕ Added at \`$NEW_VERSION\`" >> /tmp/review_comment.md
+                elif [ -n "$OLD_LINE" ]; then
+                  OLD_VERSION=$(echo "$OLD_LINE" | awk '{print $2}')
+                  echo "- **$MODULE**: ➖ Removed from \`$OLD_VERSION\`" >> /tmp/review_comment.md
+                fi
+                echo "" >> /tmp/review_comment.md
+              done
+            else
+              echo "No direct dependency version changes detected in go.mod" >> /tmp/review_comment.md
+              echo "" >> /tmp/review_comment.md
+            fi
+          fi
+          
+          # Check for Docker changes
+          if grep -q "Dockerfile" /tmp/changed_files.txt; then
+            echo "### 🐳 Docker Image Changes" >> /tmp/review_comment.md
+            echo "" >> /tmp/review_comment.md
+            echo "\`\`\`diff" >> /tmp/review_comment.md
+            git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- Dockerfile >> /tmp/review_comment.md
+            echo "\`\`\`" >> /tmp/review_comment.md
+            echo "" >> /tmp/review_comment.md
+          fi
+          
+          # Check for GitHub Actions changes
+          if grep -q ".github/workflows" /tmp/changed_files.txt; then
+            echo "### ⚙️ GitHub Actions Changes" >> /tmp/review_comment.md
+            echo "" >> /tmp/review_comment.md
+            
+            WORKFLOW_FILES=$(grep ".github/workflows" /tmp/changed_files.txt)
+            for WORKFLOW in $WORKFLOW_FILES; do
+              echo "#### Changes in \`$WORKFLOW\`:" >> /tmp/review_comment.md
+              echo "\`\`\`diff" >> /tmp/review_comment.md
+              git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- "$WORKFLOW" | grep -E "uses:" >> /tmp/review_comment.md || echo "No action version changes" >> /tmp/review_comment.md
+              echo "\`\`\`" >> /tmp/review_comment.md
+              echo "" >> /tmp/review_comment.md
+            done
+          fi
+          
+          echo "### 🔒 Security Considerations" >> /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          echo "Please review the following:" >> /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          echo "1. **Breaking Changes**: Check release notes for any breaking changes that may affect this project" >> /tmp/review_comment.md
+          echo "2. **Security Advisories**: Review security advisories for updated dependencies" >> /tmp/review_comment.md
+          echo "3. **Compatibility**: Ensure updated dependencies are compatible with Go version and other dependencies" >> /tmp/review_comment.md
+          echo "4. **Test Coverage**: Run tests to verify that updates don't break existing functionality" >> /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          
+          echo "### ✅ Recommended Actions" >> /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          echo "- [ ] Review release notes for each updated dependency" >> /tmp/review_comment.md
+          echo "- [ ] Check for security advisories using \`go list -m -json all | go-mod-outdated -update -direct\`" >> /tmp/review_comment.md
+          echo "- [ ] Run \`make test\` to ensure tests pass" >> /tmp/review_comment.md
+          echo "- [ ] Run \`make verify\` to check for any issues" >> /tmp/review_comment.md
+          echo "- [ ] Check CI/CD pipeline results" >> /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          
+          echo "---" >> /tmp/review_comment.md
+          echo "" >> /tmp/review_comment.md
+          echo "_This review was automatically generated. Please verify the information and perform additional security checks as needed._" >> /tmp/review_comment.md
+          
+          # Save the comment to output
+          {
+            echo 'REVIEW_COMMENT<<REVIEW_EOF'
+            cat /tmp/review_comment.md
+            echo 'REVIEW_EOF'
+          } >> "$GITHUB_OUTPUT"
+          ANALYZE_SCRIPT
+          
+          chmod +x /tmp/analyze_deps.sh
+          /tmp/analyze_deps.sh
+
+      - name: Run Security Analysis
+        id: security
+        run: |
+          echo "Running security analysis..."
+          
+          # Run go mod tidy to ensure consistency
+          go mod download
+          
+          # Create security report
+          {
+            echo ""
+            echo "### 🛡️ Security Analysis Results"
+            echo ""
+          } > /tmp/security_report.md
+          
+          # Check for known vulnerabilities using govulncheck if available
+          if command -v govulncheck &> /dev/null; then
+            {
+              echo "Running govulncheck..."
+            } >> /tmp/security_report.md
+            govulncheck ./... > /tmp/vuln_output.txt 2>&1 || true
+            
+            if grep -q "No vulnerabilities found" /tmp/vuln_output.txt; then
+              echo "✅ No known vulnerabilities detected" >> /tmp/security_report.md
+            else
+              {
+                echo "⚠️ Vulnerabilities detected:"
+                echo "\`\`\`"
+                cat /tmp/vuln_output.txt
+                echo "\`\`\`"
+              } >> /tmp/security_report.md
+            fi
+          else
+            {
+              echo "ℹ️ govulncheck not available, skipping vulnerability scan"
+              echo "Consider installing: \`go install golang.org/x/vuln/cmd/govulncheck@latest\`"
+            } >> /tmp/security_report.md
+          fi
+          echo "" >> /tmp/security_report.md
+          
+          # Check for outdated dependencies
+          {
+            echo "#### Dependency Status"
+            echo ""
+            go list -m -u all | head -20 || echo "Could not check dependency status"
+            echo ""
+          } >> /tmp/security_report.md
+          
+          # Save the security report to output
+          {
+            echo 'SECURITY_REPORT<<SECURITY_EOF'
+            cat /tmp/security_report.md
+            echo 'SECURITY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post Review Comment
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: |
+            ${{ steps.analyze.outputs.REVIEW_COMMENT }}
+            
+            ${{ steps.security.outputs.SECURITY_REPORT }}
+          comment_tag: dependabot_review
+          mode: recreate
+
+      - name: Check for High-Risk Changes
+        id: risk-assessment
+        run: |
+          # Check if this is a major version bump or includes critical dependencies
+          CRITICAL_DEPS="k8s.io/api k8s.io/apimachinery k8s.io/client-go sigs.k8s.io/cluster-api sigs.k8s.io/controller-runtime"
+          
+          git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- go.mod > /tmp/go.mod.diff
+          
+          HIGH_RISK=false
+          for DEP in $CRITICAL_DEPS; do
+            if grep -q "$DEP" /tmp/go.mod.diff; then
+              echo "⚠️ Critical dependency change detected: $DEP"
+              HIGH_RISK=true
+            fi
+          done
+          
+          if [ "$HIGH_RISK" = true ]; then
+            echo "high_risk=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::This PR modifies critical dependencies. Extra review recommended."
+          else
+            echo "high_risk=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add High-Risk Label
+        if: steps.risk-assessment.outputs.high_risk == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['high-risk-dependency-update']
+            });
