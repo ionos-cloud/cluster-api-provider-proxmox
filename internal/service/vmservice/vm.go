@@ -124,8 +124,7 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 
 	// if the root machine is ready, we can assume that the VM is ready as well.
 	// unmount the cloud-init iso if it is still mounted.
-	bootstrapConfigReady := conditions.IsTrue(scope.Machine, string(clusterv1.BootstrapConfigReadyCondition))
-	if bootstrapConfigReady && scope.Machine.Status.NodeRef.Name != "" {
+	if scope.Machine.Status.BootstrapReady && scope.Machine.Status.NodeRef != nil {
 		if err := unmountCloudInitISO(ctx, scope); err != nil {
 			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
 		}
