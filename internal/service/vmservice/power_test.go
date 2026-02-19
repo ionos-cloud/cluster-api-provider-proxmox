@@ -27,7 +27,7 @@ import (
 
 func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 	ctx := context.TODO()
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
 		NetName: infrav1.DefaultNetworkDevice,
 		IPv4:    []string{"10.10.10.10"},
@@ -49,7 +49,7 @@ func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 
 func TestStartVirtualMachine_Paused(t *testing.T) {
 	ctx := context.TODO()
-	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newPausedVM()
 	proxmoxClient.EXPECT().ResumeVM(ctx, vm).Return(newTask(), nil).Once()
 
@@ -60,7 +60,7 @@ func TestStartVirtualMachine_Paused(t *testing.T) {
 
 func TestStartVirtualMachine_Stopped(t *testing.T) {
 	ctx := context.TODO()
-	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newStoppedVM()
 	proxmoxClient.EXPECT().StartVM(ctx, vm).Return(newTask(), nil).Once()
 
@@ -71,7 +71,7 @@ func TestStartVirtualMachine_Stopped(t *testing.T) {
 
 func TestStartVirtualMachine_Hibernated(t *testing.T) {
 	ctx := context.TODO()
-	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newHibernatedVM()
 	proxmoxClient.EXPECT().StartVM(ctx, vm).Return(newTask(), nil).Once()
 
@@ -81,7 +81,7 @@ func TestStartVirtualMachine_Hibernated(t *testing.T) {
 }
 
 func TestStartVirtualMachine_Started(t *testing.T) {
-	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForVMPowerUpReason)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newRunningVM()
 
 	task, err := startVirtualMachine(context.TODO(), proxmoxClient, vm)

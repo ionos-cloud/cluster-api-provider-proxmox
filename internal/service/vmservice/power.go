@@ -31,7 +31,7 @@ import (
 )
 
 func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if conditions.GetReason(machineScope.ProxmoxMachine, string(infrav1.VMProvisionedCondition)) != infrav1.WaitingForVMPowerUpReason {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) != infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason {
 		// Machine is in the wrong state to reconcile, we only reconcile machines waiting to power on
 		return false, nil
 	}
@@ -50,9 +50,9 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 	t, err := startVirtualMachine(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine)
 	if err != nil {
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-			Type:    string(infrav1.VMProvisionedCondition),
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.PoweringOnFailedReason,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedPoweringOnFailedReason,
 			Message: err.Error(),
 		})
 		return false, err
@@ -64,9 +64,9 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 	}
 
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:   string(infrav1.VMProvisionedCondition),
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
-		Reason: infrav1.WaitingForCloudInitReason,
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason,
 	})
 	return false, nil
 }

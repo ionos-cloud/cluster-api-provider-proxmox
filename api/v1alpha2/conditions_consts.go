@@ -16,112 +16,102 @@ limitations under the License.
 
 package v1alpha2
 
-import clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-
+// Conditions and Reasons for ProxmoxCluster.
+//
+// The Ready condition is a summary condition that is set by the controller using
+// conditions.SetSummaryCondition and aggregates the following conditions:
+// - ProxmoxAvailable
+// - Paused (managed by CAPI).
 const (
-	// VMProvisionedCondition documents the status of the provisioning of a ProxmoxMachine and its underlying ProxmoxVM.
-	VMProvisionedCondition clusterv1.ConditionType = "VMProvisioned"
+	// ProxmoxClusterProxmoxAvailableCondition documents the availability of the
+	// underlying Proxmox infrastructure used by the ProxmoxCluster.
+	ProxmoxClusterProxmoxAvailableCondition = "ProxmoxAvailable"
 
-	// VMProvisionFailedReason used for failures during instance provisioning.
-	VMProvisionFailedReason = "VMProvisionFailed"
+	// ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason documents a controller
+	// detecting issues with Proxmox reachability.
+	ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason = "ProxmoxUnreachable"
 
-	// VMProvisionSucceededReason used when VM provisioning completed successfully.
-	VMProvisionSucceededReason = "VMProvisionSucceeded"
+	// ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason documents a
+	// missing Control Plane endpoint when the cluster uses an externally managed
+	// control plane.
+	ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason = "MissingControlPlaneEndpoint"
 
-	// VMTerminatedReason used when vm is being terminated.
-	VMTerminatedReason = "VMTerminated"
-
-	// VMDeletionFailedReason used when VM deletion fails.
-	VMDeletionFailedReason = "VMDeletionFailed"
-
-	// WaitingForClusterInfrastructureReason (Severity=Info) documents a ProxmoxMachine waiting for the cluster
-	// infrastructure to be ready before starting the provisioning process.
-	//
-	// NOTE: This reason does not apply to ProxmoxVM (this state happens before the ProxmoxVM is actually created).
-	WaitingForClusterInfrastructureReason = "WaitingForClusterInfrastructure"
-
-	// WaitingForBootstrapDataReason (Severity=Info) documents a ProxmoxMachine waiting for the bootstrap
-	// script to be ready before starting the provisioning process.
-	//
-	// NOTE: This reason does not apply to ProxmoxVM (this state happens before the ProxmoxVM is actually created).
-	WaitingForBootstrapDataReason = "WaitingForBootstrapData"
-
-	// WaitingForBootstrapReadyReason (Severity=Info) documents a ProxmoxMachine waiting for the underlying
-	// Cluster-API machine to be ready.
-	// bootstrapping ISO.
-	WaitingForBootstrapReadyReason = "WaitingForBootstrapReady"
-
-	// WaitingForCloudInitReason (Severity=Info) documents a ProxmoxVM waiting for CloudInit.
-	WaitingForCloudInitReason = "WaitingForCloudInit"
-
-	// WaitingForClusterAPIMachineAddressesReason (Severity=Info) documents a machine assigning addresses
-	// host addresses for Cluster API.
-	WaitingForClusterAPIMachineAddressesReason = "WaitingForClusterAPIMachineAddresses"
-
-	// WaitingForVMPowerUpReason (Severity=Info) documents a ProxmoxVM waiting for  Proxmox to power it on.
-	WaitingForVMPowerUpReason = "WaitingForVMPowerUp"
-
-	// WaitingForBootstrapDataReconcilationReason  (Severity=Info) documents a ProxmoxVM waiting for the
-	// reconciliation of Bootstrap Data for cloud-init/ignition.
-	WaitingForBootstrapDataReconcilationReason = "WaitingForBootstrapDataReconcilation"
-
-	// WaitingForStaticIPAllocationReason (Severity=Info) documents a ProxmoxVM waiting for the allocation of
-	// a static IP address.
-	WaitingForStaticIPAllocationReason = "WaitingForStaticIPAllocation"
-
-	// WaitingForDiskReconcilationReason (Severity=Info) documents a ProxmoxVM waiting for the disks to resize.
-	WaitingForDiskReconcilationReason = "WaitingForDiskReconcilation"
-
-	// WaitingForVirtualMachineConfigReason (Severity=Info) documents a ProxmoxVM waiting for VritualMachineConfig.
-	WaitingForVirtualMachineConfigReason = "WaitingForVirtualMachineConfig"
-
-	// CloningReason documents (Severity=Info) a ProxmoxMachine/ProxmoxVM currently executing the clone operation.
-	CloningReason = "Cloning"
-
-	// CloningFailedReason (Severity=Warning) documents a ProxmoxMachine/ProxmoxVM controller detecting
-	// an error while provisioning; those kind of errors are usually transient and failed provisioning
-	// are automatically re-tried by the controller.
-	CloningFailedReason = "CloningFailed"
-
-	// PoweringOnReason documents (Severity=Info) a ProxmoxMachine/ProxmoxVM currently executing the power on sequence.
-	PoweringOnReason = "PoweringOn"
-
-	// PoweringOnFailedReason (Severity=Warning) documents a ProxmoxMachine/ProxmoxVM controller detecting
-	// an error while powering on; those kind of errors are usually transient and failed provisioning
-	// are automatically re-tried by the controller.
-	PoweringOnFailedReason = "PoweringOnFailed"
-
-	// VMProvisionStarted used for starting vm provisioning.
-	VMProvisionStarted = "VMProvisionStarted"
-
-	// TaskFailure (Severity=Warning) documents a ProxmoxMachine/Proxmox task failure; the reconcile look will automatically
-	// retry the operation, but a user intervention might be required to fix the problem.
-	TaskFailure = "TaskFailure"
-
-	// WaitingForNetworkAddressesReason (Severity=Info) documents a ProxmoxMachine waiting for the the machine network
-	// settings to be reported after machine being powered on.
-	//
-	// NOTE: This reason does not apply to ProxmoxVM (this state happens after the ProxmoxVM is in ready state).
-	WaitingForNetworkAddressesReason = "WaitingForNetworkAddresses"
-
-	// NotFoundReason (Severity=Warning) documents the ProxmoxVM not found.
-	NotFoundReason = "NotFound"
-
-	// UnknownReason (Severity=Warning) documents the ProxmoxVM Unknown.
-	UnknownReason = "Unknown"
-
-	// MissingControlPlaneEndpointReason (Severity=Warning) documents the missing Control Plane endpoint when Cluster is backed by an externally managed Control Plane.
-	MissingControlPlaneEndpointReason = "MissingControlPlaneEndpoint"
+	// ProxmoxClusterProxmoxAvailableDeletingReason documents a ProxmoxCluster being deleted.
+	ProxmoxClusterProxmoxAvailableDeletingReason = "Deleting"
 )
 
+// Conditions and Reasons for ProxmoxMachine.
+//
+// The Ready condition is a summary condition that is set by the controller using
+// conditions.SetSummaryCondition and aggregates the following conditions:
+// - VirtualMachineProvisioned
+// - Paused (managed by CAPI).
 const (
-	// ProxmoxClusterReady documents the status of ProxmoxCluster and its underlying resources.
-	ProxmoxClusterReady clusterv1.ConditionType = "ClusterReady"
+	// ProxmoxMachineVirtualMachineProvisionedCondition documents the status of the
+	// provisioning of a ProxmoxMachine and its underlying virtual machine.
+	ProxmoxMachineVirtualMachineProvisionedCondition = "VirtualMachineProvisioned"
 
-	// ProxmoxUnreachableReason (Severity=Error) documents a controller detecting
-	// issues with Proxmox reachability.
-	ProxmoxUnreachableReason = "ProxmoxUnreachable"
+	// ProxmoxMachineVirtualMachineProvisionedCloningReason documents a ProxmoxMachine
+	// currently executing the clone operation.
+	ProxmoxMachineVirtualMachineProvisionedCloningReason = "Cloning"
 
-	// ProxmoxClusterReadyReason documents that the ProxmoxCluster is ready.
-	ProxmoxClusterReadyReason = "ProxmoxClusterReady"
+	// ProxmoxMachineVirtualMachineProvisionedCloningFailedReason documents a ProxmoxMachine
+	// controller detecting an error while cloning; these errors are usually transient
+	// and the controller automatically retries.
+	ProxmoxMachineVirtualMachineProvisionedCloningFailedReason = "CloningFailed"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason documents
+	// a ProxmoxMachine waiting for the disks to be resized.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason = "WaitingForDiskReconciliation"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason documents
+	// a ProxmoxMachine waiting for the allocation of a static IP address.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason = "WaitingForStaticIPAllocation"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason
+	// documents a ProxmoxMachine waiting for the reconciliation of bootstrap data
+	// for cloud-init/ignition.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason = "WaitingForBootstrapDataReconciliation"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason documents a
+	// ProxmoxMachine waiting for Proxmox to power it on.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason = "WaitingForVMPowerUp"
+
+	// ProxmoxMachineVirtualMachineProvisionedPoweringOnFailedReason documents a
+	// ProxmoxMachine controller detecting an error while powering on; these errors
+	// are usually transient and the controller automatically retries.
+	ProxmoxMachineVirtualMachineProvisionedPoweringOnFailedReason = "PoweringOnFailed"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason documents a
+	// ProxmoxMachine waiting for cloud-init to complete.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason = "WaitingForCloudInit"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason documents
+	// a ProxmoxMachine waiting for the bootstrap process to complete.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason = "WaitingForBootstrapReady"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForClusterAPIMachineAddressesReason
+	// documents a ProxmoxMachine assigning host addresses for Cluster API.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForClusterAPIMachineAddressesReason = "WaitingForClusterAPIMachineAddresses"
+
+	// ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason documents a failure
+	// during virtual machine provisioning.
+	ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason = "VMProvisionFailed"
+
+	// ProxmoxMachineVirtualMachineProvisionedTaskFailedReason documents a Proxmox task
+	// failure; the controller will automatically retry, but user intervention might
+	// be required.
+	ProxmoxMachineVirtualMachineProvisionedTaskFailedReason = "TaskFailed"
+
+	// ProxmoxMachineVirtualMachineProvisionedDeletingReason documents a ProxmoxMachine
+	// being deleted.
+	ProxmoxMachineVirtualMachineProvisionedDeletingReason = "Deleting"
+
+	// ProxmoxMachineVirtualMachineProvisionedDeletionFailedReason documents a failure
+	// during virtual machine deletion.
+	ProxmoxMachineVirtualMachineProvisionedDeletionFailedReason = "DeletionFailed"
+
+	// ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason documents
+	// a ProxmoxMachine waiting for VirtualMachineConfig.
+	ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason = "WaitingForVirtualMachineConfig"
 )

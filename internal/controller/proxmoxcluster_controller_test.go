@@ -619,7 +619,7 @@ func assertProxmoxClusterIsReady(proxmoxCluster *infrav1.ProxmoxCluster) {
 		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
 			return false
 		}
-		return conditions.IsTrue(proxmoxCluster, string(infrav1.ProxmoxClusterReady))
+		return conditions.IsTrue(proxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
 		Should(BeTrue())
@@ -631,7 +631,7 @@ func assertProxmoxClusterIsNotReady(proxmoxCluster *infrav1.ProxmoxCluster) {
 		if err := testEnv.Get(testEnv.GetContext(), key, proxmoxCluster); err != nil {
 			return false
 		}
-		return conditions.IsFalse(proxmoxCluster, string(infrav1.ProxmoxClusterReady))
+		return conditions.IsFalse(proxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
 		Should(BeTrue())

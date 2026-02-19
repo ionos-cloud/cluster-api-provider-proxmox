@@ -38,7 +38,7 @@ import (
 )
 
 func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if conditions.GetReason(machineScope.ProxmoxMachine, string(infrav1.VMProvisionedCondition)) != infrav1.WaitingForStaticIPAllocationReason {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) != infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason {
 		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for IP Address assignment
 		return false, nil
 	}
@@ -90,9 +90,9 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	}
 
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:   string(infrav1.VMProvisionedCondition),
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
-		Reason: infrav1.WaitingForBootstrapDataReconcilationReason,
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
 	})
 
 	return true, nil

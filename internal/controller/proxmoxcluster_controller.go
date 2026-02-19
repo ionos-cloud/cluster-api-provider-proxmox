@@ -220,9 +220,9 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
 
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-				Type:    string(infrav1.ProxmoxClusterReady),
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.MissingControlPlaneEndpointReason,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
 				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint",
 			})
 
@@ -232,9 +232,9 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
 
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-				Type:    string(infrav1.ProxmoxClusterReady),
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.MissingControlPlaneEndpointReason,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
 				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host",
 			})
 
@@ -244,9 +244,9 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint port")
 
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-				Type:    string(infrav1.ProxmoxClusterReady),
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.MissingControlPlaneEndpointReason,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
 				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port",
 			})
 
@@ -273,9 +273,9 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
 		conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-			Type:    string(infrav1.ProxmoxClusterReady),
+			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxUnreachableReason,
+			Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
 			Message: err.Error(),
 		})
 		if apierrors.IsNotFound(err) {
@@ -286,9 +286,9 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	}
 
 	conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-		Type:   string(infrav1.ProxmoxClusterReady),
+		Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
 		Status: metav1.ConditionTrue,
-		Reason: infrav1.ProxmoxClusterReadyReason,
+		Reason: clusterv1.ProvisionedReason,
 	})
 
 	clusterScope.SetReady()

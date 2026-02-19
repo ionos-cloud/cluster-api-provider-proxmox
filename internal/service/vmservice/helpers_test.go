@@ -76,7 +76,7 @@ func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.Ma
 	machineScope, mockClient, client := setupReconcilerTest(t)
 
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:   string(infrav1.VMProvisionedCondition),
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
 		Reason: condition,
 	})

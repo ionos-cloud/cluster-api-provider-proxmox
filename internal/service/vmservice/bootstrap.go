@@ -43,7 +43,7 @@ import (
 )
 
 func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if conditions.GetReason(machineScope.ProxmoxMachine, string(infrav1.VMProvisionedCondition)) != infrav1.WaitingForBootstrapDataReconcilationReason {
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) != infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason {
 		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for Bootstrap Data reconciliation
 		return false, nil
 	}
@@ -60,9 +60,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	bootstrapData, format, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-			Type:    string(infrav1.VMProvisionedCondition),
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.CloningFailedReason,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason,
 			Message: err.Error(),
 		})
 		return false, err
@@ -73,9 +73,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	nicData, err := getNetworkConfigData(ctx, machineScope)
 	if err != nil {
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-			Type:    string(infrav1.VMProvisionedCondition),
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.WaitingForBootstrapDataReconcilationReason,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
 			Message: err.Error(),
 		})
 		return false, err
@@ -95,9 +95,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	if err != nil {
 		// Todo: test this (colliding default gateways for example)
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-			Type:    string(infrav1.VMProvisionedCondition),
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.VMProvisionFailedReason,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
 			Message: err.Error(),
 		})
 		machineScope.Logger.V(0).Error(err, "nicData", "json", func() string { ret, _ := json.Marshal(nicData); return string(ret) }())
@@ -107,9 +107,9 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	// Todo: This status field is now superfluous
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:   string(infrav1.VMProvisionedCondition),
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
-		Reason: infrav1.WaitingForVMPowerUpReason,
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason,
 	})
 
 	return false, nil

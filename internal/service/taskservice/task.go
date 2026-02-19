@@ -120,9 +120,9 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 			errorMessage = "task failed but its exit status is OK; this should not happen"
 		}
 		conditions.Set(scope.ProxmoxMachine, metav1.Condition{
-			Type:    string(infrav1.VMProvisionedCondition),
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.TaskFailure,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason,
 			Message: errorMessage,
 		})
 

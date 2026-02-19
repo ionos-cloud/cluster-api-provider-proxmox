@@ -209,14 +209,14 @@ func (s *ClusterScope) KubernetesClusterName() string {
 // PatchObject persists the cluster configuration and status.
 func (s *ClusterScope) PatchObject() error {
 	// always update the readyCondition.
-	_ = conditions.SetSummaryCondition(s.ProxmoxCluster, s.ProxmoxCluster, string(clusterv1.ReadyCondition),
-		conditions.ForConditionTypes{string(infrav1.ProxmoxClusterReady)},
+	_ = conditions.SetSummaryCondition(s.ProxmoxCluster, s.ProxmoxCluster, "Ready",
+		conditions.ForConditionTypes{infrav1.ProxmoxClusterProxmoxAvailableCondition},
 	)
 
 	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster,
 		patch.WithOwnedConditions{Conditions: []string{
-			string(clusterv1.ReadyCondition),
-			string(infrav1.ProxmoxClusterReady),
+			"Ready",
+			infrav1.ProxmoxClusterProxmoxAvailableCondition,
 		}})
 }
 
