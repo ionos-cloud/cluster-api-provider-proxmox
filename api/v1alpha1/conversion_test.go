@@ -255,6 +255,19 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 			in.Network[i].NetworkName = ptr.To("net0")
 		}
 	}
+
+	// Normalize Deprecated status to match hub→spoke→hub round-trip behavior.
+	// Since Initialization.Provisioned is always non-nil (normalized above),
+	// ConvertTo always creates Deprecated.V1Beta1 and syncs Ready = Provisioned.
+	// FailureReason/FailureMessage survive through v1alpha1 top-level fields.
+	if in.Deprecated == nil {
+		in.Deprecated = &v1alpha2.ProxmoxMachineDeprecatedStatus{}
+	}
+	if in.Deprecated.V1Beta1 == nil {
+		in.Deprecated.V1Beta1 = &v1alpha2.ProxmoxMachineV1Beta1DeprecatedStatus{}
+	}
+	// Ready is always overwritten by Initialization.Provisioned during ConvertTo
+	in.Deprecated.V1Beta1.Ready = in.Initialization.Provisioned
 }
 
 func spokeProxmoxMachineSpec(in *ProxmoxMachineSpec, c randfill.Continue) {
@@ -410,6 +423,27 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 	for i := range in.Conditions {
 		// ObservedGeneration is set to 0 when converting from v1beta1.Condition (which doesn't have it)
 		in.Conditions[i].ObservedGeneration = 0
+	}
+
+	// Normalize Deprecated status to match hub→spoke→hub round-trip behavior.
+	// During round-trip:
+	// - V1Beta1.FailureReason/FailureMessage survive through v1alpha1 top-level fields
+	// - V1Beta1.Ready is always synced from Initialization.Provisioned in ConvertTo
+	// - An empty Deprecated wrapper (no failure data and Provisioned is nil) is lost
+	hasFailures := in.Deprecated != nil && in.Deprecated.V1Beta1 != nil &&
+		(in.Deprecated.V1Beta1.FailureReason != nil || in.Deprecated.V1Beta1.FailureMessage != nil)
+
+	if hasFailures || in.Initialization.Provisioned != nil {
+		if in.Deprecated == nil {
+			in.Deprecated = &v1alpha2.ProxmoxClusterDeprecatedStatus{}
+		}
+		if in.Deprecated.V1Beta1 == nil {
+			in.Deprecated.V1Beta1 = &v1alpha2.ProxmoxClusterV1Beta1DeprecatedStatus{}
+		}
+		// Ready is always overwritten by Initialization.Provisioned during ConvertTo
+		in.Deprecated.V1Beta1.Ready = in.Initialization.Provisioned
+	} else {
+		in.Deprecated = nil
 	}
 }
 

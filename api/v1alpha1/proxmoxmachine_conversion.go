@@ -66,6 +66,13 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 	// Normalize ProxmoxMachineSpec after auto-conversion
 	normalizeProxmoxMachineSpec(&dst.Spec)
 
+	// ObjectMeta.Annotations is copied by reference from the spoke during
+	// auto-conversion. After UnmarshalData removes the conversion-data key,
+	// we may be left with an empty map instead of nil.
+	if len(dst.Annotations) == 0 {
+		dst.Annotations = nil
+	}
+
 	return nil
 }
 

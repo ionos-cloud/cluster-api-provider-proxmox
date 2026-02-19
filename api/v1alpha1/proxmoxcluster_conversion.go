@@ -105,6 +105,13 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Status.Deprecated.V1Beta1.Ready = dst.Status.Initialization.Provisioned
 	}
 
+	// ObjectMeta.Annotations is copied by reference from the spoke during
+	// auto-conversion. After UnmarshalData removes the conversion-data key,
+	// we may be left with an empty map instead of nil.
+	if len(dst.Annotations) == 0 {
+		dst.Annotations = nil
+	}
+
 	return nil
 }
 
