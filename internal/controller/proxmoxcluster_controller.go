@@ -124,6 +124,13 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
+	// Handle deleted clusters before creating the scope, because scope
+	// creation may fail (e.g. missing credentials secret) and the deletion
+	// path does not need a Proxmox client.
+	if !proxmoxCluster.DeletionTimestamp.IsZero() {
+		return r.reconcileDelete(ctx, cluster, proxmoxCluster)
+	}
+
 	// Create the scope.
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:         r.Client,
@@ -145,44 +152,53 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}()
 
-	// Handle deleted clusters
-	if !proxmoxCluster.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, clusterScope)
-	}
-
 	// Handle non-deleted clusters
 	return r.reconcileNormal(ctx, clusterScope)
 }
 
-func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
+func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, cluster *clusterv1.Cluster, proxmoxCluster *infrav1.ProxmoxCluster) (_ reconcile.Result, reterr error) {
+	logger := log.FromContext(ctx)
+
 	// We want to prevent deletion unless the owning cluster was flagged for deletion.
-	if clusterScope.Cluster.DeletionTimestamp.IsZero() {
-		clusterScope.Error(errors.New("deletion was requested but owning cluster wasn't deleted"), "Unable to delete ProxmoxCluster")
+	if cluster.DeletionTimestamp.IsZero() {
+		logger.Error(errors.New("deletion was requested but owning cluster wasn't deleted"), "Unable to delete ProxmoxCluster")
 		// We stop reconciling here. It will be triggered again once the owning cluster was deleted.
 		return reconcile.Result{}, nil
 	}
 
-	clusterScope.Logger.V(4).Info("Reconciling ProxmoxCluster delete")
+	helper, err := patch.NewHelper(proxmoxCluster, r.Client)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to init patch helper")
+	}
+	defer func() {
+		if err := helper.Patch(ctx, proxmoxCluster); err != nil && reterr == nil {
+			reterr = err
+		}
+	}()
+
+	logger.V(4).Info("Reconciling ProxmoxCluster delete")
 	// Deletion usually should be triggered through the deletion of the owning cluster.
 	// If the ProxmoxCluster was also flagged for deletion (e.g. deletion using the manifest file)
 	// we should only allow to remove the finalizer when there are no ProxmoxMachines left.
-	machines, err := clusterScope.ListProxmoxMachinesForCluster(ctx)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "could not retrieve proxmox machines for cluster %q", clusterScope.InfraClusterName())
+	var machineList infrav1.ProxmoxMachineList
+	if err := r.Client.List(ctx, &machineList, client.InNamespace(proxmoxCluster.Namespace), client.MatchingLabels{
+		clusterv1.ClusterNameLabel: cluster.Name,
+	}); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "could not retrieve proxmox machines for cluster %q", proxmoxCluster.Name)
 	}
 
 	// Requeue if there are one or more machines left.
-	if len(machines) > 0 {
-		clusterScope.Info("waiting for machines to be deleted", "remaining", len(machines))
+	if len(machineList.Items) > 0 {
+		logger.Info("waiting for machines to be deleted", "remaining", len(machineList.Items))
 		return ctrl.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 	}
 
-	if err := r.reconcileDeleteCredentialsSecret(ctx, clusterScope); err != nil {
+	if err := r.reconcileDeleteCredentialsSecret(ctx, proxmoxCluster); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	clusterScope.Info("cluster deleted successfully")
-	ctrlutil.RemoveFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
+	logger.Info("cluster deleted successfully")
+	ctrlutil.RemoveFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
 	return ctrl.Result{}, nil
 }
 
@@ -395,8 +411,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.
 	return helper.Patch(ctx, secret)
 }
 
-func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.Context, clusterScope *scope.ClusterScope) error {
-	proxmoxCluster := clusterScope.ProxmoxCluster
+func (r *ProxmoxClusterReconciler) reconcileDeleteCredentialsSecret(ctx context.Context, proxmoxCluster *infrav1.ProxmoxCluster) error {
 	if !hasCredentialsRef(proxmoxCluster) {
 		return nil
 	}
