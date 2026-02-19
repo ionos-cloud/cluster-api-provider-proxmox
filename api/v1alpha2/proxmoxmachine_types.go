@@ -451,12 +451,12 @@ type ProxmoxMachineStatus struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=type
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"` //nolint:kubeapilinter // patchStrategy not applicable, using SSA
 
 	// initialization provides observations of the ProxmoxMachine initialization process.
 	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Machine provisioning.
-	// +optional
-	Initialization ProxmoxMachineInitializationStatus `json:"initialization,omitempty,omitzero"`
+	// +required
+	Initialization ProxmoxMachineInitializationStatus `json:"initialization,omitzero"`
 
 	// addresses contains the Proxmox VM instance associated addresses.
 	// +optional

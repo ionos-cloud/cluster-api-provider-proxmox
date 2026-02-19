@@ -214,12 +214,12 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=type
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"` //nolint:kubeapilinter // patchStrategy not applicable, using SSA
 
 	// initialization provides observations of the ProxmoxCluster initialization process.
 	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
-	// +optional
-	Initialization ProxmoxClusterInitializationStatus `json:"initialization,omitempty,omitzero"`
+	// +required
+	Initialization ProxmoxClusterInitializationStatus `json:"initialization,omitzero"`
 
 	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.
 	// +listType=atomic
