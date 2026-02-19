@@ -188,6 +188,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNotFound(t *testing.T) {
 	ctx := context.Background()
 	vmTemplateTags := []string{"foo", "bar"}
@@ -213,7 +214,6 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	_, err := createVM(ctx, machineScope)
 
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
-	//nolint:staticcheck // v1beta1 compat
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
 	require.Equal(t, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason)
 	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage)
@@ -639,6 +639,7 @@ func TestReconcileDisks_UnmountCloudInitISO(t *testing.T) {
 	require.NoError(t, unmountCloudInitISO(context.Background(), machineScope))
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForCloudInitReason)
 	vm := newRunningVM()
@@ -660,7 +661,6 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	_, err := ReconcileVM(context.Background(), machineScope)
 	require.Error(t, err, "unknown error")
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
-	//nolint:staticcheck // v1beta1 compat
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capierrors.MachineStatusError("BootstrapFailed")))
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution"))

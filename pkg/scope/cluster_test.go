@@ -59,6 +59,7 @@ func TestNewClusterScope_MissingParams(t *testing.T) {
 	}
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 	k8sClient := getFakeClient(t)
 
@@ -88,7 +89,6 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 			_, err := NewClusterScope(test.params)
 			require.Error(t, err)
 			require.NotNil(t, proxmoxCluster.Status.Deprecated)
-			//nolint:staticcheck // v1beta1 compat
 			require.NotNil(t, proxmoxCluster.Status.Deprecated.V1Beta1)
 			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError))
 		})

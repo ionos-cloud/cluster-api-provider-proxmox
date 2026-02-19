@@ -204,7 +204,7 @@ var _ = Describe("Controller Test", func() {
 		It("Should reconcile failed cluster state", func() {
 			cl := buildProxmoxCluster(clusterName)
 			cl.Status.Deprecated = &infrav1.ProxmoxClusterDeprecatedStatus{
-				V1Beta1: &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{ //nolint:staticcheck // v1beta1 compat
+				V1Beta1: &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{ //nolint:staticcheck // SA1019: v1beta1 compat
 					FailureReason:  ptr.To(clustererrors.InvalidConfigurationClusterError),
 					FailureMessage: ptr.To("No credentials found, ProxmoxCluster missing credentialsRef"),
 				},
@@ -221,7 +221,7 @@ var _ = Describe("Controller Test", func() {
 					Name:      clusterName,
 				}, &res)).To(Succeed())
 
-				//nolint:staticcheck // v1beta1 compat
+				//nolint:staticcheck // SA1019: v1beta1 compat
 				if res.Status.Deprecated != nil && res.Status.Deprecated.V1Beta1 != nil {
 					g.Expect(res.Status.Deprecated.V1Beta1.FailureReason).To(BeNil())
 					g.Expect(res.Status.Deprecated.V1Beta1.FailureMessage).To(BeNil())

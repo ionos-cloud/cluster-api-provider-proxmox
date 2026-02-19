@@ -170,23 +170,23 @@ func (m *MachineScope) SetVirtualMachineID(vmID int64) {
 // SetReady sets the ProxmoxMachine Ready Status.
 func (m *MachineScope) SetReady() {
 	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
-	m.ensureDeprecatedV1Beta1MachineStatus().Ready = ptr.To(true) //nolint:staticcheck // v1beta1 compat
+	m.ensureDeprecatedV1Beta1MachineStatus().Ready = ptr.To(true) //nolint:staticcheck // SA1019: v1beta1 compat
 }
 
 // SetNotReady sets the ProxmoxMachine Ready Status to false.
 func (m *MachineScope) SetNotReady() {
 	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(false)
-	m.ensureDeprecatedV1Beta1MachineStatus().Ready = ptr.To(false) //nolint:staticcheck // v1beta1 compat
+	m.ensureDeprecatedV1Beta1MachineStatus().Ready = ptr.To(false) //nolint:staticcheck // SA1019: v1beta1 compat
 }
 
 // SetFailureMessage sets the ProxmoxMachine status failure message.
 func (m *MachineScope) SetFailureMessage(v error) {
-	m.ensureDeprecatedV1Beta1MachineStatus().FailureMessage = ptr.To(v.Error()) //nolint:staticcheck // v1beta1 compat
+	m.ensureDeprecatedV1Beta1MachineStatus().FailureMessage = ptr.To(v.Error()) //nolint:staticcheck // SA1019: v1beta1 compat
 }
 
 // SetFailureReason sets the ProxmoxMachine status failure reason.
 func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
-	m.ensureDeprecatedV1Beta1MachineStatus().FailureReason = &v //nolint:staticcheck // v1beta1 compat
+	m.ensureDeprecatedV1Beta1MachineStatus().FailureReason = &v //nolint:staticcheck // SA1019: v1beta1 compat
 }
 
 // SetAnnotation sets a key value annotation on the ProxmoxMachine.
@@ -199,7 +199,7 @@ func (m *MachineScope) SetAnnotation(key, value string) {
 
 // HasFailed returns the failure state of the machine scope.
 func (m *MachineScope) HasFailed() bool {
-	//nolint:staticcheck // v1beta1 compat
+	//nolint:staticcheck // SA1019: v1beta1 compat
 	if dep := m.ProxmoxMachine.Status.Deprecated; dep != nil && dep.V1Beta1 != nil {
 		return dep.V1Beta1.FailureReason != nil || dep.V1Beta1.FailureMessage != nil
 	}
@@ -209,7 +209,7 @@ func (m *MachineScope) HasFailed() bool {
 // ensureDeprecatedV1Beta1MachineStatus returns the V1Beta1 deprecated status,
 // initializing the nested structs if necessary.
 //
-//nolint:staticcheck // v1beta1 compat
+//nolint:staticcheck // SA1019: v1beta1 compat
 func (m *MachineScope) ensureDeprecatedV1Beta1MachineStatus() *infrav1.ProxmoxMachineV1Beta1DeprecatedStatus {
 	if m.ProxmoxMachine.Status.Deprecated == nil {
 		m.ProxmoxMachine.Status.Deprecated = &infrav1.ProxmoxMachineDeprecatedStatus{}
