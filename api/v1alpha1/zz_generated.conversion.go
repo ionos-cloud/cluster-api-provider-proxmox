@@ -851,7 +851,7 @@ func Convert_v1alpha2_ProxmoxClusterList_To_v1alpha1_ProxmoxClusterList(in *v1al
 }
 
 func autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *v1alpha2.ProxmoxClusterSpec, s conversion.Scope) error {
-	// WARNING: in.ControlPlaneEndpoint requires manual conversion: inconvertible types (*sigs.k8s.io/cluster-api/api/core/v1beta1.APIEndpoint vs sigs.k8s.io/cluster-api/api/core/v1beta2.APIEndpoint)
+	// WARNING: in.ControlPlaneEndpoint requires manual conversion: inconvertible types (*sigs.k8s.io/cluster-api/api/core/v1beta1.APIEndpoint vs github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2.APIEndpoint)
 	if err := v1.Convert_bool_To_Pointer_bool(&in.ExternalManagedControlPlane, &out.ExternalManagedControlPlane, s); err != nil {
 		return err
 	}
@@ -898,7 +898,7 @@ func autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *
 }
 
 func autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
-	// WARNING: in.ControlPlaneEndpoint requires manual conversion: inconvertible types (sigs.k8s.io/cluster-api/api/core/v1beta2.APIEndpoint vs *sigs.k8s.io/cluster-api/api/core/v1beta1.APIEndpoint)
+	// WARNING: in.ControlPlaneEndpoint requires manual conversion: inconvertible types (github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2.APIEndpoint vs *sigs.k8s.io/cluster-api/api/core/v1beta1.APIEndpoint)
 	if err := v1.Convert_Pointer_bool_To_bool(&in.ExternalManagedControlPlane, &out.ExternalManagedControlPlane, s); err != nil {
 		return err
 	}
