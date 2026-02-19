@@ -1040,7 +1040,7 @@ spec:
       name: Cluster
       type: string
     - description: Cluster infrastructure is ready
-      jsonPath: .status.ready
+      jsonPath: .status.initialization.provisioned
       name: Ready
       type: string
     - description: API Endpoint
@@ -1503,6 +1503,7 @@ spec:
                           description: |-
                             providerID is the virtual machine BIOS UUID formatted as
                             proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
+                          pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                           type: string
                         snapName:
                           description: snapName The name of the snapshot.
@@ -1936,44 +1937,44 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              failureMessage:
+              deprecated:
                 description: |-
-                  failureMessage will be set in the event that there is a terminal problem
-                  reconciling the Machine and will contain a more verbose string suitable
-                  for logging and human consumption.
+                  deprecated groups all the status fields that are deprecated
+                  and will be removed in a future version.
+                properties:
+                  v1beta1:
+                    description: |-
+                      v1beta1 groups all the status fields that are deprecated and will be
+                      removed when support for v1alpha1 is dropped. These fields are only
+                      used for conversion between v1alpha1 and v1alpha2.
 
-                  This field should not be set for transitive errors that a controller
-                  faces that are expected to be fixed automatically over
-                  time (like service outages), but instead indicate that something is
-                  fundamentally wrong with the Machine's spec or the configuration of
-                  the controller, and that manual intervention is required. Examples
-                  of terminal errors would be invalid combinations of settings in the
-                  spec, values that are unsupported by the controller, or the
-                  responsible controller itself being critically misconfigured.
+                      Deprecated: This field is deprecated and will be removed in v1alpha3.
+                    properties:
+                      failureMessage:
+                        description: |-
+                          failureMessage will be set in the event that there is a terminal problem
+                          reconciling the cluster.
 
-                  Any transient errors that occur during the reconciliation of ProxmoxMachines
-                  can be added as events to the ProxmoxCluster object and/or logged in the
-                  controller's output.
-                type: string
-              failureReason:
-                description: |-
-                  failureReason will be set in the event that there is a terminal problem
-                  reconciling the Machine and will contain a succinct value suitable
-                  for machine interpretation.
+                          Deprecated: This field is maintained only for conversion with v1alpha1
+                          and will be removed in v1alpha3.
+                        type: string
+                      failureReason:
+                        description: |-
+                          failureReason will be set in the event that there is a terminal problem
+                          reconciling the cluster.
 
-                  This field should not be set for transitive errors that a controller
-                  faces that are expected to be fixed automatically over
-                  time (like service outages), but instead indicate that something is
-                  fundamentally wrong with the Machine's spec or the configuration of
-                  the controller, and that manual intervention is required. Examples
-                  of terminal errors would be invalid combinations of settings in the
-                  spec, values that are unsupported by the controller, or the
-                  responsible controller itself being critically misconfigured.
+                          Deprecated: This field is maintained only for conversion with v1alpha1
+                          and will be removed in v1alpha3.
+                        type: string
+                      ready:
+                        description: |-
+                          ready indicates that the cluster is ready.
 
-                  Any transient errors that occur during the reconciliation of ProxmoxCluster
-                  can be added as events to the ProxmoxCluster object and/or logged in the
-                  controller's output.
-                type: string
+                          Deprecated: Use status.initialization.provisioned instead. This field is
+                          maintained only for conversion with v1alpha1 and will be removed in v1alpha3.
+                        type: boolean
+                    type: object
+                type: object
               inClusterIPPoolRef:
                 description: inClusterIPPoolRef is the reference to the created in-cluster
                   IP pool.
@@ -2041,6 +2042,20 @@ spec:
                 x-kubernetes-list-map-keys:
                 - zone
                 x-kubernetes-list-type: map
+              initialization:
+                description: |-
+                  initialization provides observations of the ProxmoxCluster initialization process.
+                  NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
+                minProperties: 1
+                properties:
+                  provisioned:
+                    description: |-
+                      provisioned is true when the infrastructure provider reports that the
+                      cluster infrastructure is fully provisioned.
+                      NOTE: this field is part of the Cluster API contract, and it is used to
+                      orchestrate initial Cluster provisioning.
+                    type: boolean
+                type: object
               nodeLocations:
                 description: |-
                   nodeLocations keeps track of which nodes have been selected
@@ -2120,10 +2135,8 @@ spec:
                     type: array
                     x-kubernetes-list-type: atomic
                 type: object
-              ready:
-                default: false
-                description: ready indicates that the cluster is ready.
-                type: boolean
+            required:
+            - initialization
             type: object
         required:
         - spec
