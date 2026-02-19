@@ -27,11 +27,11 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
@@ -90,7 +90,7 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 			require.Error(t, err)
 			require.NotNil(t, proxmoxCluster.Status.Deprecated)
 			require.NotNil(t, proxmoxCluster.Status.Deprecated.V1Beta1)
-			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError))
+			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capmoxerrors.InvalidConfigurationClusterError))
 		})
 	}
 }

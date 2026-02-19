@@ -32,7 +32,6 @@ import (
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -41,6 +40,7 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -205,7 +205,7 @@ var _ = Describe("Controller Test", func() {
 			cl := buildProxmoxCluster(clusterName)
 			cl.Status.Deprecated = &infrav1.ProxmoxClusterDeprecatedStatus{
 				V1Beta1: &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{ //nolint:staticcheck // SA1019: v1beta1 compat
-					FailureReason:  ptr.To(clustererrors.InvalidConfigurationClusterError),
+					FailureReason:  ptr.To(capmoxerrors.InvalidConfigurationClusterError),
 					FailureMessage: ptr.To("No credentials found, ProxmoxCluster missing credentialsRef"),
 				},
 			}

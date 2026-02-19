@@ -27,12 +27,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	capierrors "sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
@@ -162,7 +162,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 					Message: err.Error(),
 				})
 				machineScope.SetFailureMessage(err)
-				machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
+				machineScope.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("BootstrapFailed"))
 			}
 			return false, err
 		}
@@ -425,7 +425,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	if err != nil {
 		if errors.Is(err, ErrNoVMIDInRangeFree) {
 			scope.SetFailureMessage(err)
-			scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
+			scope.SetFailureReason(capmoxerrors.InsufficientResourcesMachineError)
 		}
 		return proxmox.VMCloneResponse{}, err
 	}
@@ -476,7 +476,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		if err != nil {
 			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
 				scope.SetFailureMessage(err)
-				scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
+				scope.SetFailureReason(capmoxerrors.InsufficientResourcesMachineError)
 			}
 			return proxmox.VMCloneResponse{}, err
 		}
@@ -491,7 +491,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		if err != nil {
 			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
 				scope.SetFailureMessage(err)
-				scope.SetFailureReason(capierrors.MachineStatusError("VMTemplateNotFound"))
+				scope.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("VMTemplateNotFound"))
 				conditions.Set(scope.ProxmoxMachine, metav1.Condition{
 					Type:    string(infrav1.VMProvisionedCondition),
 					Status:  metav1.ConditionFalse,

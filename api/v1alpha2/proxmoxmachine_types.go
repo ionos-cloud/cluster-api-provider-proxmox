@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	clusterapierrors "sigs.k8s.io/cluster-api/errors"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 )
 
 const (
@@ -585,7 +585,7 @@ type ProxmoxMachineV1Beta1DeprecatedStatus struct {
 	// Deprecated: This field is maintained only for conversion with v1alpha1
 	// and will be removed in v1alpha3.
 	// +optional
-	FailureReason *clusterapierrors.MachineStatusError `json:"failureReason,omitempty"`
+	FailureReason *capmoxerrors.DeprecatedCAPIMachineStatusError `json:"failureReason,omitempty"`
 
 	// failureMessage will be set in the event that there is a terminal problem
 	// reconciling the Machine.

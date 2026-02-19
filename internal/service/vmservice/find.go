@@ -23,9 +23,9 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
-	capierrors "sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/cluster-api/util"
 
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -106,7 +106,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 	if vm.VirtualMachineConfig.Name != machineName {
 		err := fmt.Errorf("expected VM name to match %q but it was %q", vm.Name, machineName)
 		s.SetFailureMessage(err)
-		s.SetFailureReason(capierrors.MachineStatusError("UnkownMachine"))
+		s.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("UnkownMachine"))
 		return err
 	}
 

@@ -123,10 +123,6 @@ linters:
         linters:
           - staticcheck
         text: '(SA1019): "sigs.k8s.io/cluster-api/.*/v1beta1.*" is deprecated: .*'
-      - path: (.+)\.go$
-        linters:
-          - staticcheck
-        text: '(SA1019): "sigs.k8s.io/cluster-api/errors" is deprecated: .*'
     paths:
       - zz_generated.*\.go$
       - .*conversion.*\.go$

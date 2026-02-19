@@ -31,7 +31,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	clustererrors "sigs.k8s.io/cluster-api/errors"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -47,6 +46,7 @@ import (
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -280,7 +280,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		})
 		if apierrors.IsNotFound(err) {
 			clusterScope.SetFailureMessage("credentials secret not found")
-			clusterScope.SetFailureReason(clustererrors.InvalidConfigurationClusterError)
+			clusterScope.SetFailureReason(capmoxerrors.InvalidConfigurationClusterError)
 		}
 		return reconcile.Result{}, err
 	}
@@ -307,7 +307,7 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Conte
 	}
 
 	if clusterScope.ProxmoxClient != nil &&
-		clusterFailureReason == string(clustererrors.InvalidConfigurationClusterError) &&
+		clusterFailureReason == string(capmoxerrors.InvalidConfigurationClusterError) &&
 		strings.Contains(clusterFailureMessage, "No credentials found") {
 		// Clear the failure reason and patch the proxmox cluster.
 		clusterScope.ClearFailure()
