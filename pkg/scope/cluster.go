@@ -243,3 +243,27 @@ func (s *ClusterScope) ensureDeprecatedV1Beta1ClusterStatus() *infrav1.ProxmoxCl
 	}
 	return s.ProxmoxCluster.Status.Deprecated.V1Beta1
 }
+
+// SetReady sets the ProxmoxCluster as provisioned.
+func (s *ClusterScope) SetReady() {
+	s.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
+	s.ensureDeprecatedV1Beta1ClusterStatus().Ready = ptr.To(true)
+}
+
+// SetFailureMessage sets the ProxmoxCluster failure message in the deprecated status.
+func (s *ClusterScope) SetFailureMessage(msg string) {
+	s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To(msg)
+}
+
+// SetFailureReason sets the ProxmoxCluster failure reason in the deprecated status.
+func (s *ClusterScope) SetFailureReason(v clustererrors.ClusterStatusError) {
+	s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(v)
+}
+
+// ClearFailure clears the failure reason and message from the deprecated status.
+func (s *ClusterScope) ClearFailure() {
+	if s.ProxmoxCluster.Status.Deprecated != nil && s.ProxmoxCluster.Status.Deprecated.V1Beta1 != nil {
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureMessage = nil
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureReason = nil
+	}
+}

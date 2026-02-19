@@ -193,7 +193,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
-		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint == nil {
+		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.IsZero() {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
 
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
@@ -256,8 +256,8 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 			Message: err.Error(),
 		})
 		if apierrors.IsNotFound(err) {
-			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			clusterScope.SetFailureMessage("credentials secret not found")
+			clusterScope.SetFailureReason(clustererrors.InvalidConfigurationClusterError)
 		}
 		return reconcile.Result{}, err
 	}
@@ -268,7 +268,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		Reason: infrav1.ProxmoxClusterReadyReason,
 	})
 
-	clusterScope.ProxmoxCluster.Status.Ready = ptr.To(true)
+	clusterScope.SetReady()
 
 	return ctrl.Result{}, nil
 }
@@ -287,8 +287,7 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Conte
 		clusterFailureReason == string(clustererrors.InvalidConfigurationClusterError) &&
 		strings.Contains(clusterFailureMessage, "No credentials found") {
 		// Clear the failure reason and patch the proxmox cluster.
-		clusterScope.ProxmoxCluster.Status.FailureMessage = nil
-		clusterScope.ProxmoxCluster.Status.FailureReason = nil
+		clusterScope.ClearFailure()
 		if err := clusterScope.PatchObject(); err != nil {
 			return err
 		}

@@ -258,7 +258,7 @@ func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) error
 
 	if disks != nil {
 		vm := machineScope.VirtualMachine
-		if vm.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Ready, false) {
+		if vm.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Initialization.Provisioned, false) {
 			// We only want to do this before the machine was started or is ready
 			return nil
 		}
@@ -286,7 +286,7 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		return false, nil
 	}
 
-	if machineScope.VirtualMachine.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Ready, false) {
+	if machineScope.VirtualMachine.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Initialization.Provisioned, false) {
 		// We only want to do this before the machine was started or is ready
 		return false, nil
 	}
