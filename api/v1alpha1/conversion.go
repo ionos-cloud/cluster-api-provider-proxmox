@@ -181,8 +181,19 @@ func Convert_v1alpha2_RoutingPolicySpec_To_v1alpha1_RoutingPolicySpec(in *capmox
 }
 
 func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capmoxv2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
-	// accept the Warning about unused fields here
-	return autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s)
+	if err := autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s); err != nil {
+		return err
+	}
+
+	// Manual ControlPlaneEndpoint conversion: v1alpha2 value → v1alpha1 pointer
+	if !in.ControlPlaneEndpoint.IsZero() {
+		out.ControlPlaneEndpoint = &clusterv1beta1.APIEndpoint{
+			Host: in.ControlPlaneEndpoint.Host,
+			Port: in.ControlPlaneEndpoint.Port,
+		}
+	}
+
+	return nil
 }
 
 func Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in *capmoxv2.ProxmoxClusterCloneSpec, out *ProxmoxClusterCloneSpec, s conversion.Scope) error {
@@ -224,6 +235,15 @@ func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *
 		}
 	}
 
+	// Map Initialization.Provisioned → Ready (bool)
+	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
+
+	// Map deprecated failure fields to v1alpha1 top-level
+	if in.Deprecated != nil && in.Deprecated.V1Beta1 != nil {
+		out.FailureReason = in.Deprecated.V1Beta1.FailureReason
+		out.FailureMessage = in.Deprecated.V1Beta1.FailureMessage
+	}
+
 	return nil
 }
 
@@ -241,6 +261,15 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 				return err
 			}
 		}
+	}
+
+	// Map Initialization.Provisioned → Ready (bool)
+	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
+
+	// Map deprecated failure fields to v1alpha1 top-level
+	if in.Deprecated != nil && in.Deprecated.V1Beta1 != nil {
+		out.FailureReason = in.Deprecated.V1Beta1.FailureReason
+		out.FailureMessage = in.Deprecated.V1Beta1.FailureMessage
 	}
 
 	if in.VMStatus != nil {
@@ -376,6 +405,22 @@ func Convert_v1alpha1_RoutingPolicySpec_To_v1alpha2_RoutingPolicySpec(in *Routin
 	return nil
 }
 
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
+	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
+		return err
+	}
+
+	// Manual ControlPlaneEndpoint conversion: v1alpha1 pointer → v1alpha2 value
+	if in.ControlPlaneEndpoint != nil {
+		out.ControlPlaneEndpoint = clusterv1beta2.APIEndpoint{
+			Host: in.ControlPlaneEndpoint.Host,
+			Port: in.ControlPlaneEndpoint.Port,
+		}
+	}
+
+	return nil
+}
+
 func Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in *ProxmoxClusterCloneSpec, out *capmoxv2.ProxmoxClusterCloneSpec, s conversion.Scope) error {
 	err := autoConvert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in, out, s)
 	if err != nil {
@@ -418,6 +463,23 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 				return err
 			}
 		}
+	}
+
+	// Map Ready → Initialization.Provisioned
+	if in.Ready {
+		out.Initialization.Provisioned = ptr.To(true)
+	}
+
+	// Map FailureReason/FailureMessage → Deprecated.V1Beta1
+	if in.FailureReason != nil || in.FailureMessage != nil {
+		if out.Deprecated == nil {
+			out.Deprecated = &capmoxv2.ProxmoxMachineDeprecatedStatus{}
+		}
+		if out.Deprecated.V1Beta1 == nil {
+			out.Deprecated.V1Beta1 = &capmoxv2.ProxmoxMachineV1Beta1DeprecatedStatus{}
+		}
+		out.Deprecated.V1Beta1.FailureReason = in.FailureReason
+		out.Deprecated.V1Beta1.FailureMessage = in.FailureMessage
 	}
 
 	if in.VMStatus != "" {
@@ -463,6 +525,23 @@ func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *
 				return err
 			}
 		}
+	}
+
+	// Map Ready → Initialization.Provisioned
+	if in.Ready {
+		out.Initialization.Provisioned = ptr.To(true)
+	}
+
+	// Map FailureReason/FailureMessage → Deprecated.V1Beta1
+	if in.FailureReason != nil || in.FailureMessage != nil {
+		if out.Deprecated == nil {
+			out.Deprecated = &capmoxv2.ProxmoxClusterDeprecatedStatus{}
+		}
+		if out.Deprecated.V1Beta1 == nil {
+			out.Deprecated.V1Beta1 = &capmoxv2.ProxmoxClusterV1Beta1DeprecatedStatus{}
+		}
+		out.Deprecated.V1Beta1.FailureReason = in.FailureReason
+		out.Deprecated.V1Beta1.FailureMessage = in.FailureMessage
 	}
 
 	return nil
