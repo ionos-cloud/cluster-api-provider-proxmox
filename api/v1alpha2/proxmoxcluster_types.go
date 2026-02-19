@@ -102,6 +102,7 @@ type ProxmoxClusterSpec struct {
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.
 // +kubebuilder:validation:MinProperties=1
+// +kubebuilder:validation:XValidation:rule="self.port > 0 && self.port < 65536",message="port must be within 1-65535"
 type APIEndpoint struct {
 	// host is the hostname on which the API server is serving.
 	// +optional
