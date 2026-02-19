@@ -208,6 +208,13 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
+	// Ensure initialization status is always set so the status subresource
+	// passes CRD validation (initialization is required with minProperties:1).
+	// SetReady() will override this to true when all reconciliation succeeds.
+	if clusterScope.ProxmoxCluster.Status.Initialization.Provisioned == nil {
+		clusterScope.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(false)
+	}
+
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.IsZero() {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
