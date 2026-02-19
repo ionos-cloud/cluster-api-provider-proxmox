@@ -33,9 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -75,7 +75,11 @@ func (f FakeIgnitionISOInjector) Inject(_ context.Context, _ inject.BootstrapDat
 func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
 	machineScope, mockClient, client := setupReconcilerTest(t)
 
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, condition, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionFalse,
+		Reason: condition,
+	})
 
 	return machineScope, mockClient, client
 }
@@ -231,13 +235,19 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 }
 
 func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, offset int, pool *corev1.TypedLocalObjectReference) {
-	prefix := ip.Bits()
+	prefix := int32(ip.Bits())
 	var gateway string
+	var poolRef ipamv1.IPPoolReference
 
 	if pool != nil {
+		poolRef = ipamv1.IPPoolReference{
+			APIGroup: ptr.Deref(pool.APIGroup, ""),
+			Kind:     pool.Kind,
+			Name:     pool.Name,
+		}
 		ipAddrClaim := &ipamv1.IPAddressClaim{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+				APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
@@ -253,21 +263,21 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 				}},
 			},
 			Spec: ipamv1.IPAddressClaimSpec{
-				PoolRef: *pool,
+				PoolRef: poolRef,
 			},
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
 		poolSpec := getPoolSpec(getIPAddressPool(t, machineScope, *pool))
 		if poolSpec.prefix != 0 {
-			prefix = poolSpec.prefix
+			prefix = int32(poolSpec.prefix)
 		}
 		gateway = poolSpec.gateway
 	}
 
 	ipAddr := &ipamv1.IPAddress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+			APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -275,9 +285,9 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		},
 		Spec: ipamv1.IPAddressSpec{
 			Address: ip.Addr().String(),
-			Prefix:  prefix,
+			Prefix:  ptr.To(prefix),
 			Gateway: gateway,
-			PoolRef: ptr.Deref(pool, corev1.TypedLocalObjectReference{}),
+			PoolRef: poolRef,
 		},
 	}
 	require.NoError(t, c.Create(context.Background(), ipAddr))
@@ -613,8 +623,8 @@ func newVMWithNets(def string, additional ...string) *proxmox.VirtualMachine {
 // requireConditionIsFalse asserts that the given conditions exists and has status "False".
 func requireConditionIsFalse(t *testing.T, getter conditions.Getter, cond clusterv1.ConditionType) {
 	t.Helper()
-	require.Truef(t, conditions.Has(getter, cond),
-		"%T %s does not have condition %v", getter, getter.GetName(), cond)
-	require.Truef(t, conditions.IsFalse(getter, cond),
-		"expected condition to be %q, got %q", cond, corev1.ConditionFalse, conditions.Get(getter, cond).Status)
+	require.Truef(t, conditions.Has(getter, string(cond)),
+		"%T does not have condition %v", getter, cond)
+	require.Truef(t, conditions.IsFalse(getter, string(cond)),
+		"expected condition to be %q, got %q", cond, corev1.ConditionFalse, conditions.Get(getter, string(cond)).Status)
 }

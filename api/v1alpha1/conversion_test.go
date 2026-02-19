@@ -74,6 +74,7 @@ func ProxmoxMachineFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 		hubProxmoxMachineStatus,
 		hubRoutingPolicySpec,
 		spokeProxmoxMachineSpec,
+		spokeProxmoxMachineStatus,
 	}
 }
 
@@ -191,9 +192,9 @@ func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interfa
 func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
 
-	// Status: Ready boolean nil -> false conversion
-	if in.Ready == nil {
-		in.Ready = ptr.To(false)
+	// Status: Initialization.Provisioned boolean nil -> false conversion
+	if in.Initialization.Provisioned == nil {
+		in.Initialization.Provisioned = ptr.To(false)
 	}
 
 	if in.VMStatus != nil && *in.VMStatus == "" {
@@ -202,6 +203,13 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 
 	if in.RetryAfter != nil && in.RetryAfter.IsZero() {
 		in.RetryAfter = nil
+	}
+
+	// Normalize Conditions: metav1.Condition doesn't have Severity field,
+	// and ObservedGeneration is not preserved during v1beta1 <-> metav1 conversion
+	for i := range in.Conditions {
+		// ObservedGeneration is set to 0 when converting from v1beta1.Condition (which doesn't have it)
+		in.Conditions[i].ObservedGeneration = 0
 	}
 
 	// Normalize IPAddresses IPv4/IPv6 empty strings
@@ -247,6 +255,19 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 			in.Network[i].NetworkName = ptr.To("net0")
 		}
 	}
+
+	// Normalize Deprecated status to match hub→spoke→hub round-trip behavior.
+	// Since Initialization.Provisioned is always non-nil (normalized above),
+	// ConvertTo always creates Deprecated.V1Beta1 and syncs Ready = Provisioned.
+	// FailureReason/FailureMessage survive through v1alpha1 top-level fields.
+	if in.Deprecated == nil {
+		in.Deprecated = &v1alpha2.ProxmoxMachineDeprecatedStatus{}
+	}
+	if in.Deprecated.V1Beta1 == nil {
+		in.Deprecated.V1Beta1 = &v1alpha2.ProxmoxMachineV1Beta1DeprecatedStatus{}
+	}
+	// Ready is always overwritten by Initialization.Provisioned during ConvertTo
+	in.Deprecated.V1Beta1.Ready = in.Initialization.Provisioned
 }
 
 func spokeProxmoxMachineSpec(in *ProxmoxMachineSpec, c randfill.Continue) {
@@ -357,6 +378,7 @@ func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
 		spokeProxmoxMachineSpec,
+		spokeProxmoxClusterStatus,
 	}
 }
 
@@ -395,6 +417,34 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 			in.NodeLocations.Workers[i].Zone = nil
 		}
 	}
+
+	// Normalize Conditions: metav1.Condition doesn't have Severity field,
+	// and ObservedGeneration is not preserved during v1beta1 <-> metav1 conversion
+	for i := range in.Conditions {
+		// ObservedGeneration is set to 0 when converting from v1beta1.Condition (which doesn't have it)
+		in.Conditions[i].ObservedGeneration = 0
+	}
+
+	// Normalize Deprecated status to match hub→spoke→hub round-trip behavior.
+	// During round-trip:
+	// - V1Beta1.FailureReason/FailureMessage survive through v1alpha1 top-level fields
+	// - V1Beta1.Ready is always synced from Initialization.Provisioned in ConvertTo
+	// - An empty Deprecated wrapper (no failure data and Provisioned is nil) is lost
+	hasFailures := in.Deprecated != nil && in.Deprecated.V1Beta1 != nil &&
+		(in.Deprecated.V1Beta1.FailureReason != nil || in.Deprecated.V1Beta1.FailureMessage != nil)
+
+	if hasFailures || in.Initialization.Provisioned != nil {
+		if in.Deprecated == nil {
+			in.Deprecated = &v1alpha2.ProxmoxClusterDeprecatedStatus{}
+		}
+		if in.Deprecated.V1Beta1 == nil {
+			in.Deprecated.V1Beta1 = &v1alpha2.ProxmoxClusterV1Beta1DeprecatedStatus{}
+		}
+		// Ready is always overwritten by Initialization.Provisioned during ConvertTo
+		in.Deprecated.V1Beta1.Ready = in.Initialization.Provisioned
+	} else {
+		in.Deprecated = nil
+	}
 }
 
 func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
@@ -405,4 +455,30 @@ func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 		in.Priority = nil
 	}
 
+}
+
+func spokeProxmoxMachineStatus(in *ProxmoxMachineStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// Normalize Conditions: v1beta1.Condition has Severity field, but metav1.Condition doesn't.
+	// When converting hub (metav1) -> spoke (v1beta1), Severity is set to "" (empty string),
+	// but during spoke -> hub -> spoke, it should remain consistent.
+	// We normalize to empty string to match the conversion behavior.
+	for i := range in.Conditions {
+		// Severity is lost when going through metav1.Condition (hub)
+		in.Conditions[i].Severity = ""
+	}
+}
+
+func spokeProxmoxClusterStatus(in *ProxmoxClusterStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// Normalize Conditions: v1beta1.Condition has Severity field, but metav1.Condition doesn't.
+	// When converting hub (metav1) -> spoke (v1beta1), Severity is set to "" (empty string),
+	// but during spoke -> hub -> spoke, it should remain consistent.
+	// We normalize to empty string to match the conversion behavior.
+	for i := range in.Conditions {
+		// Severity is lost when going through metav1.Condition (hub)
+		in.Conditions[i].Severity = ""
+	}
 }

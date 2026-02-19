@@ -16,7 +16,7 @@ limitations under the License.
 
 package v1alpha2
 
-import clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+import clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 const (
 	// VMProvisionedCondition documents the status of the provisioning of a ProxmoxMachine and its underlying ProxmoxVM.
@@ -25,8 +25,14 @@ const (
 	// VMProvisionFailedReason used for failures during instance provisioning.
 	VMProvisionFailedReason = "VMProvisionFailed"
 
+	// VMProvisionSucceededReason used when VM provisioning completed successfully.
+	VMProvisionSucceededReason = "VMProvisionSucceeded"
+
 	// VMTerminatedReason used when vm is being terminated.
 	VMTerminatedReason = "VMTerminated"
+
+	// VMDeletionFailedReason used when VM deletion fails.
+	VMDeletionFailedReason = "VMDeletionFailed"
 
 	// WaitingForClusterInfrastructureReason (Severity=Info) documents a ProxmoxMachine waiting for the cluster
 	// infrastructure to be ready before starting the provisioning process.
@@ -115,4 +121,7 @@ const (
 	// ProxmoxUnreachableReason (Severity=Error) documents a controller detecting
 	// issues with Proxmox reachability.
 	ProxmoxUnreachableReason = "ProxmoxUnreachable"
+
+	// ProxmoxClusterReadyReason documents that the ProxmoxCluster is ready.
+	ProxmoxClusterReadyReason = "ProxmoxClusterReady"
 )

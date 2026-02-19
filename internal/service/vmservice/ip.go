@@ -27,10 +27,10 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	ipam "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
@@ -38,7 +38,7 @@ import (
 )
 
 func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForStaticIPAllocationReason {
+	if conditions.GetReason(machineScope.ProxmoxMachine, string(infrav1.VMProvisionedCondition)) != infrav1.WaitingForStaticIPAllocationReason {
 		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for IP Address assignment
 		return false, nil
 	}
@@ -89,7 +89,11 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 		pm.SetIPAddresses(ipSpec)
 	}
 
-	conditions.MarkFalse(pm, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.WaitingForBootstrapDataReconcilationReason,
+	})
 
 	return true, nil
 }

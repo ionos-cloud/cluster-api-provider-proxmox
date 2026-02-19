@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -142,7 +142,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
 				Host: "10.10.10.1",
 				Port: 6443,
 			},
@@ -173,7 +173,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 
 func invalidProxmoxCluster(name string) infrav1.ProxmoxCluster {
 	cl := validProxmoxCluster(name)
-	cl.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+	cl.Spec.ControlPlaneEndpoint = clusterv1.APIEndpoint{
 		Host: "10.10.10.2",
 		Port: 6443,
 	}

@@ -20,15 +20,11 @@ import (
 	"context"
 	"strings"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-
-	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
-
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
-	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -48,7 +44,11 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 			ctrlutil.RemoveFinalizer(machineScope.ProxmoxMachine, infrav1.MachineFinalizer)
 			return machineScope.InfraCluster.PatchObject()
 		}
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, clusterv1.DeletionFailedReason, clusterv1.ConditionSeverityWarning, "")
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:   string(infrav1.VMProvisionedCondition),
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.VMDeletionFailedReason,
+		})
 		return err
 	}
 

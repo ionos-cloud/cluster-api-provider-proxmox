@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterapierrors "sigs.k8s.io/cluster-api/errors"
 )
 
@@ -69,6 +69,7 @@ type ProxmoxMachineSpec struct {
 	// providerID is the virtual machine BIOS UUID formatted as
 	// proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
 	// +optional
+	// +kubebuilder:validation:Pattern=`^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`
 	ProviderID *string `json:"providerID,omitempty"`
 
 	// virtualMachineID is the Proxmox identifier for the ProxmoxMachine VM.
@@ -446,9 +447,16 @@ type MTU *int32
 
 // ProxmoxMachineStatus defines the observed state of a ProxmoxMachine.
 type ProxmoxMachineStatus struct {
-	// ready indicates the Docker infrastructure has been provisioned and is ready.
+	// conditions defines current service state of the ProxmoxMachine.
 	// +optional
-	Ready *bool `json:"ready,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"` //nolint:kubeapilinter // patchStrategy not applicable, using SSA
+
+	// initialization provides observations of the ProxmoxMachine initialization process.
+	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Machine provisioning.
+	// +required
+	Initialization ProxmoxMachineInitializationStatus `json:"initialization,omitzero"`
 
 	// addresses contains the Proxmox VM instance associated addresses.
 	// +optional
@@ -469,7 +477,7 @@ type ProxmoxMachineStatus struct {
 	// +listMapKey=net
 	IPAddresses []IPAddressesSpec `json:"ipAddresses,omitempty"`
 
-	// network returns the network status for each of the machine's configured.
+	// network returns the network status for each of the machine's configured
 	// network interfaces.
 	// +optional
 	// +listType=atomic
@@ -490,51 +498,10 @@ type ProxmoxMachineStatus struct {
 	// +optional
 	RetryAfter *metav1.Time `json:"retryAfter,omitempty"`
 
-	// failureReason will be set in the event that there is a terminal problem
-	// reconciling the Machine and will contain a succinct value suitable
-	// for machine interpretation.
-	//
-	// This field should not be set for transitive errors that a controller
-	// faces that are expected to be fixed automatically over
-	// time (like service outages), but instead indicate that something is
-	// fundamentally wrong with the Machine's spec or the configuration of
-	// the controller, and that manual intervention is required. Examples
-	// of terminal errors would be invalid combinations of settings in the
-	// spec, values that are unsupported by the controller, or the
-	// responsible controller itself being critically misconfigured.
-	//
-	// Any transient errors that occur during the reconciliation of ProxmoxMachines
-	// can be added as events to the ProxmoxMachine object and/or logged in the
-	// controller's output.
+	// deprecated groups all the status fields that are deprecated
+	// and will be removed in a future version.
 	// +optional
-	FailureReason *clusterapierrors.MachineStatusError `json:"failureReason,omitempty"`
-
-	// failureMessage will be set in the event that there is a terminal problem
-	// reconciling the Machine and will contain a more verbose string suitable
-	// for logging and human consumption.
-	//
-	// This field should not be set for transitive errors that a controller
-	// faces that are expected to be fixed automatically over
-	// time (like service outages), but instead indicate that something is
-	// fundamentally wrong with the Machine's spec or the configuration of
-	// the controller, and that manual intervention is required. Examples
-	// of terminal errors would be invalid combinations of settings in the
-	// spec, values that are unsupported by the controller, or the
-	// responsible controller itself being critically misconfigured.
-	//
-	// Any transient errors that occur during the reconciliation of ProxmoxMachines
-	// can be added as events to the ProxmoxMachine object and/or logged in the
-	// controller's output.
-	// +optional
-	FailureMessage *string `json:"failureMessage,omitempty"`
-
-	// conditions defines current service state of the ProxmoxMachine.
-	// +optional
-	//nolint:kubeapilinter
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-	// Justification: kubeapilinter returns a false positive on fields called Conditions
-	// because type is assumed to be metav1.Conditions.
-	// This needs to wait for cluster-api.v1beta2.
+	Deprecated *ProxmoxMachineDeprecatedStatus `json:"deprecated,omitempty"`
 }
 
 // IPAddressesSpec stores the IP addresses of a network interface. Used for status.
@@ -576,6 +543,59 @@ type VMIDRange struct {
 	End int64 `json:"end,omitempty"`
 }
 
+// ProxmoxMachineInitializationStatus provides observations of the ProxmoxMachine initialization process.
+// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Machine provisioning.
+// +kubebuilder:validation:MinProperties=1
+type ProxmoxMachineInitializationStatus struct {
+	// provisioned is true when the infrastructure provider reports that the
+	// machine infrastructure is fully provisioned.
+	// NOTE: this field is part of the Cluster API contract, and it is used to
+	// orchestrate initial Machine provisioning.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
+}
+
+// ProxmoxMachineDeprecatedStatus groups all the status fields that are deprecated
+// and will be removed in a future version.
+type ProxmoxMachineDeprecatedStatus struct {
+	// v1beta1 groups all the status fields that are deprecated and will be
+	// removed when support for v1alpha1 is dropped. These fields are only
+	// used for conversion between v1alpha1 and v1alpha2.
+	//
+	// Deprecated: This field is deprecated and will be removed in v1alpha3.
+	// +optional
+	V1Beta1 *ProxmoxMachineV1Beta1DeprecatedStatus `json:"v1beta1,omitempty"`
+}
+
+// ProxmoxMachineV1Beta1DeprecatedStatus groups the v1beta1 status fields that are
+// deprecated and only maintained for conversion with v1alpha1.
+//
+// Deprecated: All fields in this struct are deprecated and will be removed in v1alpha3.
+type ProxmoxMachineV1Beta1DeprecatedStatus struct {
+	// ready indicates the infrastructure has been provisioned and is ready.
+	//
+	// Deprecated: Use status.initialization.provisioned instead. This field is
+	// maintained only for conversion with v1alpha1 and will be removed in v1alpha3.
+	// +optional
+	Ready *bool `json:"ready,omitempty"`
+
+	// failureReason will be set in the event that there is a terminal problem
+	// reconciling the Machine.
+	//
+	// Deprecated: This field is maintained only for conversion with v1alpha1
+	// and will be removed in v1alpha3.
+	// +optional
+	FailureReason *clusterapierrors.MachineStatusError `json:"failureReason,omitempty"`
+
+	// failureMessage will be set in the event that there is a terminal problem
+	// reconciling the Machine.
+	//
+	// Deprecated: This field is maintained only for conversion with v1alpha1
+	// and will be removed in v1alpha3.
+	// +optional
+	FailureMessage *string `json:"failureMessage,omitempty"`
+}
+
 // MetadataSettings defines the metadata settings for the machine.
 type MetadataSettings struct {
 	// providerIDInjection enables the injection of the `providerID` into the cloudinit metadata.
@@ -589,7 +609,7 @@ type MetadataSettings struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxmachines,scope=Namespaced,categories=cluster-api;proxmox,shortName=moxm
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this ProxmoxMachine belongs"
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Machine ready status"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.initialization.provisioned",description="Machine ready status"
 // +kubebuilder:printcolumn:name="Node",type="string",JSONPath=".status.proxmoxNode",description="Proxmox Node that the machine was deployed on"
 // +kubebuilder:printcolumn:name="Provider_ID",type="string",JSONPath=".spec.providerID",description="Provider ID"
 // +kubebuilder:printcolumn:name="Machine",type="string",JSONPath=".metadata.ownerReferences[?(@.kind==\"Machine\")].name",description="Machine object which owns with this ProxmoxMachine"
@@ -661,12 +681,12 @@ func (r *ProxmoxMachine) SetIPAddresses(ipSpec IPAddressesSpec) {
 }
 
 // GetConditions returns the observations of the operational state of the ProxmoxMachine resource.
-func (r *ProxmoxMachine) GetConditions() clusterv1.Conditions {
+func (r *ProxmoxMachine) GetConditions() []metav1.Condition {
 	return r.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed clusterv1.Conditions.
-func (r *ProxmoxMachine) SetConditions(conditions clusterv1.Conditions) {
+// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed conditions.
+func (r *ProxmoxMachine) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
 }
 

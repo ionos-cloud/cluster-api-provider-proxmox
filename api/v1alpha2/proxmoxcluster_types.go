@@ -22,7 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,7 +42,10 @@ type ProxmoxClusterSpec struct {
 	// controlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.port > 0 && self.port < 65536",message="port must be within 1-65535"
-	ControlPlaneEndpoint *clusterv1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`
+	//nolint:kubeapilinter
+	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint,omitempty,omitzero"`
+	// Justification: CAPI v1beta2 contract requires a value type with omitzero, not a pointer.
+	// The APIEndpoint type implements IsZero() for proper omitzero semantics.
 
 	// externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
 	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
@@ -207,10 +210,16 @@ func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
 
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
 type ProxmoxClusterStatus struct {
-	// ready indicates that the cluster is ready.
-	// +default=false
+	// conditions defines the current service state of the ProxmoxCluster.
 	// +optional
-	Ready *bool `json:"ready,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"` //nolint:kubeapilinter // patchStrategy not applicable, using SSA
+
+	// initialization provides observations of the ProxmoxCluster initialization process.
+	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
+	// +required
+	Initialization ProxmoxClusterInitializationStatus `json:"initialization,omitzero"`
 
 	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.
 	// +listType=atomic
@@ -232,52 +241,10 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	NodeLocations *NodeLocations `json:"nodeLocations,omitempty"`
 
-	// failureReason will be set in the event that there is a terminal problem
-	// reconciling the Machine and will contain a succinct value suitable
-	// for machine interpretation.
-	//
-	// This field should not be set for transitive errors that a controller
-	// faces that are expected to be fixed automatically over
-	// time (like service outages), but instead indicate that something is
-	// fundamentally wrong with the Machine's spec or the configuration of
-	// the controller, and that manual intervention is required. Examples
-	// of terminal errors would be invalid combinations of settings in the
-	// spec, values that are unsupported by the controller, or the
-	// responsible controller itself being critically misconfigured.
-	//
-	// Any transient errors that occur during the reconciliation of ProxmoxCluster
-	// can be added as events to the ProxmoxCluster object and/or logged in the
-	// controller's output.
+	// deprecated groups all the status fields that are deprecated
+	// and will be removed in a future version.
 	// +optional
-	FailureReason *errors.ClusterStatusError `json:"failureReason,omitempty"`
-
-	// failureMessage will be set in the event that there is a terminal problem
-	// reconciling the Machine and will contain a more verbose string suitable
-	// for logging and human consumption.
-	//
-	// This field should not be set for transitive errors that a controller
-	// faces that are expected to be fixed automatically over
-	// time (like service outages), but instead indicate that something is
-	// fundamentally wrong with the Machine's spec or the configuration of
-	// the controller, and that manual intervention is required. Examples
-	// of terminal errors would be invalid combinations of settings in the
-	// spec, values that are unsupported by the controller, or the
-	// responsible controller itself being critically misconfigured.
-	//
-	// Any transient errors that occur during the reconciliation of ProxmoxMachines
-	// can be added as events to the ProxmoxCluster object and/or logged in the
-	// controller's output.
-	// +optional
-	FailureMessage *string `json:"failureMessage,omitempty"`
-
-	// conditions defines the current service state of the ProxmoxCluster.
-	// +optional
-	//nolint:kubeapilinter
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-	// Justification: kubeapilinter returns a false positive on fields called Conditions
-	// because type is assumed to be metav1.Conditions.
-	// deepcopy-gen wrongly infers the type when this is a pointer to clusterv1.Conditions,
-	// So we need to store *[]clusterv1.Condition to create correct deepcopy code.
+	Deprecated *ProxmoxClusterDeprecatedStatus `json:"deprecated,omitempty"`
 }
 
 // InClusterZoneRef holds the InClusterIPPools associated with a zone.
@@ -328,12 +295,65 @@ type NodeLocation struct {
 	Zone Zone `json:"zone,omitempty"`
 }
 
+// ProxmoxClusterInitializationStatus provides observations of the ProxmoxCluster initialization process.
+// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
+// +kubebuilder:validation:MinProperties=1
+type ProxmoxClusterInitializationStatus struct {
+	// provisioned is true when the infrastructure provider reports that the
+	// cluster infrastructure is fully provisioned.
+	// NOTE: this field is part of the Cluster API contract, and it is used to
+	// orchestrate initial Cluster provisioning.
+	// +optional
+	Provisioned *bool `json:"provisioned,omitempty"`
+}
+
+// ProxmoxClusterDeprecatedStatus groups all the status fields that are deprecated
+// and will be removed in a future version.
+type ProxmoxClusterDeprecatedStatus struct {
+	// v1beta1 groups all the status fields that are deprecated and will be
+	// removed when support for v1alpha1 is dropped. These fields are only
+	// used for conversion between v1alpha1 and v1alpha2.
+	//
+	// Deprecated: This field is deprecated and will be removed in v1alpha3.
+	// +optional
+	V1Beta1 *ProxmoxClusterV1Beta1DeprecatedStatus `json:"v1beta1,omitempty"`
+}
+
+// ProxmoxClusterV1Beta1DeprecatedStatus groups the v1beta1 status fields that are
+// deprecated and only maintained for conversion with v1alpha1.
+//
+// Deprecated: All fields in this struct are deprecated and will be removed in v1alpha3.
+type ProxmoxClusterV1Beta1DeprecatedStatus struct {
+	// ready indicates that the cluster is ready.
+	//
+	// Deprecated: Use status.initialization.provisioned instead. This field is
+	// maintained only for conversion with v1alpha1 and will be removed in v1alpha3.
+	// +optional
+	Ready *bool `json:"ready,omitempty"`
+
+	// failureReason will be set in the event that there is a terminal problem
+	// reconciling the cluster.
+	//
+	// Deprecated: This field is maintained only for conversion with v1alpha1
+	// and will be removed in v1alpha3.
+	// +optional
+	FailureReason *errors.ClusterStatusError `json:"failureReason,omitempty"`
+
+	// failureMessage will be set in the event that there is a terminal problem
+	// reconciling the cluster.
+	//
+	// Deprecated: This field is maintained only for conversion with v1alpha1
+	// and will be removed in v1alpha3.
+	// +optional
+	FailureMessage *string `json:"failureMessage,omitempty"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxclusters,scope=Namespaced,categories=cluster-api,singular=proxmoxcluster
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels['cluster\\.x-k8s\\.io/cluster-name']",description="Cluster"
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Cluster infrastructure is ready"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.initialization.provisioned",description="Cluster infrastructure is ready"
 // +kubebuilder:printcolumn:name="Endpoint",type="string",JSONPath=".spec.controlPlaneEndpoint",description="API Endpoint"
 
 // ProxmoxCluster is the Schema for the proxmoxclusters API.
@@ -366,12 +386,12 @@ type ProxmoxClusterList struct {
 }
 
 // GetConditions returns the observations of the operational state of the ProxmoxCluster resource.
-func (c *ProxmoxCluster) GetConditions() clusterv1.Conditions {
+func (c *ProxmoxCluster) GetConditions() []metav1.Condition {
 	return c.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed clusterv1.Conditions.
-func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
+// SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed conditions.
+func (c *ProxmoxCluster) SetConditions(conditions []metav1.Condition) {
 	c.Status.Conditions = conditions
 }
 

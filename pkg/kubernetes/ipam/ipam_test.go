@@ -30,8 +30,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -340,16 +340,16 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 			Namespace: getCluster().GetNamespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
-			ClaimRef: corev1.LocalObjectReference{
+			ClaimRef: ipamv1.IPAddressClaimReference{
 				Name: getCluster().GetName(),
 			},
-			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.GroupVersion().String()),
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     "test-ippool-annotations",
 			},
 			Address: "10.10.11.11",
-			Prefix:  24,
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.11.254",
 		},
 	}
@@ -563,23 +563,23 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 	return &ipamv1.IPAddress{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "IPAddress",
-			APIVersion: "ipam.cluster.x-k8s.io/v1beta1",
+			APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      owner.GetName(),
 			Namespace: owner.GetNamespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
-			ClaimRef: corev1.LocalObjectReference{
+			ClaimRef: ipamv1.IPAddressClaimReference{
 				Name: owner.GetName(),
 			},
-			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.GroupVersion().String()),
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
 			Address: "10.10.10.11",
-			Prefix:  24,
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.10.1",
 		},
 	}

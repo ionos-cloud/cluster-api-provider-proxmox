@@ -31,10 +31,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clustererrors "sigs.k8s.io/cluster-api/errors"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/patch"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -73,6 +73,8 @@ type ClusterScope struct {
 
 // NewClusterScope creates a new Scope from the supplied parameters.
 // This is meant to be called for each reconcile iteration.
+//
+//nolint:staticcheck // SA1019: v1beta1 compat
 func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	if params.Client == nil {
 		return nil, errors.New("Client is required when creating a ClusterScope")
@@ -112,8 +114,8 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
 			// Fail the cluster if no credentials found.
 			// set failure reason
-			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
 
 			if err = clusterScope.Close(); err != nil {
 				return nil, err
@@ -131,6 +133,7 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	return clusterScope, nil
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, error) {
 	// get the credentials secret
 	secret := corev1.Secret{}
@@ -145,8 +148,8 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// set failure reason
-			s.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			s.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found")
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
@@ -206,13 +209,15 @@ func (s *ClusterScope) KubernetesClusterName() string {
 // PatchObject persists the cluster configuration and status.
 func (s *ClusterScope) PatchObject() error {
 	// always update the readyCondition.
-	conditions.SetSummary(s.ProxmoxCluster,
-		conditions.WithConditions(
-			infrav1.ProxmoxClusterReady,
-		),
+	_ = conditions.SetSummaryCondition(s.ProxmoxCluster, s.ProxmoxCluster, string(clusterv1.ReadyCondition),
+		conditions.ForConditionTypes{string(infrav1.ProxmoxClusterReady)},
 	)
 
-	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster)
+	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster,
+		patch.WithOwnedConditions{Conditions: []string{
+			string(clusterv1.ReadyCondition),
+			string(infrav1.ProxmoxClusterReady),
+		}})
 }
 
 // ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.
@@ -232,4 +237,43 @@ func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]inf
 // Close closes the current scope persisting the cluster configuration and status.
 func (s *ClusterScope) Close() error {
 	return s.PatchObject()
+}
+
+// ensureDeprecatedV1Beta1ClusterStatus returns the V1Beta1 deprecated status,
+// initializing the nested structs if necessary.
+//
+//nolint:staticcheck // SA1019: v1beta1 compat
+func (s *ClusterScope) ensureDeprecatedV1Beta1ClusterStatus() *infrav1.ProxmoxClusterV1Beta1DeprecatedStatus {
+	if s.ProxmoxCluster.Status.Deprecated == nil {
+		s.ProxmoxCluster.Status.Deprecated = &infrav1.ProxmoxClusterDeprecatedStatus{}
+	}
+	if s.ProxmoxCluster.Status.Deprecated.V1Beta1 == nil {
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1 = &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{}
+	}
+	return s.ProxmoxCluster.Status.Deprecated.V1Beta1
+}
+
+// SetReady sets the ProxmoxCluster as provisioned.
+func (s *ClusterScope) SetReady() {
+	s.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
+	s.ensureDeprecatedV1Beta1ClusterStatus().Ready = ptr.To(true) //nolint:staticcheck // SA1019: v1beta1 compat
+}
+
+// SetFailureMessage sets the ProxmoxCluster failure message in the deprecated status.
+func (s *ClusterScope) SetFailureMessage(msg string) {
+	s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To(msg) //nolint:staticcheck // SA1019: v1beta1 compat
+}
+
+// SetFailureReason sets the ProxmoxCluster failure reason in the deprecated status.
+func (s *ClusterScope) SetFailureReason(v clustererrors.ClusterStatusError) {
+	s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(v) //nolint:staticcheck // SA1019: v1beta1 compat
+}
+
+// ClearFailure clears the failure reason and message from the deprecated status.
+func (s *ClusterScope) ClearFailure() {
+	//nolint:staticcheck // SA1019: v1beta1 compat
+	if s.ProxmoxCluster.Status.Deprecated != nil && s.ProxmoxCluster.Status.Deprecated.V1Beta1 != nil {
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureMessage = nil
+		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureReason = nil
+	}
 }

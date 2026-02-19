@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clustererrors "sigs.k8s.io/cluster-api/errors"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -59,6 +59,7 @@ func TestNewClusterScope_MissingParams(t *testing.T) {
 	}
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 	k8sClient := getFakeClient(t)
 
@@ -87,7 +88,9 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewClusterScope(test.params)
 			require.Error(t, err)
-			require.Equal(t, proxmoxCluster.Status.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError))
+			require.NotNil(t, proxmoxCluster.Status.Deprecated)
+			require.NotNil(t, proxmoxCluster.Status.Deprecated.V1Beta1)
+			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError))
 		})
 	}
 }

@@ -14,7 +14,7 @@ import (
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	v1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	errors "sigs.k8s.io/cluster-api/errors"
+	v1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 func init() {
@@ -104,16 +104,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*ProxmoxClusterSpec)(nil), (*v1alpha2.ProxmoxClusterSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(a.(*ProxmoxClusterSpec), b.(*v1alpha2.ProxmoxClusterSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*ProxmoxClusterStatus)(nil), (*v1alpha2.ProxmoxClusterStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(a.(*ProxmoxClusterStatus), b.(*v1alpha2.ProxmoxClusterStatus), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*ProxmoxClusterTemplate)(nil), (*v1alpha2.ProxmoxClusterTemplate)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ProxmoxClusterTemplate_To_v1alpha2_ProxmoxClusterTemplate(a.(*ProxmoxClusterTemplate), b.(*v1alpha2.ProxmoxClusterTemplate), scope)
 	}); err != nil {
@@ -131,16 +121,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*v1alpha2.ProxmoxClusterTemplateList)(nil), (*ProxmoxClusterTemplateList)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha2_ProxmoxClusterTemplateList_To_v1alpha1_ProxmoxClusterTemplateList(a.(*v1alpha2.ProxmoxClusterTemplateList), b.(*ProxmoxClusterTemplateList), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*ProxmoxClusterTemplateResource)(nil), (*v1alpha2.ProxmoxClusterTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(a.(*ProxmoxClusterTemplateResource), b.(*v1alpha2.ProxmoxClusterTemplateResource), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1alpha2.ProxmoxClusterTemplateResource)(nil), (*ProxmoxClusterTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(a.(*v1alpha2.ProxmoxClusterTemplateResource), b.(*ProxmoxClusterTemplateResource), scope)
 	}); err != nil {
 		return err
 	}
@@ -211,16 +191,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*v1alpha2.ProxmoxMachineTemplateList)(nil), (*ProxmoxMachineTemplateList)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha2_ProxmoxMachineTemplateList_To_v1alpha1_ProxmoxMachineTemplateList(a.(*v1alpha2.ProxmoxMachineTemplateList), b.(*ProxmoxMachineTemplateList), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*ProxmoxMachineTemplateResource)(nil), (*v1alpha2.ProxmoxMachineTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(a.(*ProxmoxMachineTemplateResource), b.(*v1alpha2.ProxmoxMachineTemplateResource), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1alpha2.ProxmoxMachineTemplateResource)(nil), (*ProxmoxMachineTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(a.(*v1alpha2.ProxmoxMachineTemplateResource), b.(*ProxmoxMachineTemplateResource), scope)
 	}); err != nil {
 		return err
 	}
@@ -349,6 +319,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddConversionFunc((*v1.Condition)(nil), (*v1beta1.Condition)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1_Condition_To_v1beta1_Condition(a.(*v1.Condition), b.(*v1beta1.Condition), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddConversionFunc((*NetworkDevice)(nil), (*v1alpha2.NetworkDevice)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_NetworkDevice_To_v1alpha2_NetworkDevice(a.(*NetworkDevice), b.(*v1alpha2.NetworkDevice), scope)
 	}); err != nil {
@@ -364,8 +339,28 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddConversionFunc((*ProxmoxClusterSpec)(nil), (*v1alpha2.ProxmoxClusterSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(a.(*ProxmoxClusterSpec), b.(*v1alpha2.ProxmoxClusterSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*ProxmoxClusterStatus)(nil), (*v1alpha2.ProxmoxClusterStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(a.(*ProxmoxClusterStatus), b.(*v1alpha2.ProxmoxClusterStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*ProxmoxClusterTemplateResource)(nil), (*v1alpha2.ProxmoxClusterTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(a.(*ProxmoxClusterTemplateResource), b.(*v1alpha2.ProxmoxClusterTemplateResource), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddConversionFunc((*ProxmoxMachineStatus)(nil), (*v1alpha2.ProxmoxMachineStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(a.(*ProxmoxMachineStatus), b.(*v1alpha2.ProxmoxMachineStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*ProxmoxMachineTemplateResource)(nil), (*v1alpha2.ProxmoxMachineTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(a.(*ProxmoxMachineTemplateResource), b.(*v1alpha2.ProxmoxMachineTemplateResource), scope)
 	}); err != nil {
 		return err
 	}
@@ -419,8 +414,18 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddConversionFunc((*v1alpha2.ProxmoxClusterTemplateResource)(nil), (*ProxmoxClusterTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(a.(*v1alpha2.ProxmoxClusterTemplateResource), b.(*ProxmoxClusterTemplateResource), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddConversionFunc((*v1alpha2.ProxmoxMachineStatus)(nil), (*ProxmoxMachineStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(a.(*v1alpha2.ProxmoxMachineStatus), b.(*ProxmoxMachineStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1alpha2.ProxmoxMachineTemplateResource)(nil), (*ProxmoxMachineTemplateResource)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(a.(*v1alpha2.ProxmoxMachineTemplateResource), b.(*ProxmoxMachineTemplateResource), scope)
 	}); err != nil {
 		return err
 	}
@@ -431,6 +436,21 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*v1alpha2.RoutingPolicySpec)(nil), (*RoutingPolicySpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha2_RoutingPolicySpec_To_v1alpha1_RoutingPolicySpec(a.(*v1alpha2.RoutingPolicySpec), b.(*RoutingPolicySpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.Condition)(nil), (*v1.Condition)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_Condition_To_v1_Condition(a.(*v1beta1.Condition), b.(*v1.Condition), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.ObjectMeta)(nil), (*v1beta2.ObjectMeta)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(a.(*v1beta1.ObjectMeta), b.(*v1beta2.ObjectMeta), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta2.ObjectMeta)(nil), (*v1beta1.ObjectMeta)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(a.(*v1beta2.ObjectMeta), b.(*v1beta1.ObjectMeta), scope)
 	}); err != nil {
 		return err
 	}
@@ -831,7 +851,7 @@ func Convert_v1alpha2_ProxmoxClusterList_To_v1alpha1_ProxmoxClusterList(in *v1al
 }
 
 func autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *v1alpha2.ProxmoxClusterSpec, s conversion.Scope) error {
-	out.ControlPlaneEndpoint = (*v1beta1.APIEndpoint)(unsafe.Pointer(in.ControlPlaneEndpoint))
+	// WARNING: in.ControlPlaneEndpoint requires manual conversion: inconvertible types (*sigs.k8s.io/cluster-api/api/core/v1beta1.APIEndpoint vs sigs.k8s.io/cluster-api/api/core/v1beta2.APIEndpoint)
 	if err := v1.Convert_bool_To_Pointer_bool(&in.ExternalManagedControlPlane, &out.ExternalManagedControlPlane, s); err != nil {
 		return err
 	}
@@ -877,13 +897,8 @@ func autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *
 	return nil
 }
 
-// Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec is an autogenerated conversion function.
-func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *v1alpha2.ProxmoxClusterSpec, s conversion.Scope) error {
-	return autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s)
-}
-
 func autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
-	out.ControlPlaneEndpoint = (*v1beta1.APIEndpoint)(unsafe.Pointer(in.ControlPlaneEndpoint))
+	// WARNING: in.ControlPlaneEndpoint requires manual conversion: inconvertible types (sigs.k8s.io/cluster-api/api/core/v1beta2.APIEndpoint vs *sigs.k8s.io/cluster-api/api/core/v1beta1.APIEndpoint)
 	if err := v1.Convert_Pointer_bool_To_bool(&in.ExternalManagedControlPlane, &out.ExternalManagedControlPlane, s); err != nil {
 		return err
 	}
@@ -931,9 +946,7 @@ func autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *
 }
 
 func autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *ProxmoxClusterStatus, out *v1alpha2.ProxmoxClusterStatus, s conversion.Scope) error {
-	if err := v1.Convert_bool_To_Pointer_bool(&in.Ready, &out.Ready, s); err != nil {
-		return err
-	}
+	// WARNING: in.Ready requires manual conversion: does not exist in peer-type
 	out.InClusterIPPoolRef = *(*[]corev1.LocalObjectReference)(unsafe.Pointer(&in.InClusterIPPoolRef))
 	if in.NodeLocations != nil {
 		in, out := &in.NodeLocations, &out.NodeLocations
@@ -944,21 +957,35 @@ func autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(
 	} else {
 		out.NodeLocations = nil
 	}
-	out.FailureReason = (*errors.ClusterStatusError)(unsafe.Pointer(in.FailureReason))
-	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*v1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	// WARNING: in.FailureReason requires manual conversion: does not exist in peer-type
+	// WARNING: in.FailureMessage requires manual conversion: does not exist in peer-type
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta1_Condition_To_v1_Condition(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Conditions = nil
+	}
 	return nil
 }
 
-// Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus is an autogenerated conversion function.
-func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *ProxmoxClusterStatus, out *v1alpha2.ProxmoxClusterStatus, s conversion.Scope) error {
-	return autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s)
-}
-
 func autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, out *ProxmoxClusterStatus, s conversion.Scope) error {
-	if err := v1.Convert_Pointer_bool_To_bool(&in.Ready, &out.Ready, s); err != nil {
-		return err
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make(v1beta1.Conditions, len(*in))
+		for i := range *in {
+			if err := Convert_v1_Condition_To_v1beta1_Condition(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Conditions = nil
 	}
+	// WARNING: in.Initialization requires manual conversion: does not exist in peer-type
 	out.InClusterIPPoolRef = *(*[]corev1.LocalObjectReference)(unsafe.Pointer(&in.InClusterIPPoolRef))
 	// WARNING: in.InClusterZoneRef requires manual conversion: does not exist in peer-type
 	if in.NodeLocations != nil {
@@ -970,9 +997,7 @@ func autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(
 	} else {
 		out.NodeLocations = nil
 	}
-	out.FailureReason = (*errors.ClusterStatusError)(unsafe.Pointer(in.FailureReason))
-	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*v1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	// WARNING: in.Deprecated requires manual conversion: does not exist in peer-type
 	return nil
 }
 
@@ -1045,29 +1070,23 @@ func Convert_v1alpha2_ProxmoxClusterTemplateList_To_v1alpha1_ProxmoxClusterTempl
 }
 
 func autoConvert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in *ProxmoxClusterTemplateResource, out *v1alpha2.ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource is an autogenerated conversion function.
-func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in *ProxmoxClusterTemplateResource, out *v1alpha2.ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	return autoConvert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in, out, s)
-}
-
 func autoConvert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *v1alpha2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil
-}
-
-// Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource is an autogenerated conversion function.
-func Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *v1alpha2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	return autoConvert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in, out, s)
 }
 
 func autoConvert_v1alpha1_ProxmoxClusterTemplateSpec_To_v1alpha2_ProxmoxClusterTemplateSpec(in *ProxmoxClusterTemplateSpec, out *v1alpha2.ProxmoxClusterTemplateSpec, s conversion.Scope) error {
@@ -1283,10 +1302,8 @@ func Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in *v1al
 }
 
 func autoConvert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *ProxmoxMachineStatus, out *v1alpha2.ProxmoxMachineStatus, s conversion.Scope) error {
-	if err := v1.Convert_bool_To_Pointer_bool(&in.Ready, &out.Ready, s); err != nil {
-		return err
-	}
-	out.Addresses = *(*[]v1beta1.MachineAddress)(unsafe.Pointer(&in.Addresses))
+	// WARNING: in.Ready requires manual conversion: does not exist in peer-type
+	out.Addresses = *(*[]v1beta2.MachineAddress)(unsafe.Pointer(&in.Addresses))
 	// WARNING: in.VMStatus requires manual conversion: inconvertible types (github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1.VirtualMachineState vs *github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2.VirtualMachineState)
 	out.BootstrapDataProvided = (*bool)(unsafe.Pointer(in.BootstrapDataProvided))
 	// WARNING: in.IPAddresses requires manual conversion: inconvertible types (map[string]github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1.IPAddress vs []github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2.IPAddressesSpec)
@@ -1304,16 +1321,35 @@ func autoConvert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(
 	out.ProxmoxNode = (*string)(unsafe.Pointer(in.ProxmoxNode))
 	out.TaskRef = (*string)(unsafe.Pointer(in.TaskRef))
 	// WARNING: in.RetryAfter requires manual conversion: inconvertible types (k8s.io/apimachinery/pkg/apis/meta/v1.Time vs *k8s.io/apimachinery/pkg/apis/meta/v1.Time)
-	out.FailureReason = (*errors.MachineStatusError)(unsafe.Pointer(in.FailureReason))
-	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*v1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	// WARNING: in.FailureReason requires manual conversion: does not exist in peer-type
+	// WARNING: in.FailureMessage requires manual conversion: does not exist in peer-type
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta1_Condition_To_v1_Condition(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Conditions = nil
+	}
 	return nil
 }
 
 func autoConvert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, out *ProxmoxMachineStatus, s conversion.Scope) error {
-	if err := v1.Convert_Pointer_bool_To_bool(&in.Ready, &out.Ready, s); err != nil {
-		return err
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make(v1beta1.Conditions, len(*in))
+		for i := range *in {
+			if err := Convert_v1_Condition_To_v1beta1_Condition(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Conditions = nil
 	}
+	// WARNING: in.Initialization requires manual conversion: does not exist in peer-type
 	out.Addresses = *(*[]v1beta1.MachineAddress)(unsafe.Pointer(&in.Addresses))
 	// WARNING: in.VMStatus requires manual conversion: inconvertible types (*github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2.VirtualMachineState vs github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1.VirtualMachineState)
 	out.BootstrapDataProvided = (*bool)(unsafe.Pointer(in.BootstrapDataProvided))
@@ -1332,9 +1368,7 @@ func autoConvert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(
 	out.ProxmoxNode = (*string)(unsafe.Pointer(in.ProxmoxNode))
 	out.TaskRef = (*string)(unsafe.Pointer(in.TaskRef))
 	// WARNING: in.RetryAfter requires manual conversion: inconvertible types (*k8s.io/apimachinery/pkg/apis/meta/v1.Time vs k8s.io/apimachinery/pkg/apis/meta/v1.Time)
-	out.FailureReason = (*errors.MachineStatusError)(unsafe.Pointer(in.FailureReason))
-	out.FailureMessage = (*string)(unsafe.Pointer(in.FailureMessage))
-	out.Conditions = *(*v1beta1.Conditions)(unsafe.Pointer(&in.Conditions))
+	// WARNING: in.Deprecated requires manual conversion: does not exist in peer-type
 	return nil
 }
 
@@ -1407,29 +1441,23 @@ func Convert_v1alpha2_ProxmoxMachineTemplateList_To_v1alpha1_ProxmoxMachineTempl
 }
 
 func autoConvert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *v1alpha2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource is an autogenerated conversion function.
-func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *v1alpha2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	return autoConvert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in, out, s)
-}
-
 func autoConvert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *v1alpha2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
 	if err := Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&in.Spec, &out.Spec, s); err != nil {
 		return err
 	}
 	return nil
-}
-
-// Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource is an autogenerated conversion function.
-func Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *v1alpha2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	return autoConvert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in, out, s)
 }
 
 func autoConvert_v1alpha1_ProxmoxMachineTemplateSpec_To_v1alpha2_ProxmoxMachineTemplateSpec(in *ProxmoxMachineTemplateSpec, out *v1alpha2.ProxmoxMachineTemplateSpec, s conversion.Scope) error {

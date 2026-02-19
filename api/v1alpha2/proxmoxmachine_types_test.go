@@ -37,7 +37,7 @@ func defaultMachine() *ProxmoxMachine {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ProxmoxMachineSpec{
-			ProviderID:       ptr.To("proxmox://abcdef"),
+			ProviderID:       ptr.To("proxmox://a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
 			VirtualMachineID: ptr.To[int64](100),
 			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 				TemplateSource: TemplateSource{
@@ -162,6 +162,20 @@ var _ = Describe("ProxmoxMachine Test", func() {
 					Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring(testCase.errorMessage)))
 				}
 			}
+		})
+	})
+
+	Context("ProviderID", func() {
+		It("Should reject invalid providerID", func() {
+			dm := defaultMachine()
+			dm.Spec.ProviderID = ptr.To("proxmox://not-a-uuid")
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.providerID in body should match")))
+		})
+
+		It("Should reject providerID without proxmox:// prefix", func() {
+			dm := defaultMachine()
+			dm.Spec.ProviderID = ptr.To("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.providerID in body should match")))
 		})
 	})
 

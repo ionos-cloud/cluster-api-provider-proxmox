@@ -22,12 +22,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	capierrors "sigs.k8s.io/cluster-api/errors"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
@@ -41,7 +40,7 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
@@ -59,7 +58,7 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
 		SkipQemuGuestAgent: ptr.To(true),
 	}
@@ -79,7 +78,7 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 	}
@@ -99,7 +98,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 		SkipQemuGuestAgent:  ptr.To(true),
@@ -189,6 +188,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNotFound(t *testing.T) {
 	ctx := context.Background()
 	vmTemplateTags := []string{"foo", "bar"}
@@ -213,8 +213,10 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 
 	_, err := createVM(ctx, machineScope)
 
-	require.Equal(t, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.FailureReason)
-	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.FailureMessage)
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
+	require.Equal(t, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason)
+	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage)
 	require.Error(t, err)
 	require.Contains(t, "VM template not found", err.Error())
 }
@@ -347,7 +349,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 			Name: "vm1000",
 		},
 		Spec: clusterv1.MachineSpec{
-			InfrastructureRef: corev1.ObjectReference{
+			InfrastructureRef: clusterv1.ContractVersionedObjectReference{
 				Kind: "ProxmoxMachine",
 				Name: "vm1000",
 			},
@@ -485,7 +487,11 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
 
 	// reset stateMachine to before VirtualMachineConfig
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.CloningReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.CloningReason,
+	})
 
 	requeue, err = reconcileVirtualMachineConfig(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -633,6 +639,7 @@ func TestReconcileDisks_UnmountCloudInitISO(t *testing.T) {
 	require.NoError(t, unmountCloudInitISO(context.Background(), machineScope))
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.WaitingForCloudInitReason)
 	vm := newRunningVM()
@@ -645,7 +652,7 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 		IPv4:    []string{"10.10.10.10"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, goproxmox.ErrCloudInitFailed).Once()
@@ -653,8 +660,10 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 
 	_, err := ReconcileVM(context.Background(), machineScope)
 	require.Error(t, err, "unknown error")
-	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureReason, ptr.To(capierrors.MachineStatusError("BootstrapFailed")))
-	require.Equal(t, machineScope.ProxmoxMachine.Status.FailureMessage, ptr.To("cloud-init failed execution"))
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capierrors.MachineStatusError("BootstrapFailed")))
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution"))
 }
 
 func TestReconcileVM_CloudInitRunning(t *testing.T) {
@@ -669,7 +678,7 @@ func TestReconcileVM_CloudInitRunning(t *testing.T) {
 		IPv4:    []string{"10.10.10.10"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Ready = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(true, nil).Once()

@@ -10,6 +10,7 @@ resources:
 
 commonLabels:
   cluster.x-k8s.io/v1beta1: v1alpha2
+  cluster.x-k8s.io/v1beta2: v1alpha2
 
 patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.

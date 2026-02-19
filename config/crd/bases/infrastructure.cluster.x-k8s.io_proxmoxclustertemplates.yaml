@@ -930,6 +930,7 @@ spec:
                     description: |-
                       metadata is the standard object metadata.
                       More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+                    minProperties: 1
                     properties:
                       annotations:
                         additionalProperties:
@@ -1402,6 +1403,7 @@ spec:
                                   description: |-
                                     providerID is the virtual machine BIOS UUID formatted as
                                     proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
+                                  pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                                   type: string
                                 snapName:
                                   description: snapName The name of the snapshot.
@@ -1525,20 +1527,21 @@ spec:
                       controlPlaneEndpoint:
                         description: controlPlaneEndpoint represents the endpoint
                           used to communicate with the control plane.
+                        minProperties: 1
                         properties:
                           host:
                             description: host is the hostname on which the API server
                               is serving.
                             maxLength: 512
+                            minLength: 1
                             type: string
                           port:
                             description: port is the port on which the API server
                               is serving.
                             format: int32
+                            maximum: 65535
+                            minimum: 1
                             type: integer
-                        required:
-                        - host
-                        - port
                         type: object
                         x-kubernetes-validations:
                         - message: port must be within 1-65535

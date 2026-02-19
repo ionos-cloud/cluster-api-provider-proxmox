@@ -29,10 +29,10 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-	"sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
@@ -43,7 +43,7 @@ import (
 )
 
 func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition) != infrav1.WaitingForBootstrapDataReconcilationReason {
+	if conditions.GetReason(machineScope.ProxmoxMachine, string(infrav1.VMProvisionedCondition)) != infrav1.WaitingForBootstrapDataReconcilationReason {
 		// Machine is in the wrong state to reconcile, we only reconcile VMs Waiting for Bootstrap Data reconciliation
 		return false, nil
 	}
@@ -59,7 +59,12 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	// Get the bootstrap data.
 	bootstrapData, format, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.CloningFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    string(infrav1.VMProvisionedCondition),
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.CloningFailedReason,
+			Message: err.Error(),
+		})
 		return false, err
 	}
 
@@ -67,11 +72,16 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	nicData, err := getNetworkConfigData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForBootstrapDataReconcilationReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    string(infrav1.VMProvisionedCondition),
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.WaitingForBootstrapDataReconcilationReason,
+			Message: err.Error(),
+		})
 		return false, err
 	}
 
-	kubernetesVersion := ptr.Deref(machineScope.Machine.Spec.Version, "")
+	kubernetesVersion := machineScope.Machine.Spec.Version
 
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
@@ -84,14 +94,23 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	}
 	if err != nil {
 		// Todo: test this (colliding default gateways for example)
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    string(infrav1.VMProvisionedCondition),
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.VMProvisionFailedReason,
+			Message: err.Error(),
+		})
 		machineScope.Logger.V(0).Error(err, "nicData", "json", func() string { ret, _ := json.Marshal(nicData); return string(ret) }())
 		return false, errors.Wrap(err, "failed to inject bootstrap data")
 	}
 
 	// Todo: This status field is now superfluous
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition, infrav1.WaitingForVMPowerUpReason, clusterv1.ConditionSeverityInfo, "")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   string(infrav1.VMProvisionedCondition),
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.WaitingForVMPowerUpReason,
+	})
 
 	return false, nil
 }
@@ -222,7 +241,12 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	ipConfigs := make([]types.IPConfig, 0, len(ipAddresses))
 	for _, ipAddr := range ipAddresses {
 		ipConfig := types.IPConfig{}
-		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ipAddr.Spec.Prefix))
+		// In v1beta2, Prefix is a *int32 pointer, so we need to dereference it
+		prefix := int32(24) // default prefix if not specified
+		if ipAddr.Spec.Prefix != nil {
+			prefix = *ipAddr.Spec.Prefix
+		}
+		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, prefix))
 		if err != nil {
 			return nil, errors.Wrapf(err, "error converting ip address spec to netip prefix: %+v", ipAddr.Spec)
 		}

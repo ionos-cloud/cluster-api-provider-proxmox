@@ -25,7 +25,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/require"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -96,6 +96,7 @@ func TestMachineScope_GetVirtualMachineID(t *testing.T) {
 	require.Equal(t, scope.GetVirtualMachineID(), int64(100))
 }
 
+//nolint:staticcheck // SA1019: v1beta1 compat
 func TestMachineScope_SetReady(t *testing.T) {
 	p := infrav1.ProxmoxMachine{
 		Spec: infrav1.ProxmoxMachineSpec{},
@@ -105,10 +106,14 @@ func TestMachineScope_SetReady(t *testing.T) {
 	}
 
 	scope.SetReady()
-	require.True(t, *scope.ProxmoxMachine.Status.Ready)
+	require.True(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
+	require.NotNil(t, scope.ProxmoxMachine.Status.Deprecated)
+	require.NotNil(t, scope.ProxmoxMachine.Status.Deprecated.V1Beta1)
+	require.True(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready)
 
 	scope.SetNotReady()
-	require.False(t, *scope.ProxmoxMachine.Status.Ready)
+	require.False(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
+	require.False(t, *scope.ProxmoxMachine.Status.Deprecated.V1Beta1.Ready)
 }
 
 func TestMachineScope_HasFailed(t *testing.T) {
