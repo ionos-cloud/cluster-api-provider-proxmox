@@ -88,8 +88,9 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 			_, err := NewClusterScope(test.params)
 			require.Error(t, err)
 			require.NotNil(t, proxmoxCluster.Status.Deprecated)
-			require.NotNil(t, proxmoxCluster.Status.Deprecated.V1Beta1) //nolint:staticcheck // v1beta1 compat
-			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError)) //nolint:staticcheck // v1beta1 compat
+			//nolint:staticcheck // v1beta1 compat
+			require.NotNil(t, proxmoxCluster.Status.Deprecated.V1Beta1)
+			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(clustererrors.InvalidConfigurationClusterError))
 		})
 	}
 }

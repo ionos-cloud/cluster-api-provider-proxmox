@@ -199,22 +199,25 @@ func (m *MachineScope) SetAnnotation(key, value string) {
 
 // HasFailed returns the failure state of the machine scope.
 func (m *MachineScope) HasFailed() bool {
-	if dep := m.ProxmoxMachine.Status.Deprecated; dep != nil && dep.V1Beta1 != nil { //nolint:staticcheck // v1beta1 compat
-		return dep.V1Beta1.FailureReason != nil || dep.V1Beta1.FailureMessage != nil //nolint:staticcheck // v1beta1 compat
+	//nolint:staticcheck // v1beta1 compat
+	if dep := m.ProxmoxMachine.Status.Deprecated; dep != nil && dep.V1Beta1 != nil {
+		return dep.V1Beta1.FailureReason != nil || dep.V1Beta1.FailureMessage != nil
 	}
 	return false
 }
 
 // ensureDeprecatedV1Beta1MachineStatus returns the V1Beta1 deprecated status,
 // initializing the nested structs if necessary.
-func (m *MachineScope) ensureDeprecatedV1Beta1MachineStatus() *infrav1.ProxmoxMachineV1Beta1DeprecatedStatus { //nolint:staticcheck // v1beta1 compat
+//
+//nolint:staticcheck // v1beta1 compat
+func (m *MachineScope) ensureDeprecatedV1Beta1MachineStatus() *infrav1.ProxmoxMachineV1Beta1DeprecatedStatus {
 	if m.ProxmoxMachine.Status.Deprecated == nil {
 		m.ProxmoxMachine.Status.Deprecated = &infrav1.ProxmoxMachineDeprecatedStatus{}
 	}
-	if m.ProxmoxMachine.Status.Deprecated.V1Beta1 == nil { //nolint:staticcheck // v1beta1 compat
-		m.ProxmoxMachine.Status.Deprecated.V1Beta1 = &infrav1.ProxmoxMachineV1Beta1DeprecatedStatus{} //nolint:staticcheck // v1beta1 compat
+	if m.ProxmoxMachine.Status.Deprecated.V1Beta1 == nil {
+		m.ProxmoxMachine.Status.Deprecated.V1Beta1 = &infrav1.ProxmoxMachineV1Beta1DeprecatedStatus{}
 	}
-	return m.ProxmoxMachine.Status.Deprecated.V1Beta1 //nolint:staticcheck // v1beta1 compat
+	return m.ProxmoxMachine.Status.Deprecated.V1Beta1
 }
 
 // SetVirtualMachine sets the Proxmox VirtualMachine object to the machinescope.

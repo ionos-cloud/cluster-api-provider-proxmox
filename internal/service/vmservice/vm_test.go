@@ -213,9 +213,10 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	_, err := createVM(ctx, machineScope)
 
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                              //nolint:staticcheck // v1beta1 compat
-	require.Equal(t, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason) //nolint:staticcheck // v1beta1 compat
-	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage)                            //nolint:staticcheck // v1beta1 compat
+	//nolint:staticcheck // v1beta1 compat
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
+	require.Equal(t, ptr.To(capierrors.MachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason)
+	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage)
 	require.Error(t, err)
 	require.Contains(t, "VM template not found", err.Error())
 }
@@ -659,9 +660,10 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	_, err := ReconcileVM(context.Background(), machineScope)
 	require.Error(t, err, "unknown error")
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                          //nolint:staticcheck // v1beta1 compat
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capierrors.MachineStatusError("BootstrapFailed"))) //nolint:staticcheck // v1beta1 compat
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution"))                  //nolint:staticcheck // v1beta1 compat
+	//nolint:staticcheck // v1beta1 compat
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capierrors.MachineStatusError("BootstrapFailed")))
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution"))
 }
 
 func TestReconcileVM_CloudInitRunning(t *testing.T) {
