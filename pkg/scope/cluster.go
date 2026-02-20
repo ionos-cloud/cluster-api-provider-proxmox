@@ -30,6 +30,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -113,9 +114,15 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	if clusterScope.ProxmoxClient == nil {
 		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
 			// Fail the cluster if no credentials found.
-			// set failure reason
-			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)
+			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Message: "No credentials found, ProxmoxCluster missing credentialsRef",
+			})
+			// set deprecated failure reason
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef") //nolint:staticcheck // SA1019: v1beta1 compat
+			clusterScope.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)                  //nolint:staticcheck // SA1019: v1beta1 compat
 
 			if err = clusterScope.Close(); err != nil {
 				return nil, err

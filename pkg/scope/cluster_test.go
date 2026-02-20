@@ -27,6 +27,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -88,6 +89,11 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewClusterScope(test.params)
 			require.Error(t, err)
+			// Check that the ProxmoxAvailable condition is set to False.
+			cond := conditions.Get(proxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
+			require.NotNil(t, cond)
+			require.Equal(t, metav1.ConditionFalse, cond.Status)
+			// Check deprecated v1beta1 failure reason.
 			require.NotNil(t, proxmoxCluster.Status.Deprecated)
 			require.NotNil(t, proxmoxCluster.Status.Deprecated.V1Beta1)
 			require.Equal(t, proxmoxCluster.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capmoxerrors.InvalidConfigurationClusterError))
