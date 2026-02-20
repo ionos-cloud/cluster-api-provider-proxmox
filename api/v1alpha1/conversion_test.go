@@ -442,6 +442,14 @@ func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Conti
 	}
 }
 
+func spokeProxmoxClusterStatus(in *ProxmoxClusterStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+}
+
+func spokeProxmoxMachineStatus(in *ProxmoxMachineStatus, c randfill.Continue) {
+	c.FillNoCustom(in)
+}
+
 func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 	c.FillNoCustom(in)
 
@@ -449,15 +457,6 @@ func hubRoutingPolicySpec(in *v1alpha2.RoutingPolicySpec, c randfill.Continue) {
 	if in.Priority != nil && *in.Priority < 0 {
 		in.Priority = nil
 	}
-
-}
-
-func spokeProxmoxMachineStatus(in *ProxmoxMachineStatus, c randfill.Continue) {
-	c.FillNoCustom(in)
-}
-
-func spokeProxmoxClusterStatus(in *ProxmoxClusterStatus, c randfill.Continue) {
-	c.FillNoCustom(in)
 }
 
 // fuzzObjectMeta normalizes ObjectMeta for conversion fuzzing.
