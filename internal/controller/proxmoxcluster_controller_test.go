@@ -89,6 +89,18 @@ var _ = Describe("Controller Test", func() {
 			Should(Succeed())
 	})
 
+	It("Should default Provisioned to false on creation", func() {
+		cl := buildProxmoxCluster(clusterName)
+		g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
+		defer cleanupResources(testEnv.GetContext(), g, cl)
+
+		// Re-fetch to get server-applied defaults
+		var res infrav1.ProxmoxCluster
+		g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&cl), &res)).To(Succeed())
+		g.Expect(res.Status.Initialization.Provisioned).NotTo(BeNil())
+		g.Expect(*res.Status.Initialization.Provisioned).To(BeFalse())
+	})
+
 	Context("IPAM tests", func() {
 		It("Should successfully create IPAM related resources", func() {
 			cl := buildProxmoxCluster(clusterName)

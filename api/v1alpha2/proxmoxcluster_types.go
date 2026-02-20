@@ -331,6 +331,7 @@ type ProxmoxClusterInitializationStatus struct {
 	// NOTE: this field is part of the Cluster API contract, and it is used to
 	// orchestrate initial Cluster provisioning.
 	// +optional
+	// +kubebuilder:default=false
 	Provisioned *bool `json:"provisioned,omitempty"`
 }
 
