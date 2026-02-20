@@ -40,6 +40,7 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -216,13 +217,19 @@ var _ = Describe("Controller Test", func() {
 			cl := buildProxmoxCluster(clusterName)
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
 
-			// Set a failure condition on the cluster status.
+			// Set a failure condition and the deprecated fields, as the real code path does.
 			conditions.Set(&cl, metav1.Condition{
 				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
 				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
 				Message: "No credentials found, ProxmoxCluster missing credentialsRef",
 			})
+			cl.Status.Deprecated = &infrav1.ProxmoxClusterDeprecatedStatus{
+				V1Beta1: &infrav1.ProxmoxClusterV1Beta1DeprecatedStatus{ //nolint:staticcheck // SA1019: v1beta1 compat
+					FailureReason:  ptr.To(capmoxerrors.InvalidConfigurationClusterError),
+					FailureMessage: ptr.To("No credentials found, ProxmoxCluster missing credentialsRef"),
+				},
+			}
 			g.Expect(k8sClient.Status().Update(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
 
 			defer cleanupResources(testEnv.GetContext(), g, cl)
@@ -234,8 +241,15 @@ var _ = Describe("Controller Test", func() {
 					Name:      clusterName,
 				}, &res)).To(Succeed())
 
-				// After reconciliation, the cluster should become ready.
+				// After reconciliation, the condition should be cleared.
 				g.Expect(conditions.IsTrue(&res, infrav1.ProxmoxClusterProxmoxAvailableCondition)).To(BeTrue())
+
+				// The deprecated fields should also be synced (cleared).
+				//nolint:staticcheck // SA1019: v1beta1 compat
+				if res.Status.Deprecated != nil && res.Status.Deprecated.V1Beta1 != nil {
+					g.Expect(res.Status.Deprecated.V1Beta1.FailureReason).To(BeNil())
+					g.Expect(res.Status.Deprecated.V1Beta1.FailureMessage).To(BeNil())
+				}
 			}).WithTimeout(time.Second * 20).
 				WithPolling(time.Second).
 				Should(Succeed())
