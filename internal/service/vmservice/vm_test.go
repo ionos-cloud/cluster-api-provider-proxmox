@@ -234,7 +234,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node3"}
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node3", Full: 1}
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 
@@ -257,7 +257,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node2"}
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node2", Full: 1}
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 
@@ -294,7 +294,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
 		End:   1002,
 	}
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1001, Name: "test"}
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1001, Name: "test", Full: 1}
 	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(1001)}
 	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1000)).Return(false, nil)
 	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(true, nil)
@@ -373,7 +373,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 	_, err = ensureVirtualMachine(context.Background(), machineScopeVMThousand)
 	require.NoError(t, err)
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1002, Name: "test"}
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 1002, Name: "test", Full: 1}
 	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(1002)}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1001)).Return(false, nil).Once()
