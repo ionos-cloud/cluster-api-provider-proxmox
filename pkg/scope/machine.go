@@ -198,8 +198,7 @@ func (m *MachineScope) SetAnnotation(key, value string) {
 	m.ProxmoxMachine.Annotations[key] = value
 }
 
-// HasFailed returns the failure state of the machine scope by checking
-// the VirtualMachineProvisioned condition for a terminal failure reason.
+// HasFailed returns the failure state of the machine scope.
 func (m *MachineScope) HasFailed() bool {
 	cond := conditions.Get(m.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	return cond != nil && cond.Status == metav1.ConditionFalse &&
