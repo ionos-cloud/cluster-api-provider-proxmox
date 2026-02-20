@@ -20,7 +20,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -278,38 +277,35 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 }
 
 func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Context, clusterScope *scope.ClusterScope) error {
-	var clusterFailureReason, clusterFailureMessage string
-
-	// Check for failure information in deprecated v1beta1 fields (for clusters migrated from v1beta1)
-	//nolint:staticcheck // indeed these are deprecated
-	if clusterScope.Cluster.Status.Deprecated != nil && clusterScope.Cluster.Status.Deprecated.V1Beta1 != nil {
-		clusterFailureReason = string(ptr.Deref(clusterScope.Cluster.Status.Deprecated.V1Beta1.FailureReason, ""))
-		clusterFailureMessage = ptr.Deref(clusterScope.Cluster.Status.Deprecated.V1Beta1.FailureMessage, "")
-	}
-
-	if clusterScope.ProxmoxClient != nil &&
-		clusterFailureReason == string(capmoxerrors.InvalidConfigurationClusterError) &&
-		strings.Contains(clusterFailureMessage, "No credentials found") {
-		// Clear the failure reason and patch the proxmox cluster.
-		clusterScope.ClearFailure()
-		if err := clusterScope.PatchObject(); err != nil {
-			return err
-		}
-
-		// Clear the failure reason and patch the root cluster (only if deprecated fields exist).
-		//nolint:staticcheck // indeed these are deprecated
-		if clusterScope.Cluster.Status.Deprecated != nil && clusterScope.Cluster.Status.Deprecated.V1Beta1 != nil {
-			newCluster := clusterScope.Cluster.DeepCopy()
-			newCluster.Status.Deprecated.V1Beta1.FailureMessage = nil
-			newCluster.Status.Deprecated.V1Beta1.FailureReason = nil
-
-			err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
-			if err != nil {
-				return errors.Wrapf(err, "failed to patch cluster %s/%s", newCluster.Namespace, newCluster.Name)
+	if clusterScope.ProxmoxClient != nil {
+		cond := conditions.Get(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
+		if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason {
+			// Clear the failure condition on the proxmox cluster.
+			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+				Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status: metav1.ConditionTrue,
+				Reason: clusterv1.ProvisionedReason,
+			})
+			clusterScope.ClearFailure()
+			if err := clusterScope.PatchObject(); err != nil {
+				return err
 			}
-		}
 
-		return errors.New("reconciling cluster failure state")
+			// Clear the failure reason on the root cluster if present.
+			//nolint:staticcheck // indeed these are deprecated
+			if clusterScope.Cluster.Status.Deprecated != nil && clusterScope.Cluster.Status.Deprecated.V1Beta1 != nil {
+				newCluster := clusterScope.Cluster.DeepCopy()
+				newCluster.Status.Deprecated.V1Beta1.FailureMessage = nil
+				newCluster.Status.Deprecated.V1Beta1.FailureReason = nil
+
+				err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
+				if err != nil {
+					return errors.Wrapf(err, "failed to patch cluster %s/%s", newCluster.Namespace, newCluster.Name)
+				}
+			}
+
+			return errors.New("reconciling cluster failure state")
+		}
 	}
 
 	return nil
