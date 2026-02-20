@@ -113,7 +113,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.Description = ptr.To("test vm")
 	machineScope.ProxmoxMachine.Spec.Format = ptr.To(infrav1.TargetStorageFormatRaw)
 	machineScope.ProxmoxMachine.Spec.Full = ptr.To(true)
@@ -147,7 +147,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T) {
 	vmTemplateTags := []string{"foo", "bar"}
 
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1.VirtualMachineCloneSpec{
 		TemplateSource: infrav1.TemplateSource{
 			TemplateSelector: &infrav1.TemplateSelector{
@@ -188,12 +188,11 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
-//nolint:staticcheck // SA1019: v1beta1 compat
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNotFound(t *testing.T) {
 	ctx := context.Background()
 	vmTemplateTags := []string{"foo", "bar"}
 
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineCloneSpec = infrav1.VirtualMachineCloneSpec{
 		TemplateSource: infrav1.TemplateSource{
 			TemplateSelector: &infrav1.TemplateSelector{
@@ -213,16 +212,21 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 
 	_, err := createVM(ctx, machineScope)
 
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
-	require.Equal(t, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason)
-	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage)
 	require.Error(t, err)
-	require.Contains(t, "VM template not found", err.Error())
+	require.Contains(t, err.Error(), "VM template not found")
+	// v1beta2 conditions
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, metav1.ConditionFalse, cond.Status)
+	// deprecated v1beta1 fields
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)                                                                                             //nolint:staticcheck // SA1019: v1beta1 compat
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                                     //nolint:staticcheck // SA1019: v1beta1 compat
+	require.Equal(t, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason) //nolint:staticcheck // SA1019: v1beta1 compat
+	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage)                                      //nolint:staticcheck // SA1019: v1beta1 compat
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1", "node2", "node3"}
 
 	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
@@ -244,7 +248,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1", "node2", "node3", "node4"}
 	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node1", "node2"}
 
@@ -267,7 +271,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing
 }
 
 func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1"}
 
 	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
@@ -284,7 +288,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1.VMIDRange{
 		Start: 1000,
 		End:   1002,
@@ -306,7 +310,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1.VMIDRange{
 		Start: 1000,
 		End:   1002,
@@ -323,7 +327,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
-	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1.VMIDRange{
 		Start: 1000,
 		End:   1002,
@@ -382,7 +386,7 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
 }
 
 func TestEnsureVirtualMachine_FindVM(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.SetVirtualMachineID(123)
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.SMBios1 = "uuid=56603c36-46b9-4608-90ae-c731c15eae64"
@@ -398,7 +402,7 @@ func TestEnsureVirtualMachine_FindVM(t *testing.T) {
 }
 
 func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
-	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.SetVirtualMachineID(123)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(nil, fmt.Errorf("not found")).Once()
@@ -409,7 +413,7 @@ func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
 }
 
 func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
 	machineScope.SetVirtualMachine(vm)
@@ -500,7 +504,7 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 }
 
 func TestReconcileDisks_RunningVM(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVirtualMachineConfigReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.Disks = &infrav1.Storage{
 		BootVolume: &infrav1.DiskSize{Disk: "ide0", SizeGB: 100},
 	}
@@ -639,7 +643,6 @@ func TestReconcileDisks_UnmountCloudInitISO(t *testing.T) {
 	require.NoError(t, unmountCloudInitISO(context.Background(), machineScope))
 }
 
-//nolint:staticcheck // SA1019: v1beta1 compat
 func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
 	vm := newRunningVM()
@@ -659,11 +662,16 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
 
 	_, err := ReconcileVM(context.Background(), machineScope)
-	require.Error(t, err, "unknown error")
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("BootstrapFailed")))
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution"))
+	require.Error(t, err)
+	// v1beta2 conditions
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, metav1.ConditionFalse, cond.Status)
+	// deprecated v1beta1 fields
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)                                                                                                      //nolint:staticcheck // SA1019: v1beta1 compat
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                                              //nolint:staticcheck // SA1019: v1beta1 compat
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("BootstrapFailed")))        //nolint:staticcheck // SA1019: v1beta1 compat
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution")) //nolint:staticcheck // SA1019: v1beta1 compat
 }
 
 func TestReconcileVM_CloudInitRunning(t *testing.T) {
