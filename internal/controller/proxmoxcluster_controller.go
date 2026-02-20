@@ -209,18 +209,6 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
-		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.IsZero() {
-			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
-
-			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
-				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
-				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint",
-			})
-
-			return ctrl.Result{Requeue: true}, nil
-		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host == "" {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
 
