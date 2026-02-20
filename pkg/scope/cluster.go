@@ -39,8 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
-	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
@@ -161,7 +161,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 				Message: "credentials secret not found",
 			})
 			// set deprecated failure reason
-			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found")                    //nolint:staticcheck // SA1019: v1beta1 compat
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found")               //nolint:staticcheck // SA1019: v1beta1 compat
 			s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError) //nolint:staticcheck // SA1019: v1beta1 compat
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")

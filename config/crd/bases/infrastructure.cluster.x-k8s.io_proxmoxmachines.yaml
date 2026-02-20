@@ -1534,6 +1534,7 @@ spec:
                 minProperties: 1
                 properties:
                   provisioned:
+                    default: false
                     description: |-
                       provisioned is true when the infrastructure provider reports that the
                       machine infrastructure is fully provisioned.
