@@ -74,8 +74,6 @@ type ClusterScope struct {
 
 // NewClusterScope creates a new Scope from the supplied parameters.
 // This is meant to be called for each reconcile iteration.
-//
-//nolint:staticcheck // SA1019: v1beta1 compat
 func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	if params.Client == nil {
 		return nil, errors.New("Client is required when creating a ClusterScope")
@@ -140,7 +138,6 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	return clusterScope, nil
 }
 
-//nolint:staticcheck // SA1019: v1beta1 compat
 func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, error) {
 	// get the credentials secret
 	secret := corev1.Secret{}

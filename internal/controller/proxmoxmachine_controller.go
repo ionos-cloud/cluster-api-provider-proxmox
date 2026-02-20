@@ -183,7 +183,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		return ctrl.Result{}, nil
 	}
 
-	if !machineScope.Cluster.Status.InfrastructureReady {
+	if !ptr.Deref(machineScope.Cluster.Status.Initialization.InfrastructureProvisioned, false) {
 		machineScope.Info("Cluster infrastructure is not ready yet")
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,

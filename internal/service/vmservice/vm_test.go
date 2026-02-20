@@ -219,7 +219,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	require.NotNil(t, cond)
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
 	// deprecated v1beta1 fields
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)                                                                                                   //nolint:staticcheck // SA1019: v1beta1 compat
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                                           //nolint:staticcheck // SA1019: v1beta1 compat
 	require.Equal(t, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason) //nolint:staticcheck // SA1019: v1beta1 compat
 	require.Equal(t, ptr.To("VM template not found"), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage)                                            //nolint:staticcheck // SA1019: v1beta1 compat
@@ -668,10 +668,10 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	require.NotNil(t, cond)
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
 	// deprecated v1beta1 fields
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)                                                                                                //nolint:staticcheck // SA1019: v1beta1 compat
-	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                                        //nolint:staticcheck // SA1019: v1beta1 compat
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("BootstrapFailed"))) //nolint:staticcheck // SA1019: v1beta1 compat
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution"))                                   //nolint:staticcheck // SA1019: v1beta1 compat
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                                        //nolint:staticcheck // SA1019: V1Beta1 is deprecated
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("BootstrapFailed"))) //nolint:staticcheck // SA1019: V1Beta1 is deprecated
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureMessage, ptr.To("cloud-init failed execution"))                                   //nolint:staticcheck // SA1019: V1Beta1 is deprecated
 }
 
 func TestReconcileVM_CloudInitRunning(t *testing.T) {
