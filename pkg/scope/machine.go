@@ -24,6 +24,7 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -197,13 +198,12 @@ func (m *MachineScope) SetAnnotation(key, value string) {
 	m.ProxmoxMachine.Annotations[key] = value
 }
 
-// HasFailed returns the failure state of the machine scope.
+// HasFailed returns the failure state of the machine scope by checking
+// the VirtualMachineProvisioned condition for a terminal failure reason.
 func (m *MachineScope) HasFailed() bool {
-	//nolint:staticcheck // SA1019: v1beta1 compat
-	if dep := m.ProxmoxMachine.Status.Deprecated; dep != nil && dep.V1Beta1 != nil {
-		return dep.V1Beta1.FailureReason != nil || dep.V1Beta1.FailureMessage != nil
-	}
-	return false
+	cond := conditions.Get(m.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	return cond != nil && cond.Status == metav1.ConditionFalse &&
+		cond.Reason == infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason
 }
 
 // ensureDeprecatedV1Beta1MachineStatus returns the V1Beta1 deprecated status,

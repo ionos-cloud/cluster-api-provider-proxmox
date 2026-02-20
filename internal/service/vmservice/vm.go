@@ -423,6 +423,12 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	vmid, err := getVMID(ctx, scope)
 	if err != nil {
 		if errors.Is(err, ErrNoVMIDInRangeFree) {
+			conditions.Set(scope.ProxmoxMachine, metav1.Condition{
+				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+				Message: err.Error(),
+			})
 			scope.SetFailureMessage(err)
 			scope.SetFailureReason(capmoxerrors.InsufficientResourcesMachineError)
 		}
@@ -474,6 +480,12 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		options.Target, err = selectNextNode(ctx, scope)
 		if err != nil {
 			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
+				conditions.Set(scope.ProxmoxMachine, metav1.Condition{
+					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+					Status:  metav1.ConditionFalse,
+					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+					Message: err.Error(),
+				})
 				scope.SetFailureMessage(err)
 				scope.SetFailureReason(capmoxerrors.InsufficientResourcesMachineError)
 			}
