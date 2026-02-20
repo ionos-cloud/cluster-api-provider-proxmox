@@ -154,9 +154,15 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	}, &secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// set failure reason
-			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found")
-			s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)
+			conditions.Set(s.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Message: "credentials secret not found",
+			})
+			// set deprecated failure reason
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureMessage = ptr.To("credentials secret not found")                    //nolint:staticcheck // SA1019: v1beta1 compat
+			s.ensureDeprecatedV1Beta1ClusterStatus().FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError) //nolint:staticcheck // SA1019: v1beta1 compat
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
