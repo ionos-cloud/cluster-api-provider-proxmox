@@ -28,12 +28,10 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
-	// temporary replacements for sigs.k8s.io/cluster-api/util/* until v1beta2.
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util/annotations"
+	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -166,7 +164,7 @@ func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineS
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
-		Reason: clusterv1beta2.DeletingReason,
+		Reason: clusterv1.DeletingReason,
 	})
 
 	err := vmservice.DeleteVM(ctx, machineScope)
@@ -187,12 +185,12 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		return ctrl.Result{}, nil
 	}
 
-	if !machineScope.Cluster.Status.InfrastructureReady {
+	if !ptr.Deref(machineScope.Cluster.Status.Initialization.InfrastructureProvisioned, false) {
 		machineScope.Info("Cluster infrastructure is not ready yet")
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status: metav1.ConditionFalse,
-			Reason: clusterv1beta2.WaitingForClusterInfrastructureReadyReason,
+			Reason: clusterv1.WaitingForClusterInfrastructureReadyReason,
 		})
 		return ctrl.Result{}, nil
 	}
@@ -203,7 +201,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status: metav1.ConditionFalse,
-			Reason: clusterv1beta2.WaitingForBootstrapDataReason,
+			Reason: clusterv1.WaitingForBootstrapDataReason,
 		})
 		return ctrl.Result{}, nil
 	}
@@ -249,7 +247,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionTrue,
-		Reason: clusterv1beta2.ProvisionedReason,
+		Reason: clusterv1.ProvisionedReason,
 	})
 	machineScope.Logger.Info("ProxmoxMachine is ready")
 

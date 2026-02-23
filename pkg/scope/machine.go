@@ -26,11 +26,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-
-	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util"
 
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -208,7 +205,7 @@ func (m *MachineScope) PatchObject() error {
 }
 
 // SetAddresses sets the addresses in the status.
-func (m *MachineScope) SetAddresses(addr []clusterv1beta2.MachineAddress) {
+func (m *MachineScope) SetAddresses(addr []clusterv1.MachineAddress) {
 	m.ProxmoxMachine.Status.Addresses = addr
 }
 

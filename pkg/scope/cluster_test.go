@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -86,8 +86,6 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewClusterScope(test.params)
 			require.Error(t, err)
-			// After v1beta2 migration, FailureReason was removed.
-			// Instead, check that the ProxmoxAvailable condition is set to False.
 			cond := conditions.Get(proxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
 			require.NotNil(t, cond)
 			require.Equal(t, metav1.ConditionFalse, cond.Status)

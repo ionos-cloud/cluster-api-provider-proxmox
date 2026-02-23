@@ -117,17 +117,6 @@ type APIEndpoint struct {
 	Port int32 `json:"port,omitempty"`
 }
 
-//
-// // IsZero returns true if both host and port are zero values.
-// func (v APIEndpoint) IsZero() bool {
-// 	return v.Host == "" && v.Port == 0
-// }
-//
-// // String returns a formatted version HOST:PORT of this APIEndpoint.
-// func (v APIEndpoint) String() string {
-// 	return net.JoinHostPort(v.Host, fmt.Sprintf("%d", v.Port))
-// }
-
 // ZoneConfigSpec is the Network Configuration for further deployment zones.
 type ZoneConfigSpec struct {
 	// zone is the name of your deployment zone.
@@ -214,7 +203,6 @@ type IPConfigSpec struct {
 	Gateway string `json:"gateway,omitempty"`
 
 	// metric is the route priority applied to the default gateway.
-	// When not specified, the metric is omitted from the network configuration.
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	Metric *int32 `json:"metric,omitempty"`

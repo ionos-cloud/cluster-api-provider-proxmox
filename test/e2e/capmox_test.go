@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 
 	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
+	"sigs.k8s.io/cluster-api/util"
 )
 
 var _ = Describe("Workload cluster creation", func() {

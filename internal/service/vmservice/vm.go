@@ -27,11 +27,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-
-	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
-
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -127,7 +124,7 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 
 	// if the root machine is ready, we can assume that the VM is ready as well.
 	// unmount the cloud-init iso if it is still mounted.
-	if scope.Machine.Status.BootstrapReady && scope.Machine.Status.NodeRef != nil {
+	if conditions.IsTrue(scope.Machine, clusterv1.AvailableCondition) && scope.Machine.Status.NodeInfo != nil {
 		if err := unmountCloudInitISO(ctx, scope); err != nil {
 			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
 		}
@@ -187,8 +184,8 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 	// NOTE: We are setting this condition only in case it does not exist, so we avoid to get flickering LastConditionTime
 	// in case of cloning errors or powering on errors.
 	if !conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) ||
-		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == clusterv1beta2.WaitingForClusterInfrastructureReadyReason ||
-		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == clusterv1beta2.WaitingForBootstrapDataReason {
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == clusterv1.WaitingForClusterInfrastructureReadyReason ||
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == clusterv1.WaitingForBootstrapDataReason {
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status: metav1.ConditionFalse,
@@ -384,14 +381,14 @@ func reconcileMachineAddresses(machineScope *scope.MachineScope) error {
 	return nil
 }
 
-func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1beta2.MachineAddress, error) {
+func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.MachineAddress, error) {
 	if !scope.VirtualMachine.IsRunning() {
 		return nil, errors.New("unable to apply configuration as long as the virtual machine is not running")
 	}
 
-	addresses := []clusterv1beta2.MachineAddress{
+	addresses := []clusterv1.MachineAddress{
 		{
-			Type:    clusterv1beta2.MachineHostName,
+			Type:    clusterv1.MachineHostName,
 			Address: scope.Name(),
 		},
 	}
@@ -411,8 +408,8 @@ func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1beta2.
 		if address == "" {
 			continue
 		}
-		addresses = append(addresses, clusterv1beta2.MachineAddress{
-			Type:    clusterv1beta2.MachineInternalIP,
+		addresses = append(addresses, clusterv1.MachineAddress{
+			Type:    clusterv1.MachineInternalIP,
 			Address: address,
 		})
 	}

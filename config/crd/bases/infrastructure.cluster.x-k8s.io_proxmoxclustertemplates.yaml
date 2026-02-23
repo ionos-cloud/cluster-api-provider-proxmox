@@ -1633,9 +1633,8 @@ spec:
                             minLength: 1
                             type: string
                           metric:
-                            description: |-
-                              metric is the route priority applied to the default gateway.
-                              When not specified, the metric is omitted from the network configuration.
+                            description: metric is the route priority applied to the
+                              default gateway.
                             format: int32
                             minimum: 0
                             type: integer
@@ -1674,9 +1673,8 @@ spec:
                             minLength: 1
                             type: string
                           metric:
-                            description: |-
-                              metric is the route priority applied to the default gateway.
-                              When not specified, the metric is omitted from the network configuration.
+                            description: metric is the route priority applied to the
+                              default gateway.
                             format: int32
                             minimum: 0
                             type: integer
@@ -1749,9 +1747,8 @@ spec:
                                   minLength: 1
                                   type: string
                                 metric:
-                                  description: |-
-                                    metric is the route priority applied to the default gateway.
-                                    When not specified, the metric is omitted from the network configuration.
+                                  description: metric is the route priority applied
+                                    to the default gateway.
                                   format: int32
                                   minimum: 0
                                   type: integer
@@ -1791,9 +1788,8 @@ spec:
                                   minLength: 1
                                   type: string
                                 metric:
-                                  description: |-
-                                    metric is the route priority applied to the default gateway.
-                                    When not specified, the metric is omitted from the network configuration.
+                                  description: metric is the route priority applied
+                                    to the default gateway.
                                   format: int32
                                   minimum: 0
                                   type: integer

@@ -30,11 +30,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
-
-	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
+	"sigs.k8s.io/cluster-api/util"
 
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -64,12 +62,11 @@ var _ = Describe("Controller Test", func() {
 				UID:       "1000",
 			},
 			Spec: clusterv1.ClusterSpec{
-				Paused: false,
-				InfrastructureRef: &corev1.ObjectReference{
-					Kind:       gvk.Kind,
-					Namespace:  testNS,
-					Name:       clusterName,
-					APIVersion: gvk.GroupVersion().String(),
+				Paused: ptr.To(false),
+				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+					Kind:     gvk.Kind,
+					Name:     clusterName,
+					APIGroup: gvk.GroupVersion().Group,
 				},
 			},
 		}
@@ -407,7 +404,7 @@ func dummyIPAddress(client client.Client, owner client.Object, poolName string) 
 				Name: owner.GetName(),
 			},
 			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.GroupVersion().String()),
+				APIGroup: ptr.To(gvk.GroupVersion().Group),
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
@@ -492,10 +489,10 @@ func createOwnerCluster(proxmoxCluster *infrav1.ProxmoxCluster) *clusterv1.Clust
 			Namespace:    "default",
 		},
 		Spec: clusterv1.ClusterSpec{
-			InfrastructureRef: &corev1.ObjectReference{
-				APIVersion: infrav1.GroupVersion.String(),
-				Kind:       "ProxmoxCluster",
-				Name:       proxmoxCluster.Name,
+			InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+				APIGroup: infrav1.GroupVersion.Group,
+				Kind:     "ProxmoxCluster",
+				Name:     proxmoxCluster.Name,
 			},
 		},
 	}

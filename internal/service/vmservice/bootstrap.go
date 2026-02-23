@@ -81,7 +81,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		return false, err
 	}
 
-	kubernetesVersion := ptr.Deref(machineScope.Machine.Spec.Version, "")
+	kubernetesVersion := machineScope.Machine.Spec.Version
 
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 

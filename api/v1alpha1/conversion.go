@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	capmoxv2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -184,7 +184,7 @@ func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *Prox
 	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
 		return err
 	}
-	// Manual conversion: *clusterv1.APIEndpoint → capmoxv2.APIEndpoint (value type)
+	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
 	if in.ControlPlaneEndpoint != nil {
 		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
 			Host: in.ControlPlaneEndpoint.Host,
@@ -198,9 +198,9 @@ func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capm
 	if err := autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s); err != nil {
 		return err
 	}
-	// Manual conversion: capmoxv2.APIEndpoint (value type) → *clusterv1.APIEndpoint
+	// Manual conversion: capmoxv2.APIEndpoint (value type) → *clusterv1beta1.APIEndpoint
 	if in.ControlPlaneEndpoint.Host != "" || in.ControlPlaneEndpoint.Port != 0 {
-		out.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+		out.ControlPlaneEndpoint = &clusterv1beta1.APIEndpoint{
 			Host: in.ControlPlaneEndpoint.Host,
 			Port: in.ControlPlaneEndpoint.Port,
 		}
@@ -291,6 +291,13 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 func Convert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in *capmoxv2.NodeLocation, out *NodeLocation, s conversion.Scope) error {
 	// accept the warning about unused fields here
 	return autoConvert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in, out, s)
+}
+
+func Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in *clusterv1beta2.ObjectMeta, out *clusterv1beta1.ObjectMeta, s conversion.Scope) error {
+	if err := clusterv1beta1.Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in, out, s); err != nil {
+		return err
+	}
+	return nil
 }
 
 // //
@@ -472,7 +479,7 @@ func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterT
 }
 
 func Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *capmoxv2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = clusterv1.ObjectMeta{
+	out.ObjectMeta = clusterv1beta1.ObjectMeta{
 		Labels:      in.ObjectMeta.Labels,
 		Annotations: in.ObjectMeta.Annotations,
 	}
@@ -488,18 +495,19 @@ func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineT
 }
 
 func Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *capmoxv2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	out.ObjectMeta = clusterv1.ObjectMeta{
+	out.ObjectMeta = clusterv1beta1.ObjectMeta{
 		Labels:      in.ObjectMeta.Labels,
 		Annotations: in.ObjectMeta.Annotations,
 	}
 	return Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
 }
 
-// compileErrorOnMissingConversion is a stub to satisfy dead-code references
-// in conversion-gen's autoConvert_ functions for ObjectMeta type mismatches.
-// These autoConvert_ functions are never called because we provide manual
-// Convert_ wrappers that handle the conversion directly.
-func compileErrorOnMissingConversion() {}
+func Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in *clusterv1beta1.ObjectMeta, out *clusterv1beta2.ObjectMeta, s conversion.Scope) error {
+	if err := clusterv1beta1.Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in, out, s); err != nil {
+		return err
+	}
+	return nil
+}
 
 // //
 // helpers
@@ -599,8 +607,8 @@ func Convert_string_To_NetName(in string, hasRestored bool, restoredIn capmoxv2.
 }
 
 // Convert_v1beta1_Condition_To_v1_Condition is the conversion stub required by conversion-gen
-// to convert clusterv1.Condition (v1beta1) to metav1.Condition (v1).
-func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1.Condition, out *metav1.Condition, s conversion.Scope) error {
+// to convert clusterv1beta1.Condition (v1beta1) to metav1.Condition (v1).
+func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out *metav1.Condition, s conversion.Scope) error {
 	out.Type = string(in.Type)
 	out.Status = metav1.ConditionStatus(in.Status)
 	out.LastTransitionTime = in.LastTransitionTime
@@ -610,9 +618,9 @@ func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1.Condition, out *met
 }
 
 // Convert_v1_Condition_To_v1beta1_Condition is the conversion stub required by conversion-gen
-// to convert metav1.Condition (v1) to clusterv1.Condition (v1beta1).
-func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *clusterv1.Condition, s conversion.Scope) error {
-	out.Type = clusterv1.ConditionType(in.Type)
+// to convert metav1.Condition (v1) to clusterv1beta1.Condition (v1beta1).
+func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *clusterv1beta1.Condition, s conversion.Scope) error {
+	out.Type = clusterv1beta1.ConditionType(in.Type)
 	out.Status = corev1.ConditionStatus(in.Status)
 	out.LastTransitionTime = in.LastTransitionTime
 	out.Reason = in.Reason

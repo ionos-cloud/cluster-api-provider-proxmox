@@ -96,8 +96,10 @@ func (dst *ProxmoxClusterTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 
 	// Restore fields which do not survive empty conversion but need to be defined.
 	// This is required to keep ClusterClasses v0.1.0 working
-	if dst.Spec.Template.Spec.CloneSpec.SSHAuthorizedKeys == nil {
-		dst.Spec.Template.Spec.CloneSpec.SSHAuthorizedKeys = []string{}
+	if dst.Spec.Template.Spec.CloneSpec != nil {
+		if dst.Spec.Template.Spec.CloneSpec.SSHAuthorizedKeys == nil {
+			dst.Spec.Template.Spec.CloneSpec.SSHAuthorizedKeys = []string{}
+		}
 	}
 
 	// Preserve Hub data on down-conversion.

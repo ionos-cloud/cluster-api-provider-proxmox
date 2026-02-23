@@ -29,12 +29,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
-	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
-	// temporary replacement for "sigs.k8s.io/cluster-api/util" until v1beta2.
-	clusterutil "github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/capiv1beta1/util/annotations"
+	clusterutil "sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -224,7 +222,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// when a Cluster is marked failed cause the Proxmox client is nil.
 	// the cluster doesn't reconcile the failed state if we restart the controller.
 	// so we need to check if the ProxmoxClient is not nil and the ProxmoxCluster has a failure reason.
-	err := r.reconcileFailedClusterState(ctx, clusterScope)
+	err := r.reconcileFailedClusterState(clusterScope)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -251,7 +249,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 		Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
 		Status: metav1.ConditionTrue,
-		Reason: clusterv1beta2.ProvisionedReason,
+		Reason: clusterv1.ProvisionedReason,
 	})
 
 	clusterScope.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
@@ -259,7 +257,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	return ctrl.Result{}, nil
 }
 
-func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Context, clusterScope *scope.ClusterScope) error {
+func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(clusterScope *scope.ClusterScope) error {
 	if clusterScope.ProxmoxClient != nil {
 		cond := conditions.Get(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
 		if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason {
@@ -267,22 +265,10 @@ func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Conte
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 				Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status: metav1.ConditionTrue,
-				Reason: clusterv1beta2.ProvisionedReason,
+				Reason: clusterv1.ProvisionedReason,
 			})
 			if err := clusterScope.PatchObject(); err != nil {
 				return err
-			}
-
-			// Clear the failure reason on the root cluster if present.
-			if ptr.Deref(clusterScope.Cluster.Status.FailureMessage, "") != "" {
-				newCluster := clusterScope.Cluster.DeepCopy()
-				newCluster.Status.FailureMessage = nil
-				newCluster.Status.FailureReason = nil
-
-				err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
-				if err != nil {
-					return errors.Wrapf(err, "failed to patch cluster %s/%s", newCluster.Namespace, newCluster.Name)
-				}
 			}
 
 			return errors.New("reconciling cluster failure state")
