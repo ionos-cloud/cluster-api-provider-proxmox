@@ -37,7 +37,7 @@ import (
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -413,7 +413,7 @@ func (h *Helper) GetIPPoolAnnotations(ctx context.Context, ipAddress *ipamv1.IPA
 		return nil, errors.New("no IPAddress object provided")
 	}
 
-	ipPool, err := h.GetIPPool(ctx, ipAddress.Spec.PoolRef)
+	ipPool, err := h.GetIPPool(ctx, toTypedLocalObjectReference(ipAddress.Spec.PoolRef))
 	if err != nil {
 		return nil, err
 	}
@@ -497,8 +497,8 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 			Annotations: annotations,
 		},
 		Spec: ipamv1.IPAddressClaimSpec{
-			PoolRef: corev1.TypedLocalObjectReference{
-				APIGroup: ptr.To(gvk.Group),
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     key.Name,
 			},
@@ -607,4 +607,13 @@ func gvkForObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersi
 		return schema.GroupVersionKind{}, errors.Wrapf(err, "unable to determine group version for %T", obj)
 	}
 	return gvk, err
+}
+
+// toTypedLocalObjectReference converts an ipamv1.IPPoolReference to a corev1.TypedLocalObjectReference.
+func toTypedLocalObjectReference(ref ipamv1.IPPoolReference) corev1.TypedLocalObjectReference {
+	return corev1.TypedLocalObjectReference{
+		APIGroup: ptr.To(ref.APIGroup),
+		Kind:     ref.Kind,
+		Name:     ref.Name,
+	}
 }

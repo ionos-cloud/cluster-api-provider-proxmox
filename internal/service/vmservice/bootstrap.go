@@ -31,7 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta1"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -241,7 +241,7 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	ipConfigs := make([]types.IPConfig, 0, len(ipAddresses))
 	for _, ipAddr := range ipAddresses {
 		ipConfig := types.IPConfig{}
-		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ipAddr.Spec.Prefix))
+		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ptr.Deref(ipAddr.Spec.Prefix, 0)))
 		if err != nil {
 			return nil, errors.Wrapf(err, "error converting ip address spec to netip prefix: %+v", ipAddr.Spec)
 		}
