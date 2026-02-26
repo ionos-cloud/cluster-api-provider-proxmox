@@ -214,7 +214,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "VM template not found")
-	// v1beta2 conditions
+	// After v1beta2 migration, error reporting uses conditions instead of FailureReason/FailureMessage.
 	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	require.NotNil(t, cond)
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
@@ -663,7 +663,7 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 
 	_, err := ReconcileVM(context.Background(), machineScope)
 	require.Error(t, err)
-	// v1beta2 conditions
+	// After v1beta2 migration, error reporting uses conditions instead of FailureReason/FailureMessage.
 	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	require.NotNil(t, cond)
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
