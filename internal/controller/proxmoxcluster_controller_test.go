@@ -241,7 +241,7 @@ var _ = Describe("Controller Test", func() {
 					Name:      clusterName,
 				}, &res)).To(Succeed())
 
-				// After reconciliation, the condition should be cleared.
+				// After reconciliation, the cluster should become ready.
 				g.Expect(conditions.IsTrue(&res, infrav1.ProxmoxClusterProxmoxAvailableCondition)).To(BeTrue())
 
 				// The deprecated fields should also be synced (cleared).
