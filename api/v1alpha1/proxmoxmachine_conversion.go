@@ -41,12 +41,9 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 
 	restoreProxmoxMachineSpec(&src.Spec, &dst.Spec, &restored.Spec, ok)
 
-	// Convert Ready to Initialization.Provisioned (refine with restored data)
-	var restoredProvisioned *bool
-	if ok {
-		restoredProvisioned = restored.Status.Initialization.Provisioned
-	}
-	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok, restoredProvisioned, &dst.Status.Initialization.Provisioned)
+	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok,
+		restored.Status.Initialization.Provisioned,
+		&dst.Status.Initialization.Provisioned)
 
 	// Sync deprecated ready for backward compatibility
 	if dst.Status.Initialization.Provisioned != nil {
