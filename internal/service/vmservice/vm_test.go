@@ -218,7 +218,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	require.NotNil(t, cond)
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
-	// deprecated v1beta1 fields
+	// After v1beta2 migration, error reporting uses conditions instead of FailureReason/FailureMessage.
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                                           //nolint:staticcheck // SA1019: v1beta1 compat
 	require.Equal(t, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("VMTemplateNotFound")), machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason) //nolint:staticcheck // SA1019: v1beta1 compat
@@ -667,7 +667,7 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	require.NotNil(t, cond)
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
-	// deprecated v1beta1 fields
+	// After v1beta2 migration, error reporting uses conditions instead of FailureReason/FailureMessage.
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated)
 	require.NotNil(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1)                                                                                        //nolint:staticcheck // SA1019: V1Beta1 is deprecated
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Deprecated.V1Beta1.FailureReason, ptr.To(capmoxerrors.DeprecatedCAPIMachineStatusError("BootstrapFailed"))) //nolint:staticcheck // SA1019: V1Beta1 is deprecated
