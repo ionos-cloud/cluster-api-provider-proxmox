@@ -452,6 +452,7 @@ type ProxmoxMachineStatus struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []metav1.Condition `json:"conditions,omitempty"` //nolint:kubeapilinter // patchStrategy not applicable, using SSA
 
 	// initialization provides observations of the ProxmoxMachine initialization process.
@@ -596,6 +597,8 @@ type ProxmoxMachineV1Beta1DeprecatedStatus struct {
 	// Deprecated: This field is maintained only for conversion with v1alpha1
 	// and will be removed in v1alpha3.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=10240
 	FailureMessage *string `json:"failureMessage,omitempty"`
 }
 

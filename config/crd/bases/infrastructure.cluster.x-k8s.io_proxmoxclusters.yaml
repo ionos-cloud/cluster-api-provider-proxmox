@@ -1933,6 +1933,7 @@ spec:
                   - status
                   - type
                   type: object
+                maxItems: 32
                 type: array
                 x-kubernetes-list-map-keys:
                 - type
@@ -1957,6 +1958,8 @@ spec:
 
                           Deprecated: This field is maintained only for conversion with v1alpha1
                           and will be removed in v1alpha3.
+                        maxLength: 10240
+                        minLength: 1
                         type: string
                       failureReason:
                         description: |-
