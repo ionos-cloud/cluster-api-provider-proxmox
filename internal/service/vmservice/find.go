@@ -115,7 +115,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 			Message: err.Error(),
 		})
 		s.SetFailureMessage(err)
-		s.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("UnkownMachine"))
+		s.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("UnknownMachine"))
 		return err
 	}
 

@@ -64,8 +64,8 @@ func TestFuzzyConversion(t *testing.T) {
 
 	t.Run("for ProxmoxClusterTemplate", utilconversion.FuzzTestFunc(utilconversion.FuzzTestFuncInput{
 		Scheme:      scheme,
-		Hub:         &v1alpha2.ProxmoxMachineTemplate{},
-		Spoke:       &ProxmoxMachineTemplate{},
+		Hub:         &v1alpha2.ProxmoxClusterTemplate{},
+		Spoke:       &ProxmoxClusterTemplate{},
 		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterFuzzFuncs},
 	}))
 }
