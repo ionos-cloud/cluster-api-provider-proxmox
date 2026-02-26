@@ -461,4 +461,18 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			Expect(k8sClient.Create(context.Background(), dm)).To(Succeed())
 		})
 	})
+
+	Context("Queues", func() {
+		It("Should not allow machine with network device queue equal to 0", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				Default: &NetworkDevice{
+					Bridge: "vmbr0",
+					Queues: ptr.To(uint16(0)),
+				},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
+		})
+	})
 })

@@ -162,6 +162,11 @@ func (in *NetworkDevice) DeepCopyInto(out *NetworkDevice) {
 		*out = new(uint16)
 		**out = **in
 	}
+	if in.Queues != nil {
+		in, out := &in.Queues, &out.Queues
+		*out = new(uint16)
+		**out = **in
+	}
 	if in.DNSServers != nil {
 		in, out := &in.DNSServers, &out.DNSServers
 		*out = make([]string, len(*in))

@@ -108,6 +108,21 @@ func extractNetworkVLAN(input string) uint16 {
 	return 0
 }
 
+// extractNetworkQueue returns the queue out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,tag=100,queue=4.
+func extractNetworkQueue(input string) uint16 {
+	re := regexp.MustCompile(`queue=(\d+)`)
+	match := re.FindStringSubmatch(input)
+	if len(match) > 1 {
+		queue, err := strconv.ParseUint(match[1], 10, 16)
+		if err != nil {
+			return 0
+		}
+		return uint16(queue)
+	}
+
+	return 0
+}
+
 func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 	if machineScope.ProxmoxMachine.Spec.Network == nil {
 		// no network config needed
@@ -179,14 +194,21 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 				return true
 			}
 		}
+
+		if v.Queues != nil {
+			queue := extractNetworkQueue(net)
+			if queue != *v.Queues {
+				return true
+			}
+		}
 	}
 
 	return false
 }
 
 // formatNetworkDevice formats a network device config
-// example 'virtio,bridge=vmbr0,tag=100'.
-func formatNetworkDevice(model, bridge string, mtu *uint16, vlan *uint16) string {
+// example 'virtio,bridge=vmbr0,tag=100,queue=4'.
+func formatNetworkDevice(model, bridge string, mtu *uint16, vlan *uint16, queue *uint16) string {
 	var components = []string{model, fmt.Sprintf("bridge=%s", bridge)}
 
 	if mtu != nil {
@@ -195,6 +217,10 @@ func formatNetworkDevice(model, bridge string, mtu *uint16, vlan *uint16) string
 
 	if vlan != nil {
 		components = append(components, fmt.Sprintf("tag=%d", *vlan))
+	}
+
+	if queue != nil {
+		components = append(components, fmt.Sprintf("queues=%d", *queue))
 	}
 
 	return strings.Join(components, ",")
