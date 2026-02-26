@@ -31,7 +31,6 @@ type ProxmoxMachineTemplateSpec struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=proxmoxmachinetemplates,scope=Namespaced,categories=cluster-api,shortName=pmt
 // +kubebuilder:storageversion
-// +kubebuilder:subresource:status
 
 // ProxmoxMachineTemplate is the Schema for the proxmoxmachinetemplates API.
 type ProxmoxMachineTemplate struct {
