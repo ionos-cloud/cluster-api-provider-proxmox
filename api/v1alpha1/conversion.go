@@ -180,6 +180,22 @@ func Convert_v1alpha2_RoutingPolicySpec_To_v1alpha1_RoutingPolicySpec(in *capmox
 	return nil
 }
 
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
+	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
+		return err
+	}
+
+	// Manual ControlPlaneEndpoint conversion: v1alpha1 pointer → v1alpha2 value
+	if in.ControlPlaneEndpoint != nil {
+		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
+			Host: in.ControlPlaneEndpoint.Host,
+			Port: in.ControlPlaneEndpoint.Port,
+		}
+	}
+
+	return nil
+}
+
 func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capmoxv2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
 	if err := autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s); err != nil {
 		return err
@@ -214,6 +230,31 @@ func Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpe
 
 			out.ProxmoxMachineSpec[pc.MachineType] = pms
 		}
+	}
+
+	return nil
+}
+
+func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *ProxmoxClusterStatus, out *capmoxv2.ProxmoxClusterStatus, s conversion.Scope) error {
+	if err := autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s); err != nil {
+		return err
+	}
+
+	// Map Ready → Initialization.Provisioned
+	if in.Ready {
+		out.Initialization.Provisioned = ptr.To(true)
+	}
+
+	// Map FailureReason/FailureMessage → Deprecated.V1Beta1
+	if in.FailureReason != nil || in.FailureMessage != nil {
+		if out.Deprecated == nil {
+			out.Deprecated = &capmoxv2.ProxmoxClusterDeprecatedStatus{}
+		}
+		if out.Deprecated.V1Beta1 == nil {
+			out.Deprecated.V1Beta1 = &capmoxv2.ProxmoxClusterV1Beta1DeprecatedStatus{}
+		}
+		out.Deprecated.V1Beta1.FailureReason = in.FailureReason
+		out.Deprecated.V1Beta1.FailureMessage = in.FailureMessage
 	}
 
 	return nil
@@ -281,6 +322,13 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 func Convert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in *capmoxv2.NodeLocation, out *NodeLocation, s conversion.Scope) error {
 	// accept the warning about unused fields here
 	return autoConvert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in, out, s)
+}
+
+func Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in *clusterv1beta2.ObjectMeta, out *clusterv1beta1.ObjectMeta, s conversion.Scope) error {
+	if err := clusterv1beta1.Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in, out, s); err != nil {
+		return err
+	}
+	return nil
 }
 
 // //
@@ -385,22 +433,6 @@ func Convert_v1alpha1_RoutingPolicySpec_To_v1alpha2_RoutingPolicySpec(in *Routin
 	return nil
 }
 
-func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
-	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
-		return err
-	}
-
-	// Manual ControlPlaneEndpoint conversion: v1alpha1 pointer → v1alpha2 value
-	if in.ControlPlaneEndpoint != nil {
-		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
-			Host: in.ControlPlaneEndpoint.Host,
-			Port: in.ControlPlaneEndpoint.Port,
-		}
-	}
-
-	return nil
-}
-
 func Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in *ProxmoxClusterCloneSpec, out *capmoxv2.ProxmoxClusterCloneSpec, s conversion.Scope) error {
 	err := autoConvert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in, out, s)
 	if err != nil {
@@ -481,28 +513,42 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 	return nil
 }
 
-func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *ProxmoxClusterStatus, out *capmoxv2.ProxmoxClusterStatus, s conversion.Scope) error {
-	if err := autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s); err != nil {
+func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in *ProxmoxClusterTemplateResource, out *capmoxv2.ProxmoxClusterTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta2.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *capmoxv2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta1.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *capmoxv2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta2.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *capmoxv2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta1.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in *clusterv1beta1.ObjectMeta, out *clusterv1beta2.ObjectMeta, s conversion.Scope) error {
+	if err := clusterv1beta1.Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in, out, s); err != nil {
 		return err
 	}
-
-	// Map Ready → Initialization.Provisioned
-	if in.Ready {
-		out.Initialization.Provisioned = ptr.To(true)
-	}
-
-	// Map FailureReason/FailureMessage → Deprecated.V1Beta1
-	if in.FailureReason != nil || in.FailureMessage != nil {
-		if out.Deprecated == nil {
-			out.Deprecated = &capmoxv2.ProxmoxClusterDeprecatedStatus{}
-		}
-		if out.Deprecated.V1Beta1 == nil {
-			out.Deprecated.V1Beta1 = &capmoxv2.ProxmoxClusterV1Beta1DeprecatedStatus{}
-		}
-		out.Deprecated.V1Beta1.FailureReason = in.FailureReason
-		out.Deprecated.V1Beta1.FailureMessage = in.FailureMessage
-	}
-
 	return nil
 }
 
@@ -603,6 +649,28 @@ func Convert_string_To_NetName(in string, hasRestored bool, restoredIn capmoxv2.
 	*out = ptr.To(in)
 }
 
+// Convert_v1beta1_Condition_To_v1_Condition converts a clusterv1beta1.Condition to a metav1.Condition.
+// Note: Severity field is dropped during conversion as metav1.Condition does not have it.
+func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out *metav1.Condition, s conversion.Scope) error {
+	out.Type = string(in.Type)
+	out.Status = metav1.ConditionStatus(in.Status)
+	out.LastTransitionTime = in.LastTransitionTime
+	out.Reason = in.Reason
+	out.Message = in.Message
+	return nil
+}
+
+// Convert_v1_Condition_To_v1beta1_Condition converts a metav1.Condition to a clusterv1beta1.Condition.
+// Note: metav1.Condition does not have a Severity field, so it defaults to ConditionSeverityNone.
+func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *clusterv1beta1.Condition, s conversion.Scope) error {
+	out.Type = clusterv1beta1.ConditionType(in.Type)
+	out.Status = corev1.ConditionStatus(in.Status)
+	out.LastTransitionTime = in.LastTransitionTime
+	out.Reason = in.Reason
+	out.Message = in.Message
+	return nil
+}
+
 func getNetDeviceByName(nets []AdditionalNetworkDevice, name string) *AdditionalNetworkDevice {
 	for _, net := range nets {
 		if net.Name == name {
@@ -649,149 +717,4 @@ func normalizeProxmoxMachineSpec(spec *capmoxv2.ProxmoxMachineSpec) {
 			}
 		}
 	}
-}
-
-// Convert_v1_Condition_To_v1beta1_Condition converts a metav1.Condition to a clusterv1beta1.Condition.
-// Note: metav1.Condition does not have a Severity field, so it defaults to ConditionSeverityNone.
-func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *clusterv1beta1.Condition, s conversion.Scope) error {
-	out.Type = clusterv1beta1.ConditionType(in.Type)
-	out.Status = corev1.ConditionStatus(in.Status)
-	out.LastTransitionTime = in.LastTransitionTime
-	out.Reason = in.Reason
-	out.Message = in.Message
-	// Severity does not exist in metav1.Condition (v1beta2), defaulting to None
-	out.Severity = clusterv1beta1.ConditionSeverityNone
-	return nil
-}
-
-// Convert_v1beta1_Condition_To_v1_Condition converts a clusterv1beta1.Condition to a metav1.Condition.
-// Note: Severity field is dropped during conversion as metav1.Condition does not have it.
-func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out *metav1.Condition, s conversion.Scope) error {
-	out.Type = string(in.Type)
-	out.Status = metav1.ConditionStatus(in.Status)
-	out.LastTransitionTime = in.LastTransitionTime
-	out.Reason = in.Reason
-	out.Message = in.Message
-	// ObservedGeneration is not set during conversion as we don't have that information in v1beta1
-	out.ObservedGeneration = 0
-	// Severity is dropped - metav1.Condition does not have a Severity field
-	return nil
-}
-
-// Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta converts clusterv1beta1.ObjectMeta to clusterv1beta2.ObjectMeta.
-// Both versions have the same structure (Labels and Annotations maps), so we copy the fields.
-// Preserves nil vs empty map distinction for fuzzy conversion compatibility.
-func Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in *clusterv1beta1.ObjectMeta, out *clusterv1beta2.ObjectMeta, s conversion.Scope) error {
-	// Only create maps if source is non-nil
-	if in.Labels != nil {
-		out.Labels = make(map[string]string, len(in.Labels))
-		for k, v := range in.Labels {
-			out.Labels[k] = v
-		}
-	} else {
-		out.Labels = nil
-	}
-	if in.Annotations != nil {
-		out.Annotations = make(map[string]string, len(in.Annotations))
-		for k, v := range in.Annotations {
-			out.Annotations[k] = v
-		}
-	} else {
-		out.Annotations = nil
-	}
-	return nil
-}
-
-// Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta converts clusterv1beta2.ObjectMeta to clusterv1beta1.ObjectMeta.
-// Both versions have the same structure (Labels and Annotations maps), so we copy the fields.
-// Preserves nil vs empty map distinction for fuzzy conversion compatibility.
-func Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in *clusterv1beta2.ObjectMeta, out *clusterv1beta1.ObjectMeta, s conversion.Scope) error {
-	// Only create maps if source is non-nil
-	if in.Labels != nil {
-		out.Labels = make(map[string]string, len(in.Labels))
-		for k, v := range in.Labels {
-			out.Labels[k] = v
-		}
-	} else {
-		out.Labels = nil
-	}
-	if in.Annotations != nil {
-		out.Annotations = make(map[string]string, len(in.Annotations))
-		for k, v := range in.Annotations {
-			out.Annotations[k] = v
-		}
-	} else {
-		out.Annotations = nil
-	}
-	return nil
-}
-
-// Manual conversions for ProxmoxClusterTemplateResource ObjectMeta field
-
-func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in *ProxmoxClusterTemplateResource, out *capmoxv2.ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	// Convert ObjectMeta between v1beta1 and v1beta2
-	if in.ObjectMeta.Labels != nil {
-		out.ObjectMeta.Labels = make(map[string]string, len(in.ObjectMeta.Labels))
-		for k, v := range in.ObjectMeta.Labels {
-			out.ObjectMeta.Labels[k] = v
-		}
-	}
-	if in.ObjectMeta.Annotations != nil {
-		out.ObjectMeta.Annotations = make(map[string]string, len(in.ObjectMeta.Annotations))
-		for k, v := range in.ObjectMeta.Annotations {
-			out.ObjectMeta.Annotations[k] = v
-		}
-	}
-	return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
-}
-
-func Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *capmoxv2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
-	// Convert ObjectMeta between v1beta2 and v1beta1
-	if in.ObjectMeta.Labels != nil {
-		out.ObjectMeta.Labels = make(map[string]string, len(in.ObjectMeta.Labels))
-		for k, v := range in.ObjectMeta.Labels {
-			out.ObjectMeta.Labels[k] = v
-		}
-	}
-	if in.ObjectMeta.Annotations != nil {
-		out.ObjectMeta.Annotations = make(map[string]string, len(in.ObjectMeta.Annotations))
-		for k, v := range in.ObjectMeta.Annotations {
-			out.ObjectMeta.Annotations[k] = v
-		}
-	}
-	return Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
-}
-
-func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *capmoxv2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	// Convert ObjectMeta between v1beta1 and v1beta2
-	if in.ObjectMeta.Labels != nil {
-		out.ObjectMeta.Labels = make(map[string]string, len(in.ObjectMeta.Labels))
-		for k, v := range in.ObjectMeta.Labels {
-			out.ObjectMeta.Labels[k] = v
-		}
-	}
-	if in.ObjectMeta.Annotations != nil {
-		out.ObjectMeta.Annotations = make(map[string]string, len(in.ObjectMeta.Annotations))
-		for k, v := range in.ObjectMeta.Annotations {
-			out.ObjectMeta.Annotations[k] = v
-		}
-	}
-	return Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
-}
-
-func Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *capmoxv2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
-	// Convert ObjectMeta between v1beta2 and v1beta1
-	if in.ObjectMeta.Labels != nil {
-		out.ObjectMeta.Labels = make(map[string]string, len(in.ObjectMeta.Labels))
-		for k, v := range in.ObjectMeta.Labels {
-			out.ObjectMeta.Labels[k] = v
-		}
-	}
-	if in.ObjectMeta.Annotations != nil {
-		out.ObjectMeta.Annotations = make(map[string]string, len(in.ObjectMeta.Annotations))
-		for k, v := range in.ObjectMeta.Annotations {
-			out.ObjectMeta.Annotations[k] = v
-		}
-	}
-	return Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
 }
