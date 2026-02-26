@@ -68,14 +68,14 @@ type ProxmoxClusterSpec struct {
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
+	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty,omitzero"`
 
 	// ipv6Config contains information about available IPv6 address pools and the gateway.
 	// This can be combined with ipv4Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty,omitzero"`
 
 	// dnsServers contains information about nameservers used by the machines.
 	// +required
@@ -92,7 +92,7 @@ type ProxmoxClusterSpec struct {
 	// cloneSpec is the configuration pertaining to all items configurable
 	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
 	// +optional
-	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
+	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty,omitzero"`
 
 	// credentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
 	// supplied then the credentials of the controller will be used.
@@ -141,14 +141,14 @@ type ZoneConfigSpec struct {
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
+	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty,omitzero"`
 
 	// ipv6Config contains information about available IPv6 address pools and the gateway.
 	// This can be combined with ipv4Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty,omitzero"`
 
 	// dnsServers contains information about nameservers used by the machines in this zone.
 	// +required

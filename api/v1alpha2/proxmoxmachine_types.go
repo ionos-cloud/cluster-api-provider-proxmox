@@ -110,7 +110,7 @@ type ProxmoxMachineSpec struct {
 	// vmIDRange is the range of VMIDs to use for VMs.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.end >= self.start",message="end should be greater than or equal to start"
-	VMIDRange *VMIDRange `json:"vmIDRange,omitempty"`
+	VMIDRange *VMIDRange `json:"vmIDRange,omitempty,omitzero"`
 
 	// checks defines possible checks to skip.
 	// +optional
@@ -118,7 +118,7 @@ type ProxmoxMachineSpec struct {
 
 	// metadataSettings defines the metadata settings for this machine's VM.
 	// +optional
-	MetadataSettings *MetadataSettings `json:"metadataSettings,omitempty"`
+	MetadataSettings *MetadataSettings `json:"metadataSettings,omitempty,omitzero"`
 
 	// allowedNodes specifies all Proxmox nodes which will be considered
 	// for operations. This implies that VMs can be cloned on different nodes from
@@ -147,7 +147,7 @@ type Storage struct {
 	// to change the size of the boot volume.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +optional
-	BootVolume *DiskSize `json:"bootVolume,omitempty"`
+	BootVolume *DiskSize `json:"bootVolume,omitempty,omitzero"`
 
 	// TODO Intended to add handling for additional volumes,
 	// which will be added to the node.
@@ -210,7 +210,7 @@ type TemplateSource struct {
 
 	// templateSelector defines MatchTags for looking up VM templates.
 	// +optional
-	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty"`
+	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty,omitzero"`
 }
 
 // VirtualMachineCloneSpec is information used to clone a virtual machine.
