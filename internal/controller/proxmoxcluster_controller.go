@@ -207,6 +207,13 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
+	// Ensure initialization status is always set so the status subresource
+	// passes CRD validation (initialization is required with minProperties:1).
+	// SetReady() will override this to true when all reconciliation succeeds.
+	if clusterScope.ProxmoxCluster.Status.Initialization.Provisioned == nil {
+		clusterScope.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(false)
+	}
+
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.IsZero() {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
@@ -264,16 +271,18 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	}
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
-		conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
-			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
-			Message: err.Error(),
-		})
+		reason := infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason
 		if apierrors.IsNotFound(err) {
+			reason = infrav1.ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason
 			clusterScope.SetFailureMessage("credentials secret not found")
 			clusterScope.SetFailureReason(capmoxerrors.InvalidConfigurationClusterError)
 		}
+		conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  reason,
+			Message: err.Error(),
+		})
 		return reconcile.Result{}, err
 	}
 
@@ -284,6 +293,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	})
 
 	clusterScope.SetReady()
+	clusterScope.ClearFailure()
 
 	return ctrl.Result{}, nil
 }

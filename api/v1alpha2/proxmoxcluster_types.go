@@ -246,6 +246,7 @@ type ProxmoxClusterStatus struct {
 	// initialization provides observations of the ProxmoxCluster initialization process.
 	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
 	// +required
+	// +kubebuilder:default={provisioned: false}
 	Initialization ProxmoxClusterInitializationStatus `json:"initialization,omitzero"`
 
 	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.

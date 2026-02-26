@@ -457,6 +457,7 @@ type ProxmoxMachineStatus struct {
 	// initialization provides observations of the ProxmoxMachine initialization process.
 	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Machine provisioning.
 	// +required
+	// +kubebuilder:default={provisioned: false}
 	Initialization ProxmoxMachineInitializationStatus `json:"initialization,omitzero"`
 
 	// addresses contains the Proxmox VM instance associated addresses.

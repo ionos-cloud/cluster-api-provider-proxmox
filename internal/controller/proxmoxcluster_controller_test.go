@@ -89,16 +89,19 @@ var _ = Describe("Controller Test", func() {
 			Should(Succeed())
 	})
 
-	It("Should default Provisioned to false on creation", func() {
+	It("Should initialize Provisioned on creation", func() {
 		cl := buildProxmoxCluster(clusterName)
 		g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
 		defer cleanupResources(testEnv.GetContext(), g, cl)
 
-		// Re-fetch to get server-applied defaults
-		var res infrav1.ProxmoxCluster
-		g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&cl), &res)).To(Succeed())
-		g.Expect(res.Status.Initialization.Provisioned).NotTo(BeNil())
-		g.Expect(*res.Status.Initialization.Provisioned).To(BeFalse())
+		// The controller initializes Provisioned during reconcileNormal.
+		g.Eventually(func(g Gomega) {
+			var res infrav1.ProxmoxCluster
+			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&cl), &res)).To(Succeed())
+			g.Expect(res.Status.Initialization.Provisioned).NotTo(BeNil())
+		}).WithTimeout(time.Second * 10).
+			WithPolling(time.Second).
+			Should(Succeed())
 	})
 
 	Context("IPAM tests", func() {

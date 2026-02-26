@@ -36,6 +36,10 @@ const (
 	// control plane.
 	ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason = "MissingControlPlaneEndpoint"
 
+	// ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason documents a controller
+	// detecting that the credentials secret referenced by the ProxmoxCluster does not exist.
+	ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason = "CredentialsNotFound"
+
 	// ProxmoxClusterProxmoxAvailableDeletingReason documents a ProxmoxCluster being deleted.
 	ProxmoxClusterProxmoxAvailableDeletingReason = "Deleting"
 )

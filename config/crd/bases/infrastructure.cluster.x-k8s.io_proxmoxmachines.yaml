@@ -1528,6 +1528,8 @@ spec:
                     type: object
                 type: object
               initialization:
+                default:
+                  provisioned: false
                 description: |-
                   initialization provides observations of the ProxmoxMachine initialization process.
                   NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Machine provisioning.

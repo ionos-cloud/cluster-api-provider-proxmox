@@ -154,7 +154,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 			conditions.Set(s.ProxmoxCluster, metav1.Condition{
 				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason,
 				Message: "credentials secret not found",
 			})
 			// set deprecated failure reason
@@ -285,5 +285,10 @@ func (s *ClusterScope) ClearFailure() {
 	if s.ProxmoxCluster.Status.Deprecated != nil && s.ProxmoxCluster.Status.Deprecated.V1Beta1 != nil {
 		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureMessage = nil
 		s.ProxmoxCluster.Status.Deprecated.V1Beta1.FailureReason = nil
+		// If no other fields remain, nil out the whole deprecated struct
+		// so the merge patch can properly clear it.
+		if s.ProxmoxCluster.Status.Deprecated.V1Beta1.Ready == nil {
+			s.ProxmoxCluster.Status.Deprecated = nil
+		}
 	}
 }
