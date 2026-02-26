@@ -185,7 +185,7 @@ func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *Prox
 		return err
 	}
 
-	// Manual ControlPlaneEndpoint conversion: v1alpha1 pointer → v1alpha2 value
+	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
 	if in.ControlPlaneEndpoint != nil {
 		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
 			Host: in.ControlPlaneEndpoint.Host,
@@ -201,7 +201,7 @@ func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capm
 		return err
 	}
 
-	// Manual ControlPlaneEndpoint conversion: v1alpha2 value → v1alpha1 pointer
+	// Manual conversion: capmoxv2.APIEndpoint (value type) → *clusterv1beta1.APIEndpoint
 	if !in.ControlPlaneEndpoint.IsZero() {
 		out.ControlPlaneEndpoint = &clusterv1beta1.APIEndpoint{
 			Host: in.ControlPlaneEndpoint.Host,
@@ -240,7 +240,7 @@ func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *
 		return err
 	}
 
-	// Map Ready → Initialization.Provisioned
+	// Manual conversion: Ready bool → Initialization.Provisioned *bool
 	if in.Ready {
 		out.Initialization.Provisioned = ptr.To(true)
 	}
@@ -266,7 +266,7 @@ func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *
 		return err
 	}
 
-	// Map Initialization.Provisioned → Ready (bool)
+	// Manual conversion: Initialization.Provisioned *bool → Ready bool
 	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
 
 	// Map deprecated failure fields to v1alpha1 top-level
@@ -284,7 +284,7 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 		return err
 	}
 
-	// Map Initialization.Provisioned → Ready (bool)
+	// Manual conversion: Initialization.Provisioned *bool → Ready bool
 	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
 
 	// Map deprecated failure fields to v1alpha1 top-level
@@ -467,7 +467,7 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 		return err
 	}
 
-	// Map Ready → Initialization.Provisioned
+	// Manual conversion: Ready bool → Initialization.Provisioned *bool
 	if in.Ready {
 		out.Initialization.Provisioned = ptr.To(true)
 	}
@@ -649,8 +649,8 @@ func Convert_string_To_NetName(in string, hasRestored bool, restoredIn capmoxv2.
 	*out = ptr.To(in)
 }
 
-// Convert_v1beta1_Condition_To_v1_Condition converts a clusterv1beta1.Condition to a metav1.Condition.
-// Note: Severity field is dropped during conversion as metav1.Condition does not have it.
+// Convert_v1beta1_Condition_To_v1_Condition is the conversion stub required by conversion-gen
+// to convert clusterv1beta1.Condition (v1beta1) to metav1.Condition (v1).
 func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out *metav1.Condition, s conversion.Scope) error {
 	out.Type = string(in.Type)
 	out.Status = metav1.ConditionStatus(in.Status)
@@ -660,8 +660,8 @@ func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out
 	return nil
 }
 
-// Convert_v1_Condition_To_v1beta1_Condition converts a metav1.Condition to a clusterv1beta1.Condition.
-// Note: metav1.Condition does not have a Severity field, so it defaults to ConditionSeverityNone.
+// Convert_v1_Condition_To_v1beta1_Condition is the conversion stub required by conversion-gen
+// to convert metav1.Condition (v1) to clusterv1beta1.Condition (v1beta1).
 func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *clusterv1beta1.Condition, s conversion.Scope) error {
 	out.Type = clusterv1beta1.ConditionType(in.Type)
 	out.Status = corev1.ConditionStatus(in.Status)
