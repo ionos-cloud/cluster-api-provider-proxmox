@@ -198,7 +198,7 @@ func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interfa
 func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
 
-	// Status: Initialization.Provisioned boolean nil -> false conversion
+	// Initialization.Provisioned: nil → false during hub→spoke→hub (Ready bool defaults to false)
 	if in.Initialization.Provisioned == nil {
 		in.Initialization.Provisioned = ptr.To(false)
 	}
@@ -379,8 +379,8 @@ func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 		hubProxmoxClusterSpec,
 		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
-		spokeProxmoxMachineSpec,
 		spokeProxmoxClusterStatus,
+		spokeProxmoxMachineSpec,
 	}
 }
 
