@@ -687,7 +687,7 @@ func (r *ProxmoxMachine) GetConditions() []metav1.Condition {
 	return r.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed conditions.
+// SetConditions sets the underlying service state of the ProxmoxMachine to the predescribed []metav1.Condition.
 func (r *ProxmoxMachine) SetConditions(conditions []metav1.Condition) {
 	r.Status.Conditions = conditions
 }
