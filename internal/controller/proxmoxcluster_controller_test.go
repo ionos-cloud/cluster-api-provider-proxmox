@@ -33,7 +33,6 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
-
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -66,7 +65,7 @@ var _ = Describe("Controller Test", func() {
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
 					Kind:     gvk.Kind,
 					Name:     clusterName,
-					APIGroup: gvk.GroupVersion().Group,
+					APIGroup: gvk.Group,
 				},
 			},
 		}
@@ -84,6 +83,21 @@ var _ = Describe("Controller Test", func() {
 		g.Eventually(func(g Gomega) {
 			err := k8sClient.Get(testEnv.GetContext(), client.ObjectKey{Name: "test", Namespace: testNS}, &clusterv1.Cluster{})
 			g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		}).WithTimeout(time.Second * 10).
+			WithPolling(time.Second).
+			Should(Succeed())
+	})
+
+	It("Should initialize Provisioned on creation", func() {
+		cl := buildProxmoxCluster(clusterName)
+		g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
+		defer cleanupResources(testEnv.GetContext(), g, cl)
+
+		// The controller initializes Provisioned during reconcileNormal.
+		g.Eventually(func(g Gomega) {
+			var res infrav1.ProxmoxCluster
+			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&cl), &res)).To(Succeed())
+			g.Expect(res.Status.Initialization.Provisioned).NotTo(BeNil())
 		}).WithTimeout(time.Second * 10).
 			WithPolling(time.Second).
 			Should(Succeed())
@@ -194,7 +208,7 @@ var _ = Describe("Controller Test", func() {
 				g.Expect(ipAddr.Spec.Gateway).To(BeEquivalentTo(pool.Spec.Gateway))
 
 				// check controlPlaneEndpoint is updated
-				g.Expect(cl.Spec.ControlPlaneEndpoint.Host != "" || cl.Spec.ControlPlaneEndpoint.Port != 0).To(BeTrue())
+				g.Expect(cl.Spec.ControlPlaneEndpoint.IsZero()).NotTo(BeTrue())
 				g.Expect(cl.Spec.ControlPlaneEndpoint.Port).To(BeEquivalentTo(ControlPlaneEndpointPort))
 				g.Expect(cl.Spec.ControlPlaneEndpoint.Host).To(BeEquivalentTo(ipAddr.Spec.Address))
 			}).WithTimeout(time.Second * 10).
@@ -228,7 +242,6 @@ var _ = Describe("Controller Test", func() {
 			}).WithTimeout(time.Second * 20).
 				WithPolling(time.Second).
 				Should(Succeed())
-
 		})
 	})
 })
@@ -404,12 +417,12 @@ func dummyIPAddress(client client.Client, owner client.Object, poolName string) 
 				Name: owner.GetName(),
 			},
 			PoolRef: ipamv1.IPPoolReference{
-				APIGroup: gvk.GroupVersion().Group,
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
 			Address: "10.10.10.11",
-			Prefix:  ptr.To(int32(24)),
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.10.1",
 		},
 	}

@@ -39,7 +39,7 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Initialization = infrav1.ProxmoxMachineInitializationStatus{Provisioned: ptr.To(true)}
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
@@ -57,7 +57,7 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Initialization = infrav1.ProxmoxMachineInitializationStatus{Provisioned: ptr.To(true)}
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
 		SkipQemuGuestAgent: ptr.To(true),
 	}
@@ -77,7 +77,7 @@ func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Initialization = infrav1.ProxmoxMachineInitializationStatus{Provisioned: ptr.To(true)}
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 	}
@@ -97,7 +97,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Initialization = infrav1.ProxmoxMachineInitializationStatus{Provisioned: ptr.To(true)}
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
 		SkipCloudInitStatus: ptr.To(true),
 		SkipQemuGuestAgent:  ptr.To(true),
@@ -278,6 +278,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 
 	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.True(t, machineScope.HasFailed())
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
@@ -648,7 +649,7 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 		IPv4:    []string{"10.10.10.10"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Initialization = infrav1.ProxmoxMachineInitializationStatus{Provisioned: ptr.To(true)}
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, goproxmox.ErrCloudInitFailed).Once()
@@ -674,7 +675,7 @@ func TestReconcileVM_CloudInitRunning(t *testing.T) {
 		IPv4:    []string{"10.10.10.10"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
-	machineScope.ProxmoxMachine.Status.Initialization = infrav1.ProxmoxMachineInitializationStatus{Provisioned: ptr.To(true)}
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(true, nil).Once()

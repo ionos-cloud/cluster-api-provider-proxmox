@@ -835,10 +835,11 @@ spec:
                         - vmdk
                         type: string
                       full:
+                        default: true
                         description: |-
-                          full creates a full copy of all disks.
+                          full Create a full copy of all disks.
                           This is always done when you clone a normal VM.
-                          Defaults to true when not specified.
+                          Defaults to true when not specified, creating a full clone by default.
                         type: boolean
                       memoryMiB:
                         description: |-
@@ -939,6 +940,7 @@ spec:
                                   - message: invalid MTU value
                                     rule: self == 1 || (self >= 576 && self <= 65520)
                                 model:
+                                  default: virtio
                                   description: |-
                                     model is the network device model.
                                     Defaults to "virtio" when not specified.
@@ -1159,14 +1161,14 @@ spec:
                         minimum: 1
                         type: integer
                       pool:
-                        description: pool adds the new VM to the specified pool.
+                        description: pool Add the new VM to the specified pool.
                         type: string
                       providerID:
                         description: |-
                           providerID is the virtual machine BIOS UUID formatted as
                           proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
                         maxLength: 46
-                        minLength: 1
+                        minLength: 46
                         pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                         type: string
                       snapName:

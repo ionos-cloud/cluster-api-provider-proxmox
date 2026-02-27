@@ -1048,10 +1048,11 @@ spec:
                                   - vmdk
                                   type: string
                                 full:
+                                  default: true
                                   description: |-
-                                    full creates a full copy of all disks.
+                                    full Create a full copy of all disks.
                                     This is always done when you clone a normal VM.
-                                    Defaults to true when not specified.
+                                    Defaults to true when not specified, creating a full clone by default.
                                   type: boolean
                                 machineType:
                                   description: machineType is the name of the template
@@ -1159,6 +1160,7 @@ spec:
                                               rule: self == 1 || (self >= 576 && self
                                                 <= 65520)
                                           model:
+                                            default: virtio
                                             description: |-
                                               model is the network device model.
                                               Defaults to "virtio" when not specified.
@@ -1395,7 +1397,7 @@ spec:
                                   minimum: 1
                                   type: integer
                                 pool:
-                                  description: pool adds the new VM to the specified
+                                  description: pool Add the new VM to the specified
                                     pool.
                                   type: string
                                 providerID:
@@ -1403,7 +1405,7 @@ spec:
                                     providerID is the virtual machine BIOS UUID formatted as
                                     proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
                                   maxLength: 46
-                                  minLength: 1
+                                  minLength: 46
                                   pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                                   type: string
                                 snapName:
@@ -1572,6 +1574,7 @@ spec:
                         type: array
                         x-kubernetes-list-type: set
                       externalManagedControlPlane:
+                        default: false
                         description: |-
                           externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
                           Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
@@ -1594,8 +1597,9 @@ spec:
                             minLength: 1
                             type: string
                           metric:
+                            default: 100
                             description: metric is the route priority applied to the
-                              default gateway.
+                              default gateway
                             format: int32
                             minimum: 0
                             type: integer
@@ -1631,8 +1635,9 @@ spec:
                             minLength: 1
                             type: string
                           metric:
+                            default: 100
                             description: metric is the route priority applied to the
-                              default gateway.
+                              default gateway
                             format: int32
                             minimum: 0
                             type: integer
@@ -1700,8 +1705,9 @@ spec:
                                   minLength: 1
                                   type: string
                                 metric:
+                                  default: 100
                                   description: metric is the route priority applied
-                                    to the default gateway.
+                                    to the default gateway
                                   format: int32
                                   minimum: 0
                                   type: integer
@@ -1738,8 +1744,9 @@ spec:
                                   minLength: 1
                                   type: string
                                 metric:
+                                  default: 100
                                   description: metric is the route priority applied
-                                    to the default gateway.
+                                    to the default gateway
                                   format: int32
                                   minimum: 0
                                   type: integer

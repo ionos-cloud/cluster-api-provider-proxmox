@@ -53,7 +53,7 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedPoweringOnFailedReason,
-			Message: fmt.Sprintf("%s", err),
+			Message: err.Error(),
 		})
 		return false, err
 	}

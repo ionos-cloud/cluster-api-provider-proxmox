@@ -63,7 +63,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason,
-			Message: fmt.Sprintf("%s", err),
+			Message: err.Error(),
 		})
 		return false, err
 	}
@@ -76,7 +76,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
-			Message: fmt.Sprintf("%s", err),
+			Message: err.Error(),
 		})
 		return false, err
 	}
@@ -98,7 +98,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-			Message: fmt.Sprintf("%s", err),
+			Message: err.Error(),
 		})
 		machineScope.Logger.V(0).Error(err, "nicData", "json", func() string { ret, _ := json.Marshal(nicData); return string(ret) }())
 		return false, errors.Wrap(err, "failed to inject bootstrap data")

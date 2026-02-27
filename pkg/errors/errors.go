@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 // Package capmoxerrors defines error types and constants for the Proxmox provider.
-// These are used to represent error states in the status of Cluster and Machine objects,
+// These are used to represent error states in the status of Cluster and Machine objects.
 package capmoxerrors
 
 // The following types and constants are imported from CAPI and will be removed at some point once we
@@ -57,7 +57,7 @@ const (
 	// This is not a transient error, but
 	// indicates a state that must be fixed before progress can be made.
 	//
-	// Example: the ProviderSpec specifies an instance type that doesn't exist,.
+	// Example: the ProviderSpec specifies an instance type that doesn't exist.
 	InvalidConfigurationMachineError DeprecatedCAPIMachineStatusError = "InvalidConfiguration"
 
 	// CreateMachineError indicates an error while trying to create a Node to match this

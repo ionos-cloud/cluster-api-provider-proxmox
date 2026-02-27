@@ -44,6 +44,7 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok,
 		restored.Status.Initialization.Provisioned,
 		&dst.Status.Initialization.Provisioned)
+
 	if dst.Status.VMStatus != nil && *dst.Status.VMStatus == "" {
 		dst.Status.VMStatus = nil
 	}

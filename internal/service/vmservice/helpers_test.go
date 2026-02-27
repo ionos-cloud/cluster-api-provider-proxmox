@@ -235,10 +235,16 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 }
 
 func createIPAddressResource(t *testing.T, c client.Client, name string, machineScope *scope.MachineScope, ip netip.Prefix, offset int, pool *corev1.TypedLocalObjectReference) {
-	prefix := ip.Bits()
+	prefix := int32(ip.Bits())
 	var gateway string
+	var poolRef ipamv1.IPPoolReference
 
 	if pool != nil {
+		poolRef = ipamv1.IPPoolReference{
+			APIGroup: ptr.Deref(pool.APIGroup, ""),
+			Kind:     pool.Kind,
+			Name:     pool.Name,
+		}
 		ipAddrClaim := &ipamv1.IPAddressClaim{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
@@ -257,30 +263,18 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 				}},
 			},
 			Spec: ipamv1.IPAddressClaimSpec{
-				PoolRef: ipamv1.IPPoolReference{
-					APIGroup: ptr.Deref(pool.APIGroup, ""),
-					Kind:     pool.Kind,
-					Name:     pool.Name,
-				},
+				PoolRef: poolRef,
 			},
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
 		poolSpec := getPoolSpec(getIPAddressPool(t, machineScope, *pool))
 		if poolSpec.prefix != 0 {
-			prefix = poolSpec.prefix
+			prefix = int32(poolSpec.prefix)
 		}
 		gateway = poolSpec.gateway
 	}
 
-	poolRef := ipamv1.IPPoolReference{}
-	if pool != nil {
-		poolRef = ipamv1.IPPoolReference{
-			APIGroup: ptr.Deref(pool.APIGroup, ""),
-			Kind:     pool.Kind,
-			Name:     pool.Name,
-		}
-	}
 	ipAddr := &ipamv1.IPAddress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
@@ -291,7 +285,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		},
 		Spec: ipamv1.IPAddressSpec{
 			Address: ip.Addr().String(),
-			Prefix:  ptr.To(int32(prefix)),
+			Prefix:  ptr.To(prefix),
 			Gateway: gateway,
 			PoolRef: poolRef,
 		},
@@ -626,11 +620,11 @@ func newVMWithNets(def string, additional ...string) *proxmox.VirtualMachine {
 	return vm
 }
 
-// requireConditionIsFalse asserts that the given condition exists and has status "False".
-func requireConditionIsFalse(t *testing.T, obj *infrav1.ProxmoxMachine, cond string) {
+// requireConditionIsFalse asserts that the given conditions exists and has status "False".
+func requireConditionIsFalse(t *testing.T, getter conditions.Getter, cond clusterv1.ConditionType) {
 	t.Helper()
-	require.Truef(t, conditions.Has(obj, cond),
-		"%T %s does not have condition %v", obj, obj.GetName(), cond)
-	require.Truef(t, conditions.IsFalse(obj, cond),
-		"expected condition %q to be False, got %q", cond, conditions.Get(obj, cond).Status)
+	require.Truef(t, conditions.Has(getter, string(cond)),
+		"%T does not have condition %v", getter, cond)
+	require.Truef(t, conditions.IsFalse(getter, string(cond)),
+		"expected condition to be %q, got %q", cond, corev1.ConditionFalse, conditions.Get(getter, string(cond)).Status)
 }

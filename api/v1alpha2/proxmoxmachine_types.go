@@ -226,15 +226,16 @@ type VirtualMachineCloneSpec struct {
 	// format for file storage. Only valid for full clone.
 	// +kubebuilder:validation:Enum=raw;qcow2;vmdk
 	// +optional
-	Format *TargetFileStorageFormat `json:"format,omitempty,omitzero"`
+	Format *TargetFileStorageFormat `json:"format,omitempty"`
 
-	// full creates a full copy of all disks.
+	// full Create a full copy of all disks.
 	// This is always done when you clone a normal VM.
-	// Defaults to true when not specified.
+	// Defaults to true when not specified, creating a full clone by default.
+	// +default=true
 	// +optional
 	Full *bool `json:"full,omitempty"`
 
-	// pool adds the new VM to the specified pool.
+	// pool Add the new VM to the specified pool.
 	// +optional
 	Pool *string `json:"pool,omitempty"`
 
@@ -418,6 +419,7 @@ type NetworkDevice struct {
 	// Defaults to "virtio" when not specified.
 	// +optional
 	// +kubebuilder:validation:Enum=e1000;virtio;rtl8139;vmxnet3
+	// +default="virtio"
 	Model *string `json:"model,omitempty"`
 
 	// mtu is the network device Maximum Transmission Unit.
@@ -430,14 +432,12 @@ type NetworkDevice struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=4094
-	VLAN *int32 `json:"vlan,omitempty,omitzero"`
+	VLAN *int32 `json:"vlan,omitempty"`
 
 	// name is the network device name.
 	// +default="net0"
 	// +optional
-	//nolint:kubeapilinter
 	Name NetName `json:"name,omitempty"`
-	// justification: +default is required because name is a listMapKey.
 
 	// InterfaceConfig contains all configurables a network interface can have.
 	// +optional
@@ -480,7 +480,7 @@ type ProxmoxMachineStatus struct {
 	// +listMapKey=net
 	IPAddresses []IPAddressesSpec `json:"ipAddresses,omitempty"`
 
-	// network returns the network status for each of the machine's configured.
+	// network returns the network status for each of the machine's configured
 	// network interfaces.
 	// +optional
 	// +listType=atomic

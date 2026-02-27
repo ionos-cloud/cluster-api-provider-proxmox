@@ -184,6 +184,7 @@ func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *Prox
 	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
 		return err
 	}
+
 	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
 	if in.ControlPlaneEndpoint != nil {
 		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
@@ -191,6 +192,7 @@ func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *Prox
 			Port: in.ControlPlaneEndpoint.Port,
 		}
 	}
+
 	return nil
 }
 
@@ -198,13 +200,15 @@ func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capm
 	if err := autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s); err != nil {
 		return err
 	}
+
 	// Manual conversion: capmoxv2.APIEndpoint (value type) → *clusterv1beta1.APIEndpoint
-	if in.ControlPlaneEndpoint.Host != "" || in.ControlPlaneEndpoint.Port != 0 {
+	if !in.ControlPlaneEndpoint.IsZero() {
 		out.ControlPlaneEndpoint = &clusterv1beta1.APIEndpoint{
 			Host: in.ControlPlaneEndpoint.Host,
 			Port: in.ControlPlaneEndpoint.Port,
 		}
 	}
+
 	return nil
 }
 
@@ -235,21 +239,25 @@ func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *
 	if err := autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s); err != nil {
 		return err
 	}
+
 	// Manual conversion: Ready bool → Initialization.Provisioned *bool
 	if in.Ready {
 		out.Initialization.Provisioned = ptr.To(true)
 	}
 	// FailureReason and FailureMessage are dropped during up-conversion
+
 	return nil
 }
 
 func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *capmoxv2.ProxmoxClusterStatus, out *ProxmoxClusterStatus, s conversion.Scope) error {
-	// Accept WARNINGs: in.InClusterZoneRef, in.Initialization do not exist in peer-type
+	// Accept WARNING: in.InClusterZoneRef does not exist in peer-type
 	if err := autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in, out, s); err != nil {
 		return err
 	}
+
 	// Manual conversion: Initialization.Provisioned *bool → Ready bool
 	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
+
 	return nil
 }
 
