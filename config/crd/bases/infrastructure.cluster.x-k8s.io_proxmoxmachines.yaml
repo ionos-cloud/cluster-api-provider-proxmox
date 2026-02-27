@@ -1313,8 +1313,9 @@ spec:
                 description: |-
                   providerID is the virtual machine BIOS UUID formatted as
                   proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
-                maxLength: 512
-                minLength: 1
+                maxLength: 46
+                minLength: 46
+                pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                 type: string
               snapName:
                 description: snapName is the name of the snapshot.

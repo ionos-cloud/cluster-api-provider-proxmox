@@ -37,7 +37,7 @@ func defaultMachine() *ProxmoxMachine {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ProxmoxMachineSpec{
-			ProviderID:       "proxmox://abcdef",
+			ProviderID:       "proxmox://a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 			VirtualMachineID: ptr.To[int64](100),
 			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 				TemplateSource: TemplateSource{
@@ -162,6 +162,26 @@ var _ = Describe("ProxmoxMachine Test", func() {
 					Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring(testCase.errorMessage)))
 				}
 			}
+		})
+	})
+
+	Context("ProviderID", func() {
+		It("Should reject invalid providerID", func() {
+			dm := defaultMachine()
+			dm.Spec.ProviderID = "proxmox://not-a-uuid"
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.providerID in body should be at least 46 chars long")))
+		})
+
+		It("Should reject invalid providerID UUID", func() {
+			dm := defaultMachine()
+			dm.Spec.ProviderID = "proxmox://a1b2c3d4ae5f6b7890cabcddef1234567890"
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.providerID in body should match")))
+		})
+
+		It("Should reject providerID without proxmox:// prefix", func() {
+			dm := defaultMachine()
+			dm.Spec.ProviderID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.providerID in body should be at least 46 chars long")))
 		})
 	})
 

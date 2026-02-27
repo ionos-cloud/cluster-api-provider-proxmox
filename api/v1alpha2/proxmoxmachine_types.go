@@ -68,8 +68,9 @@ type ProxmoxMachineSpec struct {
 	// providerID is the virtual machine BIOS UUID formatted as
 	// proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
 	// +optional
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=512
+	// +kubebuilder:validation:MinLength=46
+	// +kubebuilder:validation:MaxLength=46
+	// +kubebuilder:validation:Pattern=`^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`
 	ProviderID string `json:"providerID,omitempty"`
 
 	// virtualMachineID is the Proxmox identifier for the ProxmoxMachine VM.
