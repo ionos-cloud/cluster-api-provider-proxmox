@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha2
 
 import (
+	"fmt"
+	"net"
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
@@ -98,6 +100,9 @@ type ProxmoxClusterSpec struct {
 
 // APIEndpoint represents a reachable Kubernetes API endpoint.
 // +kubebuilder:validation:MinProperties=1
+// The XValidation rule below is necessary because port uses omitempty, so a zero
+// value is omitted from JSON and the field-level Minimum=1 constraint never fires.
+// +kubebuilder:validation:XValidation:rule="self.port > 0 && self.port < 65536",message="port must be within 1-65535"
 type APIEndpoint struct {
 	// host is the hostname on which the API server is serving.
 	// +optional
@@ -110,6 +115,16 @@ type APIEndpoint struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port,omitempty"`
+}
+
+// IsZero returns true if both host and port are zero values.
+func (v APIEndpoint) IsZero() bool {
+	return v.Host == "" && v.Port == 0
+}
+
+// String returns a formatted version HOST:PORT of this APIEndpoint.
+func (v APIEndpoint) String() string {
+	return net.JoinHostPort(v.Host, fmt.Sprintf("%d", v.Port))
 }
 
 // ZoneConfigSpec is the Network Configuration for further deployment zones.

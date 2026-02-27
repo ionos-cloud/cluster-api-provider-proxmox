@@ -114,6 +114,15 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
 		})
+
+		It("Should not allow port 0", func() {
+			dc := defaultCluster()
+			dc.Spec.ControlPlaneEndpoint = APIEndpoint{
+				Host: "example.com",
+				Port: 0,
+			}
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
+		})
 	})
 
 	Context("IPv4Config", func() {
