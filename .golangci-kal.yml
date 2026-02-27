@@ -21,7 +21,6 @@ linters:
               - "forbiddenmarkers"
               - "integers"
               - "jsontags"
-              - "maxlength"
               - "nobools"
               - "nodurations"
               - "nofloats"

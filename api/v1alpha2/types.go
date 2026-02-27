@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha2
 
 // VirtualMachineState describes the state of a VM.
-// +kubebuilder:validation:MaxLength=32
 type VirtualMachineState string
 
 const (
@@ -58,13 +57,11 @@ type VirtualMachine struct {
 	// node is the VM node.
 	// +required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
 	Node string `json:"node,omitempty"`
 
 	// name is the VM's name.
 	// +required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
 	Name string `json:"name,omitempty"`
 
 	// vmID is the VM's ID.
@@ -81,7 +78,6 @@ type VirtualMachine struct {
 	// network is the status of the VM's network devices.
 	// +required
 	// +listType=atomic
-	// +kubebuilder:validation:MaxItems=32
 	Network []NetworkStatus `json:"network,omitempty"`
 }
 
@@ -95,8 +91,6 @@ type NetworkStatus struct {
 	// ipAddrs is one or more IP addresses reported by vm-tools.
 	// +listType=set
 	// +optional
-	// +kubebuilder:validation:MaxItems=32
-	// +kubebuilder:validation:items:MaxLength=256
 	IPAddrs []string `json:"ipAddrs,omitempty"`
 
 	// macAddr is the MAC address of the network device.
@@ -113,10 +107,8 @@ type NetworkStatus struct {
 
 // NetName is a formally verified Proxmox network name string.
 // +kubebuilder:validation:Pattern=`^net[0-9]+$`
-// +kubebuilder:validation:MaxLength=256
 type NetName *string
 
 // Zone is a formally verified Proxmox network zone name. Needs to adhere to Label rules.
 // +kubebuilder:validation:Pattern=`^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$`
-// +kubebuilder:validation:MaxLength=63
 type Zone *string

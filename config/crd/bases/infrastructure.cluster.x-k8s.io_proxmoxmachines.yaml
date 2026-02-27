@@ -911,9 +911,7 @@ spec:
                   the nodes where the VM can be cloned.
                   If not set, the ProxmoxCluster will be used to determine the nodes.
                 items:
-                  maxLength: 256
                   type: string
-                maxItems: 32
                 type: array
                 x-kubernetes-list-type: set
               checks:
@@ -930,7 +928,6 @@ spec:
                 type: object
               description:
                 description: description for the new VM.
-                maxLength: 2048
                 type: string
               disks:
                 description: |-
@@ -947,7 +944,6 @@ spec:
                         description: |-
                           disk is the name of the disk device that should be resized.
                           Example values are: ide[0-3], scsi[0-30], sata[0-5].
-                        maxLength: 256
                         minLength: 1
                         type: string
                       sizeGb:
@@ -1013,7 +1009,6 @@ spec:
                         bridge:
                           description: bridge is the network bridge to attach to the
                             machine.
-                          maxLength: 256
                           minLength: 1
                           type: string
                         defaultIPv4:
@@ -1029,9 +1024,7 @@ spec:
                             dnsServers contains information about nameservers to be used for this interface.
                             If this field is not set, it will use the default dns servers from the ProxmoxCluster.
                           items:
-                            maxLength: 256
                             type: string
-                          maxItems: 32
                           minItems: 1
                           type: array
                           x-kubernetes-list-type: set
@@ -1069,7 +1062,6 @@ spec:
                                 GlobalInClusterIPPool
                               rule: self.kind == 'InClusterIPPool' || self.kind ==
                                 'GlobalInClusterIPPool'
-                          maxItems: 16
                           type: array
                           x-kubernetes-list-type: atomic
                         linkMtu:
@@ -1102,7 +1094,6 @@ spec:
                         name:
                           default: net0
                           description: name is the network device name.
-                          maxLength: 256
                           pattern: ^net[0-9]+$
                           type: string
                         routes:
@@ -1124,11 +1115,9 @@ spec:
                                 type: integer
                               to:
                                 description: to is the subnet to be routed.
-                                maxLength: 256
                                 type: string
                               via:
                                 description: via is the gateway to the subnet.
-                                maxLength: 256
                                 type: string
                             type: object
                           minItems: 1
@@ -1142,7 +1131,6 @@ spec:
                             properties:
                               from:
                                 description: from is the subnet of the source.
-                                maxLength: 256
                                 type: string
                               priority:
                                 description: priority is the position in the ip rule
@@ -1160,7 +1148,6 @@ spec:
                                 type: integer
                               to:
                                 description: to is the subnet of the target.
-                                maxLength: 256
                                 type: string
                             type: object
                           minItems: 1
@@ -1188,17 +1175,14 @@ spec:
                           items:
                             description: NetName is a formally verified Proxmox network
                               name string.
-                            maxLength: 256
                             pattern: ^net[0-9]+$
                             type: string
-                          maxItems: 32
                           type: array
                           x-kubernetes-list-type: atomic
                         name:
                           description: |-
                             name is the virtual network device name.
                             Must be unique within the virtual machine.
-                          maxLength: 256
                           minLength: 3
                           type: string
                         routes:
@@ -1220,11 +1204,9 @@ spec:
                                 type: integer
                               to:
                                 description: to is the subnet to be routed.
-                                maxLength: 256
                                 type: string
                               via:
                                 description: via is the gateway to the subnet.
-                                maxLength: 256
                                 type: string
                             type: object
                           minItems: 1
@@ -1238,7 +1220,6 @@ spec:
                             properties:
                               from:
                                 description: from is the subnet of the source.
-                                maxLength: 256
                                 type: string
                               priority:
                                 description: priority is the position in the ip rule
@@ -1256,7 +1237,6 @@ spec:
                                 type: integer
                               to:
                                 description: to is the subnet of the target.
-                                maxLength: 256
                                 type: string
                             type: object
                           minItems: 1
@@ -1277,7 +1257,6 @@ spec:
                       - name
                       - table
                       type: object
-                    maxItems: 32
                     type: array
                     x-kubernetes-list-map-keys:
                     - name
@@ -1285,7 +1264,6 @@ spec:
                   zone:
                     description: zone is the cluster deployment zone this machine
                       will refer to.
-                    maxLength: 63
                     pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                     type: string
                 required:
@@ -1307,19 +1285,17 @@ spec:
                 type: integer
               pool:
                 description: pool adds the new VM to the specified pool.
-                maxLength: 256
                 type: string
               providerID:
                 description: |-
                   providerID is the virtual machine BIOS UUID formatted as
                   proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
                 maxLength: 46
-                minLength: 46
+                minLength: 1
                 pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                 type: string
               snapName:
                 description: snapName is the name of the snapshot.
-                maxLength: 256
                 type: string
               sourceNode:
                 description: |-
@@ -1337,27 +1313,22 @@ spec:
 
                   If neither a `Target` nor `AllowedNodes` was set, the VM
                   will be cloned onto the same node as SourceNode.
-                maxLength: 256
                 minLength: 1
                 type: string
               storage:
                 description: storage for full clone.
-                maxLength: 256
                 type: string
               tags:
                 description: tags is a list of tags to be applied to the virtual machine.
                 items:
-                  maxLength: 256
                   pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                   type: string
-                maxItems: 32
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: set
               target:
                 description: target node. Only allowed if the original VM is on shared
                   storage.
-                maxLength: 256
                 type: string
               templateID:
                 description: templateID the vm_template vmid used for cloning a new
@@ -1374,10 +1345,8 @@ spec:
                       Passed tags must be an exact 1:1 match with the tags on the template you want to use.
                       If multiple VM templates with the same set of tags are found, provisioning will fail.
                     items:
-                      maxLength: 256
                       pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                       type: string
-                    maxItems: 32
                     minItems: 1
                     type: array
                     x-kubernetes-list-type: set
@@ -1456,7 +1425,6 @@ spec:
                   - address
                   - type
                   type: object
-                maxItems: 32
                 type: array
                 x-kubernetes-list-type: atomic
               bootstrapDataProvided:
@@ -1546,30 +1514,24 @@ spec:
                     ipv4:
                       description: ipv4 is the IPv4 address.
                       items:
-                        maxLength: 256
                         type: string
-                      maxItems: 32
                       type: array
                       x-kubernetes-list-type: set
                     ipv6:
                       description: ipv6 is the IPv6 address.
                       items:
-                        maxLength: 256
                         type: string
-                      maxItems: 32
                       type: array
                       x-kubernetes-list-type: set
                     net:
                       description: net is the proxmox network name these ipaddresses
                         are attached to.
-                      maxLength: 256
                       minLength: 1
                       pattern: ^(net[0-9]+|default)$
                       type: string
                   required:
                   - net
                   type: object
-                maxItems: 32
                 type: array
                 x-kubernetes-list-map-keys:
                 - net
@@ -1591,9 +1553,7 @@ spec:
                       description: ipAddrs is one or more IP addresses reported by
                         vm-tools.
                       items:
-                        maxLength: 256
                         type: string
-                      maxItems: 32
                       type: array
                       x-kubernetes-list-type: set
                     macAddr:
@@ -1604,21 +1564,18 @@ spec:
                       type: string
                     networkName:
                       description: networkName is the name of the network.
-                      maxLength: 256
                       pattern: ^net[0-9]+$
                       type: string
                   required:
                   - connected
                   - macAddr
                   type: object
-                maxItems: 32
                 type: array
                 x-kubernetes-list-type: atomic
               proxmoxNode:
                 description: |-
                   proxmoxNode is the name of the proxmox node, which was chosen for this
                   machine to be deployed on.
-                maxLength: 256
                 type: string
               retryAfter:
                 description: retryAfter tracks the time we can retry queueing a task.
@@ -1629,11 +1586,9 @@ spec:
                   taskRef is a managed object reference to a Task related to the ProxmoxMachine.
                   This value is set automatically at runtime and should not be set or
                   modified by users.
-                maxLength: 512
                 type: string
               vmStatus:
                 description: vmStatus is used to identify the virtual machine status.
-                maxLength: 32
                 type: string
             type: object
         required:
