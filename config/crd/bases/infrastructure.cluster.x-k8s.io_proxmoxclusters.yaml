@@ -1078,9 +1078,7 @@ spec:
                   for operations. This implies that VMs can be cloned on different nodes from
                   the node which holds the VM template.
                 items:
-                  maxLength: 256
                   type: string
-                maxItems: 32
                 type: array
                 x-kubernetes-list-type: set
               cloneSpec:
@@ -1104,9 +1102,7 @@ spec:
                             the nodes where the VM can be cloned.
                             If not set, the ProxmoxCluster will be used to determine the nodes.
                           items:
-                            maxLength: 256
                             type: string
-                          maxItems: 32
                           type: array
                           x-kubernetes-list-type: set
                         checks:
@@ -1125,7 +1121,6 @@ spec:
                           type: object
                         description:
                           description: description for the new VM.
-                          maxLength: 2048
                           type: string
                         disks:
                           description: |-
@@ -1142,7 +1137,6 @@ spec:
                                   description: |-
                                     disk is the name of the disk device that should be resized.
                                     Example values are: ide[0-3], scsi[0-30], sata[0-5].
-                                  maxLength: 256
                                   minLength: 1
                                   type: string
                                 sizeGb:
@@ -1180,7 +1174,6 @@ spec:
                         machineType:
                           description: machineType is the name of the template for
                             ClusterClass.
-                          maxLength: 256
                           minLength: 1
                           type: string
                         memoryMiB:
@@ -1215,7 +1208,6 @@ spec:
                                   bridge:
                                     description: bridge is the network bridge to attach
                                       to the machine.
-                                    maxLength: 256
                                     minLength: 1
                                     type: string
                                   defaultIPv4:
@@ -1231,9 +1223,7 @@ spec:
                                       dnsServers contains information about nameservers to be used for this interface.
                                       If this field is not set, it will use the default dns servers from the ProxmoxCluster.
                                     items:
-                                      maxLength: 256
                                       type: string
-                                    maxItems: 32
                                     minItems: 1
                                     type: array
                                     x-kubernetes-list-type: set
@@ -1274,7 +1264,6 @@ spec:
                                           or GlobalInClusterIPPool
                                         rule: self.kind == 'InClusterIPPool' || self.kind
                                           == 'GlobalInClusterIPPool'
-                                    maxItems: 16
                                     type: array
                                     x-kubernetes-list-type: atomic
                                   linkMtu:
@@ -1307,7 +1296,6 @@ spec:
                                   name:
                                     default: net0
                                     description: name is the network device name.
-                                    maxLength: 256
                                     pattern: ^net[0-9]+$
                                     type: string
                                   routes:
@@ -1330,11 +1318,9 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet to be routed.
-                                          maxLength: 256
                                           type: string
                                         via:
                                           description: via is the gateway to the subnet.
-                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1350,7 +1336,6 @@ spec:
                                       properties:
                                         from:
                                           description: from is the subnet of the source.
-                                          maxLength: 256
                                           type: string
                                         priority:
                                           description: priority is the position in
@@ -1370,7 +1355,6 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet of the target.
-                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1399,17 +1383,14 @@ spec:
                                     items:
                                       description: NetName is a formally verified
                                         Proxmox network name string.
-                                      maxLength: 256
                                       pattern: ^net[0-9]+$
                                       type: string
-                                    maxItems: 32
                                     type: array
                                     x-kubernetes-list-type: atomic
                                   name:
                                     description: |-
                                       name is the virtual network device name.
                                       Must be unique within the virtual machine.
-                                    maxLength: 256
                                     minLength: 3
                                     type: string
                                   routes:
@@ -1432,11 +1413,9 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet to be routed.
-                                          maxLength: 256
                                           type: string
                                         via:
                                           description: via is the gateway to the subnet.
-                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1452,7 +1431,6 @@ spec:
                                       properties:
                                         from:
                                           description: from is the subnet of the source.
-                                          maxLength: 256
                                           type: string
                                         priority:
                                           description: priority is the position in
@@ -1472,7 +1450,6 @@ spec:
                                           type: integer
                                         to:
                                           description: to is the subnet of the target.
-                                          maxLength: 256
                                           type: string
                                       type: object
                                     minItems: 1
@@ -1493,7 +1470,6 @@ spec:
                                 - name
                                 - table
                                 type: object
-                              maxItems: 32
                               type: array
                               x-kubernetes-list-map-keys:
                               - name
@@ -1501,7 +1477,6 @@ spec:
                             zone:
                               description: zone is the cluster deployment zone this
                                 machine will refer to.
-                              maxLength: 63
                               pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                               type: string
                           required:
@@ -1523,19 +1498,17 @@ spec:
                           type: integer
                         pool:
                           description: pool adds the new VM to the specified pool.
-                          maxLength: 256
                           type: string
                         providerID:
                           description: |-
                             providerID is the virtual machine BIOS UUID formatted as
                             proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
                           maxLength: 46
-                          minLength: 46
+                          minLength: 1
                           pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                           type: string
                         snapName:
                           description: snapName is the name of the snapshot.
-                          maxLength: 256
                           type: string
                         sourceNode:
                           description: |-
@@ -1553,28 +1526,23 @@ spec:
 
                             If neither a `Target` nor `AllowedNodes` was set, the VM
                             will be cloned onto the same node as SourceNode.
-                          maxLength: 256
                           minLength: 1
                           type: string
                         storage:
                           description: storage for full clone.
-                          maxLength: 256
                           type: string
                         tags:
                           description: tags is a list of tags to be applied to the
                             virtual machine.
                           items:
-                            maxLength: 256
                             pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                             type: string
-                          maxItems: 32
                           minItems: 1
                           type: array
                           x-kubernetes-list-type: set
                         target:
                           description: target node. Only allowed if the original VM
                             is on shared storage.
-                          maxLength: 256
                           type: string
                         templateID:
                           description: templateID the vm_template vmid used for cloning
@@ -1591,10 +1559,8 @@ spec:
                                 Passed tags must be an exact 1:1 match with the tags on the template you want to use.
                                 If multiple VM templates with the same set of tags are found, provisioning will fail.
                               items:
-                                maxLength: 256
                                 pattern: ^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$
                                 type: string
-                              maxItems: 32
                               minItems: 1
                               type: array
                               x-kubernetes-list-type: set
@@ -1641,7 +1607,6 @@ spec:
                         rule: self.full || !has(self.format)
                       - message: Must set full=true when specifying storage
                         rule: self.full || !has(self.storage)
-                    maxItems: 32
                     type: array
                     x-kubernetes-list-map-keys:
                     - machineType
@@ -1650,15 +1615,12 @@ spec:
                     description: sshAuthorizedKeys contains the authorized keys deployed
                       to the PROXMOX VMs.
                     items:
-                      maxLength: 16384
                       type: string
-                    maxItems: 32
                     type: array
                     x-kubernetes-list-type: set
                   virtualIPNetworkInterface:
                     description: virtualIPNetworkInterface is the interface the k8s
                       control plane binds to.
-                    maxLength: 256
                     type: string
                 required:
                 - machineSpec
@@ -1700,9 +1662,7 @@ spec:
                 description: dnsServers contains information about nameservers used
                   by the machines.
                 items:
-                  maxLength: 256
                   type: string
-                maxItems: 32
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: set
@@ -1721,14 +1681,11 @@ spec:
                     description: addresses is a list of IP addresses that can be assigned.
                       This set of addresses can be non-contiguous.
                     items:
-                      maxLength: 256
                       type: string
-                    maxItems: 256
                     type: array
                     x-kubernetes-list-type: set
                   gateway:
                     description: gateway is the network gateway
-                    maxLength: 256
                     minLength: 1
                     type: string
                   metric:
@@ -1761,14 +1718,11 @@ spec:
                     description: addresses is a list of IP addresses that can be assigned.
                       This set of addresses can be non-contiguous.
                     items:
-                      maxLength: 256
                       type: string
-                    maxItems: 256
                     type: array
                     x-kubernetes-list-type: set
                   gateway:
                     description: gateway is the network gateway
-                    maxLength: 256
                     minLength: 1
                     type: string
                   metric:
@@ -1818,9 +1772,7 @@ spec:
                       description: dnsServers contains information about nameservers
                         used by the machines in this zone.
                       items:
-                        maxLength: 256
                         type: string
-                      maxItems: 32
                       minItems: 1
                       type: array
                       x-kubernetes-list-type: set
@@ -1834,14 +1786,11 @@ spec:
                           description: addresses is a list of IP addresses that can
                             be assigned. This set of addresses can be non-contiguous.
                           items:
-                            maxLength: 256
                             type: string
-                          maxItems: 256
                           type: array
                           x-kubernetes-list-type: set
                         gateway:
                           description: gateway is the network gateway
-                          maxLength: 256
                           minLength: 1
                           type: string
                         metric:
@@ -1874,14 +1823,11 @@ spec:
                           description: addresses is a list of IP addresses that can
                             be assigned. This set of addresses can be non-contiguous.
                           items:
-                            maxLength: 256
                             type: string
-                          maxItems: 256
                           type: array
                           x-kubernetes-list-type: set
                         gateway:
                           description: gateway is the network gateway
-                          maxLength: 256
                           minLength: 1
                           type: string
                         metric:
@@ -1906,14 +1852,12 @@ spec:
                         rule: self.addresses.size() > 0
                     zone:
                       description: zone is the name of your deployment zone.
-                      maxLength: 63
                       pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                       type: string
                   required:
                   - dnsServers
                   - zone
                   type: object
-                maxItems: 32
                 type: array
                 x-kubernetes-list-map-keys:
                 - zone
@@ -2009,7 +1953,6 @@ spec:
                       type: string
                   type: object
                   x-kubernetes-map-type: atomic
-                maxItems: 32
                 type: array
                 x-kubernetes-list-type: atomic
               inClusterZoneRef:
@@ -2051,7 +1994,6 @@ spec:
                     zone:
                       default: default
                       description: zone defines the deployment proxmox-zone.
-                      maxLength: 63
                       pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                       type: string
                   type: object
@@ -2101,19 +2043,16 @@ spec:
                           x-kubernetes-map-type: atomic
                         node:
                           description: node is the Proxmox node.
-                          maxLength: 256
                           minLength: 1
                           type: string
                         zone:
                           description: zone is the zone the Machine is in.
-                          maxLength: 63
                           pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                           type: string
                       required:
                       - machine
                       - node
                       type: object
-                    maxItems: 100
                     type: array
                     x-kubernetes-list-type: atomic
                   workers:
@@ -2140,19 +2079,16 @@ spec:
                           x-kubernetes-map-type: atomic
                         node:
                           description: node is the Proxmox node.
-                          maxLength: 256
                           minLength: 1
                           type: string
                         zone:
                           description: zone is the zone the Machine is in.
-                          maxLength: 63
                           pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
                           type: string
                       required:
                       - machine
                       - node
                       type: object
-                    maxItems: 1000
                     type: array
                     x-kubernetes-list-type: atomic
                 type: object

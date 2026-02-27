@@ -51,8 +51,6 @@ type ProxmoxClusterSpec struct {
 	// the node which holds the VM template.
 	// +listType=set
 	// +optional
-	// +kubebuilder:validation:MaxItems=32
-	// +kubebuilder:validation:items:MaxLength=256
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
 	// schedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
@@ -78,15 +76,12 @@ type ProxmoxClusterSpec struct {
 	// +required
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:MaxItems=32
-	// +kubebuilder:validation:items:MaxLength=256
 	DNSServers []string `json:"dnsServers,omitempty"`
 
 	// zoneConfig defines a IPAddress config per deployment zone.
 	// +listType=map
 	// +listMapKey=zone
 	// +optional
-	// +kubebuilder:validation:MaxItems=32
 	ZoneConfigs []ZoneConfigSpec `json:"zoneConfig,omitempty"`
 
 	// cloneSpec is the configuration pertaining to all items configurable
@@ -141,8 +136,6 @@ type ZoneConfigSpec struct {
 	// +required
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:MaxItems=32
-	// +kubebuilder:validation:items:MaxLength=256
 	DNSServers []string `json:"dnsServers,omitempty"`
 }
 
@@ -151,7 +144,6 @@ type ProxmoxClusterClassSpec struct {
 	// machineType is the name of the template for ClusterClass.
 	// +required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
 	MachineType string `json:"machineType,omitempty"`
 
 	// proxmoxMachineSpec is the to be patched yaml object.
@@ -165,19 +157,15 @@ type ProxmoxClusterCloneSpec struct {
 	// +listType=map
 	// +listMapKey=machineType
 	// +required
-	// +kubebuilder:validation:MaxItems=32
 	ProxmoxClusterClassSpec []ProxmoxClusterClassSpec `json:"machineSpec,omitempty,omitzero"`
 
 	// sshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +listType=set
 	// +optional
-	// +kubebuilder:validation:MaxItems=32
-	// +kubebuilder:validation:items:MaxLength=16384
 	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty,omitzero"`
 
 	// virtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
-	// +kubebuilder:validation:MaxLength=256
 	VirtualIPNetworkInterface *string `json:"virtualIPNetworkInterface,omitempty,omitzero"`
 }
 
@@ -186,8 +174,6 @@ type IPConfigSpec struct {
 	// addresses is a list of IP addresses that can be assigned. This set of addresses can be non-contiguous.
 	// +required
 	// +listType=set
-	// +kubebuilder:validation:MaxItems=256
-	// +kubebuilder:validation:items:MaxLength=256
 	Addresses []string `json:"addresses,omitempty"`
 
 	// prefix is the network prefix to use.
@@ -199,7 +185,6 @@ type IPConfigSpec struct {
 	// gateway is the network gateway
 	// +required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
 	Gateway string `json:"gateway,omitempty"`
 
 	// metric is the route priority applied to the default gateway.
@@ -249,7 +234,6 @@ type ProxmoxClusterStatus struct {
 	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.
 	// +listType=atomic
 	// +optional
-	// +kubebuilder:validation:MaxItems=32
 	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIPPoolRef,omitempty"`
 
 	// inClusterZoneRef lists InClusterIPPools per proxmox-zone.
@@ -302,13 +286,11 @@ type NodeLocations struct {
 	// controlPlane contains all deployed control plane nodes.
 	// +optional
 	// +listType=atomic
-	// +kubebuilder:validation:MaxItems=100
 	ControlPlane []NodeLocation `json:"controlPlane,omitempty"`
 
 	// workers contains all deployed worker nodes.
 	// +optional
 	// +listType=atomic
-	// +kubebuilder:validation:MaxItems=1000
 	Workers []NodeLocation `json:"workers,omitempty"`
 }
 
@@ -321,7 +303,6 @@ type NodeLocation struct {
 
 	// node is the Proxmox node.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
 	// +required
 	Node string `json:"node,omitempty"`
 
