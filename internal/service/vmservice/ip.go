@@ -206,5 +206,9 @@ func handleAdditionalDevices(ctx context.Context, machineScope *scope.MachineSco
 }
 
 func isIPV4(ip string) bool {
-	return netip.MustParseAddr(ip).Is4()
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return false
+	}
+	return addr.Is4()
 }

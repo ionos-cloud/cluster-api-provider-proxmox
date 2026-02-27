@@ -170,7 +170,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 			// against YAML true-ish values.
 			//
 			//#nosec:G402 // Intended to enable insecure mode for unknown CAs
-			InsecureSkipVerify: !tlsInsecureSet || slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
+			InsecureSkipVerify: tlsInsecureSet && slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
 			RootCAs:            rootCerts,
 		},
 	}
