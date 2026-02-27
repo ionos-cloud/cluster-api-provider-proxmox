@@ -19,7 +19,6 @@ package vmservice
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -124,7 +123,7 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 
 	// if the root machine is ready, we can assume that the VM is ready as well.
 	// unmount the cloud-init iso if it is still mounted.
-	if conditions.IsTrue(scope.Machine, clusterv1.AvailableCondition) && scope.Machine.Status.NodeInfo != nil {
+	if conditions.IsTrue(scope.Machine, clusterv1.AvailableCondition) && scope.Machine.Status.NodeRef.IsDefined() {
 		if err := unmountCloudInitISO(ctx, scope); err != nil {
 			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
 		}
@@ -158,7 +157,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,
 					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-					Message: fmt.Sprintf("%s", err),
+					Message: err.Error(),
 				})
 			}
 			return false, err
@@ -215,12 +214,16 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		// Create the VM.
 		resp, err := createVM(ctx, machineScope)
 		if err != nil {
-			conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason,
-				Message: fmt.Sprintf("%s", err),
-			})
+			// Only set CloningFailed if createVM didn't already set a terminal
+			// failure reason (e.g. VMProvisionFailed for insufficient resources).
+			if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) != infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason {
+				conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+					Status:  metav1.ConditionFalse,
+					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason,
+					Message: err.Error(),
+				})
+			}
 			return false, err
 		}
 		machineScope.Logger.V(4).Info("Task created", "taskID", resp.Task.ID)
@@ -318,8 +321,8 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 		for _, v := range devices {
 			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
-				Name:  ptr.Deref(v.Name, infrav1.DefaultNetworkDevice),
-				Value: formatNetworkDevice(ptr.Deref(v.Model, "virtio"), ptr.Deref(v.Bridge, ""), v.MTU, v.VLAN),
+				Name:  *v.Name,
+				Value: formatNetworkDevice(*v.Model, *v.Bridge, v.MTU, v.VLAN),
 			})
 		}
 	}
@@ -425,7 +428,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 				Status:  metav1.ConditionFalse,
 				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-				Message: fmt.Sprintf("%s", err),
+				Message: err.Error(),
 			})
 		}
 		return proxmox.VMCloneResponse{}, err
@@ -478,7 +481,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,
 					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-					Message: fmt.Sprintf("%s", err),
+					Message: err.Error(),
 				})
 			}
 			return proxmox.VMCloneResponse{}, err
@@ -497,7 +500,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,
 					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-					Message: fmt.Sprintf("%s", err),
+					Message: err.Error(),
 				})
 			}
 			return proxmox.VMCloneResponse{}, err

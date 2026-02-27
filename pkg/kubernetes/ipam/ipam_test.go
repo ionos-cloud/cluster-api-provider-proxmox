@@ -344,12 +344,12 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 				Name: getCluster().GetName(),
 			},
 			PoolRef: ipamv1.IPPoolReference{
-				APIGroup: gvk.GroupVersion().String(),
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     "test-ippool-annotations",
 			},
 			Address: "10.10.11.11",
-			Prefix:  ptr.To(int32(24)),
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.11.254",
 		},
 	}
@@ -574,12 +574,12 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 				Name: owner.GetName(),
 			},
 			PoolRef: ipamv1.IPPoolReference{
-				APIGroup: gvk.GroupVersion().String(),
+				APIGroup: gvk.Group,
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
 			Address: "10.10.10.11",
-			Prefix:  ptr.To(int32(24)),
+			Prefix:  ptr.To[int32](24),
 			Gateway: "10.10.10.1",
 		},
 	}

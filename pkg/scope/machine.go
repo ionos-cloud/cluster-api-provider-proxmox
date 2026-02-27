@@ -24,11 +24,11 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
-
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -180,6 +180,13 @@ func (m *MachineScope) SetAnnotation(key, value string) {
 		m.ProxmoxMachine.Annotations = map[string]string{}
 	}
 	m.ProxmoxMachine.Annotations[key] = value
+}
+
+// HasFailed returns the failure state of the machine scope.
+func (m *MachineScope) HasFailed() bool {
+	cond := conditions.Get(m.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	return cond != nil && cond.Status == metav1.ConditionFalse &&
+		cond.Reason == infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason
 }
 
 // SetVirtualMachine sets the Proxmox VirtualMachine object to the machinescope.

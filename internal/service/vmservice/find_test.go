@@ -120,6 +120,7 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.True(t, machineScope.HasFailed())
 }
 
 func TestUpdateVMLocation_UpdateNode(t *testing.T) {
@@ -168,4 +169,5 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.True(t, machineScope.HasFailed())
 }

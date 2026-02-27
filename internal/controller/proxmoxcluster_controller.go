@@ -30,10 +30,8 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
-
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
-
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/cluster-api/util/predicates"
@@ -193,26 +191,14 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
-		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host == "" {
-			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
+		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.IsZero() {
+			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
 
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
 				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
-				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host",
-			})
-
-			return ctrl.Result{Requeue: true}, nil
-		}
-		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Port == 0 {
-			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint port")
-
-			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
-				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason,
-				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port",
+				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint",
 			})
 
 			return ctrl.Result{Requeue: true}, nil
@@ -241,7 +227,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 			Status:  metav1.ConditionFalse,
 			Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
-			Message: fmt.Sprintf("%s", err),
+			Message: err.Error(),
 		})
 		return reconcile.Result{}, err
 	}
@@ -252,7 +238,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		Reason: clusterv1.ProvisionedReason,
 	})
 
-	clusterScope.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
+	clusterScope.SetReady()
 
 	return ctrl.Result{}, nil
 }

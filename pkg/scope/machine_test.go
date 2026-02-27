@@ -111,6 +111,17 @@ func TestMachineScope_SetReady(t *testing.T) {
 	require.False(t, *scope.ProxmoxMachine.Status.Initialization.Provisioned)
 }
 
+func TestMachineScope_HasFailed(t *testing.T) {
+	p := infrav1.ProxmoxMachine{
+		Spec: infrav1.ProxmoxMachineSpec{},
+	}
+	scope := MachineScope{
+		ProxmoxMachine: &p,
+	}
+
+	require.False(t, scope.HasFailed())
+}
+
 func TestMachineScope_SkipQemuCheckEnabled(t *testing.T) {
 	p := infrav1.ProxmoxMachine{
 		Spec: infrav1.ProxmoxMachineSpec{

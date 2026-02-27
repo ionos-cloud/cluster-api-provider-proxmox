@@ -28,10 +28,9 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
-
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -179,8 +178,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	clusterScope.Logger.V(4).Info("Reconciling ProxmoxMachine")
 
 	// If the ProxmoxMachine is in an error state, return early.
-	if conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) &&
-		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason {
+	if machineScope.HasFailed() {
 		machineScope.Info("Error state detected, skipping reconciliation")
 		return ctrl.Result{}, nil
 	}

@@ -31,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -219,8 +220,7 @@ func (s *ClusterScope) PatchObject() error {
 		patch.WithOwnedConditions{Conditions: []string{
 			"Ready",
 			infrav1.ProxmoxClusterProxmoxAvailableCondition,
-		}},
-	)
+		}})
 }
 
 // ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.
@@ -240,4 +240,9 @@ func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]inf
 // Close closes the current scope persisting the cluster configuration and status.
 func (s *ClusterScope) Close() error {
 	return s.PatchObject()
+}
+
+// SetReady sets the ProxmoxCluster as provisioned.
+func (s *ClusterScope) SetReady() {
+	s.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
 }
