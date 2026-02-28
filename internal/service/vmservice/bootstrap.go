@@ -93,8 +93,11 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 }
 
 func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []types.NetworkConfigData, kubernetesVersion string) error {
+	// Get the cloud-init network config format from the cluster spec
+	networkConfigFormat := machineScope.InfraCluster.ProxmoxCluster.Spec.CloudInitNetworkConfigFormat
+
 	// create network renderer
-	network := cloudinit.NewNetworkConfig(nicData)
+	network := cloudinit.NewNetworkConfig(nicData, networkConfigFormat)
 
 	// create metadata renderer
 	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1alpha1.MetadataSettings{ProviderIDInjection: false}).ProviderIDInjection)
