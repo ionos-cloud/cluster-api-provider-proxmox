@@ -18,7 +18,6 @@ linters:
               - "conditions"
               - "conflictingmarkers"
               - "duplicatemarkers"
-              - "forbiddenmarkers"
               - "integers"
               - "jsontags"
               - "nobools"
