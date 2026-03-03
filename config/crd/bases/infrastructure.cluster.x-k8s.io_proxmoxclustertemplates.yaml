@@ -930,6 +930,7 @@ spec:
                     description: |-
                       metadata is the standard object metadata.
                       More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+                    minProperties: 1
                     properties:
                       annotations:
                         additionalProperties:
@@ -1051,7 +1052,7 @@ spec:
                                   description: |-
                                     full Create a full copy of all disks.
                                     This is always done when you clone a normal VM.
-                                    Create a Full clone by default.
+                                    Defaults to true when not specified, creating a full clone by default.
                                   type: boolean
                                 machineType:
                                   description: machineType is the name of the template
@@ -1160,8 +1161,9 @@ spec:
                                                 <= 65520)
                                           model:
                                             default: virtio
-                                            description: model is the network device
-                                              model.
+                                            description: |-
+                                              model is the network device model.
+                                              Defaults to "virtio" when not specified.
                                             enum:
                                             - e1000
                                             - virtio
@@ -1402,9 +1404,12 @@ spec:
                                   description: |-
                                     providerID is the virtual machine BIOS UUID formatted as
                                     proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
+                                  maxLength: 46
+                                  minLength: 46
+                                  pattern: ^proxmox://[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
                                   type: string
                                 snapName:
-                                  description: snapName The name of the snapshot.
+                                  description: snapName is the name of the snapshot.
                                   type: string
                                 sourceNode:
                                   description: |-
@@ -1525,20 +1530,21 @@ spec:
                       controlPlaneEndpoint:
                         description: controlPlaneEndpoint represents the endpoint
                           used to communicate with the control plane.
+                        minProperties: 1
                         properties:
                           host:
                             description: host is the hostname on which the API server
                               is serving.
                             maxLength: 512
+                            minLength: 1
                             type: string
                           port:
                             description: port is the port on which the API server
                               is serving.
                             format: int32
+                            maximum: 65535
+                            minimum: 1
                             type: integer
-                        required:
-                        - host
-                        - port
                         type: object
                         x-kubernetes-validations:
                         - message: port must be within 1-65535
@@ -1784,5 +1790,3 @@ spec:
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}

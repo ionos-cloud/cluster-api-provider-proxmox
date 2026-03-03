@@ -35,7 +35,7 @@ const ipTag = "ip_net0_10.10.10.10"
 
 // TestReconcileIPAddresses_CreateDefaultClaim tests if the cluster provided InclusterIPPool IPAddressClaim gets created.
 func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
@@ -56,12 +56,12 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	require.NotNil(t, claimsDefaultPool)
 	require.Equal(t, 1, len(*claimsDefaultPool))
 
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
 // TestReconcileIPAddresses_CreateAdditionalClaim tests if an IPAddressClaim is created for the missing IPAddress on net1.
 func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
 		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
@@ -107,12 +107,12 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	require.NotNil(t, claimsExtraPool0)
 	require.Equal(t, 1, len(*claimsExtraPool0))
 
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
 // TestReconcileIPAddresses_AddIPTag tests if a machine with all resources created will add a task to add tags to proxmox VMs.
 func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
-	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
+	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
 		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
@@ -147,12 +147,12 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	// Task should be equal to fake result from TagVM
 	require.Equal(t, "result", *machineScope.ProxmoxMachine.Status.TaskRef)
 
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
 // TestReconcileIPAddresses_SetIPAddresses tests if proxmoxMachine.Status.IPAddresses gets reconciled.
 func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
 		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
@@ -204,12 +204,12 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
 	)
 
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
 // TestReconcileIPAddresses_MultipleDevices tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices.
 func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
 		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
@@ -282,12 +282,12 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 		machineScope.ProxmoxMachine.GetIPAddressesNet("net2").IPv6,
 	)
 
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
 // TestReconcileIPAddresses_IPv6 tests if proxmoxMachine.Status.IPAddresses gets reconciled with IPv4 and IPv6 on multiple devices.
 func TestReconcileIPAddresses_IPv6(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	// add test-v6-icip InClusterIPPool
 	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
@@ -371,12 +371,12 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
 	)
 
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
 // TestReconcileIPAddresses_MachineIPPoolRef tests.
 func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
-	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.WaitingForStaticIPAllocationReason)
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
 		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
@@ -440,5 +440,5 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
 	)
 
-	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.VMProvisionedCondition)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }

@@ -57,7 +57,7 @@ func (p *ProxmoxMachineTemplate) ValidateCreate(_ context.Context, obj runtime.O
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", obj))
 	}
 
-	if machine.Spec.Template.Spec.ProviderID != nil {
+	if machine.Spec.Template.Spec.ProviderID != "" {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "template", "spec", "providerID"), "cannot be set in templates"))
 	}
 

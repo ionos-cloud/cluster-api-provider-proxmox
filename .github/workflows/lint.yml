@@ -16,10 +16,21 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: build custom golangci-lint with kube-api-linter module
-        run: go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint custom
       - name: golangci-lint
-        run: ./bin/golangci-lint-custom run --timeout 10m
+        run: go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --timeout 10m
+
+  lint-api:
+    name: lint-api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build kube-api-linter
+        run: cd hack/tools && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint custom
+      - name: kube-api-linter
+        run: ./hack/tools/bin/golangci-lint-kube-api-linter run --timeout 10m --config .golangci-kal.yml
 
   yamllint:
     name: yamllint
@@ -42,4 +53,3 @@ jobs:
       - name: Check workflow files
         run: ${{ steps.get_actionlint.outputs.executable }} -color
         shell: bash
-

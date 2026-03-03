@@ -23,6 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/utils/ptr"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1beta2 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	capmoxv2 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
@@ -178,9 +180,36 @@ func Convert_v1alpha2_RoutingPolicySpec_To_v1alpha1_RoutingPolicySpec(in *capmox
 	return nil
 }
 
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
+	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
+		return err
+	}
+
+	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
+	if in.ControlPlaneEndpoint != nil {
+		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
+			Host: in.ControlPlaneEndpoint.Host,
+			Port: in.ControlPlaneEndpoint.Port,
+		}
+	}
+
+	return nil
+}
+
 func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capmoxv2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
-	// accept the Warning about unused fields here
-	return autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s)
+	if err := autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s); err != nil {
+		return err
+	}
+
+	// Manual conversion: capmoxv2.APIEndpoint (value type) → *clusterv1beta1.APIEndpoint
+	if !in.ControlPlaneEndpoint.IsZero() {
+		out.ControlPlaneEndpoint = &clusterv1beta1.APIEndpoint{
+			Host: in.ControlPlaneEndpoint.Host,
+			Port: in.ControlPlaneEndpoint.Port,
+		}
+	}
+
+	return nil
 }
 
 func Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in *capmoxv2.ProxmoxClusterCloneSpec, out *ProxmoxClusterCloneSpec, s conversion.Scope) error {
@@ -206,9 +235,30 @@ func Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpe
 	return nil
 }
 
+func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *ProxmoxClusterStatus, out *capmoxv2.ProxmoxClusterStatus, s conversion.Scope) error {
+	if err := autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s); err != nil {
+		return err
+	}
+
+	// Manual conversion: Ready bool → Initialization.Provisioned *bool
+	if in.Ready {
+		out.Initialization.Provisioned = ptr.To(true)
+	}
+	// FailureReason and FailureMessage are dropped during up-conversion
+
+	return nil
+}
+
 func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *capmoxv2.ProxmoxClusterStatus, out *ProxmoxClusterStatus, s conversion.Scope) error {
 	// Accept WARNING: in.InClusterZoneRef does not exist in peer-type
-	return autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in, out, s)
+	if err := autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in, out, s); err != nil {
+		return err
+	}
+
+	// Manual conversion: Initialization.Provisioned *bool → Ready bool
+	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
+
+	return nil
 }
 
 func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *capmoxv2.ProxmoxMachineStatus, out *ProxmoxMachineStatus, s conversion.Scope) error {
@@ -216,6 +266,9 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 	if err != nil {
 		return err
 	}
+
+	// Manual conversion: Initialization.Provisioned *bool → Ready bool
+	out.Ready = ptr.Deref(in.Initialization.Provisioned, false)
 
 	if in.VMStatus != nil {
 		out.VMStatus = VirtualMachineState(ptr.Deref(in.VMStatus, capmoxv2.VirtualMachineStatePending))
@@ -246,6 +299,13 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 func Convert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in *capmoxv2.NodeLocation, out *NodeLocation, s conversion.Scope) error {
 	// accept the warning about unused fields here
 	return autoConvert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(in, out, s)
+}
+
+func Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in *clusterv1beta2.ObjectMeta, out *clusterv1beta1.ObjectMeta, s conversion.Scope) error {
+	if err := clusterv1beta1.Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in, out, s); err != nil {
+		return err
+	}
+	return nil
 }
 
 // //
@@ -384,6 +444,11 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 		return err
 	}
 
+	// Manual conversion: Ready bool → Initialization.Provisioned *bool
+	if in.Ready {
+		out.Initialization.Provisioned = ptr.To(true)
+	}
+
 	if in.VMStatus != "" {
 		vmState := capmoxv2.VirtualMachineState(in.VMStatus)
 		out.VMStatus = &vmState
@@ -410,6 +475,45 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 		out.RetryAfter = &t
 	}
 
+	return nil
+}
+
+func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterTemplateResource(in *ProxmoxClusterTemplateResource, out *capmoxv2.ProxmoxClusterTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta2.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *capmoxv2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta1.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *capmoxv2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta2.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *capmoxv2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
+	out.ObjectMeta = clusterv1beta1.ObjectMeta{
+		Labels:      in.ObjectMeta.Labels,
+		Annotations: in.ObjectMeta.Annotations,
+	}
+	return Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
+}
+
+func Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in *clusterv1beta1.ObjectMeta, out *clusterv1beta2.ObjectMeta, s conversion.Scope) error {
+	if err := clusterv1beta1.Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in, out, s); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -508,6 +612,28 @@ func Convert_string_To_NetName(in string, hasRestored bool, restoredIn capmoxv2.
 
 	// Otherwise, if the value is not "", convert to *value.
 	*out = ptr.To(in)
+}
+
+// Convert_v1beta1_Condition_To_v1_Condition is the conversion stub required by conversion-gen
+// to convert clusterv1beta1.Condition (v1beta1) to metav1.Condition (v1).
+func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out *metav1.Condition, s conversion.Scope) error {
+	out.Type = string(in.Type)
+	out.Status = metav1.ConditionStatus(in.Status)
+	out.LastTransitionTime = in.LastTransitionTime
+	out.Reason = in.Reason
+	out.Message = in.Message
+	return nil
+}
+
+// Convert_v1_Condition_To_v1beta1_Condition is the conversion stub required by conversion-gen
+// to convert metav1.Condition (v1) to clusterv1beta1.Condition (v1beta1).
+func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *clusterv1beta1.Condition, s conversion.Scope) error {
+	out.Type = clusterv1beta1.ConditionType(in.Type)
+	out.Status = corev1.ConditionStatus(in.Status)
+	out.LastTransitionTime = in.LastTransitionTime
+	out.Reason = in.Reason
+	out.Message = in.Message
+	return nil
 }
 
 func getNetDeviceByName(nets []AdditionalNetworkDevice, name string) *AdditionalNetworkDevice {
