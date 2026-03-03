@@ -11,7 +11,9 @@ Cluster API Provider for Proxmox VE is a concrete implementation of Cluster API 
 
 ## Launching a Kubernetes cluster on Proxmox VE
 
-Check out the [quickstart guide](./docs/Usage.md#quick-start) for launching a cluster on Proxmox VE.
+Check out the [quickstart guide](./docs/Usage.md#quick-start) for launching a cluster on Proxmox VE. 
+
+For a more opinionated walkthrough, have a look at the [External Links](#External Links).
 
 ## Compatibility with Cluster API and Kubernetes Versions
 This provider's versions are compatible with the following versions of Cluster API:
@@ -44,3 +46,7 @@ You can reach the maintainers of this project at:
 
 We take security seriously.
 Please read our [security policy](SECURITY.md) for information on how to report security issues.
+
+## External Links
+- [Proxmox-Kubernetes-Engine](https://github.com/Caprox-eu/Proxmox-Kubernetes-Engine)
+    - A beginner-friendly, end-to-end approach for CAPMOX, especially home-lab friendly, based on the blog post: [From Zero to Scale: Kubernetes on Proxmox (The scaling Autopilot Method)](https://dev.to/3deep5me/from-zero-to-scale-kubernetes-on-proxmox-the-scaling-autopilot-method-1l64)
