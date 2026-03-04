@@ -166,20 +166,8 @@ func main() {
 	}
 
 	if enableWebhooks {
-		if err = (&webhook.ProxmoxCluster{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxCluster")
-			os.Exit(1)
-		}
-		if err = (&webhook.ProxmoxMachine{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachine")
-			os.Exit(1)
-		}
-		if err = (&webhook.ProxmoxMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachineTemplate")
-			os.Exit(1)
-		}
-		if err = (&webhook.ProxmoxClusterTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxClusterTemplate")
+		if err := setupWebhooks(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook")
 			os.Exit(1)
 		}
 	}
@@ -247,6 +235,22 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 		proxmox.WithHTTPClient(httpClient),
 		proxmox.WithAPIToken(ProxmoxTokenID, ProxmoxSecret),
 	)
+}
+
+func setupWebhooks(mgr ctrl.Manager) error {
+	if err := (&webhook.ProxmoxCluster{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxCluster webhook: %w", err)
+	}
+	if err := (&webhook.ProxmoxMachine{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxMachine webhook: %w", err)
+	}
+	if err := (&webhook.ProxmoxMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxMachineTemplate webhook: %w", err)
+	}
+	if err := (&webhook.ProxmoxClusterTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxClusterTemplate webhook: %w", err)
+	}
+	return nil
 }
 
 func initFlagsAndEnv(fs *pflag.FlagSet) {
