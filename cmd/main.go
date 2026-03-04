@@ -149,7 +149,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if setupErr := setupReconcilers(ctx, mgr, pmoxClient); setupErr != nil {
+	if err := setupReconcilers(ctx, mgr, pmoxClient); err != nil {
 		setupLog.Error(err, "unable to setup reconcilers")
 		os.Exit(1)
 	}
