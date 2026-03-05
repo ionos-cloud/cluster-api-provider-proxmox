@@ -66,7 +66,7 @@ func TestFuzzyConversion(t *testing.T) {
 		Scheme:      scheme,
 		Hub:         &v1alpha2.ProxmoxClusterTemplate{},
 		Spoke:       &ProxmoxClusterTemplate{},
-		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterFuzzFuncs},
+		FuzzerFuncs: []fuzzer.FuzzerFuncs{ProxmoxClusterTemplateFuzzFuncs},
 	}))
 }
 
@@ -369,31 +369,23 @@ func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
 		fuzzV1beta1Condition,
 		fuzzMetav1Condition,
 		hubProxmoxClusterSpec,
-		hubProxmoxMachineSpec,
 		hubProxmoxClusterStatus,
 		spokeProxmoxClusterStatus,
-		spokeProxmoxMachineSpec,
+		spokeProxmoxClusterSpec,
 	}
 }
 
-func hubProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, c randfill.Continue) {
+func spokeProxmoxClusterSpec(in *ProxmoxClusterSpec, c randfill.Continue) {
 	c.FillNoCustom(in)
 
+	// Throw CloneSpec away. It serves no function and will not survive conversion.
+	in.CloneSpec = nil
+}
+
+func hubProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, c randfill.Continue) {
 	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
 	// Always set to nil to match conversion behavior
 	in.ZoneConfigs = nil
-
-	if in.CloneSpec != nil {
-		if in.CloneSpec.VirtualIPNetworkInterface != nil && *in.CloneSpec.VirtualIPNetworkInterface == "" {
-			in.CloneSpec.VirtualIPNetworkInterface = nil
-		}
-
-		// Normalize ProxmoxClusterClassSpec - use hubProxmoxMachineSpec for each machine spec
-		for i := range in.CloneSpec.ProxmoxClusterClassSpec {
-			spec := &in.CloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec
-			hubProxmoxMachineSpec(spec, c)
-		}
-	}
 }
 
 func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Continue) {
@@ -461,4 +453,35 @@ func fuzzV1beta1Condition(in *clusterv1.Condition, c randfill.Continue) {
 func fuzzMetav1Condition(in *metav1.Condition, c randfill.Continue) {
 	c.FillNoCustom(in)
 	in.ObservedGeneration = 0
+}
+
+func ProxmoxClusterTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
+	return []interface{}{
+		//		hubProxmoxClusterTemplateSpec,
+		hubProxmoxClusterTemplateSpec,
+		spokeProxmoxClusterTemplateSpec,
+	}
+}
+
+func hubProxmoxClusterTemplateSpec(in *v1alpha2.ProxmoxClusterTemplateSpec, c randfill.Continue) {
+	c.FillNoCustom(in)
+
+	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
+	// Always set to nil to match conversion behavior
+	in.Template.Spec.ZoneConfigs = nil
+
+	if in.Template.Spec.ProxmoxClusterCloneSpec.VirtualIPNetworkInterface != nil &&
+		*in.Template.Spec.ProxmoxClusterCloneSpec.VirtualIPNetworkInterface == "" {
+		in.Template.Spec.ProxmoxClusterCloneSpec.VirtualIPNetworkInterface = nil
+	}
+
+	// Normalize ProxmoxClusterClassSpec - use hubProxmoxMachineSpec for each machine spec
+	for i := range in.Template.Spec.ProxmoxClusterCloneSpec.ProxmoxClusterClassSpec {
+		spec := &in.Template.Spec.ProxmoxClusterCloneSpec.ProxmoxClusterClassSpec[i].ProxmoxMachineSpec
+		hubProxmoxMachineSpec(spec, c)
+	}
+}
+
+func spokeProxmoxClusterTemplateSpec(in *ProxmoxClusterTemplateSpec, c randfill.Continue) {
+	c.FillNoCustom(in)
 }

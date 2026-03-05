@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -80,11 +79,6 @@ func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (wa
 		return warnings, err
 	}
 
-	if err := validateCloneSpecHasControlPlane(&cluster.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
-		return warnings, err
-	}
-
 	return warnings, nil
 }
 
@@ -101,11 +95,6 @@ func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newOb
 	}
 
 	if err := validateControlPlaneEndpoint(&newCluster.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
-		return warnings, err
-	}
-
-	if err := validateCloneSpecHasControlPlane(&newCluster.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
@@ -239,40 +228,6 @@ func buildSetFromAddresses(addresses []string) (*netipx.IPSet, error) {
 
 func hasNoIPPoolConfig(spec *infrav1.ProxmoxClusterSpec) bool {
 	return spec.IPv4Config == nil && spec.IPv6Config == nil
-}
-
-// validateCloneSpecHasControlPlane validates that if cloneSpec.machineSpec is provided,
-// it must contain an entry with machineType "controlPlane".
-// This validation is only applied to ProxmoxCluster (not ProxmoxClusterTemplate).
-func validateCloneSpecHasControlPlane(spec *infrav1.ProxmoxClusterSpec, gk schema.GroupKind, name string) error {
-	if spec.CloneSpec == nil {
-		return nil
-	}
-
-	machineSpecs := spec.CloneSpec.ProxmoxClusterClassSpec
-	if len(machineSpecs) == 0 {
-		return nil
-	}
-
-	// listMapKey=machineType ensures uniqueness, so we only need to check existence
-	idx := slices.IndexFunc(machineSpecs, func(spec infrav1.ProxmoxClusterClassSpec) bool {
-		return spec.MachineType == "controlPlane"
-	})
-
-	if idx < 0 {
-		return apierrors.NewInvalid(
-			gk,
-			name,
-			field.ErrorList{
-				field.Invalid(
-					field.NewPath("spec", "cloneSpec", "machineSpec"),
-					machineSpecs,
-					"machineSpec must contain an entry with machineType 'controlPlane'",
-				),
-			})
-	}
-
-	return nil
 }
 
 func isHostname(h string) bool {

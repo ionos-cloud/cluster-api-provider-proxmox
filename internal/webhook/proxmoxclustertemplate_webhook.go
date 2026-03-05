@@ -20,10 +20,13 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -61,23 +64,59 @@ func (*ProxmoxClusterTemplate) ValidateCreate(_ context.Context, obj runtime.Obj
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxClusterTemplate but got %T", obj))
 	}
 
-	if hasNoIPPoolConfig(&cluster.Spec.Template.Spec) {
+	if hasNoIPPoolConfig(&cluster.Spec.Template.Spec.ProxmoxClusterSpec) {
 		err = errors.New("proxmox cluster must define at least one IP pool config")
-		warnings = append(warnings, fmt.Sprintf("proxmox cluster must define at least one IP pool config %s", cluster.GetName()))
+		warnings = append(warnings, fmt.Sprintf("proxmox cluster template must define at least one IP pool config %s", cluster.GetName()))
 		return warnings, err
 	}
 
-	if err := validateControlPlaneEndpoint(&cluster.Spec.Template.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
+	if err := validateControlPlaneEndpoint(&cluster.Spec.Template.Spec.ProxmoxClusterSpec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster template %s", cluster.GetName()))
 		return warnings, err
 	}
 
-	if err := validateCloneSpecHasControlPlane(&cluster.Spec.Template.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
+	if err := validateTemplateCloneSpecHasControlPlane(&cluster.Spec.Template.Spec.ProxmoxClusterCloneSpec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster template %s", cluster.GetName()))
 		return warnings, err
 	}
 
 	return warnings, nil
+}
+
+// validateTemplateCloneSpecHasControlPlane validates that if cloneSpec.machineSpec is provided,
+// it must contain an entry with machineType "controlPlane".
+// This validation is only applied to ProxmoxClusterTemplates.
+func validateTemplateCloneSpecHasControlPlane(spec *infrav1.ProxmoxClusterCloneSpec, gk schema.GroupKind, name string) error {
+	/*
+		if spec.Template.Spec.ProxmoxClusterCloneSpec == nil {
+			return nil
+		}
+	*/
+
+	machineSpecs := spec.ProxmoxClusterClassSpec
+	if len(machineSpecs) == 0 {
+		return nil
+	}
+
+	// listMapKey=machineType ensures uniqueness, so we only need to check existence
+	idx := slices.IndexFunc(machineSpecs, func(spec infrav1.ProxmoxClusterClassSpec) bool {
+		return spec.MachineType == "controlPlane"
+	})
+
+	if idx < 0 {
+		return apierrors.NewInvalid(
+			gk,
+			name,
+			field.ErrorList{
+				field.Invalid(
+					field.NewPath("spec", "cloneSpec", "machineSpec"),
+					machineSpecs,
+					"machineSpec must contain an entry with machineType 'controlPlane'",
+				),
+			})
+	}
+
+	return nil
 }
 
 // ValidateDelete implements the deletion validation function.
@@ -89,16 +128,16 @@ func (*ProxmoxClusterTemplate) ValidateDelete(_ context.Context, _ runtime.Objec
 func (*ProxmoxClusterTemplate) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
 	newCluster, ok := newObj.(*infrav1.ProxmoxClusterTemplate)
 	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
+		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxClusterTemplate but got %T", newCluster))
 	}
 
-	if err := validateControlPlaneEndpoint(&newCluster.Spec.Template.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
+	if err := validateControlPlaneEndpoint(&newCluster.Spec.Template.Spec.ProxmoxClusterSpec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
 
-	if err := validateCloneSpecHasControlPlane(&newCluster.Spec.Template.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
-		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
+	if err := validateTemplateCloneSpecHasControlPlane(&newCluster.Spec.Template.Spec.ProxmoxClusterCloneSpec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster template %s", newCluster.GetName()))
 		return warnings, err
 	}
 

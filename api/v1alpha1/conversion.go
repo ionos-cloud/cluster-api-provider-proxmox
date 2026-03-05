@@ -180,22 +180,6 @@ func Convert_v1alpha2_RoutingPolicySpec_To_v1alpha1_RoutingPolicySpec(in *capmox
 	return nil
 }
 
-func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
-	if err := autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, out, s); err != nil {
-		return err
-	}
-
-	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
-	if in.ControlPlaneEndpoint != nil {
-		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
-			Host: in.ControlPlaneEndpoint.Host,
-			Port: in.ControlPlaneEndpoint.Port,
-		}
-	}
-
-	return nil
-}
-
 func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capmoxv2.ProxmoxClusterSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
 	if err := autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in, out, s); err != nil {
 		return err
@@ -213,6 +197,11 @@ func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *capm
 }
 
 func Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in *capmoxv2.ProxmoxClusterCloneSpec, out *ProxmoxClusterCloneSpec, s conversion.Scope) error {
+	// ProxmoxClusterTemplate can have an empty CloneSpec
+	if in == nil {
+		return nil
+	}
+
 	err := autoConvert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in, out, s)
 	if err != nil {
 		return err
@@ -305,12 +294,104 @@ func Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in *clusterv1beta2.ObjectM
 	if err := clusterv1beta1.Convert_v1beta2_ObjectMeta_To_v1beta1_ObjectMeta(in, out, s); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// This actually converts template to template, but the subfield names changed.
+func Convert_v1alpha2_ProxmoxClusterClassTemplateSpec_To_v1alpha1_ProxmoxClusterSpec(in *capmoxv2.ProxmoxClusterClassTemplateSpec, out *ProxmoxClusterSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
+	err := Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.ProxmoxClusterSpec, out, s)
+	if err != nil {
+		return err
+	}
+
+	out.CloneSpec = &ProxmoxClusterCloneSpec{}
+	err = Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(&in.ProxmoxClusterCloneSpec, out.CloneSpec, s)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // //
 // v1alpha1 To v1alpha2 conversion functions
 // //
+
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
+	// Manual conversion: *clusterv1beta1.APIEndpoint → capmoxv2.APIEndpoint (value type)
+	if in.ControlPlaneEndpoint != nil {
+		out.ControlPlaneEndpoint = capmoxv2.APIEndpoint{
+			Host: in.ControlPlaneEndpoint.Host,
+			Port: in.ControlPlaneEndpoint.Port,
+		}
+	}
+
+	out.ExternalManagedControlPlane = &in.ExternalManagedControlPlane
+	out.AllowedNodes = in.AllowedNodes
+
+	if in.SchedulerHints != nil {
+		out.SchedulerHints = &capmoxv2.SchedulerHints{}
+		err := autoConvert_v1alpha1_SchedulerHints_To_v1alpha2_SchedulerHints(in.SchedulerHints, out.SchedulerHints, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if in.IPv4Config != nil {
+		out.IPv4Config = &capmoxv2.IPConfigSpec{}
+		err := autoConvert_v1alpha1_IPConfigSpec_To_v1alpha2_IPConfigSpec(in.IPv4Config, out.IPv4Config, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if in.IPv6Config != nil {
+		out.IPv6Config = &capmoxv2.IPConfigSpec{}
+		err := autoConvert_v1alpha1_IPConfigSpec_To_v1alpha2_IPConfigSpec(in.IPv6Config, out.IPv6Config, s)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	out.DNSServers = in.DNSServers
+	out.ZoneConfigs = []capmoxv2.ZoneConfigSpec{}
+	out.CredentialsRef = in.CredentialsRef
+
+	return nil
+}
+
+// This actually converts template to template, but the subfield names changed.
+func Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterClassTemplateSpec(in *ProxmoxClusterSpec, out *capmoxv2.ProxmoxClusterClassTemplateSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
+	out.ProxmoxClusterSpec = capmoxv2.ProxmoxClusterSpec{}
+	err := Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in, &out.ProxmoxClusterSpec, s)
+	if err != nil {
+		return err
+	}
+
+	out.ProxmoxClusterCloneSpec = capmoxv2.ProxmoxClusterCloneSpec{}
+	err = Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in.CloneSpec, &out.ProxmoxClusterCloneSpec, s)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func Convert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in *NetworkSpec, out *capmoxv2.NetworkSpec, s conversion.Scope) error {
 	err := autoConvert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in, out, s)
@@ -411,6 +492,10 @@ func Convert_v1alpha1_RoutingPolicySpec_To_v1alpha2_RoutingPolicySpec(in *Routin
 }
 
 func Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in *ProxmoxClusterCloneSpec, out *capmoxv2.ProxmoxClusterCloneSpec, s conversion.Scope) error {
+	if in == nil {
+		return nil
+	}
+
 	err := autoConvert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in, out, s)
 	if err != nil {
 		return err
@@ -483,7 +568,8 @@ func Convert_v1alpha1_ProxmoxClusterTemplateResource_To_v1alpha2_ProxmoxClusterT
 		Labels:      in.ObjectMeta.Labels,
 		Annotations: in.ObjectMeta.Annotations,
 	}
-	return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
+
+	return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterClassTemplateSpec(&in.Spec, &out.Spec, s)
 }
 
 func Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterTemplateResource(in *capmoxv2.ProxmoxClusterTemplateResource, out *ProxmoxClusterTemplateResource, s conversion.Scope) error {
@@ -491,7 +577,7 @@ func Convert_v1alpha2_ProxmoxClusterTemplateResource_To_v1alpha1_ProxmoxClusterT
 		Labels:      in.ObjectMeta.Labels,
 		Annotations: in.ObjectMeta.Annotations,
 	}
-	return Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
+	return Convert_v1alpha2_ProxmoxClusterClassTemplateSpec_To_v1alpha1_ProxmoxClusterSpec(&in.Spec, &out.Spec, s)
 }
 
 func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineTemplateResource(in *ProxmoxMachineTemplateResource, out *capmoxv2.ProxmoxMachineTemplateResource, s conversion.Scope) error {
@@ -622,6 +708,14 @@ func Convert_v1beta1_Condition_To_v1_Condition(in *clusterv1beta1.Condition, out
 	out.LastTransitionTime = in.LastTransitionTime
 	out.Reason = in.Reason
 	out.Message = in.Message
+
+	if len(out.Reason) == 0 {
+		out.Reason = "APIConversionReason"
+	}
+	if len(out.Message) == 0 {
+		out.Reason = "API Conversion"
+	}
+
 	return nil
 }
 
@@ -633,6 +727,14 @@ func Convert_v1_Condition_To_v1beta1_Condition(in *metav1.Condition, out *cluste
 	out.LastTransitionTime = in.LastTransitionTime
 	out.Reason = in.Reason
 	out.Message = in.Message
+
+	if len(out.Reason) == 0 {
+		out.Reason = "APIConversionReason"
+	}
+	if len(out.Message) == 0 {
+		out.Reason = "API Conversion"
+	}
+
 	return nil
 }
 
