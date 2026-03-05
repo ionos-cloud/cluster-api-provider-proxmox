@@ -37,7 +37,7 @@ type ProxmoxClusterTemplateResource struct {
 
 	// spec is the Proxmox Cluster spec
 	// +required
-	Spec ProxmoxClusterClassTemplateSpec `json:"spec"`
+	Spec ProxmoxClusterClassTemplateSpec `json:"spec,omitzero"`
 }
 
 // ProxmoxClusterClassTemplateSpec defines the Cluster and its machine resources for Cluster Classes.
