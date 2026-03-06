@@ -286,7 +286,7 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 					Namespace: h.cluster.GetNamespace(),
 					Annotations: func() map[string]string {
 						metric := ""
-						if i := ptr.Deref(poolSpec.Metric, -1); i >= 0 {
+						if ptr.Deref(poolSpec.Metric, -1) >= 0 {
 							metric = fmt.Sprintf("%d", *poolSpec.Metric)
 						}
 						annotations := map[string]string{
