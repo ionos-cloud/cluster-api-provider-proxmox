@@ -20,6 +20,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -201,7 +202,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 				Message: "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint",
 			})
 
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: 200 * time.Millisecond}, nil
 		}
 	}
 
