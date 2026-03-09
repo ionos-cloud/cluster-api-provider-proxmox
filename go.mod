@@ -2,7 +2,12 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 
 go 1.25.0
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.10.4
+replace (
+	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.9.0
+	github.com/google/yamlfmt => github.com/google/yamlfmt v0.21.0
+	github.com/vektra/mockery/v2 => github.com/vektra/mockery/v2 v2.53.6
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.10.4
+)
 
 require (
 	github.com/flatcar/ignition v0.36.2
