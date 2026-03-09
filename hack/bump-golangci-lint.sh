@@ -15,24 +15,25 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-NEW_VERSION="$1"
-REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
-
-# Ensure version starts with 'v'
-if [[ "${NEW_VERSION}" != v* ]]; then
-    echo "ERROR: version must start with 'v', got '${NEW_VERSION}'"
-    exit 1
+# Normalize: ensure version has 'v' prefix
+INPUT_VERSION="$1"
+if [[ "${INPUT_VERSION}" == v* ]]; then
+    NEW_VERSION="${INPUT_VERSION}"
+else
+    NEW_VERSION="v${INPUT_VERSION}"
 fi
 
-echo "Bumping golangci-lint to ${NEW_VERSION}..."
+REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 
 # hack/tools/go.mod
+OLD=$(grep 'golangci/golangci-lint/v[0-9]\+ ' "${REPO_ROOT}/hack/tools/go.mod" | awk '{print $2}')
 sed -i -E "s|(github\.com/golangci/golangci-lint/v[0-9]+) v[^ ]+|\1 ${NEW_VERSION}|" "${REPO_ROOT}/hack/tools/go.mod"
-echo "  Updated hack/tools/go.mod"
+[[ "${OLD}" != "${NEW_VERSION}" ]] && echo "hack/tools/go.mod: Updated golangci-lint ${OLD} to ${NEW_VERSION}"
 
 # .github/workflows/lint.yml – the version: field inside the golangci-lint-action step
 # Use awk for a context-aware replacement: only update the 'version:' field that
 # appears within the golangci-lint-action block.
+OLD=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1)
 awk '
     /golangci-lint-action/ { in_block=1 }
     in_block && /version:/ {
@@ -41,7 +42,7 @@ awk '
     }
     { print }
 ' "${REPO_ROOT}/.github/workflows/lint.yml" > /tmp/lint.yml.tmp && mv /tmp/lint.yml.tmp "${REPO_ROOT}/.github/workflows/lint.yml"
-echo "  Updated .github/workflows/lint.yml"
+[[ "${OLD}" != "${NEW_VERSION}" ]] && echo ".github/workflows/lint.yml: Updated golangci-lint ${OLD} to ${NEW_VERSION}"
 
-echo "Done."
-echo "Next steps: run 'make tidy' to update go.sum files, then 'make verify-versions' to confirm."
+# Update module files
+(cd "${REPO_ROOT}/hack/tools" && go mod tidy)

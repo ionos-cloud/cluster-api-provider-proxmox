@@ -56,7 +56,26 @@ make mockgen           # Generate mocks for testing
 make verify            # Verify modules and generated files are up to date
 make verify-modules    # Check if go.mod and go.sum are up to date
 make verify-gen        # Check if generated files are up to date
+make verify-versions   # Check that version references are consistent across the repo
 ```
+
+**Version Bumping:**
+
+Several dependencies appear in multiple files and must be updated atomically. Use the helper scripts in `hack/` rather than editing files manually:
+
+```bash
+# Bump Go version in go.mod, hack/tools/go.mod, Dockerfile, and docs/Development.md
+hack/bump-go.sh 1.26.0
+
+# Bump cluster-api (require, replace pin, /test) and add a releaseSeries entry
+# to test/e2e/data/shared/v1beta1/metadata.yaml
+hack/bump-capi.sh 1.11.0 v1beta1
+
+# Bump golangci-lint in hack/tools/go.mod and .github/workflows/lint.yml
+hack/bump-golangci-lint.sh v2.10.0
+```
+
+Each script accepts the version with or without a `v` prefix, prints a line for every file it changes (silent when nothing changes), and runs `go mod tidy` automatically.
 
 **Linting:**
 ```bash
@@ -97,6 +116,7 @@ See `docs/Development.md` for detailed manual setup instructions.
 2. **After modifying API types**, run `make manifests generate` to update generated code and CRDs
 3. **After adding new dependencies**, run `make tidy` to update go.mod and go.sum
 4. **When adding mocks**, update `.mockery.yaml` and run `make mockgen`
+5. **When bumping special dependencies** (Go, cluster-api, golangci-lint), use the `hack/bump-*.sh` scripts instead of editing files manually – these keep all references in sync and run `go mod tidy` automatically. Run `make verify-versions` afterwards to confirm consistency.
 
 ## CI/CD Pipeline
 

@@ -16,35 +16,40 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-NEW_VERSION="$1"
-REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+# Normalize: strip leading 'v' if present (Go versions don't use a 'v' prefix)
+INPUT_VERSION="$1"
+NEW_VERSION="${INPUT_VERSION#v}"
 
 # Validate: must be major.minor or major.minor.patch
 if ! [[ "${NEW_VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-    echo "ERROR: invalid version format '${NEW_VERSION}'"
+    echo "ERROR: invalid version format '${INPUT_VERSION}'"
     echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)"
     exit 1
 fi
 
 NEW_VERSION_MINOR=$(echo "${NEW_VERSION}" | cut -d. -f1-2)
-
-echo "Bumping Go version to ${NEW_VERSION} (image tag: ${NEW_VERSION_MINOR})..."
+REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 
 # go.mod
+OLD=$(grep '^go ' "${REPO_ROOT}/go.mod" | awk '{print $2}')
 sed -i -E "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?/go ${NEW_VERSION}/" "${REPO_ROOT}/go.mod"
-echo "  Updated go.mod"
+[[ "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated go ${OLD} to ${NEW_VERSION}"
 
 # hack/tools/go.mod
+OLD=$(grep '^go ' "${REPO_ROOT}/hack/tools/go.mod" | awk '{print $2}')
 sed -i -E "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?/go ${NEW_VERSION}/" "${REPO_ROOT}/hack/tools/go.mod"
-echo "  Updated hack/tools/go.mod"
+[[ "${OLD}" != "${NEW_VERSION}" ]] && echo "hack/tools/go.mod: Updated go ${OLD} to ${NEW_VERSION}"
 
 # Dockerfile – uses only major.minor in the base image tag
+OLD=$(grep -E '^FROM golang:[0-9]+\.[0-9]+' "${REPO_ROOT}/Dockerfile" | sed -E 's/FROM golang:([0-9]+\.[0-9]+).*/\1/' | head -1)
 sed -i -E "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${NEW_VERSION_MINOR}\2/" "${REPO_ROOT}/Dockerfile"
-echo "  Updated Dockerfile"
+[[ "${OLD}" != "${NEW_VERSION_MINOR}" ]] && echo "Dockerfile: Updated golang:${OLD} to golang:${NEW_VERSION_MINOR}"
 
 # docs/Development.md – lists the required Go version for developers
+OLD=$(grep -E '^\s*- Go v[0-9]+\.[0-9]+' "${REPO_ROOT}/docs/Development.md" | sed -E 's/.*Go v([0-9]+\.[0-9]+).*/\1/' | head -1)
 sed -i -E "s/(- Go v)[0-9]+\.[0-9]+/\1${NEW_VERSION_MINOR}/" "${REPO_ROOT}/docs/Development.md"
-echo "  Updated docs/Development.md"
+[[ "${OLD}" != "${NEW_VERSION_MINOR}" ]] && echo "docs/Development.md: Updated Go v${OLD} to Go v${NEW_VERSION_MINOR}"
 
-echo "Done."
-echo "Next steps: run 'make tidy' to update go.sum files, then 'make verify-versions' to confirm."
+# Update module files
+(cd "${REPO_ROOT}" && go mod tidy)
+(cd "${REPO_ROOT}/hack/tools" && go mod tidy)

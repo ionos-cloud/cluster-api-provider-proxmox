@@ -12,9 +12,9 @@ fail() {
 }
 
 # ---- Go version ----
-# go.mod, hack/tools/go.mod and Dockerfile must all reference the same Go version.
-# go.mod and hack/tools/go.mod use the full "major.minor.patch" form.
-# Dockerfile uses only "major.minor" (no patch) in the base image tag.
+# go.mod, hack/tools/go.mod, Dockerfile, and docs/Development.md must all
+# reference the same Go version. go.mod and hack/tools/go.mod use the full
+# "major.minor.patch" form; Dockerfile and docs use only "major.minor".
 
 GO_VERSION_ROOT=$(grep '^go ' "${REPO_ROOT}/go.mod" | awk '{print $2}')
 GO_VERSION_TOOLS=$(grep '^go ' "${REPO_ROOT}/hack/tools/go.mod" | awk '{print $2}')
@@ -42,7 +42,7 @@ if [[ "${GOLANGCI_VERSION_TOOLS}" != "${GOLANGCI_VERSION_ACTION}" ]]; then
     fail "golangci-lint version mismatch: hack/tools/go.mod has '${GOLANGCI_VERSION_TOOLS}', .github/workflows/lint.yml has '${GOLANGCI_VERSION_ACTION}'"
 fi
 
-# ---- cluster-api: require vs replace ----
+# ---- cluster-api: require and replace ----
 # The replace directive in go.mod must pin the same version as the require directive.
 
 CAPI_REQUIRE=$(grep -E '^\s+sigs\.k8s\.io/cluster-api\s+v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1)
@@ -51,12 +51,25 @@ if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_REPLACE}" && "${CAPI_REQUIRE}" != "${CA
     fail "cluster-api version mismatch: require directive has '${CAPI_REQUIRE}', replace directive has '${CAPI_REPLACE}'"
 fi
 
-# ---- cluster-api vs cluster-api/test ----
+# ---- cluster-api and cluster-api/test ----
 # sigs.k8s.io/cluster-api and sigs.k8s.io/cluster-api/test must be the same version.
 
 CAPI_TEST=$(grep -E '^\s+sigs\.k8s\.io/cluster-api/test v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1)
 if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_TEST}" && "${CAPI_REQUIRE}" != "${CAPI_TEST}" ]]; then
     fail "cluster-api version mismatch: sigs.k8s.io/cluster-api is '${CAPI_REQUIRE}', sigs.k8s.io/cluster-api/test is '${CAPI_TEST}'"
+fi
+
+# ---- cluster-api version in test/e2e metadata ----
+# The cluster-api major.minor from go.mod must be listed in the e2e metadata file.
+
+if [[ -n "${CAPI_REQUIRE}" ]]; then
+    CAPI_VERSION_NO_V=$(echo "${CAPI_REQUIRE}" | sed 's/v//')
+    CAPI_MAJOR=$(echo "${CAPI_VERSION_NO_V}" | cut -d. -f1)
+    CAPI_MINOR=$(echo "${CAPI_VERSION_NO_V}" | cut -d. -f2)
+    METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
+    if ! awk '/- major: '"${CAPI_MAJOR}"'[[:space:]]*$/{found=1; next} found && /minor: '"${CAPI_MINOR}"'[[:space:]]*$/{ok=1; exit} {found=0} END{exit !ok}' "${METADATA_FILE}"; then
+        fail "cluster-api v${CAPI_MAJOR}.${CAPI_MINOR} is not listed in test/e2e/data/shared/v1beta1/metadata.yaml"
+    fi
 fi
 
 # ---- k8s.io core package versions ----
@@ -92,6 +105,4 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
         echo "  - ${err}"
     done
     exit 1
-else
-    echo "All version checks passed."
 fi
