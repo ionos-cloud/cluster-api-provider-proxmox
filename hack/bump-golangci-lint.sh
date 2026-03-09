@@ -26,14 +26,14 @@ fi
 REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 
 # go.mod – replace directive for golangci-lint
-OLD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ => .* v[0-9]+' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1)
+OLD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
 sed -i -E "s|(github\.com/golangci/golangci-lint/v[0-9]+ => github\.com/golangci/golangci-lint/v[0-9]+) v[^ ]+|\1 ${NEW_VERSION}|" "${REPO_ROOT}/go.mod"
 [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated replace golangci-lint ${OLD} to ${NEW_VERSION}"
 
 # .github/workflows/lint.yml – the version: field inside the golangci-lint-action step
 # Use awk for a context-aware replacement: only update the 'version:' field that
 # appears within the golangci-lint-action block.
-OLD=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1)
+OLD=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1 || true)
 awk '
     /golangci-lint-action/ { in_block=1 }
     in_block && /version:/ {

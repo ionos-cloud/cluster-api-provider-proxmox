@@ -33,8 +33,8 @@ fi
 # The golangci-lint replace directive in go.mod and the version in
 # .github/workflows/lint.yml must use the same version.
 
-GOLANGCI_VERSION_GOMOD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ => .* v[0-9]+' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1)
-GOLANGCI_VERSION_ACTION=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1)
+GOLANGCI_VERSION_GOMOD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
+GOLANGCI_VERSION_ACTION=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1 || true)
 if [[ -n "${GOLANGCI_VERSION_GOMOD}" && -n "${GOLANGCI_VERSION_ACTION}" && "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_ACTION}" ]]; then
     fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .github/workflows/lint.yml has '${GOLANGCI_VERSION_ACTION}'"
 fi
@@ -42,8 +42,8 @@ fi
 # ---- cluster-api: require and replace ----
 # The replace directive in go.mod must pin the same version as the require directive.
 
-CAPI_REQUIRE=$(grep -E '^\s+sigs\.k8s\.io/cluster-api\s+v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1)
-CAPI_REPLACE=$(grep -E '^\s+sigs\.k8s\.io/cluster-api => ' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1)
+CAPI_REQUIRE=$(grep -E '^\s+sigs\.k8s\.io/cluster-api\s+v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true)
+CAPI_REPLACE=$(grep -E 'sigs\.k8s\.io/cluster-api =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
 if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_REPLACE}" && "${CAPI_REQUIRE}" != "${CAPI_REPLACE}" ]]; then
     fail "cluster-api version mismatch: require directive has '${CAPI_REQUIRE}', replace directive has '${CAPI_REPLACE}'"
 fi
@@ -51,7 +51,7 @@ fi
 # ---- cluster-api and cluster-api/test ----
 # sigs.k8s.io/cluster-api and sigs.k8s.io/cluster-api/test must be the same version.
 
-CAPI_TEST=$(grep -E '^\s+sigs\.k8s\.io/cluster-api/test v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1)
+CAPI_TEST=$(grep -E '^\s+sigs\.k8s\.io/cluster-api/test v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true)
 if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_TEST}" && "${CAPI_REQUIRE}" != "${CAPI_TEST}" ]]; then
     fail "cluster-api version mismatch: sigs.k8s.io/cluster-api is '${CAPI_REQUIRE}', sigs.k8s.io/cluster-api/test is '${CAPI_TEST}'"
 fi
@@ -75,7 +75,7 @@ fi
 
 declare -A K8S_VERSIONS
 for pkg in "k8s.io/api" "k8s.io/apimachinery" "k8s.io/client-go"; do
-    VERSION=$(grep -E "^\s+${pkg} v" "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1)
+    VERSION=$(grep -E "^\s+${pkg} v" "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true)
     if [[ -n "${VERSION}" ]]; then
         K8S_VERSIONS["${pkg}"]="${VERSION}"
     fi

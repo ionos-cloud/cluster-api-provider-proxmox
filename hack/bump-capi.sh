@@ -41,17 +41,17 @@ GO_MOD="${REPO_ROOT}/go.mod"
 METADATA="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
 
 # ---- go.mod: require sigs.k8s.io/cluster-api ----
-OLD=$(grep -E '^\s+sigs\.k8s\.io/cluster-api\s+v' "${GO_MOD}" | awk '{print $2}' | head -1)
+OLD=$(grep -E '^\s+sigs\.k8s\.io/cluster-api\s+v' "${GO_MOD}" | awk '{print $2}' | head -1 || true)
 sed -i -E "s|(^\s+sigs\.k8s\.io/cluster-api[[:space:]]+)v[^ ]+|\1${NEW_VERSION}|" "${GO_MOD}"
 [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated require sigs.k8s.io/cluster-api ${OLD} to ${NEW_VERSION}"
 
 # ---- go.mod: require sigs.k8s.io/cluster-api/test ----
-OLD=$(grep -E '^\s+sigs\.k8s\.io/cluster-api/test v' "${GO_MOD}" | awk '{print $2}' | head -1)
+OLD=$(grep -E '^\s+sigs\.k8s\.io/cluster-api/test v' "${GO_MOD}" | awk '{print $2}' | head -1 || true)
 sed -i -E "s|(^\s+sigs\.k8s\.io/cluster-api/test) v[^ ]+|\1 ${NEW_VERSION}|" "${GO_MOD}"
 [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated require sigs.k8s.io/cluster-api/test ${OLD} to ${NEW_VERSION}"
 
 # ---- go.mod: replace pin ----
-OLD=$(grep -E '^\s+sigs\.k8s\.io/cluster-api => ' "${GO_MOD}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1)
+OLD=$(grep -E 'sigs\.k8s\.io/cluster-api =>' "${GO_MOD}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
 sed -i -E "s|(sigs\.k8s\.io/cluster-api => sigs\.k8s\.io/cluster-api) v[^ ]+|\1 ${NEW_VERSION}|" "${GO_MOD}"
 [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated replace sigs.k8s.io/cluster-api ${OLD} to ${NEW_VERSION}"
 
