@@ -72,7 +72,7 @@ make vet               # Run go vet
 
 **Module Management:**
 ```bash
-make tidy              # Run go mod tidy (including hack/tools)
+make tidy              # Run go mod tidy
 ```
 
 ### Development Environment Setup
