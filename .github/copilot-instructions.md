@@ -64,14 +64,14 @@ make verify-versions   # Check that version references are consistent across the
 Several dependencies appear in multiple files and must be updated atomically. Use the helper scripts in `hack/` rather than editing files manually:
 
 ```bash
-# Bump Go version in go.mod, hack/tools/go.mod, Dockerfile, and docs/Development.md
+# Bump Go version in go.mod, Dockerfile, and docs/Development.md
 hack/bump-go.sh 1.26.0
 
 # Bump cluster-api (require, replace pin, /test) and add a releaseSeries entry
 # to test/e2e/data/shared/v1beta1/metadata.yaml
 hack/bump-capi.sh 1.11.0 v1beta1
 
-# Bump golangci-lint in hack/tools/go.mod and .github/workflows/lint.yml
+# Bump golangci-lint in go.mod and .github/workflows/lint.yml
 hack/bump-golangci-lint.sh v2.10.0
 ```
 
@@ -91,7 +91,7 @@ make vet               # Run go vet
 
 **Module Management:**
 ```bash
-make tidy              # Run go mod tidy (including hack/tools)
+make tidy              # Run go mod tidy
 ```
 
 ### Development Environment Setup

@@ -12,15 +12,11 @@ fail() {
 }
 
 # ---- Go version ----
-# go.mod, hack/tools/go.mod, Dockerfile, and docs/Development.md must all
-# reference the same Go version. go.mod and hack/tools/go.mod use the full
-# "major.minor.patch" form; Dockerfile and docs use only "major.minor".
+# go.mod, Dockerfile, and docs/Development.md must all reference the same Go
+# version. go.mod uses the full "major.minor.patch" form; Dockerfile and docs
+# use only "major.minor".
 
 GO_VERSION_ROOT=$(grep '^go ' "${REPO_ROOT}/go.mod" | awk '{print $2}')
-GO_VERSION_TOOLS=$(grep '^go ' "${REPO_ROOT}/hack/tools/go.mod" | awk '{print $2}')
-if [[ "${GO_VERSION_ROOT}" != "${GO_VERSION_TOOLS}" ]]; then
-    fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}', hack/tools/go.mod has '${GO_VERSION_TOOLS}'"
-fi
 
 GO_VERSION_MINOR=$(echo "${GO_VERSION_ROOT}" | cut -d. -f1-2)
 DOCKERFILE_GO_VERSION=$(grep -E '^FROM golang:[0-9]+\.[0-9]+' "${REPO_ROOT}/Dockerfile" | sed -E 's/FROM golang:([0-9]+\.[0-9]+).*/\1/' | head -1)
@@ -34,19 +30,20 @@ if [[ -n "${DOCS_GO_VERSION}" && "${DOCS_GO_VERSION}" != "${GO_VERSION_MINOR}" ]
 fi
 
 # ---- golangci-lint version ----
-# hack/tools/go.mod and .github/workflows/lint.yml must use the same golangci-lint version.
+# The golangci-lint replace directive in go.mod and the version in
+# .github/workflows/lint.yml must use the same version.
 
-GOLANGCI_VERSION_TOOLS=$(grep 'golangci/golangci-lint/v[0-9]\+ ' "${REPO_ROOT}/hack/tools/go.mod" | awk '{print $2}')
+GOLANGCI_VERSION_GOMOD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ => .* v[0-9]+' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1)
 GOLANGCI_VERSION_ACTION=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1)
-if [[ "${GOLANGCI_VERSION_TOOLS}" != "${GOLANGCI_VERSION_ACTION}" ]]; then
-    fail "golangci-lint version mismatch: hack/tools/go.mod has '${GOLANGCI_VERSION_TOOLS}', .github/workflows/lint.yml has '${GOLANGCI_VERSION_ACTION}'"
+if [[ -n "${GOLANGCI_VERSION_GOMOD}" && -n "${GOLANGCI_VERSION_ACTION}" && "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_ACTION}" ]]; then
+    fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .github/workflows/lint.yml has '${GOLANGCI_VERSION_ACTION}'"
 fi
 
 # ---- cluster-api: require and replace ----
 # The replace directive in go.mod must pin the same version as the require directive.
 
 CAPI_REQUIRE=$(grep -E '^\s+sigs\.k8s\.io/cluster-api\s+v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1)
-CAPI_REPLACE=$(grep -E '^replace sigs\.k8s\.io/cluster-api =>' "${REPO_ROOT}/go.mod" | awk '{print $NF}' | head -1)
+CAPI_REPLACE=$(grep -E '^\s+sigs\.k8s\.io/cluster-api => ' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1)
 if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_REPLACE}" && "${CAPI_REQUIRE}" != "${CAPI_REPLACE}" ]]; then
     fail "cluster-api version mismatch: require directive has '${CAPI_REQUIRE}', replace directive has '${CAPI_REPLACE}'"
 fi
