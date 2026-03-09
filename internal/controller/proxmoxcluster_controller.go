@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -197,21 +198,21 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 
 			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint")
 
-			return ctrl.Result{RequeueAfter: 0}, nil
+			return ctrl.Result{RequeueAfter: 200 * time.Millisecond}, nil
 		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host == "" {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
 
 			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host")
 
-			return ctrl.Result{RequeueAfter: 0}, nil
+			return ctrl.Result{RequeueAfter: 200 * time.Millisecond}, nil
 		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Port == 0 {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint port")
 
 			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port")
 
-			return ctrl.Result{RequeueAfter: 0}, nil
+			return ctrl.Result{RequeueAfter: 200 * time.Millisecond}, nil
 		}
 	}
 
