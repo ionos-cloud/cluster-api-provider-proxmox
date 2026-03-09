@@ -49,14 +49,6 @@ spec:
         path: /spec/template/spec/dnsServers
         valueFrom:
           variable: dnsServers
-      - op: replace
-        path: /spec/template/spec/cloneSpec/sshAuthorizedKeys
-        valueFrom:
-          variable: cloneSpec.sshAuthorizedKeys
-      - op: replace
-        path: /spec/template/spec/cloneSpec/virtualIPNetworkInterface
-        valueFrom:
-          variable: cloneSpec.virtualIPNetworkInterface
       selector:
         apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
         kind: ProxmoxClusterTemplate
@@ -1063,17 +1055,6 @@ metadata:
 spec:
   template:
     spec:
-      cloneSpec:
-        machineSpec:
-        - machineType: controlPlane
-          sourceNode: pve1
-          network:
-            networkDevices:
-            - name: net0
-              bridge: ${BRIDGE}
-              model: virtio
-        sshAuthorizedKeys: []
-        virtualIPNetworkInterface: ""
       controlPlaneEndpoint:
         host: 10.10.10.9
         port: 6443
