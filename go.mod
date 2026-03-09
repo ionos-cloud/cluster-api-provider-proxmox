@@ -5,12 +5,11 @@ go 1.25.0
 replace (
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.10.4
 
-	// tool version pins
 	github.com/a8m/envsubst => github.com/a8m/envsubst v1.4.2
 	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.9.0
 	github.com/google/yamlfmt => github.com/google/yamlfmt v0.21.0
 	github.com/vektra/mockery/v2 => github.com/vektra/mockery/v2 v2.53.6
-	sigs.k8s.io/controller-runtime/tools/setup-envtest => sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250911081535-42a14a36c13b
+	sigs.k8s.io/controller-runtime/tools/setup-envtest => sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250911081535-42a14a36c13b // last version to support go1.24
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.16.5
 	sigs.k8s.io/kustomize/kustomize/v5 => sigs.k8s.io/kustomize/kustomize/v5 v5.0.0
 )
