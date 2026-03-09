@@ -4,8 +4,6 @@ IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
-TOOLS_DIR := hack/tools
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -58,7 +56,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: ## Run lint.
-	go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
+	go tool golangci-lint run
 
 # Package names to test
 WHAT ?= ./...
@@ -69,17 +67,16 @@ test: manifests generate fmt vet envtest ## Run tests. Specify packages to test 
 
 .PHONY: mockgen
 mockgen: ## Generate mocks.
-	go run -modfile ./hack/tools/go.mod github.com/vektra/mockery/v2
+	go tool mockery
 
 .PHONY: yamlfmt
 yamlfmt: ## Run yamlfmt against yaml.
-	go run -modfile ./hack/tools/go.mod github.com/google/yamlfmt/cmd/yamlfmt -dry -quiet
-	go run -modfile ./hack/tools/go.mod github.com/google/yamlfmt/cmd/yamlfmt
+	go tool yamlfmt -dry -quiet
+	go tool yamlfmt
 
 .PHONY: tidy
 tidy: ## Run go mod tidy to ensure modules are up to date
 	go mod tidy
-	go -C $(TOOLS_DIR) mod tidy
 
 ##@ Build
 
@@ -126,7 +123,7 @@ verify: verify-modules verify-gen ## verify the manifests and the code.
 
 .PHONY: verify-modules
 verify-modules: tidy ## Verify go modules are up to date
-	@if !(git diff --quiet HEAD -- go.sum go.mod $(TOOLS_DIR)/go.mod $(TOOLS_DIR)/go.sum); then \
+	@if !(git diff --quiet HEAD -- go.sum go.mod); then \
 		git diff; \
 		echo "go module files are out of date"; exit 1; \
 	fi
