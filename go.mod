@@ -27,6 +27,16 @@ require (
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.0.3
 	sigs.k8s.io/cluster-api/test v1.10.4
 	sigs.k8s.io/controller-runtime v0.20.4
+	github.com/golangci/golangci-lint/v2 v2.9.0
+	github.com/google/yamlfmt v0.21.0
+	github.com/vektra/mockery/v2 v2.53.6
+)
+
+tool (
+	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+	github.com/google/yamlfmt/cmd/yamlfmt
+	github.com/vektra/mockery/v2
+	golang.org/x/tools/cmd/goimports
 )
 
 require (
@@ -77,7 +87,6 @@ require (
 	github.com/gobuffalo/flect v1.0.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golangci/golangci-lint/v2 v2.9.0
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.22.0 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
@@ -86,7 +95,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect
 	github.com/google/safetext v0.0.0-20220905092116-b49f7bc46da2 // indirect
-	github.com/google/yamlfmt v0.21.0
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
@@ -127,7 +135,6 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
-	github.com/vektra/mockery/v2 v2.53.6
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
@@ -171,11 +178,4 @@ require (
 	sigs.k8s.io/kind v0.27.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
-)
-
-tool (
-	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
-	github.com/google/yamlfmt/cmd/yamlfmt
-	github.com/vektra/mockery/v2
-	golang.org/x/tools/cmd/goimports
 )
