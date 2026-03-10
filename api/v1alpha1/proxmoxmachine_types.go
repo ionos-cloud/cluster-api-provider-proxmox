@@ -405,6 +405,11 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Maximum=4094
 	VLAN *uint16 `json:"vlan,omitempty"`
 
+	// Queues is the Multiqueue field in Proxmox to assign to the NIC
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	Queues *uint16 `json:"queues,omitempty"`
+
 	// DNSServers contains information about nameservers to be used for this interface.
 	// If this field is not set, it will use the default dns servers from the ProxmoxCluster.
 	// +optional

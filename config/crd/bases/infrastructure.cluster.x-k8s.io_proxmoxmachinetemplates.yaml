@@ -294,6 +294,11 @@ spec:
                                   - message: additional network devices doesn't allow
                                       net0
                                     rule: self != 'net0'
+                                queues:
+                                  description: Queues is the Multiqueue field in Proxmox
+                                    to assign to the NIC
+                                  minimum: 1
+                                  type: integer
                                 routes:
                                   description: Routes are the routes associated with
                                     this interface.
@@ -472,6 +477,11 @@ spec:
                                 x-kubernetes-validations:
                                 - message: invalid MTU value
                                   rule: self == 1 || ( self >= 576 && self <= 65520)
+                              queues:
+                                description: Queues is the Multiqueue field in Proxmox
+                                  to assign to the NIC
+                                minimum: 1
+                                type: integer
                               vlan:
                                 description: VLAN is the network L2 VLAN.
                                 maximum: 4094
