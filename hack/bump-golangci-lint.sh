@@ -2,7 +2,7 @@
 # bump-golangci-lint.sh bumps the golangci-lint version in all places it is
 # referenced:
 #   - go.mod (replace directive)
-#   - .github/workflows/lint.yml
+#   - .custom-gcl.yaml
 #
 # Usage:   ./hack/bump-golangci-lint.sh <new-version>
 # Example: ./hack/bump-golangci-lint.sh v2.10.0
@@ -25,19 +25,13 @@ OLD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ =>' "${REPO_ROOT}/
 sed -i -E "s|(github\.com/golangci/golangci-lint/v[0-9]+ => github\.com/golangci/golangci-lint/v[0-9]+) v[^ ]+|\1 ${NEW_VERSION}|" "${REPO_ROOT}/go.mod"
 [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated replace golangci-lint ${OLD} to ${NEW_VERSION}"
 
-# .github/workflows/lint.yml – the version: field inside the golangci-lint-action step
-# Use awk for a context-aware replacement: only update the 'version:' field that
-# appears within the golangci-lint-action block.
-OLD=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1 || true)
-awk '
-    /golangci-lint-action/ { in_block=1 }
-    in_block && /version:/ {
-        sub(/version:.*$/, "version: '"${NEW_VERSION}"'")
-        in_block=0
-    }
-    { print }
-' "${REPO_ROOT}/.github/workflows/lint.yml" > /tmp/lint.yml.tmp && mv /tmp/lint.yml.tmp "${REPO_ROOT}/.github/workflows/lint.yml"
-[[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo ".github/workflows/lint.yml: Updated golangci-lint ${OLD} to ${NEW_VERSION}"
+# .custom-gcl.yaml – the version: field
+CUSTOM_GCL="${REPO_ROOT}/.custom-gcl.yaml"
+if [[ -f "${CUSTOM_GCL}" ]]; then
+    OLD=$(grep -E '^version:' "${CUSTOM_GCL}" | awk '{print $2}' || true)
+    sed -i -E "s/^(version:) .+/\1 ${NEW_VERSION}/" "${CUSTOM_GCL}"
+    [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo ".custom-gcl.yaml: Updated golangci-lint ${OLD} to ${NEW_VERSION}"
+fi
 
 # Update module files
 run_mod_tidy

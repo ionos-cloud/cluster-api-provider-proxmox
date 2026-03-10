@@ -71,7 +71,7 @@ hack/bump-go.sh 1.26.0
 # to test/e2e/data/shared/v1beta1/metadata.yaml
 hack/bump-capi.sh 1.11.0 v1beta1
 
-# Bump golangci-lint in go.mod and .github/workflows/lint.yml
+# Bump golangci-lint in go.mod and .custom-gcl.yaml
 hack/bump-golangci-lint.sh v2.10.0
 ```
 

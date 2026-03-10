@@ -33,12 +33,12 @@ fi
 
 # ---- golangci-lint version ----
 # The golangci-lint replace directive in go.mod and the version in
-# .github/workflows/lint.yml must use the same version.
+# .custom-gcl.yaml must use the same version.
 
 GOLANGCI_VERSION_GOMOD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
-GOLANGCI_VERSION_ACTION=$(grep -A5 'golangci-lint-action' "${REPO_ROOT}/.github/workflows/lint.yml" | grep 'version:' | awk '{print $2}' | head -1 || true)
-if [[ -n "${GOLANGCI_VERSION_GOMOD}" && -n "${GOLANGCI_VERSION_ACTION}" && "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_ACTION}" ]]; then
-    fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .github/workflows/lint.yml has '${GOLANGCI_VERSION_ACTION}'"
+GOLANGCI_VERSION_CUSTOM=$(grep -E '^version:' "${REPO_ROOT}/.custom-gcl.yaml" 2>/dev/null | awk '{print $2}' || true)
+if [[ -n "${GOLANGCI_VERSION_GOMOD}" && -n "${GOLANGCI_VERSION_CUSTOM}" && "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_CUSTOM}" ]]; then
+    fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
 fi
 
 # ---- cluster-api: require and replace ----
