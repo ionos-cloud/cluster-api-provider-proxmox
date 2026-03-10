@@ -190,7 +190,7 @@ PROXMOX_SECRET: "REDACTED"                                    # The secret assoc
 However, to use external-credentials in your own Cluster manifests, you need to create a secret
 and reference it in the cluster manifest.
 ```yaml
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxCluster
 metadata:
   name: "my-cluster"
@@ -358,20 +358,12 @@ An example can be found in [examples/cluster-cilum.yaml](../examples/cluster-cil
 
 Important fields:
 - `.metadata.name: cluster-name` the name of the cluster to be generated.
-- `.spec.topology.class: `proxmox-clusterclass-cilium-v0.1.0` the clusterClass used for generating resources.
-- `.spec.topology.version: 1.25.10` The k8s version used by kubeadm.
+- `.spec.topology.classRef.name: `proxmox-clusterclass-cilium-v0.2.0` the clusterClass used for generating resources.
+- `.spec.topology.version: 1.32.9` The k8s version used by kubeadm.
 
 All possible fields refer to [CAPMOX environment variables](#capmox-environment-variables).
 
-3. Preview the cluster topology
-
-```bash
-clusterctl alpha topology plan -f examples/cluster-cilium.yaml -o out/
-```
-
-The to-be-created resources will be located in `out/created`.
-
-4. Apply the Cluster Manifest
+3. Apply the Cluster Manifest
 
 ```bash
 kubectl apply -f mycluster.yaml
