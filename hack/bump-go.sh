@@ -31,19 +31,19 @@ fi
 NEW_VERSION_MINOR=$(echo "${NEW_VERSION}" | cut -d. -f1-2)
 
 # go.mod
-OLD=$(grep '^go ' "${REPO_ROOT}/go.mod" | awk '{print $2}')
+OLD=$(gomod_go_version)
 sed -i -E "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?/go ${NEW_VERSION}/" "${REPO_ROOT}/go.mod"
 [[ "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated go ${OLD} to ${NEW_VERSION}"
 
 # Dockerfile – uses only major.minor in the base image tag
-OLD=$(grep -E '^FROM golang:[0-9]+\.[0-9]+' "${REPO_ROOT}/Dockerfile" | sed -E 's/FROM golang:([0-9]+\.[0-9]+).*/\1/' | head -1)
+OLD=$(dockerfile_go_version)
 sed -i -E "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${NEW_VERSION_MINOR}\2/" "${REPO_ROOT}/Dockerfile"
 [[ "${OLD}" != "${NEW_VERSION_MINOR}" ]] && echo "Dockerfile: Updated golang:${OLD} to golang:${NEW_VERSION_MINOR}"
 
 # docs/Development.md – lists the required Go version for developers
-OLD=$(grep -E '^\s*- Go v[0-9]+\.[0-9]+' "${REPO_ROOT}/docs/Development.md" | sed -E 's/.*Go v([0-9]+\.[0-9]+).*/\1/' | head -1)
+OLD=$(docs_go_version)
 sed -i -E "s/(- Go v)[0-9]+\.[0-9]+/\1${NEW_VERSION_MINOR}/" "${REPO_ROOT}/docs/Development.md"
-[[ "${OLD}" != "${NEW_VERSION_MINOR}" ]] && echo "docs/Development.md: Updated Go v${OLD} to Go v${NEW_VERSION_MINOR}"
+[[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION_MINOR}" ]] && echo "docs/Development.md: Updated Go v${OLD} to Go v${NEW_VERSION_MINOR}"
 
 # Update module files
 run_mod_tidy

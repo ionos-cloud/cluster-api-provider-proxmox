@@ -35,19 +35,62 @@ split_version() {
     PATCH=$(echo "${no_v}" | cut -d. -f3)
 }
 
+# ---- version extraction: go.mod ----
+
+# gomod_go_version returns the Go version from go.mod (e.g. "1.25.0").
+gomod_go_version() {
+    awk '/^go /{print $2; exit}' "${REPO_ROOT}/go.mod"
+}
+
+# gomod_require_version returns the version of a package from the require
+# block in go.mod (direct or indirect). Returns empty string if not found.
+gomod_require_version() {
+    local pkg="$1"
+    awk '/^\s+'"${pkg//\//\\/}"'\s+v/{print $2; exit}' "${REPO_ROOT}/go.mod"
+}
+
+# gomod_replace_version returns the target version from a replace directive
+# for the given package in go.mod. Returns empty string if not found.
+gomod_replace_version() {
+    local pkg="$1"
+    awk '/^\s+'"${pkg//\//\\/}"' =>/{for(i=1;i<=NF;i++) if($i ~ /^v[0-9]+\./) v=$i; print v}' "${REPO_ROOT}/go.mod"
+}
+
 # effective_version returns the version of a Go module as seen by the build.
 # If a replace directive overrides the module, the replace target version is
 # returned; otherwise the version from require (direct or indirect) is used.
 effective_version() {
     local pkg="$1"
-    local gomod="${REPO_ROOT}/go.mod"
-    local replace_ver
-    replace_ver=$(grep -E "^\s+${pkg} =>" "${gomod}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
-    if [[ -n "${replace_ver}" ]]; then
-        echo "${replace_ver}"
+    local ver
+    ver=$(gomod_replace_version "${pkg}")
+    if [[ -n "${ver}" ]]; then
+        echo "${ver}"
         return
     fi
-    grep -E "^\s+${pkg}\s+v" "${gomod}" | awk '{print $2}' | head -1 || true
+    gomod_require_version "${pkg}"
+}
+
+# ---- version extraction: other files ----
+
+# dockerfile_go_version returns the Go major.minor from the Dockerfile
+# base image (e.g. "1.25").
+dockerfile_go_version() {
+    awk 'match($0, /^FROM golang:([0-9]+\.[0-9]+)/, m){print m[1]; exit}' "${REPO_ROOT}/Dockerfile"
+}
+
+# docs_go_version returns the Go major.minor listed in docs/Development.md
+# (e.g. "1.25"). Returns empty string if not found.
+docs_go_version() {
+    awk 'match($0, /Go v([0-9]+\.[0-9]+)/, m){print m[1]; exit}' "${REPO_ROOT}/docs/Development.md"
+}
+
+# custom_gcl_version returns the golangci-lint version from .custom-gcl.yaml
+# (e.g. "v2.9.0"). Returns empty string if the file does not exist.
+custom_gcl_version() {
+    local f="${REPO_ROOT}/.custom-gcl.yaml"
+    if [[ -f "${f}" ]]; then
+        awk '/^version:/{print $2; exit}' "${f}"
+    fi
 }
 
 # ---- module helpers ----

@@ -18,15 +18,15 @@ fail() {
 # version. go.mod uses the full "major.minor.patch" form; Dockerfile and docs
 # use only "major.minor".
 
-GO_VERSION_ROOT=$(grep '^go ' "${REPO_ROOT}/go.mod" | awk '{print $2}')
+GO_VERSION_ROOT=$(gomod_go_version)
 
 GO_VERSION_MINOR=$(echo "${GO_VERSION_ROOT}" | cut -d. -f1-2)
-DOCKERFILE_GO_VERSION=$(grep -E '^FROM golang:[0-9]+\.[0-9]+' "${REPO_ROOT}/Dockerfile" | sed -E 's/FROM golang:([0-9]+\.[0-9]+).*/\1/' | head -1)
+DOCKERFILE_GO_VERSION=$(dockerfile_go_version)
 if [[ "${DOCKERFILE_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
     fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), Dockerfile has '${DOCKERFILE_GO_VERSION}'"
 fi
 
-DOCS_GO_VERSION=$(grep -E '^\s*- Go v[0-9]+\.[0-9]+' "${REPO_ROOT}/docs/Development.md" | sed -E 's/.*Go v([0-9]+\.[0-9]+).*/\1/' | head -1)
+DOCS_GO_VERSION=$(docs_go_version)
 if [[ -n "${DOCS_GO_VERSION}" && "${DOCS_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
     fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), docs/Development.md lists 'Go v${DOCS_GO_VERSION}'"
 fi
@@ -35,8 +35,8 @@ fi
 # The golangci-lint replace directive in go.mod and the version in
 # .custom-gcl.yaml must use the same version.
 
-GOLANGCI_VERSION_GOMOD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
-GOLANGCI_VERSION_CUSTOM=$(grep -E '^version:' "${REPO_ROOT}/.custom-gcl.yaml" 2>/dev/null | awk '{print $2}' || true)
+GOLANGCI_VERSION_GOMOD=$(gomod_replace_version 'github.com/golangci/golangci-lint/v2')
+GOLANGCI_VERSION_CUSTOM=$(custom_gcl_version)
 if [[ -n "${GOLANGCI_VERSION_GOMOD}" && -n "${GOLANGCI_VERSION_CUSTOM}" && "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_CUSTOM}" ]]; then
     fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
 fi
@@ -44,8 +44,8 @@ fi
 # ---- cluster-api: require and replace ----
 # The replace directive in go.mod must pin the same version as the require directive.
 
-CAPI_REQUIRE=$(grep -E '^\s+sigs\.k8s\.io/cluster-api\s+v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true)
-CAPI_REPLACE=$(grep -E 'sigs\.k8s\.io/cluster-api =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
+CAPI_REQUIRE=$(gomod_require_version 'sigs.k8s.io/cluster-api')
+CAPI_REPLACE=$(gomod_replace_version 'sigs.k8s.io/cluster-api')
 if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_REPLACE}" && "${CAPI_REQUIRE}" != "${CAPI_REPLACE}" ]]; then
     fail "cluster-api version mismatch: require directive has '${CAPI_REQUIRE}', replace directive has '${CAPI_REPLACE}'"
 fi
@@ -53,7 +53,7 @@ fi
 # ---- cluster-api and cluster-api/test ----
 # sigs.k8s.io/cluster-api and sigs.k8s.io/cluster-api/test must be the same version.
 
-CAPI_TEST=$(grep -E '^\s+sigs\.k8s\.io/cluster-api/test v' "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true)
+CAPI_TEST=$(gomod_require_version 'sigs.k8s.io/cluster-api/test')
 if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_TEST}" && "${CAPI_REQUIRE}" != "${CAPI_TEST}" ]]; then
     fail "cluster-api version mismatch: sigs.k8s.io/cluster-api is '${CAPI_REQUIRE}', sigs.k8s.io/cluster-api/test is '${CAPI_TEST}'"
 fi
@@ -66,7 +66,7 @@ if [[ -n "${CAPI_REQUIRE}" ]]; then
     CAPI_MAJOR="${MAJOR}"
     CAPI_MINOR="${MINOR}"
     METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
-    if ! awk '/- major: '"${CAPI_MAJOR}"'[[:space:]]*$/{found=1; next} found && /minor: '"${CAPI_MINOR}"'[[:space:]]*$/{ok=1; exit} {found=0} END{exit !ok}' "${METADATA_FILE}"; then
+    if ! yq -e '.releaseSeries[] | select(.major == '"${CAPI_MAJOR}"' and .minor == '"${CAPI_MINOR}"')' "${METADATA_FILE}" > /dev/null 2>&1; then
         fail "cluster-api v${CAPI_MAJOR}.${CAPI_MINOR} is not listed in test/e2e/data/shared/v1beta1/metadata.yaml"
     fi
 fi

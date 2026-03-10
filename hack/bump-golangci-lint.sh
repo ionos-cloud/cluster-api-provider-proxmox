@@ -21,14 +21,14 @@ fi
 NEW_VERSION=$(ensure_v_prefix "$1")
 
 # go.mod – replace directive for golangci-lint
-OLD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
+OLD=$(gomod_replace_version 'github.com/golangci/golangci-lint/v2')
 sed -i -E "s|(github\.com/golangci/golangci-lint/v[0-9]+ => github\.com/golangci/golangci-lint/v[0-9]+) v[^ ]+|\1 ${NEW_VERSION}|" "${REPO_ROOT}/go.mod"
 [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated replace golangci-lint ${OLD} to ${NEW_VERSION}"
 
 # .custom-gcl.yaml – the version: field
 CUSTOM_GCL="${REPO_ROOT}/.custom-gcl.yaml"
 if [[ -f "${CUSTOM_GCL}" ]]; then
-    OLD=$(grep -E '^version:' "${CUSTOM_GCL}" | awk '{print $2}' || true)
+    OLD=$(custom_gcl_version)
     sed -i -E "s/^(version:) .+/\1 ${NEW_VERSION}/" "${CUSTOM_GCL}"
     [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo ".custom-gcl.yaml: Updated golangci-lint ${OLD} to ${NEW_VERSION}"
 fi
