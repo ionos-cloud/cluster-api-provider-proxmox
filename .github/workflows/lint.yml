@@ -4,8 +4,6 @@ on: [ pull_request ]
 permissions:
   # Required: allow read access to the content for analysis.
   contents: read
-  # Optional: Allow write access to checks to allow the action to annotate code in the PR.
-  checks: write
 
 jobs:
   golangci:
@@ -17,10 +15,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.9.0
-          args: '--timeout 10m'
+        run: go tool golangci-lint run --out-format=colored-line-number,github-actions --timeout 10m
 
   lint-api:
     name: lint-api
@@ -33,7 +28,7 @@ jobs:
       - name: build kube-api-linter
         run: go tool golangci-lint custom
       - name: kube-api-linter
-        run: ./bin/golangci-lint-kube-api-linter run --timeout 10m --config .golangci-kal.yml
+        run: ./bin/golangci-lint-kube-api-linter run --out-format=colored-line-number,github-actions --timeout 10m --config .golangci-kal.yml
 
   yamllint:
     name: yamllint
