@@ -9,21 +9,16 @@
 
 set -euo pipefail
 
+# shellcheck source=hack/version-helpers.sh
+source "$(dirname "$0")/version-helpers.sh"
+
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <new-version>"
     echo "Example: $0 v2.10.0"
     exit 1
 fi
 
-# Normalize: ensure version has 'v' prefix
-INPUT_VERSION="$1"
-if [[ "${INPUT_VERSION}" == v* ]]; then
-    NEW_VERSION="${INPUT_VERSION}"
-else
-    NEW_VERSION="v${INPUT_VERSION}"
-fi
-
-REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+NEW_VERSION=$(ensure_v_prefix "$1")
 
 # go.mod – replace directive for golangci-lint
 OLD=$(grep -E '^\s+github\.com/golangci/golangci-lint/v[0-9]+ =>' "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)

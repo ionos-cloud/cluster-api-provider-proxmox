@@ -9,25 +9,26 @@
 
 set -euo pipefail
 
+# shellcheck source=hack/version-helpers.sh
+source "$(dirname "$0")/version-helpers.sh"
+
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <new-version>"
     echo "Example: $0 1.26.0"
     exit 1
 fi
 
-# Normalize: strip leading 'v' if present (Go versions don't use a 'v' prefix)
-INPUT_VERSION="$1"
-NEW_VERSION="${INPUT_VERSION#v}"
+# Go versions don't use a 'v' prefix
+NEW_VERSION=$(strip_v_prefix "$1")
 
 # Validate: must be major.minor or major.minor.patch
 if ! [[ "${NEW_VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-    echo "ERROR: invalid version format '${INPUT_VERSION}'"
+    echo "ERROR: invalid version format '$1'"
     echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)"
     exit 1
 fi
 
 NEW_VERSION_MINOR=$(echo "${NEW_VERSION}" | cut -d. -f1-2)
-REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 
 # go.mod
 OLD=$(grep '^go ' "${REPO_ROOT}/go.mod" | awk '{print $2}')

@@ -7,36 +7,27 @@
 #   - test/e2e/data/shared/v1beta1/metadata.yaml: releaseSeries first entry
 #
 # Usage:   ./hack/bump-capi.sh <new-version> <contract>
-# Example: ./hack/bump-capi.sh 1.11.0 v1beta1
+# Example: ./hack/bump-capi.sh 1.11.0 v1beta2
 
 set -euo pipefail
 
+# shellcheck source=hack/version-helpers.sh
+source "$(dirname "$0")/version-helpers.sh"
+
 if [[ $# -ne 2 ]]; then
     echo "Usage: $0 <new-version> <contract>"
-    echo "Example: $0 1.11.0 v1beta1"
+    echo "Example: $0 1.11.0 v1beta2"
     exit 1
 fi
 
-# Normalize: ensure version has 'v' prefix
-INPUT_VERSION="$1"
-if [[ "${INPUT_VERSION}" == v* ]]; then
-    NEW_VERSION="${INPUT_VERSION}"
-else
-    NEW_VERSION="v${INPUT_VERSION}"
-fi
+validate_semver "$1"
+NEW_VERSION=$(ensure_v_prefix "$1")
 CONTRACT="$2"
 
-# Validate version format: must be major.minor.patch
-if ! [[ "${NEW_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "ERROR: invalid version format '${INPUT_VERSION}'"
-    echo "Expected: major.minor.patch (e.g. 1.11.0 or v1.11.0)"
-    exit 1
-fi
+split_version "${NEW_VERSION}"
+CAPI_MAJOR="${MAJOR}"
+CAPI_MINOR="${MINOR}"
 
-CAPI_VERSION_NO_V=$(echo "${NEW_VERSION}" | sed 's/v//')
-CAPI_MAJOR=$(echo "${CAPI_VERSION_NO_V}" | cut -d. -f1)
-CAPI_MINOR=$(echo "${CAPI_VERSION_NO_V}" | cut -d. -f2)
-REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 GO_MOD="${REPO_ROOT}/go.mod"
 METADATA="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
 

@@ -4,7 +4,9 @@
 
 set -euo pipefail
 
-REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+# shellcheck source=hack/version-helpers.sh
+source "$(dirname "$0")/version-helpers.sh"
+
 ERRORS=()
 
 fail() {
@@ -60,9 +62,9 @@ fi
 # The cluster-api major.minor from go.mod must be listed in the e2e metadata file.
 
 if [[ -n "${CAPI_REQUIRE}" ]]; then
-    CAPI_VERSION_NO_V=$(echo "${CAPI_REQUIRE}" | sed 's/v//')
-    CAPI_MAJOR=$(echo "${CAPI_VERSION_NO_V}" | cut -d. -f1)
-    CAPI_MINOR=$(echo "${CAPI_VERSION_NO_V}" | cut -d. -f2)
+    split_version "${CAPI_REQUIRE}"
+    CAPI_MAJOR="${MAJOR}"
+    CAPI_MINOR="${MINOR}"
     METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
     if ! awk '/- major: '"${CAPI_MAJOR}"'[[:space:]]*$/{found=1; next} found && /minor: '"${CAPI_MINOR}"'[[:space:]]*$/{ok=1; exit} {found=0} END{exit !ok}' "${METADATA_FILE}"; then
         fail "cluster-api v${CAPI_MAJOR}.${CAPI_MINOR} is not listed in test/e2e/data/shared/v1beta1/metadata.yaml"
@@ -72,18 +74,8 @@ fi
 # ---- k8s.io core package versions ----
 # k8s.io/api, k8s.io/apimachinery, and k8s.io/client-go follow the same release
 # cycle and must all be at the same effective version. When a replace directive
-# overrides a package, the replace version is the effective one.
-
-effective_version() {
-    local pkg="$1"
-    local replace_ver
-    replace_ver=$(grep -E "^\s+${pkg} =>" "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
-    if [[ -n "${replace_ver}" ]]; then
-        echo "${replace_ver}"
-        return
-    fi
-    grep -E "^\s+${pkg} v" "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true
-}
+# overrides a package, the replace version is the effective one; otherwise the
+# version from the require block (direct or indirect) is used.
 
 declare -A K8S_VERSIONS
 for pkg in "k8s.io/api" "k8s.io/apimachinery" "k8s.io/client-go"; do
