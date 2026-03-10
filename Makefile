@@ -60,7 +60,7 @@ lint: $(GOLANGCI_LINT_KAL) ## Run linters.
 lint-fix: ## Run linters with auto-fix.
 	GOLANGCI_LINT_EXTRA_ARGS=--fix $(MAKE) lint
 
-$(GOLANGCI_LINT_KAL):
+$(GOLANGCI_LINT_KAL): .custom-gcl.yaml
 	go tool golangci-lint custom
 
 # Package names to test
