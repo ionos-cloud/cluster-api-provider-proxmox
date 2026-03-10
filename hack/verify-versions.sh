@@ -126,6 +126,10 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo "Version consistency check FAILED:"
     for err in "${ERRORS[@]}"; do
         echo "  - ${err}"
+        # In GitHub Actions, emit workflow commands for annotations.
+        if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+            echo "::error::${err}"
+        fi
     done
     exit 1
 fi

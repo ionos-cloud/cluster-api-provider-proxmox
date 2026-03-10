@@ -1,0 +1,78 @@
+name: Version Consistency
+
+on:
+  push:
+    branches: ["main"]
+  pull_request_target:
+    branches: ["main"]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  bump:
+    name: auto-bump
+    # Only run on dependabot PRs to complete partial version bumps.
+    if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          # Use the default GITHUB_TOKEN — dependabot PRs from the same repo
+          # have write access when triggered via pull_request_target.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install yq
+        uses: mikefarah/yq@master
+
+      - name: Run auto-bump
+        id: bump
+        run: |
+          output=$(hack/auto-bump.sh 2>&1)
+          echo "${output}"
+          # Expose whether changes were made.
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: auto-bump related versions"
+          git push
+
+  verify:
+    name: verify-versions
+    # On dependabot PRs, wait for the bump job to finish first.
+    needs: [bump]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Checkout branch
+        if: github.event_name == 'push'
+        uses: actions/checkout@v6
+
+      - name: Install yq
+        uses: mikefarah/yq@master
+
+      - name: Verify version consistency
+        run: hack/verify-versions.sh

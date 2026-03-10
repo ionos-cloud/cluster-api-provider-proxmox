@@ -127,6 +127,7 @@ The repository uses GitHub Actions with the following workflows:
 
 - **test.yml**: Runs `make verify` and `make test`, includes SonarQube scanning
 - **lint.yml**: Runs golangci-lint, yamllint, actionlint, and shellcheck
+- **versions.yml**: Checks version consistency (`hack/verify-versions.sh`); on dependabot PRs, auto-bumps related packages first (`hack/auto-bump.sh`), then verifies
 - **e2e.yml**: End-to-end testing
 - **codespell.yml**: Spell checking
 

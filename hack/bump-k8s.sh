@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # bump-k8s.sh bumps the k8s.io core packages and ENVTEST_K8S_VERSION to a new
 # version, keeping all references in sync:
-#   - go.mod: require k8s.io/api
-#   - go.mod: require k8s.io/apimachinery
-#   - go.mod: require k8s.io/client-go
-#   - go.mod: replace k8s.io/apimachinery (if present)
+#   - go.mod: require k8s.io/{api,apimachinery,client-go}
+#   - go.mod: replace k8s.io/{api,apimachinery,client-go} (if present)
 #   - Makefile: ENVTEST_K8S_VERSION
 #
 # The k8s.io packages use major version 0 (v0.MINOR.PATCH) while
@@ -40,13 +38,11 @@ ENVTEST_NEW="1.${MINOR}.${PATCH}"
 # ---- go.mod ----
 for pkg in 'k8s.io/api' 'k8s.io/apimachinery' 'k8s.io/client-go'; do
     gomod_set_require_version "${pkg}" "${NEW}"
+    # Update replace directive if present for this package.
+    if [[ -n "$(gomod_replace_version "${pkg}")" ]]; then
+        gomod_set_replace_version "${pkg}" "${NEW}"
+    fi
 done
-
-# Update replace directive for k8s.io/apimachinery if present.
-APIMACHINERY_REPLACE=$(gomod_replace_version 'k8s.io/apimachinery')
-if [[ -n "${APIMACHINERY_REPLACE}" ]]; then
-    gomod_set_replace_version 'k8s.io/apimachinery' "${NEW}"
-fi
 
 # ---- Makefile ----
 makefile_set_envtest_version "${ENVTEST_NEW}"
