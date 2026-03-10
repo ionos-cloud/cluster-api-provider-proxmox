@@ -1096,6 +1096,7 @@ spec:
                         name:
                           default: net0
                           description: name is the network device name.
+                          minLength: 4
                           pattern: ^net[0-9]+$
                           type: string
                         routes:
@@ -1177,6 +1178,7 @@ spec:
                           items:
                             description: NetName is a formally verified Proxmox network
                               name string.
+                            minLength: 4
                             pattern: ^net[0-9]+$
                             type: string
                           type: array
@@ -1528,7 +1530,7 @@ spec:
                     net:
                       description: net is the proxmox network name these ipaddresses
                         are attached to.
-                      minLength: 1
+                      minLength: 4
                       pattern: ^(net[0-9]+|default)$
                       type: string
                   required:
@@ -1566,6 +1568,7 @@ spec:
                       type: string
                     networkName:
                       description: networkName is the name of the network.
+                      minLength: 4
                       pattern: ^net[0-9]+$
                       type: string
                   required:

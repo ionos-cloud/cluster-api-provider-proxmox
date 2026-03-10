@@ -142,11 +142,11 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 			if len(in.Network.VRFs[i].Interfaces) == 0 {
 				in.Network.VRFs[i].Interfaces = nil
 			} else {
-				// Filter out nil elements and empty string NetNames
+				// Filter out empty string NetNames
 				filtered := make([]v1alpha2.NetName, 0, len(in.Network.VRFs[i].Interfaces))
 				for j := range in.Network.VRFs[i].Interfaces {
-					// Skip nil or empty string elements
-					if in.Network.VRFs[i].Interfaces[j] == nil || *in.Network.VRFs[i].Interfaces[j] == "" {
+					// Skip empty string elements
+					if len(in.Network.VRFs[i].Interfaces[j]) == 0 {
 						continue
 					}
 					filtered = append(filtered, in.Network.VRFs[i].Interfaces[j])
@@ -191,7 +191,7 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 	if in.Network == nil {
 		in.Network = &v1alpha2.NetworkSpec{
 			NetworkDevices: []v1alpha2.NetworkDevice{{
-				Name: ptr.To(DefaultNetworkDevice),
+				Name: v1alpha2.DefaultNetworkDevice,
 				InterfaceConfig: v1alpha2.InterfaceConfig{
 					IPPoolRef: []corev1.TypedLocalObjectReference{},
 				},
@@ -263,8 +263,8 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 		if in.Network[i].Connected == nil {
 			in.Network[i].Connected = ptr.To(false)
 		}
-		if in.Network[i].NetworkName == nil {
-			in.Network[i].NetworkName = ptr.To("net0")
+		if len(in.Network[i].NetworkName) == 0 {
+			in.Network[i].NetworkName = v1alpha2.DefaultNetworkDevice
 		}
 	}
 }

@@ -104,9 +104,9 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMach
 
 	if dst.Network != nil && restored.Network != nil {
 		for i := range restored.Network.NetworkDevices {
-			device := getNetDeviceByName(src.Network.AdditionalDevices, *dst.Network.NetworkDevices[i].Name)
+			device := getNetDeviceByName(src.Network.AdditionalDevices, string(dst.Network.NetworkDevices[i].Name))
 			var name, model, bridge string
-			if dst.Network.NetworkDevices[i].Name != nil && *dst.Network.NetworkDevices[i].Name == DefaultNetworkDevice {
+			if dst.Network.NetworkDevices[i].Name == DefaultNetworkDevice {
 				name = DefaultNetworkDevice
 				model = ptr.Deref(src.Network.Default.Model, "")
 				bridge = src.Network.Default.Bridge
@@ -120,7 +120,7 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMach
 
 			Convert_string_To_Pointer_string(model, ok, restored.Network.NetworkDevices[i].Model, &dst.Network.NetworkDevices[i].Model)
 			Convert_string_To_Pointer_string(bridge, ok, restored.Network.NetworkDevices[i].Bridge, &dst.Network.NetworkDevices[i].Bridge)
-			Convert_string_To_NetName(name, ok, restored.Network.NetworkDevices[i].Name, &dst.Network.NetworkDevices[i].Name)
+			dst.Network.NetworkDevices[i].Name = infrav1.NetName(name)
 
 			if dst.Network.NetworkDevices[i].Routing.Routes != nil {
 				for j := range dst.Network.NetworkDevices[i].Routing.Routes {
@@ -153,7 +153,7 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *infrav1.ProxmoxMach
 	if dst.Network == nil {
 		dst.Network = &infrav1.NetworkSpec{
 			NetworkDevices: []infrav1.NetworkDevice{{
-				Name:        ptr.To(DefaultNetworkDevice),
+				Name:        infrav1.DefaultNetworkDevice,
 				DefaultIPv4: ptr.To(true),
 				DefaultIPv6: ptr.To(true),
 				Bridge:      ptr.To("vmbr0"),

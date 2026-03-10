@@ -298,7 +298,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 // If one objectRefs is passed then it's used as a pool (intended for most tests, typically pass 0 for offset).
 // If two objectRefs are passed then the first pool is used for the IP address name and the second for creating
 // the IP address resource (intended for createNetworkSpecForMachine, pass your poolRef index for offset).
-func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device, ip string, offset int, pool ...*corev1.TypedLocalObjectReference) {
+func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device infrav1.NetName, ip string, offset int, pool ...*corev1.TypedLocalObjectReference) {
 	ipPrefix, err := netip.ParsePrefix(ip)
 	if err != nil {
 		ipAddr, err := netip.ParseAddr(ip)
@@ -318,7 +318,7 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 	}
 
 	poolName := ptr.Deref(pools[0], corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	ipName := ipam.IPAddressFormat(machineScope.Name(), &poolName, offset, device)
+	ipName := ipam.IPAddressFormat(machineScope.Name(), device, offset, poolName)
 	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, offset, pools[1])
 }
 
@@ -345,7 +345,7 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 		}
 
 		for offset, poolRef := range ipPoolRefs {
-			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], offset, &corev1.TypedLocalObjectReference{Name: *device.Name}, &poolRef)
+			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], offset, &corev1.TypedLocalObjectReference{Name: string(device.Name)}, &poolRef)
 			i++
 		}
 	}

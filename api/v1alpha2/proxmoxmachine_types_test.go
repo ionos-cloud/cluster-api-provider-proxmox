@@ -53,7 +53,7 @@ func defaultMachine() *ProxmoxMachine {
 			},
 			Network: &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
-					Name: ptr.To("net0"),
+					Name: DefaultNetworkDevice,
 				}},
 			},
 		},
@@ -220,7 +220,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Network = &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
-					Name:   ptr.To("asdf"),
+					Name:   "asdf",
 					Bridge: ptr.To("vmbr0"),
 				}},
 			}
@@ -234,7 +234,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 				NetworkDevices: []NetworkDevice{{
 					Bridge: ptr.To("vmbr0"),
 				}, {
-					Name: ptr.To("net0"),
+					Name: DefaultNetworkDevice,
 					InterfaceConfig: InterfaceConfig{
 						IPPoolRef: []corev1.TypedLocalObjectReference{{
 							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
@@ -253,7 +253,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
 					Bridge: ptr.To("vmbr0"),
-					Name:   ptr.To("net1"),
+					Name:   "net1",
 					InterfaceConfig: InterfaceConfig{
 						IPPoolRef: []corev1.TypedLocalObjectReference{{
 							APIGroup: ptr.To("apps"),
@@ -270,7 +270,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				NetworkDevices: []NetworkDevice{{
 					Bridge: ptr.To("vmbr0"),
-					Name:   ptr.To("net1"),
+					Name:   "net1",
 					InterfaceConfig: InterfaceConfig{
 						IPPoolRef: []corev1.TypedLocalObjectReference{{
 							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),

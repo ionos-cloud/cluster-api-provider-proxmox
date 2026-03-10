@@ -40,7 +40,7 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name:        ptr.To("net0"),
+				Name:        infrav1.DefaultNetworkDevice,
 				DefaultIPv4: ptr.To(true),
 			},
 		},
@@ -75,9 +75,9 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
-			{Name: ptr.To("net0")},
+			{Name: infrav1.DefaultNetworkDevice},
 			{
-				Name: ptr.To("net1"),
+				Name: "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{
 					IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0},
 				},
@@ -122,7 +122,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name:        ptr.To("net0"),
+				Name:        infrav1.DefaultNetworkDevice,
 				DefaultIPv4: ptr.To(true),
 			},
 		},
@@ -167,11 +167,11 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name:        ptr.To("net0"),
+				Name:        infrav1.DefaultNetworkDevice,
 				DefaultIPv4: ptr.To(true),
 			},
 			{
-				Name: ptr.To("net1"),
+				Name: "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{
 					IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0},
 				},
@@ -194,7 +194,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net0"))
 	require.Equal(
 		t,
-		infrav1.IPAddressesSpec{NetName: infrav1.DefaultNetworkDevice, IPv4: []string{"10.10.10.10"}, IPv6: nil},
+		infrav1.IPAddressesSpec{NetName: string(infrav1.DefaultNetworkDevice), IPv4: []string{"10.10.10.10"}, IPv6: nil},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice),
 	)
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
@@ -232,16 +232,16 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name:            ptr.To(infrav1.DefaultNetworkDevice),
+				Name:            infrav1.DefaultNetworkDevice,
 				DefaultIPv4:     ptr.To(true),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{ipv4pool0}},
 			},
 			{
-				Name:            ptr.To("net1"),
+				Name:            "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{ipv4pool1}},
 			},
 			{
-				Name:            ptr.To("net2"),
+				Name:            "net2",
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{ipv6pool}},
 			},
 		},
@@ -332,12 +332,12 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name:        ptr.To("net0"),
+				Name:        infrav1.DefaultNetworkDevice,
 				DefaultIPv4: ptr.To(true),
 				DefaultIPv6: ptr.To(true),
 			},
 			{
-				Name:            ptr.To("net1"),
+				Name:            "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0}},
 			},
 		},
@@ -362,7 +362,7 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net0"))
 	require.Equal(t,
-		infrav1.IPAddressesSpec{NetName: infrav1.DefaultNetworkDevice, IPv4: []string{"10.10.10.10"}, IPv6: []string{"fe80::1"}},
+		infrav1.IPAddressesSpec{NetName: string(infrav1.DefaultNetworkDevice), IPv4: []string{"10.10.10.10"}, IPv6: []string{"fe80::1"}},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net0"),
 	)
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
@@ -399,12 +399,12 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Name:            ptr.To("net0"),
+				Name:            "net0",
 				DefaultIPv4:     ptr.To(true),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0, extraPool0}},
 			},
 			{
-				Name:            ptr.To("net1"),
+				Name:            "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool1, extraPool2, extraPool1, extraPool2}},
 			},
 		},

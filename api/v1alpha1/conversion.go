@@ -74,16 +74,13 @@ func convert_v1alpha2_AdditionalNetworkDevices_To_v1alpha1_AdditionalNetworkDevi
 		out.AdditionalDevices = make([]AdditionalNetworkDevice, 0, len(in.NetworkDevices))
 
 		for i, net := range in.NetworkDevices {
-			if net.Name != nil && *net.Name == DefaultNetworkDevice {
+			if string(net.Name) == DefaultNetworkDevice {
 				// skip default device, already handled
 				continue
 			}
 
 			nd := AdditionalNetworkDevice{}
-
-			if net.Name != nil {
-				nd.Name = *net.Name
-			}
+			nd.Name = string(net.Name)
 
 			err := Convert_v1alpha2_NetworkDevice_To_v1alpha1_NetworkDevice(&in.NetworkDevices[i], &nd.NetworkDevice, s)
 			if err != nil {
@@ -246,7 +243,7 @@ func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *
 				ip.IPV6 = v.IPv6[0]
 			}
 
-			out.IPAddresses[v.NetName] = ip
+			out.IPAddresses[string(v.NetName)] = ip
 		}
 	}
 
@@ -332,7 +329,7 @@ func Convert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in *NetworkSpec, out *
 
 	if in.Default != nil {
 		net0 := capmoxv2.NetworkDevice{
-			Name:        ptr.To(DefaultNetworkDevice),
+			Name:        capmoxv2.NetName(DefaultNetworkDevice),
 			DefaultIPv4: ptr.To(true),
 			DefaultIPv6: ptr.To(true),
 			InterfaceConfig: capmoxv2.InterfaceConfig{
@@ -351,7 +348,7 @@ func Convert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in *NetworkSpec, out *
 	// additional devices
 	for _, device := range in.AdditionalDevices {
 		net := capmoxv2.NetworkDevice{
-			Name: ptr.To(device.Name),
+			Name: capmoxv2.NetName(device.Name),
 			InterfaceConfig: capmoxv2.InterfaceConfig{
 				IPPoolRef: make([]corev1.TypedLocalObjectReference, 0),
 			},
@@ -507,12 +504,12 @@ func Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in *clusterv1beta1.ObjectM
 // //
 
 func Convert_v1alpha2_NetName_To_string(in *capmoxv2.NetName, out *string, s conversion.Scope) error {
-	*out = ptr.Deref(*in, "")
+	*out = string(*in)
 	return nil
 }
 
 func Convert_string_To_v1alpha2_NetName(in *string, out *capmoxv2.NetName, s conversion.Scope) error {
-	*out = in
+	*out = capmoxv2.NetName(*in)
 	return nil
 }
 
@@ -552,7 +549,7 @@ func Convert_Slice_string_To_Slice_v1alpha2_NetName(in *[]string, out *[]capmoxv
 
 func getNetByName(nets []capmoxv2.NetworkDevice, name string) int {
 	for i, net := range nets {
-		if net.Name != nil && *net.Name == name {
+		if string(net.Name) == name {
 			return i
 		}
 	}
@@ -572,20 +569,6 @@ func getIPPoolRefByIPFamily(poolRefs []corev1.TypedLocalObjectReference, ipFamil
 func Convert_string_To_Pointer_string(in string, hasRestored bool, restoredIn *string, out **string) {
 	// If the value is "", convert to *"" only if the value was *"" before (we know it was intentionally set to "").
 	// In all the other cases we do not know if the value was intentionally set to "", so convert to nil.
-	if in == "" {
-		if hasRestored && restoredIn != nil && *restoredIn == "" {
-			*out = ptr.To("")
-			return
-		}
-		*out = nil
-		return
-	}
-
-	// Otherwise, if the value is not "", convert to *value.
-	*out = ptr.To(in)
-}
-
-func Convert_string_To_NetName(in string, hasRestored bool, restoredIn capmoxv2.NetName, out *capmoxv2.NetName) {
 	if in == "" {
 		if hasRestored && restoredIn != nil && *restoredIn == "" {
 			*out = ptr.To("")
