@@ -2,8 +2,7 @@ name: Lint
 on: [ pull_request ]
 
 permissions:
-  contents: read # linters need read access
-  checks: write # allow the actions to write annotations
+  contents: read
 
 jobs:
   golangci:
@@ -15,10 +14,20 @@ jobs:
         with:
           go-version-file: go.mod
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        run: go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --timeout 10m
+
+  lint-api:
+    name: lint-api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
-          version: v2.9.0 # TODO: commit hash matching golangci-lint in hack/tools/go.sum
-          args: '--timeout 10m'
+          go-version-file: go.mod
+      - name: build kube-api-linter
+        run: go run -modfile ./hack/tools/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint custom
+      - name: kube-api-linter
+        run: ./bin/golangci-lint-kube-api-linter run --timeout 10m --config .golangci-kal.yml
 
   yamllint:
     name: yamllint
