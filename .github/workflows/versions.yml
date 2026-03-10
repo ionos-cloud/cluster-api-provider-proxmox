@@ -61,12 +61,15 @@ jobs:
     needs: [bump]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout PR
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v6
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+          # After a dependabot bump, use the branch ref to get the latest commit.
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Checkout branch
