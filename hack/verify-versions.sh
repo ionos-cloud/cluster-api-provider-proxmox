@@ -98,6 +98,28 @@ for pkg in "k8s.io/api" "k8s.io/apimachinery" "k8s.io/client-go"; do
     fi
 done
 
+# ---- k8s.io and ENVTEST_K8S_VERSION ----
+# The k8s.io packages use major version 0 (v0.MINOR.PATCH) while
+# ENVTEST_K8S_VERSION uses major version 1 (1.MINOR.PATCH). The minor.patch
+# portions must match.
+
+if [[ -n "${FIRST_K8S_VERSION}" ]]; then
+    split_version "${FIRST_K8S_VERSION}"
+    K8S_MAJOR="${MAJOR}"
+    K8S_MINOR="${MINOR}"
+    K8S_PATCH="${PATCH}"
+    if [[ "${K8S_MAJOR}" -ne 0 ]]; then
+        fail "k8s.io packages should have major version 0, but ${FIRST_K8S_PKG} is '${FIRST_K8S_VERSION}'"
+    fi
+    ENVTEST_VERSION=$(makefile_envtest_version)
+    if [[ -n "${ENVTEST_VERSION}" ]]; then
+        EXPECTED_ENVTEST="1.${K8S_MINOR}.${K8S_PATCH}"
+        if [[ "${ENVTEST_VERSION}" != "${EXPECTED_ENVTEST}" ]]; then
+            fail "ENVTEST_K8S_VERSION mismatch: k8s.io packages are '${FIRST_K8S_VERSION}' (expect ENVTEST ${EXPECTED_ENVTEST}), but Makefile has '${ENVTEST_VERSION}'"
+        fi
+    fi
+fi
+
 # ---- Report results ----
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then

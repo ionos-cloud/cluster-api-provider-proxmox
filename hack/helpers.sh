@@ -97,6 +97,12 @@ custom_gcl_version() {
     fi
 }
 
+# makefile_envtest_version returns the ENVTEST_K8S_VERSION value from the
+# Makefile (e.g. "1.30.0"). Returns empty string if not found.
+makefile_envtest_version() {
+    awk '/^ENVTEST_K8S_VERSION\s*=/{sub(/^ENVTEST_K8S_VERSION\s*=\s*/, ""); print; exit}' "${REPO_ROOT}/Makefile"
+}
+
 # ---- version update helpers ----
 # Each function updates a version in a file, prints "file: Updated … old to new"
 # when a change is made, and stays silent on no-op.
@@ -149,6 +155,14 @@ custom_gcl_set_version() {
         sed -i -E "s/^(version:) .+/\1 ${new}/" "${f}"
         if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"; fi
     fi
+}
+
+# makefile_set_envtest_version updates ENVTEST_K8S_VERSION in the Makefile.
+makefile_set_envtest_version() {
+    local new="$1" old
+    old=$(makefile_envtest_version)
+    sed -i -E "s/^(ENVTEST_K8S_VERSION\s*=\s*).+/\1${new}/" "${REPO_ROOT}/Makefile"
+    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "Makefile: Updated ENVTEST_K8S_VERSION ${old} to ${new}"; fi
 }
 
 # ---- module helpers ----
