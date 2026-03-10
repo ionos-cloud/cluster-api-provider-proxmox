@@ -21,30 +21,19 @@ if [[ $# -ne 2 ]]; then
 fi
 
 validate_semver "$1"
-NEW_VERSION=$(ensure_v_prefix "$1")
+NEW=$(ensure_v_prefix "$1")
 CONTRACT="$2"
 
-split_version "${NEW_VERSION}"
+split_version "${NEW}"
 CAPI_MAJOR="${MAJOR}"
 CAPI_MINOR="${MINOR}"
 
-GO_MOD="${REPO_ROOT}/go.mod"
 METADATA="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
 
-# ---- go.mod: require sigs.k8s.io/cluster-api ----
-OLD=$(gomod_require_version 'sigs.k8s.io/cluster-api')
-sed -i -E "s|(^\s+sigs\.k8s\.io/cluster-api[[:space:]]+)v[^ ]+|\1${NEW_VERSION}|" "${GO_MOD}"
-[[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated require sigs.k8s.io/cluster-api ${OLD} to ${NEW_VERSION}"
-
-# ---- go.mod: require sigs.k8s.io/cluster-api/test ----
-OLD=$(gomod_require_version 'sigs.k8s.io/cluster-api/test')
-sed -i -E "s|(^\s+sigs\.k8s\.io/cluster-api/test) v[^ ]+|\1 ${NEW_VERSION}|" "${GO_MOD}"
-[[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated require sigs.k8s.io/cluster-api/test ${OLD} to ${NEW_VERSION}"
-
-# ---- go.mod: replace pin ----
-OLD=$(gomod_replace_version 'sigs.k8s.io/cluster-api')
-sed -i -E "s|(sigs\.k8s\.io/cluster-api => sigs\.k8s\.io/cluster-api) v[^ ]+|\1 ${NEW_VERSION}|" "${GO_MOD}"
-[[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo "go.mod: Updated replace sigs.k8s.io/cluster-api ${OLD} to ${NEW_VERSION}"
+# ---- go.mod ----
+gomod_set_require_version 'sigs.k8s.io/cluster-api' "${NEW}"
+gomod_set_require_version 'sigs.k8s.io/cluster-api/test' "${NEW}"
+gomod_set_replace_version 'sigs.k8s.io/cluster-api' "${NEW}"
 
 # ---- test/e2e/data/shared/v1beta1/metadata.yaml ----
 # Add new releaseSeries entry as the first element if not already present.

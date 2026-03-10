@@ -44,3 +44,13 @@ jobs:
         run: ${{ steps.get_actionlint.outputs.executable }} -color
         shell: bash
 
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: ./hack
+

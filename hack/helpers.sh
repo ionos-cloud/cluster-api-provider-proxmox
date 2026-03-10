@@ -30,8 +30,12 @@ validate_semver() {
 split_version() {
     local no_v
     no_v=$(strip_v_prefix "$1")
+    # These globals are used by callers after invoking split_version.
+    # shellcheck disable=SC2034
     MAJOR=$(echo "${no_v}" | cut -d. -f1)
+    # shellcheck disable=SC2034
     MINOR=$(echo "${no_v}" | cut -d. -f2)
+    # shellcheck disable=SC2034
     PATCH=$(echo "${no_v}" | cut -d. -f3)
 }
 
@@ -90,6 +94,60 @@ custom_gcl_version() {
     local f="${REPO_ROOT}/.custom-gcl.yaml"
     if [[ -f "${f}" ]]; then
         awk '/^version:/{print $2; exit}' "${f}"
+    fi
+}
+
+# ---- version update helpers ----
+# Each function updates a version in a file, prints "file: Updated … old to new"
+# when a change is made, and stays silent on no-op.
+
+# gomod_set_go_version updates the "go X.Y.Z" directive in go.mod.
+gomod_set_go_version() {
+    local new="$1" old
+    old=$(gomod_go_version)
+    sed -i -E "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?/go ${new}/" "${REPO_ROOT}/go.mod"
+    if [[ "${old}" != "${new}" ]]; then echo "go.mod: Updated go ${old} to ${new}"; fi
+}
+
+# gomod_set_require_version updates a package version in the require block.
+gomod_set_require_version() {
+    local pkg="$1" new="$2" old
+    old=$(gomod_require_version "${pkg}")
+    sed -i -E "s|(^\s+${pkg//\//\\/}[[:space:]]+)v[^ ]+|\1${new}|" "${REPO_ROOT}/go.mod"
+    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "go.mod: Updated require ${pkg} ${old} to ${new}"; fi
+}
+
+# gomod_set_replace_version updates the target version in a replace directive.
+gomod_set_replace_version() {
+    local pkg="$1" new="$2" old
+    old=$(gomod_replace_version "${pkg}")
+    sed -i -E "s|(${pkg//\//\\/} => ${pkg//\//\\/}) v[^ ]+|\1 ${new}|" "${REPO_ROOT}/go.mod"
+    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "go.mod: Updated replace ${pkg} ${old} to ${new}"; fi
+}
+
+# dockerfile_set_go_version updates the Go major.minor in the Dockerfile base image.
+dockerfile_set_go_version() {
+    local new="$1" old
+    old=$(dockerfile_go_version)
+    sed -i -E "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"
+    if [[ "${old}" != "${new}" ]]; then echo "Dockerfile: Updated golang:${old} to golang:${new}"; fi
+}
+
+# docs_set_go_version updates the Go major.minor in docs/Development.md.
+docs_set_go_version() {
+    local new="$1" old
+    old=$(docs_go_version)
+    sed -i -E "s/(- Go v)[0-9]+\.[0-9]+/\1${new}/" "${REPO_ROOT}/docs/Development.md"
+    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "docs/Development.md: Updated Go v${old} to Go v${new}"; fi
+}
+
+# custom_gcl_set_version updates the version field in .custom-gcl.yaml.
+custom_gcl_set_version() {
+    local new="$1" f="${REPO_ROOT}/.custom-gcl.yaml" old
+    if [[ -f "${f}" ]]; then
+        old=$(custom_gcl_version)
+        sed -i -E "s/^(version:) .+/\1 ${new}/" "${f}"
+        if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"; fi
     fi
 }
 
