@@ -1,32 +1,35 @@
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: ClusterClass
 metadata:
   name: proxmox-clusterclass-v0.2.0
 spec:
   controlPlane:
-    machineHealthCheck:
-      maxUnhealthy: 100%
-      nodeStartupTimeout: 15m
-      unhealthyConditions:
-      - status: Unknown
-        timeout: 300s
-        type: Ready
-      - status: "False"
-        timeout: 300s
-        type: Ready
+    healthCheck:
+      checks:
+        nodeStartupTimeoutSeconds: 900
+        unhealthyNodeConditions:
+        - status: Unknown
+          timeoutSeconds: 300
+          type: Ready
+        - status: "False"
+          timeoutSeconds: 300
+          type: Ready
+      remediation:
+        triggerIf:
+          unhealthyLessThanOrEqualTo: "100%"
     machineInfrastructure:
-      ref:
+      templateRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
         kind: ProxmoxMachineTemplate
         name: proxmox-clusterclass-v0.2.0-control-plane-template
-    namingStrategy:
+    naming:
       template: '{{ .cluster.name }}-control-plane-{{ .random }}'
-    ref:
-      apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    templateRef:
+      apiVersion: controlplane.cluster.x-k8s.io/v1beta2
       kind: KubeadmControlPlaneTemplate
       name: proxmox-clusterclass-v0.2.0-control-plane
   infrastructure:
-    ref:
+    templateRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
       kind: ProxmoxClusterTemplate
       name: proxmox-clusterclass-v0.2.0-clustertemplate
@@ -151,7 +154,7 @@ spec:
                     type: FileOrCreate
                   name: kubeconfig
       selector:
-        apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+        apiVersion: controlplane.cluster.x-k8s.io/v1beta2
         kind: KubeadmControlPlaneTemplate
         matchResources:
           controlPlane: true
@@ -194,7 +197,7 @@ spec:
         path: /spec/template/spec/kubeadmConfigSpec/preKubeadmCommands/-
         value: /tmp/kube-proxy.sh
       selector:
-        apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+        apiVersion: controlplane.cluster.x-k8s.io/v1beta2
         kind: KubeadmControlPlaneTemplate
         matchResources:
           controlPlane: true
@@ -210,7 +213,7 @@ spec:
             - name: root
               sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
       selector:
-        apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+        apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
         kind: KubeadmConfigTemplate
         matchResources:
           machineDeploymentClass:
@@ -244,7 +247,7 @@ spec:
             - name: root
               sshAuthorizedKeys: {{ .cloneSpec.sshAuthorizedKeys }}
       selector:
-        apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+        apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
         kind: KubeadmConfigTemplate
         matchResources:
           machineDeploymentClass:
@@ -921,62 +924,66 @@ spec:
   workers:
     machineDeployments:
     - class: proxmox-worker
-      machineHealthCheck:
-        maxUnhealthy: 33%
-        nodeStartupTimeout: 15m
-        unhealthyConditions:
-        - status: Unknown
-          timeout: 300s
-          type: Ready
-        - status: "False"
-          timeout: 300s
-          type: Ready
-      namingStrategy:
+      healthCheck:
+        checks:
+          nodeStartupTimeoutSeconds: 900
+          unhealthyNodeConditions:
+          - status: Unknown
+            timeoutSeconds: 300
+            type: Ready
+          - status: "False"
+            timeoutSeconds: 300
+            type: Ready
+        remediation:
+          triggerIf:
+            unhealthyLessThanOrEqualTo: "33%"
+      naming:
         template: '{{ .cluster.name }}-worker-{{ .random }}'
-      template:
-        bootstrap:
-          ref:
-            apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-            kind: KubeadmConfigTemplate
-            name: proxmox-clusterclass-v0.2.0-workertemplate
-        infrastructure:
-          ref:
-            apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
-            kind: ProxmoxMachineTemplate
-            name: proxmox-clusterclass-v0.2.0-workertemplate
-        metadata:
-          labels:
-            node-role.kubernetes.io/node: ""
+      bootstrap:
+        templateRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+          kind: KubeadmConfigTemplate
+          name: proxmox-clusterclass-v0.2.0-workertemplate
+      infrastructure:
+        templateRef:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          name: proxmox-clusterclass-v0.2.0-workertemplate
+      metadata:
+        labels:
+          node-role.kubernetes.io/node: ""
     - class: proxmox-loadbalancer
-      machineHealthCheck:
-        maxUnhealthy: 33%
-        nodeStartupTimeout: 15m
-        unhealthyConditions:
-        - status: Unknown
-          timeout: 300s
-          type: Ready
-        - status: "False"
-          timeout: 300s
-          type: Ready
-      namingStrategy:
+      healthCheck:
+        checks:
+          nodeStartupTimeoutSeconds: 900
+          unhealthyNodeConditions:
+          - status: Unknown
+            timeoutSeconds: 300
+            type: Ready
+          - status: "False"
+            timeoutSeconds: 300
+            type: Ready
+        remediation:
+          triggerIf:
+            unhealthyLessThanOrEqualTo: "33%"
+      naming:
         template: '{{ .cluster.name }}-loadbalancer-{{ .random }}'
-      template:
-        bootstrap:
-          ref:
-            apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
-            kind: KubeadmConfigTemplate
-            name: proxmox-clusterclass-v0.2.0-loadbalancer-template
-        infrastructure:
-          ref:
-            apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
-            kind: ProxmoxMachineTemplate
-            name: proxmox-clusterclass-v0.2.0-loadbalancer-template
-        metadata:
-          labels:
-            node-role.kubernetes.io/load-balancer: ""
-            node-role.kubernetes.io/node: ""
+      bootstrap:
+        templateRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
+          kind: KubeadmConfigTemplate
+          name: proxmox-clusterclass-v0.2.0-loadbalancer-template
+      infrastructure:
+        templateRef:
+          apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+          kind: ProxmoxMachineTemplate
+          name: proxmox-clusterclass-v0.2.0-loadbalancer-template
+      metadata:
+        labels:
+          node-role.kubernetes.io/load-balancer: ""
+          node-role.kubernetes.io/node: ""
 ---
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 kind: KubeadmControlPlaneTemplate
 metadata:
   name: proxmox-clusterclass-v0.2.0-control-plane
@@ -1040,11 +1047,13 @@ spec:
         initConfiguration:
           nodeRegistration:
             kubeletExtraArgs:
-              provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
+            - name: provider-id
+              value: proxmox://'{{ ds.meta_data.instance_id }}'
         joinConfiguration:
           nodeRegistration:
             kubeletExtraArgs:
-              provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
+            - name: provider-id
+              value: proxmox://'{{ ds.meta_data.instance_id }}'
         preKubeadmCommands:
         - /etc/kube-vip-prepare.sh
 ---
@@ -1058,6 +1067,10 @@ spec:
       controlPlaneEndpoint:
         host: 10.10.10.9
         port: 6443
+      ipv4Config:
+        addresses: [10.10.10.10-10.10.10.19]
+        prefix: 24
+        gateway: 10.10.10.1
       dnsServers:
       - 8.8.8.8
       - 8.8.4.4
@@ -1113,7 +1126,7 @@ spec:
       sourceNode: pve1
       templateID: 100
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
   name: proxmox-clusterclass-v0.2.0-workertemplate
@@ -1123,9 +1136,10 @@ spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
+          - name: provider-id
+            value: proxmox://'{{ ds.meta_data.instance_id }}'
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
   name: proxmox-clusterclass-v0.2.0-loadbalancer-template
@@ -1135,7 +1149,8 @@ spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: proxmox://'{{ ds.meta_data.instance_id }}'
+          - name: provider-id
+            value: proxmox://'{{ ds.meta_data.instance_id }}'
           taints:
           - effect: NoSchedule
             key: node-role.kubernetes.io/load-balancer
