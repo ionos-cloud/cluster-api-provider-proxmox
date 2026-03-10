@@ -9,8 +9,8 @@
 
 set -euo pipefail
 
-# shellcheck source=hack/version-helpers.sh
-source "$(dirname "$0")/version-helpers.sh"
+# shellcheck source=hack/helpers.sh
+source "$(dirname "$0")/helpers.sh"
 
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <new-version>"
@@ -46,4 +46,4 @@ sed -i -E "s/(- Go v)[0-9]+\.[0-9]+/\1${NEW_VERSION_MINOR}/" "${REPO_ROOT}/docs/
 [[ "${OLD}" != "${NEW_VERSION_MINOR}" ]] && echo "docs/Development.md: Updated Go v${OLD} to Go v${NEW_VERSION_MINOR}"
 
 # Update module files
-(cd "${REPO_ROOT}" && go mod tidy)
+run_mod_tidy

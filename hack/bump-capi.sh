@@ -11,8 +11,8 @@
 
 set -euo pipefail
 
-# shellcheck source=hack/version-helpers.sh
-source "$(dirname "$0")/version-helpers.sh"
+# shellcheck source=hack/helpers.sh
+source "$(dirname "$0")/helpers.sh"
 
 if [[ $# -ne 2 ]]; then
     echo "Usage: $0 <new-version> <contract>"
@@ -66,4 +66,4 @@ with open('${METADATA}', 'w') as f:
 fi
 
 # ---- go mod tidy ----
-(cd "${REPO_ROOT}" && go mod tidy)
+run_mod_tidy

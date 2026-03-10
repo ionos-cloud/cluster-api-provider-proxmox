@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-# shellcheck source=hack/version-helpers.sh
-source "$(dirname "$0")/version-helpers.sh"
+# shellcheck source=hack/helpers.sh
+source "$(dirname "$0")/helpers.sh"
 
 ERRORS=()
 

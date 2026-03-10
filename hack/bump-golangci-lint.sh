@@ -9,8 +9,8 @@
 
 set -euo pipefail
 
-# shellcheck source=hack/version-helpers.sh
-source "$(dirname "$0")/version-helpers.sh"
+# shellcheck source=hack/helpers.sh
+source "$(dirname "$0")/helpers.sh"
 
 if [[ $# -ne 1 ]]; then
     echo "Usage: $0 <new-version>"
@@ -40,4 +40,4 @@ awk '
 [[ -n "${OLD}" && "${OLD}" != "${NEW_VERSION}" ]] && echo ".github/workflows/lint.yml: Updated golangci-lint ${OLD} to ${NEW_VERSION}"
 
 # Update module files
-(cd "${REPO_ROOT}" && go mod tidy)
+run_mod_tidy

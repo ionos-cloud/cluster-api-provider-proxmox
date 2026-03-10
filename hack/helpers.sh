@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# version-helpers.sh provides shared version-handling routines for bump scripts
-# and verify-versions.sh. Source this file, do not execute it directly.
+# helpers.sh provides shared routines for the hack/ scripts.
+# Source this file, do not execute it directly.
 
 # Repo root, lazily resolved on first use.
 REPO_ROOT="${REPO_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)}"
+
+# ---- version helpers ----
 
 # ensure_v_prefix adds a leading 'v' if not already present.
 ensure_v_prefix() { local v="$1"; [[ "${v}" == v* ]] && echo "${v}" || echo "v${v}"; }
@@ -46,4 +48,11 @@ effective_version() {
         return
     fi
     grep -E "^\s+${pkg}\s+v" "${gomod}" | awk '{print $2}' | head -1 || true
+}
+
+# ---- module helpers ----
+
+# run_mod_tidy runs go mod tidy from the repo root.
+run_mod_tidy() {
+    (cd "${REPO_ROOT}" && go mod tidy)
 }
