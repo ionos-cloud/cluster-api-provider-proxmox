@@ -71,11 +71,23 @@ fi
 
 # ---- k8s.io core package versions ----
 # k8s.io/api, k8s.io/apimachinery, and k8s.io/client-go follow the same release
-# cycle and must all be at the same version.
+# cycle and must all be at the same effective version. When a replace directive
+# overrides a package, the replace version is the effective one.
+
+effective_version() {
+    local pkg="$1"
+    local replace_ver
+    replace_ver=$(grep -E "^\s+${pkg} =>" "${REPO_ROOT}/go.mod" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -1 || true)
+    if [[ -n "${replace_ver}" ]]; then
+        echo "${replace_ver}"
+        return
+    fi
+    grep -E "^\s+${pkg} v" "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true
+}
 
 declare -A K8S_VERSIONS
 for pkg in "k8s.io/api" "k8s.io/apimachinery" "k8s.io/client-go"; do
-    VERSION=$(grep -E "^\s+${pkg} v" "${REPO_ROOT}/go.mod" | awk '{print $2}' | head -1 || true)
+    VERSION=$(effective_version "${pkg}")
     if [[ -n "${VERSION}" ]]; then
         K8S_VERSIONS["${pkg}"]="${VERSION}"
     fi
