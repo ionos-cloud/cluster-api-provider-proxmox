@@ -47,9 +47,31 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+## Linter Binaries
+GOLANGCI_LINT_KAL ?= bin/golangci-lint-kube-api-linter
+GOLANGCI_LINT_EXTRA_ARGS ?=
+
 .PHONY: lint
-lint: ## Run lint.
-	go tool golangci-lint run
+lint: golangci-lint-kal ## Run linters.
+	go tool golangci-lint run -v $(GOLANGCI_LINT_EXTRA_ARGS)
+	$(GOLANGCI_LINT_KAL) run -v --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
+
+.PHONY: lint-fix
+lint-fix: ## Run linters with auto-fix.
+	GOLANGCI_LINT_EXTRA_ARGS=--fix $(MAKE) lint
+
+.PHONY: lint-api
+lint-api: golangci-lint-kal ## Run kube-api-linter.
+	$(GOLANGCI_LINT_KAL) run -v --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
+
+.PHONY: lint-api-fix
+lint-api-fix: ## Run kube-api-linter with auto-fix.
+	GOLANGCI_LINT_EXTRA_ARGS=--fix $(MAKE) lint-api
+
+.PHONY: golangci-lint-kal
+golangci-lint-kal: $(GOLANGCI_LINT_KAL)
+$(GOLANGCI_LINT_KAL):
+	go tool golangci-lint custom
 
 # Package names to test
 WHAT ?= ./...
