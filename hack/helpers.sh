@@ -5,6 +5,9 @@
 # Repo root, lazily resolved on first use.
 REPO_ROOT="${REPO_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)}"
 
+# sedi performs portable in-place sed (avoids GNU vs BSD sed -i incompatibility).
+sedi() { sed -E "$@" > "$2.tmp" && mv "$2.tmp" "$2"; }
+
 # ---- version helpers ----
 
 # ensure_v_prefix adds a leading 'v' if not already present.
@@ -72,14 +75,14 @@ gomod_go_version() {
 # block in go.mod (direct or indirect). Returns empty string if not found.
 gomod_require_version() {
     local pkg="$1"
-    awk '/^\s+'"${pkg//\//\\/}"'\s+v/{print $2; exit}' "${REPO_ROOT}/go.mod"
+    awk '/^[[:space:]]+'"${pkg//\//\\/}"'[[:space:]]+v/{print $2; exit}' "${REPO_ROOT}/go.mod"
 }
 
 # gomod_replace_version returns the target version from a replace directive
 # for the given package in go.mod. Returns empty string if not found.
 gomod_replace_version() {
     local pkg="$1"
-    awk '/^\s+'"${pkg//\//\\/}"' =>/{for(i=1;i<=NF;i++) if($i ~ /^v[0-9]+\./) v=$i; print v}' "${REPO_ROOT}/go.mod"
+    awk '/^[[:space:]]+'"${pkg//\//\\/}"' =>/{for(i=1;i<=NF;i++) if($i ~ /^v[0-9]+\./) v=$i; print v}' "${REPO_ROOT}/go.mod"
 }
 
 # effective_version returns the version of a Go module as seen by the build.
@@ -101,13 +104,13 @@ effective_version() {
 # dockerfile_go_version returns the Go major.minor from the Dockerfile
 # base image (e.g. "1.25").
 dockerfile_go_version() {
-    awk 'match($0, /^FROM golang:([0-9]+\.[0-9]+)/, m){print m[1]; exit}' "${REPO_ROOT}/Dockerfile"
+    awk '/^FROM golang:[0-9]+\.[0-9]+/{match($0, /[0-9]+\.[0-9]+/); print substr($0, RSTART, RLENGTH); exit}' "${REPO_ROOT}/Dockerfile"
 }
 
 # docs_go_version returns the Go major.minor listed in docs/Development.md
 # (e.g. "1.25"). Returns empty string if not found.
 docs_go_version() {
-    awk 'match($0, /Go v([0-9]+\.[0-9]+)/, m){print m[1]; exit}' "${REPO_ROOT}/docs/Development.md"
+    awk '/Go v[0-9]+\.[0-9]+/{match($0, /v[0-9]+\.[0-9]+/); print substr($0, RSTART+1, RLENGTH-1); exit}' "${REPO_ROOT}/docs/Development.md"
 }
 
 # custom_gcl_version returns the golangci-lint version from .custom-gcl.yaml
@@ -122,7 +125,7 @@ custom_gcl_version() {
 # makefile_envtest_version returns the ENVTEST_K8S_VERSION value from the
 # Makefile (e.g. "1.30.0"). Returns empty string if not found.
 makefile_envtest_version() {
-    awk '/^ENVTEST_K8S_VERSION\s*=/{sub(/^ENVTEST_K8S_VERSION\s*=\s*/, ""); print; exit}' "${REPO_ROOT}/Makefile"
+    awk '/^ENVTEST_K8S_VERSION[[:space:]]*=/{sub(/^ENVTEST_K8S_VERSION[[:space:]]*=[[:space:]]*/, ""); print; exit}' "${REPO_ROOT}/Makefile"
 }
 
 # ---- version extraction: metadata.yaml ----
@@ -163,7 +166,7 @@ metadata_add_release() {
 gomod_set_go_version() {
     local new="$1" old
     old=$(gomod_go_version)
-    sed -i -E "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?/go ${new}/" "${REPO_ROOT}/go.mod"
+    sedi "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?/go ${new}/" "${REPO_ROOT}/go.mod"
     if [[ "${old}" != "${new}" ]]; then echo "go.mod: Updated go ${old} to ${new}"; fi
 }
 
@@ -171,7 +174,7 @@ gomod_set_go_version() {
 gomod_set_require_version() {
     local pkg="$1" new="$2" old
     old=$(gomod_require_version "${pkg}")
-    sed -i -E "s|(^\s+${pkg//\//\\/}[[:space:]]+)v[^ ]+|\1${new}|" "${REPO_ROOT}/go.mod"
+    sedi "s|(^[[:space:]]+${pkg//\//\\/}[[:space:]]+)v[^ ]+|\1${new}|" "${REPO_ROOT}/go.mod"
     if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "go.mod: Updated require ${pkg} ${old} to ${new}"; fi
 }
 
@@ -179,7 +182,7 @@ gomod_set_require_version() {
 gomod_set_replace_version() {
     local pkg="$1" new="$2" old
     old=$(gomod_replace_version "${pkg}")
-    sed -i -E "s|(${pkg//\//\\/} => ${pkg//\//\\/}) v[^ ]+|\1 ${new}|" "${REPO_ROOT}/go.mod"
+    sedi "s|(${pkg//\//\\/} => ${pkg//\//\\/}) v[^ ]+|\1 ${new}|" "${REPO_ROOT}/go.mod"
     if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "go.mod: Updated replace ${pkg} ${old} to ${new}"; fi
 }
 
@@ -187,7 +190,7 @@ gomod_set_replace_version() {
 dockerfile_set_go_version() {
     local new="$1" old
     old=$(dockerfile_go_version)
-    sed -i -E "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"
+    sedi "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"
     if [[ "${old}" != "${new}" ]]; then echo "Dockerfile: Updated golang:${old} to golang:${new}"; fi
 }
 
@@ -195,7 +198,7 @@ dockerfile_set_go_version() {
 docs_set_go_version() {
     local new="$1" old
     old=$(docs_go_version)
-    sed -i -E "s/(- Go v)[0-9]+\.[0-9]+/\1${new}/" "${REPO_ROOT}/docs/Development.md"
+    sedi "s/(- Go v)[0-9]+\.[0-9]+/\1${new}/" "${REPO_ROOT}/docs/Development.md"
     if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "docs/Development.md: Updated Go v${old} to Go v${new}"; fi
 }
 
@@ -204,7 +207,7 @@ custom_gcl_set_version() {
     local new="$1" f="${REPO_ROOT}/.custom-gcl.yaml" old
     if [[ -f "${f}" ]]; then
         old=$(custom_gcl_version)
-        sed -i -E "s/^(version:) .+/\1 ${new}/" "${f}"
+        sedi "s/^(version:) .+/\1 ${new}/" "${f}"
         if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"; fi
     fi
 }
@@ -213,7 +216,7 @@ custom_gcl_set_version() {
 makefile_set_envtest_version() {
     local new="$1" old
     old=$(makefile_envtest_version)
-    sed -i -E "s/^(ENVTEST_K8S_VERSION\s*=\s*).+/\1${new}/" "${REPO_ROOT}/Makefile"
+    sedi "s/^(ENVTEST_K8S_VERSION[[:space:]]*=[[:space:]]*).+/\1${new}/" "${REPO_ROOT}/Makefile"
     if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "Makefile: Updated ENVTEST_K8S_VERSION ${old} to ${new}"; fi
 }
 
