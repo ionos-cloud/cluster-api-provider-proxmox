@@ -85,12 +85,14 @@ linters:
           - staticcheck
         text: QF100(2|3|8)
       - linters:
+          - staticcheck
+        text: ST1001
+      - linters:
+          - revive
+        text: dot-imports
+      - linters:
           - unparam
         text: always receives
-      - path: _test\.go
-        text: should not use dot imports
-      - path: (framework|e2e)/.*.go
-        text: should not use dot imports
       - path: _test\.go
         text: cyclomatic complexity
       - linters:
@@ -108,6 +110,10 @@ linters:
       - linters:
           - revive
         text: 'var-naming: avoid meaningless package names'
+      - path: (.+)\.go$
+        linters:
+          - staticcheck
+        text: '(SA1019): "sigs.k8s.io/cluster-api/.*/v1beta1.*" is deprecated: .*'
     paths:
       - zz_generated.*\.go$
       - .*conversion.*\.go$
@@ -117,7 +123,6 @@ linters:
       - examples$
 issues:
   max-issues-per-linter: 0
-  max-same-issues: 0
 formatters:
   enable:
     - gofmt
