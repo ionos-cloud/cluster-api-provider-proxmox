@@ -2,10 +2,8 @@ name: Lint
 on: [ pull_request ]
 
 permissions:
-  # Required: allow read access to the content for analysis.
-  contents: read
-  # Optional: Allow write access to checks to allow the action to annotate code in the PR.
-  checks: write
+  contents: read # linters need read access
+  checks: write # allow the actions to write annotations
 
 jobs:
   golangci:
@@ -17,9 +15,9 @@ jobs:
         with:
           go-version-file: go.mod
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
-          version: v2.9.0
+          version: v2.9.0 # TODO: commit hash matching golangci-lint in hack/tools/go.sum
           args: '--timeout 10m'
 
   yamllint:
@@ -27,7 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ibiqlik/action-yamllint@v3
+      - name: Install yamllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yamllint
+      - uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
         with:
           format: github
 
@@ -36,11 +38,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Download actionlint
-        id: get_actionlint
-        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-        shell: bash
-      - name: Check workflow files
-        run: ${{ steps.get_actionlint.outputs.executable }} -color
-        shell: bash
-
+      - uses: raven-actions/actionlint@205b530c5d9fa8f44ae9ed59f341a0db994aa6f8 # v2.1.2
