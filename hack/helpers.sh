@@ -39,6 +39,25 @@ split_version() {
     PATCH=$(echo "${no_v}" | cut -d. -f3)
 }
 
+# versions_differ returns 0 (true) when two non-empty versions are different.
+# Usage: if versions_differ "$a" "$b"; then fail "mismatch"; fi
+versions_differ() {
+    [[ -n "$1" && -n "$2" && "$1" != "$2" ]]
+}
+
+# validate_go_version exits with an error if the argument is not a valid Go
+# version: major.minor or major.minor.patch (with or without 'v' prefix).
+validate_go_version() {
+    local raw="$1"
+    local v
+    v=$(strip_v_prefix "${raw}")
+    if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+        echo "ERROR: invalid version format '${raw}'"
+        echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)"
+        exit 1
+    fi
+}
+
 # ---- version extraction: go.mod ----
 
 # gomod_go_version returns the Go version from go.mod (e.g. "1.25.0").
@@ -101,6 +120,31 @@ custom_gcl_version() {
 # Makefile (e.g. "1.30.0"). Returns empty string if not found.
 makefile_envtest_version() {
     awk '/^ENVTEST_K8S_VERSION\s*=/{sub(/^ENVTEST_K8S_VERSION\s*=\s*/, ""); print; exit}' "${REPO_ROOT}/Makefile"
+}
+
+# ---- version extraction: metadata.yaml ----
+
+METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
+
+# metadata_latest_contract returns the contract version of the releaseSeries
+# entry with the highest major.minor in the e2e metadata file (e.g. "v1beta1").
+metadata_latest_contract() {
+    yq '[.releaseSeries[] | {"v": (.major * 1000 + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
+}
+
+# metadata_has_release returns 0 (true) when a releaseSeries entry with the
+# given major and minor version already exists in the e2e metadata file.
+metadata_has_release() {
+    local major="$1" minor="$2"
+    yq -e '.releaseSeries[] | select(.major == '"${major}"' and .minor == '"${minor}"')' "${METADATA_FILE}" > /dev/null 2>&1
+}
+
+# metadata_add_release prepends a new releaseSeries entry to the e2e metadata
+# file and prints a confirmation message.
+metadata_add_release() {
+    local major="$1" minor="$2" contract="$3"
+    yq -i '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}] + .releaseSeries' "${METADATA_FILE}"
+    echo "test/e2e/data/shared/v1beta1/metadata.yaml: Added releaseSeries entry for v${major}.${minor} (${contract})"
 }
 
 # ---- version update helpers ----

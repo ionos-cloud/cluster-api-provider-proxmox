@@ -31,13 +31,24 @@ if [[ "${DOCKERFILE_GO}" != "${GO_MINOR}" || ( -n "${DOCS_GO}" && "${DOCS_GO}" !
 fi
 
 # ---- golangci-lint ----
-# Source of truth: go.mod replace directive.
+# Source of truth: require directive in go.mod. Dependabot bumps require but
+# leaves the replace pin stale.
 
-GCL_GOMOD=$(gomod_replace_version 'github.com/golangci/golangci-lint/v2')
+GCL_REQ=$(gomod_require_version 'github.com/golangci/golangci-lint/v2')
+GCL_REP=$(gomod_replace_version 'github.com/golangci/golangci-lint/v2')
 GCL_CUSTOM=$(custom_gcl_version)
-if [[ -n "${GCL_GOMOD}" && -n "${GCL_CUSTOM}" && "${GCL_GOMOD}" != "${GCL_CUSTOM}" ]]; then
-    "${REPO_ROOT}/hack/bump-golangci-lint.sh" "${GCL_GOMOD}"
-    BUMPED+=("golangci-lint:${GCL_GOMOD}")
+
+GCL_NEEDS_BUMP=false
+if versions_differ "${GCL_REQ}" "${GCL_REP}"; then
+    GCL_NEEDS_BUMP=true
+fi
+if versions_differ "${GCL_REQ}" "${GCL_CUSTOM}"; then
+    GCL_NEEDS_BUMP=true
+fi
+
+if [[ "${GCL_NEEDS_BUMP}" == true && -n "${GCL_REQ}" ]]; then
+    "${REPO_ROOT}/hack/bump-golangci-lint.sh" "${GCL_REQ}"
+    BUMPED+=("golangci-lint:${GCL_REQ}")
 fi
 
 # ---- cluster-api ----
@@ -49,28 +60,30 @@ CAPI_REP=$(gomod_replace_version 'sigs.k8s.io/cluster-api')
 CAPI_TEST=$(gomod_require_version 'sigs.k8s.io/cluster-api/test')
 
 CAPI_NEEDS_BUMP=false
-if [[ -n "${CAPI_REQ}" && -n "${CAPI_REP}" && "${CAPI_REQ}" != "${CAPI_REP}" ]]; then
+if versions_differ "${CAPI_REQ}" "${CAPI_REP}"; then
     CAPI_NEEDS_BUMP=true
 fi
-if [[ -n "${CAPI_REQ}" && -n "${CAPI_TEST}" && "${CAPI_REQ}" != "${CAPI_TEST}" ]]; then
+if versions_differ "${CAPI_REQ}" "${CAPI_TEST}"; then
     CAPI_NEEDS_BUMP=true
 fi
 
 if [[ "${CAPI_NEEDS_BUMP}" == true ]]; then
-    # Determine contract from existing metadata — use the contract of the
-    # latest entry as a default since auto-bump can't make contract decisions.
-    CONTRACT=$(yq '.releaseSeries[0].contract' "${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml")
+    # Determine contract from the metadata file — use the contract of the
+    # entry with the highest major.minor as a default since auto-bump can't
+    # make contract decisions.
+    CONTRACT=$(metadata_latest_contract)
     "${REPO_ROOT}/hack/bump-capi.sh" "${CAPI_REQ}" "${CONTRACT}"
     BUMPED+=("cluster-api:${CAPI_REQ}")
 fi
 
 # ---- k8s.io packages ----
-# Source of truth: whichever k8s.io package has the highest version (i.e. the
-# one dependabot bumped). All three must match.
+# Source of truth: require directives in go.mod. Dependabot bumps the require
+# but leaves replace directives stale. Find the highest require version (i.e.
+# the one dependabot bumped) and synchronise everything to that.
 
 K8S_LATEST=""
 for pkg in 'k8s.io/api' 'k8s.io/apimachinery' 'k8s.io/client-go'; do
-    ver=$(effective_version "${pkg}")
+    ver=$(gomod_require_version "${pkg}")
     if [[ -n "${ver}" ]]; then
         if [[ -z "${K8S_LATEST}" || "$(printf '%s\n%s' "${K8S_LATEST}" "${ver}" | sort -V | tail -1)" == "${ver}" ]]; then
             K8S_LATEST="${ver}"
@@ -81,8 +94,13 @@ done
 if [[ -n "${K8S_LATEST}" ]]; then
     NEEDS_BUMP=false
     for pkg in 'k8s.io/api' 'k8s.io/apimachinery' 'k8s.io/client-go'; do
-        ver=$(effective_version "${pkg}")
-        if [[ -n "${ver}" && "${ver}" != "${K8S_LATEST}" ]]; then
+        req=$(gomod_require_version "${pkg}")
+        if versions_differ "${req}" "${K8S_LATEST}"; then
+            NEEDS_BUMP=true
+            break
+        fi
+        rep=$(gomod_replace_version "${pkg}")
+        if [[ -n "${rep}" ]] && versions_differ "${rep}" "${K8S_LATEST}"; then
             NEEDS_BUMP=true
             break
         fi
@@ -93,7 +111,7 @@ if [[ -n "${K8S_LATEST}" ]]; then
         split_version "${K8S_LATEST}"
         EXPECTED_ENVTEST="1.${MINOR}.${PATCH}"
         ENVTEST_CUR=$(makefile_envtest_version)
-        if [[ -n "${ENVTEST_CUR}" && "${ENVTEST_CUR}" != "${EXPECTED_ENVTEST}" ]]; then
+        if versions_differ "${ENVTEST_CUR}" "${EXPECTED_ENVTEST}"; then
             NEEDS_BUMP=true
         fi
     fi

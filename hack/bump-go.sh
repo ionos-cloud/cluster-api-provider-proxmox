@@ -20,13 +20,7 @@ fi
 
 # Go versions don't use a 'v' prefix
 NEW=$(strip_v_prefix "$1")
-
-# Validate: must be major.minor or major.minor.patch
-if ! [[ "${NEW}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-    echo "ERROR: invalid version format '$1'"
-    echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)"
-    exit 1
-fi
+validate_go_version "${NEW}"
 
 NEW_MINOR=$(echo "${NEW}" | cut -d. -f1-2)
 

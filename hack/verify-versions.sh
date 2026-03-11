@@ -37,7 +37,7 @@ fi
 
 GOLANGCI_VERSION_GOMOD=$(gomod_replace_version 'github.com/golangci/golangci-lint/v2')
 GOLANGCI_VERSION_CUSTOM=$(custom_gcl_version)
-if [[ -n "${GOLANGCI_VERSION_GOMOD}" && -n "${GOLANGCI_VERSION_CUSTOM}" && "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_CUSTOM}" ]]; then
+if versions_differ "${GOLANGCI_VERSION_GOMOD}" "${GOLANGCI_VERSION_CUSTOM}"; then
     fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
 fi
 
@@ -46,7 +46,7 @@ fi
 
 CAPI_REQUIRE=$(gomod_require_version 'sigs.k8s.io/cluster-api')
 CAPI_REPLACE=$(gomod_replace_version 'sigs.k8s.io/cluster-api')
-if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_REPLACE}" && "${CAPI_REQUIRE}" != "${CAPI_REPLACE}" ]]; then
+if versions_differ "${CAPI_REQUIRE}" "${CAPI_REPLACE}"; then
     fail "cluster-api version mismatch: require directive has '${CAPI_REQUIRE}', replace directive has '${CAPI_REPLACE}'"
 fi
 
@@ -54,7 +54,7 @@ fi
 # sigs.k8s.io/cluster-api and sigs.k8s.io/cluster-api/test must be the same version.
 
 CAPI_TEST=$(gomod_require_version 'sigs.k8s.io/cluster-api/test')
-if [[ -n "${CAPI_REQUIRE}" && -n "${CAPI_TEST}" && "${CAPI_REQUIRE}" != "${CAPI_TEST}" ]]; then
+if versions_differ "${CAPI_REQUIRE}" "${CAPI_TEST}"; then
     fail "cluster-api version mismatch: sigs.k8s.io/cluster-api is '${CAPI_REQUIRE}', sigs.k8s.io/cluster-api/test is '${CAPI_TEST}'"
 fi
 
@@ -65,8 +65,7 @@ if [[ -n "${CAPI_REQUIRE}" ]]; then
     split_version "${CAPI_REQUIRE}"
     CAPI_MAJOR="${MAJOR}"
     CAPI_MINOR="${MINOR}"
-    METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
-    if ! yq -e '.releaseSeries[] | select(.major == '"${CAPI_MAJOR}"' and .minor == '"${CAPI_MINOR}"')' "${METADATA_FILE}" > /dev/null 2>&1; then
+    if ! metadata_has_release "${CAPI_MAJOR}" "${CAPI_MINOR}"; then
         fail "cluster-api v${CAPI_MAJOR}.${CAPI_MINOR} is not listed in test/e2e/data/shared/v1beta1/metadata.yaml"
     fi
 fi

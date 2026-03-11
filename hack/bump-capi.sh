@@ -28,8 +28,6 @@ split_version "${NEW}"
 CAPI_MAJOR="${MAJOR}"
 CAPI_MINOR="${MINOR}"
 
-METADATA="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
-
 # ---- go.mod ----
 gomod_set_require_version 'sigs.k8s.io/cluster-api' "${NEW}"
 gomod_set_require_version 'sigs.k8s.io/cluster-api/test' "${NEW}"
@@ -37,9 +35,8 @@ gomod_set_replace_version 'sigs.k8s.io/cluster-api' "${NEW}"
 
 # ---- test/e2e/data/shared/v1beta1/metadata.yaml ----
 # Add new releaseSeries entry as the first element if not already present.
-if ! yq -e '.releaseSeries[] | select(.major == '"${CAPI_MAJOR}"' and .minor == '"${CAPI_MINOR}"')' "${METADATA}" > /dev/null 2>&1; then
-    yq -i '.releaseSeries = [{"major": '"${CAPI_MAJOR}"', "minor": '"${CAPI_MINOR}"', "contract": "'"${CONTRACT}"'"}] + .releaseSeries' "${METADATA}"
-    echo "test/e2e/data/shared/v1beta1/metadata.yaml: Added releaseSeries entry for v${CAPI_MAJOR}.${CAPI_MINOR} (${CONTRACT})"
+if ! metadata_has_release "${CAPI_MAJOR}" "${CAPI_MINOR}"; then
+    metadata_add_release "${CAPI_MAJOR}" "${CAPI_MINOR}" "${CONTRACT}"
 fi
 
 # ---- go mod tidy ----
