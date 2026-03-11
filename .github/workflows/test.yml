@@ -50,8 +50,7 @@ jobs:
         id: hack
         run: |
           BASE=${{ github.event.pull_request.base.sha || github.event.before }}
-          if [ "$BASE" = "0000000000000000000000000000000000000000" ] || \
-             git diff --name-only "$BASE" HEAD -- hack/ | grep -q .; then
+          if git diff --name-only "$BASE" HEAD -- hack/ | grep -q .; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
