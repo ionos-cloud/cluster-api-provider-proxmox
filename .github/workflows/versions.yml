@@ -3,19 +3,25 @@ name: Version Consistency
 on:
   push:
     branches: ["main"]
+  pull_request:
+    branches: ["main"]
   pull_request_target:
     branches: ["main"]
 
 permissions:
-  contents: write
-  pull-requests: read
+  contents: read
 
 jobs:
   bump:
     name: auto-bump
-    # Only run on dependabot PRs to complete partial version bumps.
+    # Only run on dependabot pull_request_target events to complete partial
+    # version bumps.  When bump pushes, the new commit triggers a
+    # pull_request synchronize event which re-runs the verify job below.
     if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v6
         with:
@@ -55,26 +61,12 @@ jobs:
 
   verify:
     name: verify-versions
-    # On dependabot PRs, wait for the bump job to finish first.
-    # When bump is skipped (non-dependabot PRs), !cancelled() still allows
-    # this job to run.
-    needs: [bump]
-    if: ${{ !cancelled() }}
+    # Only run on push and pull_request events — never on pull_request_target
+    # to avoid running scripts from an untrusted checkout.
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - name: Checkout PR
-        if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          # After a dependabot bump, use the branch ref to get the latest commit.
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Checkout branch
-        if: github.event_name == 'push'
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Install yq
         uses: mikefarah/yq@5a7e72a743649b1b3a47d1a1d8214f3453173c51 # v4.52.4

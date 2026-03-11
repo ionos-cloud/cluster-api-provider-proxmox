@@ -13,18 +13,34 @@ ensure_v_prefix() { local v="$1"; [[ "${v}" == v* ]] && echo "${v}" || echo "v${
 # strip_v_prefix removes a leading 'v' if present.
 strip_v_prefix() { echo "${1#v}"; }
 
-# validate_semver exits with an error if the argument is not a valid
-# major.minor.patch version (with or without 'v' prefix).
-validate_semver() {
+# validate_version exits with an error if the argument is not a valid version.
+# When called with a single argument, the patch component is required
+# (major.minor.patch). Pass "false" as second argument to make the patch
+# component optional (major.minor or major.minor.patch).
+# Both forms accept an optional leading 'v' prefix.
+validate_version() {
     local raw="$1"
+    local require_patch="${2:-true}"
     local v
-    v=$(ensure_v_prefix "${raw}")
-    if ! [[ "${v}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "ERROR: invalid version format '${raw}'"
-        echo "Expected: major.minor.patch (e.g. 1.11.0 or v1.11.0)"
-        exit 1
+    v=$(strip_v_prefix "${raw}")
+    if [[ "${require_patch}" == true ]]; then
+        if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: invalid version format '${raw}'"
+            echo "Expected: major.minor.patch (e.g. 1.11.0 or v1.11.0)"
+            exit 1
+        fi
+    else
+        if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "ERROR: invalid version format '${raw}'"
+            echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)"
+            exit 1
+        fi
     fi
 }
+
+# Convenience wrappers for validate_version.
+validate_semver() { validate_version "$1"; }
+validate_go_version() { validate_version "$1" false; }
 
 # split_version sets MAJOR, MINOR and PATCH for a given semver string.
 split_version() {
@@ -43,19 +59,6 @@ split_version() {
 # Usage: if versions_differ "$a" "$b"; then fail "mismatch"; fi
 versions_differ() {
     [[ -n "$1" && -n "$2" && "$1" != "$2" ]]
-}
-
-# validate_go_version exits with an error if the argument is not a valid Go
-# version: major.minor or major.minor.patch (with or without 'v' prefix).
-validate_go_version() {
-    local raw="$1"
-    local v
-    v=$(strip_v_prefix "${raw}")
-    if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-        echo "ERROR: invalid version format '${raw}'"
-        echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)"
-        exit 1
-    fi
 }
 
 # ---- version extraction: go.mod ----
