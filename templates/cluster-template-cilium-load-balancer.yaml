@@ -28,7 +28,7 @@ spec:
 # invalid gateway because IPAM requires a gateway
   gateway: ::ffff:a9:fe:0:fe
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
   labels:
@@ -39,15 +39,15 @@ spec:
     pods:
       cidrBlocks: ["192.168.0.0/16"]
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: ProxmoxCluster
     name: "${CLUSTER_NAME}"
   controlPlaneRef:
     kind: KubeadmControlPlane
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    apiGroup: controlplane.cluster.x-k8s.io
     name: "${CLUSTER_NAME}-control-plane"
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxCluster
 metadata:
   name: "${CLUSTER_NAME}"
@@ -69,16 +69,17 @@ spec:
   allowedNodes: ${ALLOWED_NODES:=[]}
 ---
 kind: KubeadmControlPlane
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 metadata:
   name: "${CLUSTER_NAME}-control-plane"
 spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   machineTemplate:
-    infrastructureRef:
-      kind: ProxmoxMachineTemplate
-      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-      name: "${CLUSTER_NAME}-control-plane"
+    spec:
+      infrastructureRef:
+        kind: ProxmoxMachineTemplate
+        apiGroup: infrastructure.cluster.x-k8s.io
+        name: "${CLUSTER_NAME}-control-plane"
   kubeadmConfigSpec:
     users:
       - name: root
@@ -199,21 +200,23 @@ spec:
         owner: root:root
         permissions: "0755"
         path: /tmp/kube-proxy.sh
-    initConfiguration:
-      nodeRegistration:
-        kubeletExtraArgs:
-          provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
-    joinConfiguration:
-      nodeRegistration:
-        kubeletExtraArgs:
-          provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
     preKubeadmCommands:
       - /tmp/kube-proxy.sh
       - /etc/kube-vip-prepare.sh
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          - name: provider-id
+            value: "proxmox://'{{ ds.meta_data.instance_id }}'"
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          - name: provider-id
+            value: "proxmox://'{{ ds.meta_data.instance_id }}'"
   version: "${KUBERNETES_VERSION}"
 ---
 kind: ProxmoxMachineTemplate
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 metadata:
   name: "${CLUSTER_NAME}-control-plane"
 spec:
@@ -231,20 +234,20 @@ spec:
           disk: ${BOOT_VOLUME_DEVICE:=scsi0}
           sizeGb: ${BOOT_VOLUME_SIZE:=100}
       network:
-        default:
-          bridge: ${BRIDGE}
+        networkDevices:
+        - bridge: ${BRIDGE}
           model: virtio
-        additionalDevices:
+          name: net0
+          dnsServers: ${DNS_SERVERS}
         - name: net1
           bridge: ${SECONDARY_BRIDGE}
           model: virtio
-          ipv4PoolRef:
-            apiGroup: ipam.cluster.x-k8s.io
+          ipPoolRef:
+          - apiGroup: ipam.cluster.x-k8s.io
             kind: GlobalInClusterIPPool
             name: shared-int-service-v4-inclusterippool
-          dnsServers: ${DNS_SERVERS}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   labels:
@@ -266,14 +269,14 @@ spec:
       bootstrap:
         configRef:
           name: "${CLUSTER_NAME}-worker"
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: KubeadmConfigTemplate
       infrastructureRef:
         name: "${CLUSTER_NAME}-worker"
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: ProxmoxMachineTemplate
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
 metadata:
   name: "${CLUSTER_NAME}-worker"
@@ -292,20 +295,20 @@ spec:
           disk: ${BOOT_VOLUME_DEVICE:=scsi0}
           sizeGb: ${BOOT_VOLUME_SIZE:=100}
       network:
-        default:
-          bridge: ${BRIDGE}
+        networkDevices:
+        - bridge: ${BRIDGE}
           model: virtio
-        additionalDevices:
+          name: net0
+          dnsServers: ${DNS_SERVERS}
         - name: net1
           bridge: ${SECONDARY_BRIDGE}
           model: virtio
-          ipv4PoolRef:
-            apiGroup: ipam.cluster.x-k8s.io
+          ipPoolRef:
+          - apiGroup: ipam.cluster.x-k8s.io
             kind: GlobalInClusterIPPool
             name: shared-int-service-v4-inclusterippool
-          dnsServers: ${DNS_SERVERS}
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   name: "${CLUSTER_NAME}-load-balancers"
@@ -326,14 +329,14 @@ spec:
       bootstrap:
         configRef:
           name: "${CLUSTER_NAME}-load-balancer"
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: KubeadmConfigTemplate
       infrastructureRef:
         name: "${CLUSTER_NAME}-load-balancer"
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: ProxmoxMachineTemplate
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
 metadata:
   name: "${CLUSTER_NAME}-load-balancer"
@@ -352,30 +355,29 @@ spec:
           disk: ${BOOT_VOLUME_DEVICE:=scsi0}
           sizeGb: ${BOOT_VOLUME_SIZE:=100}
       network:
-        default:
-          bridge: ${BRIDGE}
+        networkDevices:
+        - bridge: ${BRIDGE}
+          dnsServers: ${DNS_SERVERS}
           model: virtio
-        additionalDevices:
+          name: net0
         - name: net1
           bridge: ${SECONDARY_BRIDGE}
           model: virtio
-          ipv4PoolRef:
-            apiGroup: ipam.cluster.x-k8s.io
+          ipPoolRef:
+          - apiGroup: ipam.cluster.x-k8s.io
             kind: GlobalInClusterIPPool
             name: shared-int-service-v4-inclusterippool
           dnsServers: ${DNS_SERVERS}
         - name: net2
           bridge: ${EXT_SERVICE_BRIDGE}
           model: virtio
-          ipv4PoolRef:
-            apiGroup: ipam.cluster.x-k8s.io
+          ipPoolRef:
+          - apiGroup: ipam.cluster.x-k8s.io
             kind: GlobalInClusterIPPool
             name: shared-ext-service-v4-inclusterippool
-          ipv6PoolRef:
-            apiGroup: ipam.cluster.x-k8s.io
+          - apiGroup: ipam.cluster.x-k8s.io
             kind: GlobalInClusterIPPool
             name: shared-ext-service-v6-inclusterippool
-          dnsServers: ${DNS_SERVERS}
         vrfs:
           - name: vrf-ext
             table: 500
@@ -385,7 +387,7 @@ spec:
               - from: "${METALLB_IPV4_RANGE}"
               - from: "${METALLB_IPV6_RANGE}"
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
   name: "${CLUSTER_NAME}-worker"
@@ -398,9 +400,10 @@ spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+            - name: provider-id
+              value: "proxmox://'{{ ds.meta_data.instance_id }}'"
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
   name: "${CLUSTER_NAME}-load-balancer"
@@ -414,18 +417,20 @@ spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+            - name: provider-id
+              value: "proxmox://'{{ ds.meta_data.instance_id }}'"
           taints:
             - effect: NoSchedule
               key: node-role.kubernetes.io/load-balancer
               value: ""
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   labels:
     cluster.x-k8s.io/cluster-name: '${CLUSTER_NAME}'
   name: ${CLUSTER_NAME}-crs-0
+  namespace: '${NAMESPACE}'
 spec:
   clusterSelector:
     matchLabels:
@@ -609,40 +614,45 @@ data:
                     prefixes:
                       - prefix: ::0/0
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineHealthCheck
 metadata:
   name: "${CLUSTER_NAME}-node-unhealthy-5m"
 spec:
   clusterName: "${CLUSTER_NAME}"
-  maxUnhealthy: 40%
-  nodeStartupTimeout: 15m
   selector:
     matchLabels:
       node-role.kubernetes.io/node: ""
-  unhealthyConditions:
-  - type: Ready
-    status: Unknown
-    timeout: 300s
-  - type: Ready
-    status: "False"
-    timeout: 300s
+  checks:
+    nodeStartupTimeoutSeconds: 900
+    unhealthyNodeConditions:
+    - type: Ready
+      status: Unknown
+      timeoutSeconds: 300
+    - type: Ready
+      status: "False"
+      timeoutSeconds: 300
+  remediation:
+    triggerIf:
+      unhealthyLessThanOrEqualTo: "40%"
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineHealthCheck
 metadata:
   name: "${CLUSTER_NAME}-control-plane-unhealthy-5m"
 spec:
   clusterName: "${CLUSTER_NAME}"
-  maxUnhealthy: 100%
-  nodeStartupTimeout: 15m
   selector:
     matchLabels:
       cluster.x-k8s.io/control-plane: ""
-  unhealthyConditions:
-  - type: Ready
-    status: Unknown
-    timeout: 300s
-  - type: Ready
-    status: "False"
-    timeout: 300s
+  checks:
+    unhealthyNodeConditions:
+    - type: Ready
+      status: Unknown
+      timeoutSeconds: 300
+    - type: Ready
+      status: "False"
+      timeoutSeconds: 300
+  remediation:
+    triggerIf:
+      unhealthyLessThanOrEqualTo: "100%"
