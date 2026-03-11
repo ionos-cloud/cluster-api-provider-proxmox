@@ -9,8 +9,9 @@ setup_fixture_repo() {
   FIXTURE_TMPDIR=$(mktemp -d)
   cp -a "${FIXTURES_DIR}/." "${FIXTURE_TMPDIR}/"
   export REPO_ROOT="${FIXTURE_TMPDIR}"
-  # Re-evaluate METADATA_FILE (set at source time by helpers.sh).
-  METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
+  # Re-evaluate paths set at source time by helpers.sh.
+  METADATA_FILE="${REPO_ROOT}/metadata.yaml"
+  E2E_METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
 }
 
 # cleanup_fixture_repo removes the temporary fixture copy.

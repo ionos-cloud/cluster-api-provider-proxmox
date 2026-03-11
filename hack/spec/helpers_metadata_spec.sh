@@ -9,7 +9,7 @@ Describe 'helpers.sh — metadata functions'
   Describe 'metadata_latest_contract'
     It 'returns the contract of the highest major.minor entry'
       When call metadata_latest_contract
-      The output should equal 'v1beta1'
+      The output should equal 'v1beta2'
     End
   End
 

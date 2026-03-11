@@ -127,10 +127,15 @@ makefile_envtest_version() {
 
 # ---- version extraction: metadata.yaml ----
 
-METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
+# Top-level metadata.yaml is the source of truth for the contract version
+# that the current release adheres to.
+METADATA_FILE="${REPO_ROOT}/metadata.yaml"
+# E2E test metadata maps CAPI release series to contract versions.
+E2E_METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
 
 # metadata_latest_contract returns the contract version of the releaseSeries
-# entry with the highest major.minor in the e2e metadata file (e.g. "v1beta1").
+# entry with the highest major.minor in the top-level metadata.yaml (e.g.
+# "v1beta1"). This is the contract the project currently implements.
 metadata_latest_contract() {
     yq '[.releaseSeries[] | {"v": (.major * 1000 + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
 }
@@ -139,14 +144,14 @@ metadata_latest_contract() {
 # given major and minor version already exists in the e2e metadata file.
 metadata_has_release() {
     local major="$1" minor="$2"
-    yq -e '.releaseSeries[] | select(.major == '"${major}"' and .minor == '"${minor}"')' "${METADATA_FILE}" > /dev/null 2>&1
+    yq -e '.releaseSeries[] | select(.major == '"${major}"' and .minor == '"${minor}"')' "${E2E_METADATA_FILE}" > /dev/null 2>&1
 }
 
 # metadata_add_release prepends a new releaseSeries entry to the e2e metadata
 # file and prints a confirmation message.
 metadata_add_release() {
     local major="$1" minor="$2" contract="$3"
-    yq -i '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}] + .releaseSeries' "${METADATA_FILE}"
+    yq -i '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}] + .releaseSeries' "${E2E_METADATA_FILE}"
     echo "test/e2e/data/shared/v1beta1/metadata.yaml: Added releaseSeries entry for v${major}.${minor} (${contract})"
 }
 
