@@ -137,7 +137,7 @@ E2E_METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
 # entry with the highest major.minor in the top-level metadata.yaml (e.g.
 # "v1beta1"). This is the contract the project currently implements.
 metadata_latest_contract() {
-    yq '[.releaseSeries[] | {"v": (.major * 1000 + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
+    yq '[.releaseSeries[] | {"v": ((.major * 1000) + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
 }
 
 # metadata_has_release returns 0 (true) when a releaseSeries entry with the
