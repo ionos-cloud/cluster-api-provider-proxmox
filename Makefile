@@ -165,6 +165,12 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 
 ##@ Test
 
+SHELLSPEC_ARGS ?=
+
+.PHONY: test-sh
+test-sh: ## Run ShellSpec tests for hack/ scripts with kcov coverage.
+	cd hack/spec && shellspec --kcov --kcov-options='--include-path=$(CURDIR)/hack/' $(SHELLSPEC_ARGS)
+
 .PHONY: tilt-up
 tilt-up: ## Start Tilt in a kind cluster.
 	hack/start-capi-tilt.sh
