@@ -46,6 +46,35 @@ jobs:
       - run: "make verify"
       - run: "make test"
 
+      - name: Check for hack/ changes
+        id: hack
+        run: |
+          BASE=${{ github.event.pull_request.base.sha || github.event.before }}
+          if [ "$BASE" = "0000000000000000000000000000000000000000" ] || \
+             git diff --name-only "$BASE" HEAD -- hack/ | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install ShellSpec
+        if: steps.hack.outputs.changed == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: shellspec/shellspec
+          ref: 90e48c950239f3b8a9fdfa3e869592872c77b981 # v0.28.1
+          path: .shellspec
+
+      - name: Add ShellSpec to PATH
+        if: steps.hack.outputs.changed == 'true'
+        run: echo "${{ github.workspace }}/.shellspec" >> "$GITHUB_PATH"
+
+      - name: Install kcov
+        if: steps.hack.outputs.changed == 'true'
+        run: sudo apt-get update && sudo apt-get install -y kcov
+
+      - name: Run shell tests
+        if: steps.hack.outputs.changed == 'true'
+        run: make test-sh
+
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request_target'
         uses: SonarSource/sonarqube-scan-action@v7
