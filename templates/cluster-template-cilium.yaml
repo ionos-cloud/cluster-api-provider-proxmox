@@ -1,5 +1,5 @@
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
   labels:
@@ -10,18 +10,20 @@ spec:
     pods:
       cidrBlocks: ["192.168.0.0/16"]
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    apiGroup: infrastructure.cluster.x-k8s.io
     kind: ProxmoxCluster
     name: "${CLUSTER_NAME}"
   controlPlaneRef:
     kind: KubeadmControlPlane
-    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    apiGroup: controlplane.cluster.x-k8s.io
     name: "${CLUSTER_NAME}-control-plane"
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxCluster
 metadata:
   name: "${CLUSTER_NAME}"
+  labels:
+    cluster.x-k8s.io/cluster-name: "${CLUSTER_NAME}"
 spec:
   controlPlaneEndpoint:
     host: ${CONTROL_PLANE_ENDPOINT_IP}
@@ -34,16 +36,17 @@ spec:
   allowedNodes: ${ALLOWED_NODES:=[]}
 ---
 kind: KubeadmControlPlane
-apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
 metadata:
   name: "${CLUSTER_NAME}-control-plane"
 spec:
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   machineTemplate:
-    infrastructureRef:
-      kind: ProxmoxMachineTemplate
-      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
-      name: "${CLUSTER_NAME}-control-plane"
+    spec:
+      infrastructureRef:
+        kind: ProxmoxMachineTemplate
+        apiGroup: infrastructure.cluster.x-k8s.io
+        name: "${CLUSTER_NAME}-control-plane"
   kubeadmConfigSpec:
     users:
       - name: root
@@ -157,15 +160,17 @@ spec:
     initConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+          - name: provider-id
+            value: "proxmox://'{{ ds.meta_data.instance_id }}'"
     joinConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+          - name: provider-id
+            value: "proxmox://'{{ ds.meta_data.instance_id }}'"
   version: "${KUBERNETES_VERSION}"
 ---
 kind: ProxmoxMachineTemplate
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 metadata:
   name: "${CLUSTER_NAME}-control-plane"
 spec:
@@ -176,11 +181,12 @@ spec:
       format: "qcow2"
       full: true
       network:
-        default:
-          bridge: ${BRIDGE}
+        networkDevices:
+        - bridge: ${BRIDGE}
           model: virtio
+          name: net0
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineDeployment
 metadata:
   labels:
@@ -202,14 +208,14 @@ spec:
       bootstrap:
         configRef:
           name: "${CLUSTER_NAME}-worker"
-          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          apiGroup: bootstrap.cluster.x-k8s.io
           kind: KubeadmConfigTemplate
       infrastructureRef:
         name: "${CLUSTER_NAME}-worker"
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        apiGroup: infrastructure.cluster.x-k8s.io
         kind: ProxmoxMachineTemplate
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
 metadata:
   name: "${CLUSTER_NAME}-worker"
@@ -221,11 +227,12 @@ spec:
       format: "qcow2"
       full: true
       network:
-        default:
-          bridge: ${BRIDGE}
+        networkDevices:
+        - bridge: ${BRIDGE}
           model: virtio
+          name: net0
 ---
-apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta2
 kind: KubeadmConfigTemplate
 metadata:
   name: "${CLUSTER_NAME}-worker"
@@ -238,9 +245,10 @@ spec:
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
-            provider-id: "proxmox://'{{ ds.meta_data.instance_id }}'"
+            - name: provider-id
+              value: "proxmox://'{{ ds.meta_data.instance_id }}'"
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   labels:
@@ -255,40 +263,45 @@ spec:
     - kind: ConfigMap
       name: cilium
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineHealthCheck
 metadata:
   name: "${CLUSTER_NAME}-worker-unhealthy-5m"
 spec:
   clusterName: "${CLUSTER_NAME}"
-  maxUnhealthy: 40%
-  nodeStartupTimeout: 15m
   selector:
     matchLabels:
       node-role.kubernetes.io/node: ""
-  unhealthyConditions:
-  - type: Ready
-    status: Unknown
-    timeout: 300s
-  - type: Ready
-    status: "False"
-    timeout: 300s
+  checks:
+    nodeStartupTimeoutSeconds: 900
+    unhealthyNodeConditions:
+    - type: Ready
+      status: Unknown
+      timeoutSeconds: 300
+    - type: Ready
+      status: "False"
+      timeoutSeconds: 300
+  remediation:
+    triggerIf:
+      unhealthyLessThanOrEqualTo: "40%"
 ---
-apiVersion: cluster.x-k8s.io/v1beta1
+apiVersion: cluster.x-k8s.io/v1beta2
 kind: MachineHealthCheck
 metadata:
   name: "${CLUSTER_NAME}-control-plane-unhealthy-5m"
 spec:
   clusterName: "${CLUSTER_NAME}"
-  maxUnhealthy: 100%
-  nodeStartupTimeout: 15m
   selector:
     matchLabels:
       cluster.x-k8s.io/control-plane: ""
-  unhealthyConditions:
-  - type: Ready
-    status: Unknown
-    timeout: 300s
-  - type: Ready
-    status: "False"
-    timeout: 300s
+  checks:
+    unhealthyNodeConditions:
+    - type: Ready
+      status: Unknown
+      timeoutSeconds: 300
+    - type: Ready
+      status: "False"
+      timeoutSeconds: 300
+  remediation:
+    triggerIf:
+      unhealthyLessThanOrEqualTo: "100%"

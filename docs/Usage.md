@@ -73,24 +73,24 @@ clusterctl requires the following variables, which should be set in `~/.cluster-
 
 ```env
 ## -- Controller settings -- ##
-PROXMOX_URL: "https://pve.example:8006"                       # The Proxmox VE host
-PROXMOX_TOKEN: "root@pam!capi"                                # The Proxmox VE TokenID for authentication
-PROXMOX_SECRET: "REDACTED"                                    # The secret associated with the TokenID
+PROXMOX_URL: "https://pve.example:8006"                       # The Proxmox VE host.
+PROXMOX_TOKEN: "root@pam!capi"                                # The Proxmox VE TokenID for authentication.
+PROXMOX_SECRET: "REDACTED"                                    # The secret associated with the TokenID.
 
 
 ## -- Required workload cluster default settings -- ##
-PROXMOX_SOURCENODE: "pve"                                     # The node that hosts the VM template to be used to provision VMs
-TEMPLATE_VMID: "100"                                          # The template VM ID used for cloning VMs
-ALLOWED_NODES: "[pve1,pve2,pve3, ...]"                        # The Proxmox VE nodes used for VM deployments
+PROXMOX_SOURCENODE: "pve"                                     # The node that hosts the VM template to be used to provision VMs.
+TEMPLATE_VMID: "100"                                          # The template VM ID used for cloning VMs.
+ALLOWED_NODES: "[pve1,pve2,pve3, ...]"                        # The Proxmox VE nodes used for VM deployments.
 VM_SSH_KEYS: "ssh-ed25519 ..., ssh-ed25519 ..."               # The ssh authorized keys used to ssh to the machines.
 
 ## -- networking configuration-- ##
-CONTROL_PLANE_ENDPOINT_IP: "10.10.10.4"                       # The IP that kube-vip is going to use as a control plane endpoint
-NODE_IP_RANGES: "[10.10.10.5-10.10.10.50, ...]"               # The IP ranges for Cluster nodes
-GATEWAY: "10.10.10.1"                                         # The gateway for the machines network-config.
-IP_PREFIX: "25"                                               # Subnet Mask in CIDR notation for your node IP ranges
+CONTROL_PLANE_ENDPOINT_IP: "10.10.10.4"                       # The IP that kube-vip is going to use as a control plane endpoint.
+NODE_IP_RANGES: "[10.10.10.5-10.10.10.50, ...]"               # The IP ranges for Cluster nodes.
+GATEWAY: "10.10.10.1"                                         # The gateway for the machines network-config..
+IP_PREFIX: "25"                                               # Subnet Mask in CIDR notation for your node IP ranges.
 DNS_SERVERS: "[8.8.8.8,8.8.4.4]"                              # The dns nameservers for the machines network-config.
-BRIDGE: "vmbr1"                                               # The network bridge device for Proxmox VE VMs
+BRIDGE: "vmbr1"                                               # The network bridge device for Proxmox VE VMs.
 
 ## -- xl nodes -- ##
 BOOT_VOLUME_DEVICE: "scsi0"                                   # The device used for the boot disk.
@@ -99,8 +99,9 @@ NUM_SOCKETS: "2"                                              # The number of so
 NUM_CORES: "4"                                                # The number of cores for the VMs.
 MEMORY_MIB: "8048"                                            # The memory size for the VMs.
 
-EXP_CLUSTER_RESOURCE_SET: "true"                              # This enables the ClusterResourceSet feature that we are using to deploy CNI
-CLUSTER_TOPOLOGY: "true"                                      # This enables experimental ClusterClass templating
+EXP_CLUSTER_RESOURCE_SET: "true"                              # This enables the ClusterResourceSet feature that we are using to deploy CNI.
+CLUSTER_TOPOLOGY: "true"                                      # This enables experimental ClusterClass templating.
+EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true                    # This enables kubeadm ignition format for cluster-api bootstrap-controller.
 ```
 
 the `CONTROL_PLANE_ENDPOINT_IP` is an IP that must be on the same subnet as the control plane machines
