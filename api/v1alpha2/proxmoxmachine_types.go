@@ -92,6 +92,7 @@ type ProxmoxMachineSpec struct {
 	// memoryMiB is the size of a virtual machine's memory, in MiB.
 	// Defaults to the property value in the template from which the virtual machine is cloned.
 	// +kubebuilder:validation:MultipleOf=8
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MemoryMiB *int32 `json:"memoryMiB,omitempty"`
 
