@@ -24,6 +24,7 @@ import (
 	"sort"
 
 	"github.com/go-logr/logr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -82,7 +83,7 @@ func selectNode(
 
 	sort.Sort(byMemory)
 
-	requestedMemory := uint64(*machine.Spec.MemoryMiB) * 1024 * 1024 // convert to bytes
+	requestedMemory := uint64(ptr.Deref(machine.Spec.MemoryMiB, 0)) * 1024 * 1024 // convert to bytes
 	if requestedMemory > byMemory[0].AvailableMemory {
 		// no more space on the node with the highest amount of available memory
 		return "", InsufficientMemoryError{
