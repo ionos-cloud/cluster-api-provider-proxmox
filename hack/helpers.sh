@@ -50,6 +50,25 @@ split_version() {
     PATCH=$(echo "${no_v}" | cut -d. -f3)
     return
 }
+
+# version_gte returns 0 when version $1 >= version $2 (semver, optional v prefix).
+# Compares major, minor, patch numerically; ignores pre-release suffixes.
+version_gte() {
+    local a b
+    a=$(strip_v_prefix "${1%%-*}")
+    b=$(strip_v_prefix "${2%%-*}")
+    local -a va vb
+    IFS=. read -ra va <<< "${a}"
+    IFS=. read -ra vb <<< "${b}"
+    local i na nb
+    for i in 0 1 2; do
+        na="${va[$i]:-0}"; nb="${vb[$i]:-0}"
+        if (( na > nb )); then return 0; fi
+        if (( na < nb )); then return 1; fi
+    done
+    return 0
+}
+
 # ---- go.mod getters ----
 
 # gomod_get_go returns the Go version from go.mod (e.g. "1.25.0").
