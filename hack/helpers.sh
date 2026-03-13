@@ -71,9 +71,9 @@ gomod_get_go() {
     awk '/^go /{print $2; exit}' "${REPO_ROOT}/go.mod"
 }
 
-# gomod_get_replace returns the target version from a replace directive
-# for the given package in go.mod.
-# Returns empty string if not found or if there is no replace for this package.
+# gomod_get_require returns the version of a package from a require
+# directive in go.mod (direct or indirect).
+# Returns empty string if not found.
 gomod_get_require() {
     local pkg="$1"
     (cd "${REPO_ROOT}" && go list -m -f '{{.Version}}' "${pkg}" 2>/dev/null) || true
@@ -330,6 +330,13 @@ docs_set_k8s() {
 METADATA_FILE="${REPO_ROOT}/metadata.yaml"
 # E2E test metadata maps CAPI release series to contract versions.
 E2E_METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
+
+# metadata_latest_contract returns the contract version of the releaseSeries
+# entry with the highest major.minor in the top-level metadata.yaml (e.g.
+# "v1beta1"). This is the contract the project currently implements.
+metadata_latest_contract() {
+    yq '[.releaseSeries[] | {"v": ((.major * 1000) + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
+}
 
 # metadata_has_release returns 0 (true) when a releaseSeries entry with the
 # given major and minor version already exists in the e2e metadata file.
