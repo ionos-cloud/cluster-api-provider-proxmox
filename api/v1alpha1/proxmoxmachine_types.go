@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clusterapierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 )
 
 const (
@@ -497,7 +498,7 @@ type ProxmoxMachineStatus struct {
 	// can be added as events to the ProxmoxMachine object and/or logged in the
 	// controller's output.
 	// +optional
-	FailureReason *clusterapierrors.MachineStatusError `json:"failureReason,omitempty"`
+	FailureReason *capmoxerrors.DeprecatedCAPIMachineStatusError `json:"failureReason,omitempty"`
 
 	// FailureMessage will be set in the event that there is a terminal problem
 	// reconciling the Machine and will contain a more verbose string suitable
@@ -563,7 +564,6 @@ type MetadataSettings struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxmachines,scope=Namespaced,categories=cluster-api;proxmox,shortName=moxm
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this ProxmoxMachine belongs"
@@ -583,7 +583,7 @@ type ProxmoxMachine struct {
 	Status ProxmoxMachineStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ProxmoxMachineList contains a list of ProxmoxMachine.
 type ProxmoxMachineList struct {

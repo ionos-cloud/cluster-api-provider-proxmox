@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,22 +22,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
-
-func TestReconcilePowerState_MissingIPAddress(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTest(t)
-
-	requeue, err := reconcilePowerState(context.TODO(), machineScope)
-	require.True(t, requeue)
-	require.NoError(t, err)
-	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
-}
 
 func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 	ctx := context.TODO()
-	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.ProxmoxMachine.Status.IPAddresses = map[string]infrav1alpha1.IPAddress{infrav1alpha1.DefaultNetworkDevice: {IPV4: "10.10.10.10"}}
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
+	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
+		NetName: string(infrav1.DefaultNetworkDevice),
+		IPv4:    []string{"10.10.10.10"},
+	}, {
+		NetName: "default",
+		IPv4:    []string{"10.10.10.10"},
+	}}
 
 	vm := newStoppedVM()
 	task := newTask()
@@ -52,7 +49,7 @@ func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 
 func TestStartVirtualMachine_Paused(t *testing.T) {
 	ctx := context.TODO()
-	_, proxmoxClient, _ := setupReconcilerTest(t)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newPausedVM()
 	proxmoxClient.EXPECT().ResumeVM(ctx, vm).Return(newTask(), nil).Once()
 
@@ -63,7 +60,7 @@ func TestStartVirtualMachine_Paused(t *testing.T) {
 
 func TestStartVirtualMachine_Stopped(t *testing.T) {
 	ctx := context.TODO()
-	_, proxmoxClient, _ := setupReconcilerTest(t)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newStoppedVM()
 	proxmoxClient.EXPECT().StartVM(ctx, vm).Return(newTask(), nil).Once()
 
@@ -74,7 +71,7 @@ func TestStartVirtualMachine_Stopped(t *testing.T) {
 
 func TestStartVirtualMachine_Hibernated(t *testing.T) {
 	ctx := context.TODO()
-	_, proxmoxClient, _ := setupReconcilerTest(t)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newHibernatedVM()
 	proxmoxClient.EXPECT().StartVM(ctx, vm).Return(newTask(), nil).Once()
 
@@ -84,7 +81,7 @@ func TestStartVirtualMachine_Hibernated(t *testing.T) {
 }
 
 func TestStartVirtualMachine_Started(t *testing.T) {
-	_, proxmoxClient, _ := setupReconcilerTest(t)
+	_, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	vm := newRunningVM()
 
 	task, err := startVirtualMachine(context.TODO(), proxmoxClient, vm)

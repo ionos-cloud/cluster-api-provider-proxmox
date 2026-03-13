@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,12 +34,13 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/env"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/cluster-api/util/flags"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -47,7 +48,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	infrastructurev1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/controller"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/webhook"
@@ -82,7 +84,8 @@ var (
 func init() {
 	_ = clusterv1.AddToScheme(scheme)
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = infrastructurev1alpha1.AddToScheme(scheme)
+	_ = infrav1.AddToScheme(scheme)
+	_ = infrav1alpha1.AddToScheme(scheme)
 	_ = ipamicv1.AddToScheme(scheme)
 	_ = ipamv1.AddToScheme(scheme)
 
@@ -146,18 +149,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	if setupErr := setupReconcilers(ctx, mgr, pmoxClient); setupErr != nil {
+	if err := setupReconcilers(ctx, mgr, pmoxClient); err != nil {
 		setupLog.Error(err, "unable to setup reconcilers")
 		os.Exit(1)
 	}
 
+	// TODO: do I need this?
+	cache := mgr.GetCache()
+
+	indexFunc := func(obj client.Object) []string {
+		return []string{obj.(*ipamv1.IPAddress).Spec.PoolRef.Name}
+	}
+
+	if err = cache.IndexField(ctx, &ipamv1.IPAddress{}, "spec.poolRef.name", indexFunc); err != nil {
+		panic(err)
+	}
+
 	if enableWebhooks {
-		if err = (&webhook.ProxmoxCluster{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxCluster")
-			os.Exit(1)
-		}
-		if err = (&webhook.ProxmoxMachine{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxMachine")
+		if err := setupWebhooks(mgr); err != nil {
+			setupLog.Error(err, "unable to setup webhooks")
 			os.Exit(1)
 		}
 	}
@@ -215,7 +225,7 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: proxmoxInsecure, //#nosec:G402 // Default retained, user can enable cert checking
+			InsecureSkipVerify: proxmoxInsecure, // #nosec:G402 // Default retained, user can enable cert checking
 			RootCAs:            rootCerts,
 		},
 	}
@@ -225,6 +235,22 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 		proxmox.WithHTTPClient(httpClient),
 		proxmox.WithAPIToken(ProxmoxTokenID, ProxmoxSecret),
 	)
+}
+
+func setupWebhooks(mgr ctrl.Manager) error {
+	if err := (&webhook.ProxmoxCluster{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxCluster webhook: %w", err)
+	}
+	if err := (&webhook.ProxmoxMachine{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxMachine webhook: %w", err)
+	}
+	if err := (&webhook.ProxmoxMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxMachineTemplate webhook: %w", err)
+	}
+	if err := (&webhook.ProxmoxClusterTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up ProxmoxClusterTemplate webhook: %w", err)
+	}
+	return nil
 }
 
 func initFlagsAndEnv(fs *pflag.FlagSet) {

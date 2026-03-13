@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,9 +20,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 )
 
 const (
@@ -90,16 +91,15 @@ type ProxmoxClusterSpec struct {
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
 type ProxmoxClusterCloneSpec struct {
-	// +kubebuilder:validation:XValidation:rule="has(self.controlPlane)",message="Cowardly refusing to deploy cluster without control plane"
 	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
 
 	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
 	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitzero"`
 
 	// VirtualIPNetworkInterface is the interface the k8s control plane binds to.
 	// +optional
-	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface,omitempty"`
+	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
 }
 
 // IPConfigSpec contains information about available IP config.
@@ -176,7 +176,7 @@ type ProxmoxClusterStatus struct {
 	// can be added as events to the ProxmoxCluster object and/or logged in the
 	// controller's output.
 	// +optional
-	FailureReason *errors.ClusterStatusError `json:"failureReason,omitempty"`
+	FailureReason *capmoxerrors.DeprecatedCAPIClusterStatusError `json:"failureReason,omitempty"`
 
 	// FailureMessage will be set in the event that there is a terminal problem
 	// reconciling the Machine and will contain a more verbose string suitable

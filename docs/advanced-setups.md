@@ -15,7 +15,7 @@ kind: GlobalInClusterIPPool
 metadata:
   name: shared-inclusterippool
 spec:
-  addresses: ${NODE_SECONDARY_IP_RANGES}
+  addresses: ${SECONDARY_IP_RANGES}
   prefix: ${SECONDARY_IP_PREFIX}
   gateway: ${SECONDARY_GATEWAY}
 ```
@@ -25,7 +25,7 @@ To do that you will need to set extra environment variables along with the requi
 
 ```bash
 # The secondary IP ranges for Cluster nodes
-export NODE_SECONDARY_IP_RANGES="[10.10.10.100-10.10.10.150]"
+export SECONDARY_IP_RANGES="[10.10.10.100-10.10.10.150]"
 # The Subnet Mask in CIDR notation for your node secondary IP ranges
 export SECONDARY_IP_PREFIX=24
 # The secondary gateway for the machines network-config
@@ -46,10 +46,10 @@ apiVersion: ipam.cluster.x-k8s.io/v1alpha2
 kind: GlobalInClusterIPPool
 metadata:
   annotations:
-    metric: "200"
+    ipam.capmox.cluster.x-k8s.io/gateway-metric: "200"
   name: shared-inclusterippool
 spec:
-  addresses: ${NODE_SECONDARY_IP_RANGES}
+  addresses: ${SECONDARY_IP_RANGES}
   prefix: ${SECONDARY_IP_PREFIX}
   gateway: ${SECONDARY_GATEWAY}
 ```
@@ -244,7 +244,7 @@ containers:
     - "--proxmox-root-cert-file=/var/lib/proxmox/certs/root-ca.pem"
     env:
     - name: PROXMOX_INSECURE
-      value: "false"  
+      value: "false"
     volumeMounts:
     - name: proxmox-root-cert
       mountPath: /var/lib/proxmox/certs

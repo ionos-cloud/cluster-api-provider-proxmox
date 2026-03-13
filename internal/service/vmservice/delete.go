@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@ import (
 	"context"
 	"strings"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/pkg/errors"
-
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
@@ -42,10 +41,14 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 			// remove machine from cluster status
 			machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), util.IsControlPlaneMachine(machineScope.Machine))
 			// The VM is deleted so remove the finalizer.
-			ctrlutil.RemoveFinalizer(machineScope.ProxmoxMachine, infrav1alpha1.MachineFinalizer)
+			ctrlutil.RemoveFinalizer(machineScope.ProxmoxMachine, infrav1.MachineFinalizer)
 			return machineScope.InfraCluster.PatchObject()
 		}
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, clusterv1.DeletionFailedReason, clusterv1.ConditionSeverityWarning, "")
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedDeletionFailedReason,
+		})
 		return err
 	}
 

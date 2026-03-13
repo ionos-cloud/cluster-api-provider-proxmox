@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,10 +22,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 var _ = Describe("Controller Test", func() {
@@ -68,25 +67,25 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 
-		It("should allow valid endpoint IP4", func() {
-			cluster := validProxmoxCluster("succeed-test-cluster-with-ip4")
+		It("should allow valid IPv4 endpoint", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-ipv4")
 			cluster.Spec.ControlPlaneEndpoint.Host = "127.0.0.1"
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 
-		It("should allow valid endpoint IP6", func() {
-			cluster := validProxmoxCluster("succeed-test-cluster-with-ip6")
+		It("should allow valid IPv6 endpoint", func() {
+			cluster := validProxmoxCluster("succeed-test-cluster-with-ipv6")
 			cluster.Spec.ControlPlaneEndpoint.Host = "::1"
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
 
-		It("should disallow invalid IPV4 IPs", func() {
+		It("should disallow invalid IPv4 addresses", func() {
 			cluster := invalidProxmoxCluster("test-cluster")
 			cluster.Spec.IPv4Config.Addresses = []string{"invalid"}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("provided addresses are not valid IP addresses, ranges or CIDRs")))
 		})
 
-		It("should disallow invalid IPV6 IPs", func() {
+		It("should disallow invalid IPv6 addresses", func() {
 			cluster := validProxmoxCluster("test-cluster")
 			cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
 				Addresses: []string{"invalid"},
@@ -135,7 +134,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
-			ControlPlaneEndpoint: &clusterv1.APIEndpoint{
+			ControlPlaneEndpoint: infrav1.APIEndpoint{
 				Host: "10.10.10.1",
 				Port: 6443,
 			},
@@ -153,7 +152,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 
 func invalidProxmoxCluster(name string) infrav1.ProxmoxCluster {
 	cl := validProxmoxCluster(name)
-	cl.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+	cl.Spec.ControlPlaneEndpoint = infrav1.APIEndpoint{
 		Host: "10.10.10.2",
 		Port: 6443,
 	}

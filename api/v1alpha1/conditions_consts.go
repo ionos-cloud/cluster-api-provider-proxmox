@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
-import clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+import clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 
 const (
 	// VMProvisionedCondition documents the status of the provisioning of a ProxmoxMachine and its underlying ProxmoxVM.
