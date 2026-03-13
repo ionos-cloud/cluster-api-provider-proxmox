@@ -49,3 +49,6 @@ test/e2e/config/*-envsubst.yaml
 .tool-versions
 e2e-env*.yaml
 
+# ShellSpec coverage output
+hack/spec/coverage/
+
