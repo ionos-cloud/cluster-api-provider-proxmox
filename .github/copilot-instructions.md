@@ -56,7 +56,29 @@ make mockgen           # Generate mocks for testing
 make verify            # Verify modules and generated files are up to date
 make verify-modules    # Check if go.mod and go.sum are up to date
 make verify-gen        # Check if generated files are up to date
+make verify-versions   # Check that version references are consistent across the repo
 ```
+
+**Version Bumping:**
+
+Several dependencies appear in multiple files and must be updated atomically. Use the helper scripts in `hack/` rather than editing files manually:
+
+```bash
+# Bump Go version in go.mod, Dockerfile, and docs/Development.md
+hack/bump-go.sh 1.26.0
+
+# Bump cluster-api (require, replace pin, /test) and add a releaseSeries entry
+# to test/e2e/data/shared/v1beta1/metadata.yaml
+hack/bump-capi.sh 1.11.0 v1beta1
+
+# Bump golangci-lint in go.mod and .custom-gcl.yaml
+hack/bump-golangci-lint.sh v2.10.0
+
+# Bump k8s.io/{api,apimachinery,client-go} and ENVTEST_K8S_VERSION in Makefile
+hack/bump-k8s.sh 0.33.0
+```
+
+Each script accepts the version with or without a `v` prefix, prints a line for every file it changes (silent when nothing changes), and runs `go mod tidy` automatically.
 
 **Linting:**
 ```bash
@@ -97,13 +119,15 @@ See `docs/Development.md` for detailed manual setup instructions.
 2. **After modifying API types**, run `make manifests generate` to update generated code and CRDs
 3. **After adding new dependencies**, run `make tidy` to update go.mod and go.sum
 4. **When adding mocks**, update `.mockery.yaml` and run `make mockgen`
+5. **When bumping special dependencies** (Go, cluster-api, golangci-lint, k8s.io), use the `hack/bump-*.sh` scripts instead of editing files manually – these keep all references in sync and run `go mod tidy` automatically. Run `make verify-versions` afterwards to confirm consistency.
 
 ## CI/CD Pipeline
 
 The repository uses GitHub Actions with the following workflows:
 
 - **test.yml**: Runs `make verify` and `make test`, includes SonarQube scanning
-- **lint.yml**: Runs golangci-lint, yamllint, and actionlint
+- **lint.yml**: Runs golangci-lint, yamllint, actionlint, and shellcheck
+- **versions.yml**: Checks version consistency (`hack/verify-versions.sh`); on dependabot PRs, auto-bumps related packages first (`hack/auto-bump.sh`), then verifies
 - **e2e.yml**: End-to-end testing
 - **codespell.yml**: Spell checking
 
