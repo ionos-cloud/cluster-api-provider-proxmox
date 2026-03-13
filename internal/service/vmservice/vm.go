@@ -19,7 +19,6 @@ package vmservice
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -318,11 +317,10 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	// Network vmbrs.
 	if machineScope.ProxmoxMachine.Spec.Network != nil && shouldUpdateNetworkDevices(machineScope) {
-		// handing additional network devices.
 		devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
-		for i, v := range devices {
+		for _, v := range devices {
 			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
-				Name:  ptr.Deref(v.Name, fmt.Sprintf("net%d", i)),
+				Name:  string(v.Name),
 				Value: formatNetworkDevice(ptr.Deref(v.Model, "virtio"), ptr.Deref(v.Bridge, ""), v.MTU, v.VLAN),
 			})
 		}

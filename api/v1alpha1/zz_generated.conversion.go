@@ -334,11 +334,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddConversionFunc((*ProxmoxClusterCloneSpec)(nil), (*v1alpha2.ProxmoxClusterCloneSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(a.(*ProxmoxClusterCloneSpec), b.(*v1alpha2.ProxmoxClusterCloneSpec), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddConversionFunc((*ProxmoxClusterSpec)(nil), (*v1alpha2.ProxmoxClusterSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(a.(*ProxmoxClusterSpec), b.(*v1alpha2.ProxmoxClusterSpec), scope)
 	}); err != nil {
@@ -396,11 +391,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*v1alpha2.NodeLocation)(nil), (*NodeLocation)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha2_NodeLocation_To_v1alpha1_NodeLocation(a.(*v1alpha2.NodeLocation), b.(*NodeLocation), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddConversionFunc((*v1alpha2.ProxmoxClusterCloneSpec)(nil), (*ProxmoxClusterCloneSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(a.(*v1alpha2.ProxmoxClusterCloneSpec), b.(*ProxmoxClusterCloneSpec), scope)
 	}); err != nil {
 		return err
 	}
@@ -790,24 +780,6 @@ func Convert_v1alpha2_ProxmoxCluster_To_v1alpha1_ProxmoxCluster(in *v1alpha2.Pro
 	return autoConvert_v1alpha2_ProxmoxCluster_To_v1alpha1_ProxmoxCluster(in, out, s)
 }
 
-func autoConvert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(in *ProxmoxClusterCloneSpec, out *v1alpha2.ProxmoxClusterCloneSpec, s conversion.Scope) error {
-	// WARNING: in.ProxmoxMachineSpec requires manual conversion: does not exist in peer-type
-	out.SSHAuthorizedKeys = *(*[]string)(unsafe.Pointer(&in.SSHAuthorizedKeys))
-	if err := v1.Convert_string_To_Pointer_string(&in.VirtualIPNetworkInterface, &out.VirtualIPNetworkInterface, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-func autoConvert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(in *v1alpha2.ProxmoxClusterCloneSpec, out *ProxmoxClusterCloneSpec, s conversion.Scope) error {
-	// WARNING: in.ProxmoxClusterClassSpec requires manual conversion: does not exist in peer-type
-	out.SSHAuthorizedKeys = *(*[]string)(unsafe.Pointer(&in.SSHAuthorizedKeys))
-	if err := v1.Convert_Pointer_string_To_string(&in.VirtualIPNetworkInterface, &out.VirtualIPNetworkInterface, s); err != nil {
-		return err
-	}
-	return nil
-}
-
 func autoConvert_v1alpha1_ProxmoxClusterList_To_v1alpha2_ProxmoxClusterList(in *ProxmoxClusterList, out *v1alpha2.ProxmoxClusterList, s conversion.Scope) error {
 	out.ListMeta = in.ListMeta
 	if in.Items != nil {
@@ -884,15 +856,7 @@ func autoConvert_v1alpha1_ProxmoxClusterSpec_To_v1alpha2_ProxmoxClusterSpec(in *
 		out.IPv6Config = nil
 	}
 	out.DNSServers = *(*[]string)(unsafe.Pointer(&in.DNSServers))
-	if in.CloneSpec != nil {
-		in, out := &in.CloneSpec, &out.CloneSpec
-		*out = new(v1alpha2.ProxmoxClusterCloneSpec)
-		if err := Convert_v1alpha1_ProxmoxClusterCloneSpec_To_v1alpha2_ProxmoxClusterCloneSpec(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.CloneSpec = nil
-	}
+	// WARNING: in.CloneSpec requires manual conversion: does not exist in peer-type
 	out.CredentialsRef = (*corev1.SecretReference)(unsafe.Pointer(in.CredentialsRef))
 	return nil
 }
@@ -932,15 +896,6 @@ func autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *
 	}
 	out.DNSServers = *(*[]string)(unsafe.Pointer(&in.DNSServers))
 	// WARNING: in.ZoneConfigs requires manual conversion: does not exist in peer-type
-	if in.CloneSpec != nil {
-		in, out := &in.CloneSpec, &out.CloneSpec
-		*out = new(ProxmoxClusterCloneSpec)
-		if err := Convert_v1alpha2_ProxmoxClusterCloneSpec_To_v1alpha1_ProxmoxClusterCloneSpec(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.CloneSpec = nil
-	}
 	out.CredentialsRef = (*corev1.SecretReference)(unsafe.Pointer(in.CredentialsRef))
 	return nil
 }

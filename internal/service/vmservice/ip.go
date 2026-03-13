@@ -47,7 +47,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	pm := machineScope.ProxmoxMachine
 
 	// TODO: This datastructure is less bad, but still bad
-	netPoolAddresses := make(map[string]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+	netPoolAddresses := make(map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 
 	if pm.Spec.Network != nil {
 		if requeue, err = handleDevices(ctx, machineScope, netPoolAddresses); err != nil || requeue {
@@ -77,7 +77,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 			return aOffset - bOffset
 		})
 		ipSpec := infrav1.IPAddressesSpec{
-			NetName: net,
+			NetName: string(net),
 		}
 		for _, address := range addresses {
 			if isIPv4(address.Spec.Address) {
@@ -153,7 +153,7 @@ func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.Machine
 }
 
 func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error) {
-	device := ptr.Deref(ipClaimDef.Device, infrav1.DefaultNetworkDevice)
+	device := ipClaimDef.Device
 
 	ipAddresses, err := findIPAddress(ctx, ipClaimDef.PoolRef, machineScope)
 	if err != nil {
@@ -183,7 +183,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 	return ipAddresses, nil
 }
 
-func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[string]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (bool, error) {
+func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (bool, error) {
 	// paranoidly handle callers handing us an empty map
 	if addresses == nil {
 		return false, errors.New("handleDevices called without a map")
@@ -238,13 +238,13 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 				continue
 			}
 
-			poolMap := addresses[*net.Name]
+			poolMap := addresses[net.Name]
 			if poolMap == nil {
 				poolMap = make(map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 			}
 
 			poolMap[ipPool] = ipAddresses
-			addresses[*net.Name] = poolMap
+			addresses[net.Name] = poolMap
 
 			// append default pool addresses to map
 			if _, exists := defaultPoolMap[ipPool]; exists && ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false) {

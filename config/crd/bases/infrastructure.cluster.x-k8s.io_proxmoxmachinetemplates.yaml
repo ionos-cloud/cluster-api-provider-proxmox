@@ -846,6 +846,7 @@ spec:
                           memoryMiB is the size of a virtual machine's memory, in MiB.
                           Defaults to the property value in the template from which the virtual machine is cloned.
                         format: int32
+                        minimum: 0
                         multipleOf: 8
                         type: integer
                       metadataSettings:
@@ -962,6 +963,7 @@ spec:
                                 name:
                                   default: net0
                                   description: name is the network device name.
+                                  minLength: 4
                                   pattern: ^net[0-9]+$
                                   type: string
                                 routes:
@@ -1048,6 +1050,7 @@ spec:
                                   items:
                                     description: NetName is a formally verified Proxmox
                                       network name string.
+                                    minLength: 4
                                     pattern: ^net[0-9]+$
                                     type: string
                                   type: array

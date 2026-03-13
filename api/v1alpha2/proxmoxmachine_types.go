@@ -39,7 +39,7 @@ const (
 	DefaultReconcilerRequeue = 10 * time.Second
 
 	// DefaultNetworkDevice is the default network device name.
-	DefaultNetworkDevice = "net0"
+	DefaultNetworkDevice = NetName("net0")
 
 	// DefaultSuffix is the default suffix for the network device.
 	DefaultSuffix = "inet"
@@ -92,6 +92,7 @@ type ProxmoxMachineSpec struct {
 	// memoryMiB is the size of a virtual machine's memory, in MiB.
 	// Defaults to the property value in the template from which the virtual machine is cloned.
 	// +kubebuilder:validation:MultipleOf=8
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MemoryMiB *int32 `json:"memoryMiB,omitempty"`
 
@@ -514,8 +515,8 @@ type ProxmoxMachineInitializationStatus struct {
 // IPAddressesSpec stores the IP addresses of a network interface. Used for status.
 type IPAddressesSpec struct {
 	// net is the proxmox network name these ipaddresses are attached to.
+	// +kubebuilder:validation:MinLength=4
 	// +kubebuilder:validation:Pattern=`^(net[0-9]+|default)$`
-	// +kubebuilder:validation:MinLength=1
 	// +required
 	NetName string `json:"net,omitempty"`
 
@@ -604,10 +605,10 @@ func (r *ProxmoxMachine) GetIPAddresses() []IPAddressesSpec {
 }
 
 // GetIPAddressesNet returns the ipaddresses status for a network or nil.
-func (r *ProxmoxMachine) GetIPAddressesNet(name string) *IPAddressesSpec {
+func (r *ProxmoxMachine) GetIPAddressesNet(name NetName) *IPAddressesSpec {
 	addresses := r.GetIPAddresses()
 	index := slices.IndexFunc(addresses, func(s IPAddressesSpec) bool {
-		return name == s.NetName
+		return string(name) == s.NetName
 	})
 
 	if index < 0 {

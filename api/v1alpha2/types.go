@@ -106,8 +106,9 @@ type NetworkStatus struct {
 }
 
 // NetName is a formally verified Proxmox network name string.
+// +kubebuilder:validation:MinLength=4
 // +kubebuilder:validation:Pattern=`^net[0-9]+$`
-type NetName *string
+type NetName string
 
 // Zone is a formally verified Proxmox network zone name. Needs to adhere to Label rules.
 // +kubebuilder:validation:Pattern=`^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$`

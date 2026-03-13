@@ -60,7 +60,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: lint
-lint: $(GOLANGCI_LINT) $(GOLANGCI_LINT_KAL) ## Run linters.
+lint: golangci-lint golangci-lint-kal ## Run linters.
 	$(GOLANGCI_LINT) run -v $(GOLANGCI_LINT_EXTRA_ARGS)
 	$(GOLANGCI_LINT_KAL) run -v --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
 
@@ -69,7 +69,7 @@ lint-fix: ## Run linters with auto-fix.
 	GOLANGCI_LINT_EXTRA_ARGS=--fix $(MAKE) lint
 
 .PHONY: lint-api
-lint-api: $(GOLANGCI_LINT_KAL) ## Run kube-api-linter.
+lint-api: golangci-lint-kal ## Run kube-api-linter.
 	$(GOLANGCI_LINT_KAL) run -v --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
 
 .PHONY: lint-api-fix
@@ -237,9 +237,13 @@ $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
 
 ## Golangci-lint: install the base binary, then build the KAL custom binary from it.
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCI_LINT)
 $(GOLANGCI_LINT): $(LOCALBIN)
 	test -s $(GOLANGCI_LINT) || { GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) && mv $(LOCALBIN)/golangci-lint $(GOLANGCI_LINT); }
 
+.PHONY: golangci-lint-kal
+golangci-lint-kal: $(GOLANGCI_LINT_KAL)
 $(GOLANGCI_LINT_KAL): $(GOLANGCI_LINT)
 	cd $(TOOLS_DIR) && $(abspath $(GOLANGCI_LINT)) custom
 
