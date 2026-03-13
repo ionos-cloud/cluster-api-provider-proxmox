@@ -43,8 +43,21 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - run: "make verify"
-      - run: "make test"
+      - name: Install ShellSpec
+        uses: actions/checkout@v6
+        with:
+          repository: shellspec/shellspec
+          ref: 90e48c950239f3b8a9fdfa3e869592872c77b981 # v0.28.1
+          path: .shellspec
+      - name: Add ShellSpec to PATH
+        run: echo "${{ github.workspace }}/.shellspec" >> "$GITHUB_PATH"
+
+      - name: Install kcov
+        run: sudo apt-get update && sudo apt-get install -y kcov
+
+      - run: make verify
+      - run: make test
+      - run: make test-sh
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request_target'
@@ -53,6 +66,7 @@ jobs:
          args: >
            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+           -X
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -16,11 +16,6 @@ updates:
       - sigs.k8s.io/cluster-api
       - sigs.k8s.io/cluster-api/test
 
-- package-ecosystem: "docker"
-  directory: "/"
-  schedule:
-    interval: "weekly"
-
 - package-ecosystem: "github-actions"
   directory: "/"
   schedule:

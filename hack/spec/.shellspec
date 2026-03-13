@@ -1,0 +1,5 @@
+--shell bash
+--default-path .
+--helperdir .
+--pattern '*_spec.sh'
+--require spec_helper
