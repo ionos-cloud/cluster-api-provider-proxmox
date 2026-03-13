@@ -8,6 +8,10 @@ FIXTURES_DIR="${SHELLSPEC_SPECDIR}/fixtures"
 setup_fixture_repo() {
   FIXTURE_TMPDIR=$(mktemp -d)
   cp -a "${FIXTURES_DIR}/." "${FIXTURE_TMPDIR}/"
+  # Copy hack scripts needed by the fixture Makefile (envtest-ver.sh).
+  mkdir -p "${FIXTURE_TMPDIR}/hack"
+  cp "${SHELLSPEC_SPECDIR}/../envtest-ver.sh" "${FIXTURE_TMPDIR}/hack/"
+  cp "${SHELLSPEC_SPECDIR}/../helpers.sh" "${FIXTURE_TMPDIR}/hack/"
   export REPO_ROOT="${FIXTURE_TMPDIR}"
   # Re-evaluate paths set at source time by helpers.sh.
   METADATA_FILE="${REPO_ROOT}/metadata.yaml"

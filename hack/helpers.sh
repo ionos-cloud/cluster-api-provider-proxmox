@@ -42,7 +42,27 @@ validate_version() {
 }
 
 # Convenience wrappers for validate_version.
+validate_semver() { validate_version "$1"; }
 validate_go_version() { validate_version "$1" false; }
+
+# split_version sets MAJOR, MINOR and PATCH for a given semver string.
+split_version() {
+    local no_v
+    no_v=$(strip_v_prefix "$1")
+    # These globals are used by callers after invoking split_version.
+    # shellcheck disable=SC2034
+    MAJOR=$(echo "${no_v}" | cut -d. -f1)
+    # shellcheck disable=SC2034
+    MINOR=$(echo "${no_v}" | cut -d. -f2)
+    # shellcheck disable=SC2034
+    PATCH=$(echo "${no_v}" | cut -d. -f3)
+}
+
+# versions_differ returns 0 (true) when two non-empty versions are different.
+# Usage: if versions_differ "$a" "$b"; then fail "mismatch"; fi
+versions_differ() {
+    [[ -n "$1" && -n "$2" && "$1" != "$2" ]]
+}
 
 # ---- go.mod getters ----
 
@@ -54,9 +74,50 @@ gomod_get_go() {
 # gomod_get_replace returns the target version from a replace directive
 # for the given package in go.mod.
 # Returns empty string if not found or if there is no replace for this package.
+gomod_get_require() {
+    local pkg="$1"
+    (cd "${REPO_ROOT}" && go list -m -f '{{.Version}}' "${pkg}" 2>/dev/null) || true
+}
+
+# gomod_get_replace returns the target version from a replace directive
+# for the given package in go.mod.
+# Returns empty string if not found or if there is no replace for this package.
 gomod_get_replace() {
     local pkg="$1"
     (cd "${REPO_ROOT}" && go list -m -f '{{if .Replace}}{{.Replace.Version}}{{end}}' "${pkg}" 2>/dev/null) || true
+}
+
+# gomod_get_version returns the effective version of a Go module as seen by
+# the build, taking replace directives into account.
+gomod_get_version() {
+    local pkg="$1"
+    (cd "${REPO_ROOT}" && go list -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "${pkg}" 2>/dev/null) || true
+}
+
+# gomod_has_version_match returns 0 (true) when all listed packages resolve
+# to the same effective version.
+gomod_has_version_match() {
+    if [[ $# -eq 0 ]]; then return 0; fi
+    local versions=()
+    for pkg in "$@"; do
+        versions+=("$(gomod_get_version "${pkg}")")
+    done
+    local count
+    count=$(printf '%s\n' "${versions[@]}" | sort -u | wc -l)
+    [[ "${count}" -le 1 ]]
+}
+
+# gomod_make_envtest returns the ENVTEST_K8S_VERSION derived from the
+# effective k8s.io/api version in go.mod (e.g. "1.32").
+gomod_make_envtest() {
+    local ver
+    ver=$(gomod_get_version 'k8s.io/api')
+    if [[ -z "${ver}" ]]; then
+        echo "ERROR: k8s.io/api not found in go.mod" >&2
+        return 1
+    fi
+    split_version "${ver}"
+    echo "1.${MINOR}"
 }
 
 # ---- go.mod setters ----
@@ -69,6 +130,23 @@ gomod_set_go() {
     old=$(gomod_get_go)
     (cd "${REPO_ROOT}" && go mod edit -go="${new}")
     if [[ "${old}" != "${new}" ]]; then echo "go.mod: Updated go ${old} to ${new}"; fi
+}
+
+# gomod_set_require updates one or more package versions in the require block.
+# Usage: gomod_set_require <version> <pkg>...
+gomod_set_require() {
+    local new="$1"; shift
+    local args=() msgs=()
+    for pkg in "$@"; do
+        local old
+        old=$(gomod_get_require "${pkg}")
+        args+=("-require=${pkg}@${new}")
+        if [[ -n "${old}" && "${old}" != "${new}" ]]; then
+            msgs+=("go.mod: Updated require ${pkg} ${old} to ${new}")
+        fi
+    done
+    (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+    for msg in "${msgs[@]}"; do echo "${msg}"; done
 }
 
 # gomod_add_replace adds or updates replace directives for one or more packages.
@@ -87,6 +165,24 @@ gomod_add_replace() {
         fi
     done
     (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+    for msg in "${msgs[@]}"; do echo "${msg}"; done
+}
+
+# gomod_del_replace removes replace directives for one or more packages.
+# Usage: gomod_del_replace <pkg>...
+gomod_del_replace() {
+    local args=() msgs=()
+    for pkg in "$@"; do
+        local old
+        old=$(gomod_get_replace "${pkg}")
+        if [[ -n "${old}" ]]; then
+            args+=("-dropreplace=${pkg}")
+            msgs+=("go.mod: Removed replace ${pkg} ${old}")
+        fi
+    done
+    if [[ ${#args[@]} -gt 0 ]]; then
+        (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+    fi
     for msg in "${msgs[@]}"; do echo "${msg}"; done
 }
 
@@ -118,6 +214,12 @@ customgcl_get_version() {
     fi
 }
 
+# makefile_get_envtest returns the ENVTEST_K8S_VERSION value from the
+# Makefile (e.g. "1.32").
+makefile_get_envtest() {
+    make -C "${REPO_ROOT}" --no-print-directory print-envtest-ver 2>/dev/null
+}
+
 # ---- version update: other files ----
 # Each function updates a version in a file, prints "file: Updated … old to new"
 # when a change is made, and stays silent on no-op.
@@ -146,4 +248,53 @@ customgcl_set_version() {
         sedi "s/^(version:) .+/\1 ${new}/" "${f}"
         if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"; fi
     fi
+}
+
+# ---- version extraction: e2e config ----
+
+# E2E config files contain KUBERNETES_VERSION defaults and CAPI provider
+# version references that need to stay in sync with go.mod.
+E2E_CONFIG_DIR="${REPO_ROOT}/test/e2e/config"
+
+# e2econfig_get_k8s returns the default KUBERNETES_VERSION from the first
+# e2e config file (e.g. "v1.32.2").
+e2econfig_get_k8s() {
+    yq '.variables.KUBERNETES_VERSION | match("v[0-9]+\.[0-9]+\.[0-9]+") | .string' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+}
+
+# e2econfig_set_k8s updates the KUBERNETES_VERSION default in all e2e config
+# files and prints a confirmation message.
+e2econfig_set_k8s() {
+    local new="$1" old
+    old=$(e2econfig_get_k8s)
+    for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
+        if [[ -f "${f}" ]]; then
+            # shellcheck disable=SC2016 # literal ${KUBERNETES_VERSION:-...} is intentional
+            yq -i '.variables.KUBERNETES_VERSION = "${KUBERNETES_VERSION:-'"${new}"'}"' "${f}"
+        fi
+    done
+    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "test/e2e/config: Updated KUBERNETES_VERSION ${old} to ${new}"; fi
+}
+
+# ---- version extraction: docs kubernetes-version ----
+
+# docs_get_k8s returns the first --kubernetes-version value found in docs
+# (e.g. "v1.31.6"). Returns empty string if not found.
+docs_get_k8s() {
+    grep -roh -- '--kubernetes-version v[0-9]\+\.[0-9]\+\.[0-9]\+' "${REPO_ROOT}/docs/" 2>/dev/null \
+        | head -1 | awk '{print $2}'
+}
+
+# docs_set_k8s updates all --kubernetes-version references in docs and prints
+# a confirmation message.
+docs_set_k8s() {
+    local new="$1"
+    local changed=false
+    while IFS= read -r f; do
+        if grep -q -- '--kubernetes-version v[0-9]' "${f}"; then
+            sedi "s/(--kubernetes-version )v[0-9]+\.[0-9]+\.[0-9]+/\1${new}/g" "${f}"
+            changed=true
+        fi
+    done < <(find "${REPO_ROOT}/docs" -name '*.md' -type f)
+    if [[ "${changed}" == true ]]; then echo "docs: Updated --kubernetes-version references to ${new}"; fi
 }
