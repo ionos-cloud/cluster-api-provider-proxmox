@@ -4,15 +4,6 @@ IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.33.0
 
-TOOLS_DIR := hack/tools
-
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
-
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -41,13 +32,13 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	go tool controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen conversion-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object paths="./..."
-	$(CONVERSION_GEN) \
+generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	go tool controller-gen object paths="./..."
+	go tool conversion-gen \
 		--output-file=zz_generated.conversion.go \
 		./api/v1alpha1
 
@@ -59,43 +50,44 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+## Linter Binaries
+GOLANGCI_LINT_KAL ?= bin/golangci-lint-kube-api-linter
+GOLANGCI_LINT_EXTRA_ARGS ?=
+
 .PHONY: lint
-lint: golangci-lint golangci-lint-kal ## Run linters.
-	$(GOLANGCI_LINT) run -v $(GOLANGCI_LINT_EXTRA_ARGS)
+lint: $(GOLANGCI_LINT_KAL) ## Run linters.
+	go tool golangci-lint run -v $(GOLANGCI_LINT_EXTRA_ARGS)
 	$(GOLANGCI_LINT_KAL) run -v --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
 
 .PHONY: lint-fix
 lint-fix: ## Run linters with auto-fix.
 	GOLANGCI_LINT_EXTRA_ARGS=--fix $(MAKE) lint
 
-.PHONY: lint-api
-lint-api: golangci-lint-kal ## Run kube-api-linter.
-	$(GOLANGCI_LINT_KAL) run -v --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
-
-.PHONY: lint-api-fix
-lint-api-fix: ## Run kube-api-linter with auto-fix.
-	GOLANGCI_LINT_EXTRA_ARGS=--fix $(MAKE) lint-api
+$(GOLANGCI_LINT_KAL): .custom-gcl.yaml
+	go tool golangci-lint custom
 
 # Package names to test
 WHAT ?= ./...
 
+## Location for envtest binary assets
+LOCALBIN ?= $(shell pwd)/bin
+
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests. Specify packages to test using WHAT.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $(WHAT) -coverprofile cover.out
+test: manifests generate fmt vet ## Run tests. Specify packages to test using WHAT.
+	KUBEBUILDER_ASSETS="$(shell go tool setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $(WHAT) -coverprofile cover.out
 
 .PHONY: mockgen
 mockgen: ## Generate mocks.
-	go run -modfile ./hack/tools/go.mod github.com/vektra/mockery/v2
+	go tool mockery
 
 .PHONY: yamlfmt
 yamlfmt: ## Run yamlfmt against yaml.
-	go run -modfile ./hack/tools/go.mod github.com/google/yamlfmt/cmd/yamlfmt -dry -quiet
-	go run -modfile ./hack/tools/go.mod github.com/google/yamlfmt/cmd/yamlfmt
+	go tool yamlfmt -dry -quiet
+	go tool yamlfmt
 
 .PHONY: tidy
 tidy: ## Run go mod tidy to ensure modules are up to date
 	go mod tidy
-	go -C $(TOOLS_DIR) mod tidy
 
 ##@ Build
 
@@ -142,7 +134,7 @@ verify: verify-modules verify-gen ## verify the manifests and the code.
 
 .PHONY: verify-modules
 verify-modules: tidy ## Verify go modules are up to date
-	@if !(git diff --quiet HEAD -- go.sum go.mod $(TOOLS_DIR)/go.mod $(TOOLS_DIR)/go.sum); then \
+	@if !(git diff --quiet HEAD -- go.sum go.mod); then \
 		git diff; \
 		echo "go module files are out of date"; exit 1; \
 	fi
@@ -166,86 +158,21 @@ ifndef ignore-not-found
 endif
 
 .PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	go tool kustomize build config/crd | kubectl apply -f -
 
 .PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	go tool kustomize build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && go tool kustomize edit set image controller=${IMG}
+	go tool kustomize build config/default | kubectl apply -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
-
-##@ Build Dependencies
-
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
-
-## Tool Binaries
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
-
-## Linter Binaries
-GOLANGCI_LINT_VERSION ?= v2.9.0
-GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
-GOLANGCI_LINT_KAL ?= $(TOOLS_DIR)/bin/golangci-lint-kube-api-linter
-GOLANGCI_LINT_EXTRA_ARGS ?=
-
-## Tool Versions
-KUSTOMIZE_VERSION ?= v5.0.0
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
-ENVTEST_VERSION ?= 42a14a36c13b95dd6bc8b4ba69c181b16d50e3c0 # last version to support go1.24, don't update until we're on k8s/0.34
-
-## Conversion gen
-CONVERSION_GEN_VER := v0.33.3
-CONVERSION_GEN := $(LOCALBIN)/conversion-gen
-
-KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
-$(KUSTOMIZE): $(LOCALBIN)
-	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
-		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
-		rm -rf $(LOCALBIN)/kustomize; \
-	fi
-	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) --output install_kustomize.sh && bash install_kustomize.sh $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); rm install_kustomize.sh; }
-
-.PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
-
-.PHONY: conversion-gen
-conversion-gen: $(CONVERSION_GEN) ## Download conversion-gen locally if necessary. If wrong version is installed, it will be overwritten.
-$(CONVERSION_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/conversion-gen && $(LOCALBIN)/conversion-gen | grep -q $(CONVERSION_GEN_VER) || \
-	GOBIN=$(LOCALBIN) go install k8s.io/code-generator/cmd/conversion-gen@$(CONVERSION_GEN_VER)
-
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
-
-## Golangci-lint: install the base binary, then build the KAL custom binary from it.
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT)
-$(GOLANGCI_LINT): $(LOCALBIN)
-	test -s $(GOLANGCI_LINT) || { GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) && mv $(LOCALBIN)/golangci-lint $(GOLANGCI_LINT); }
-
-.PHONY: golangci-lint-kal
-golangci-lint-kal: $(GOLANGCI_LINT_KAL)
-$(GOLANGCI_LINT_KAL): $(GOLANGCI_LINT)
-	cd $(TOOLS_DIR) && $(abspath $(GOLANGCI_LINT)) custom
+	go tool kustomize build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Test
 
@@ -297,13 +224,13 @@ RELEASE_VERSION ?= v0.0.1
 
 .PHONY: release-manifests
 RELEASE_MANIFEST_SOURCE_BASE ?= config/default
-release-manifests: $(KUSTOMIZE) ## Create kustomized release manifest in $RELEASE_DIR (defaults to out).
+release-manifests: ## Create kustomized release manifest in $RELEASE_DIR (defaults to out).
 	@mkdir -p $(RELEASE_DIR)
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
 	## change the image tag to the release version
-	cd $(RELEASE_MANIFEST_SOURCE_BASE) && $(KUSTOMIZE) edit set image $(REPOSITORY):$(RELEASE_VERSION)
+	cd $(RELEASE_MANIFEST_SOURCE_BASE) && go tool kustomize edit set image $(REPOSITORY):$(RELEASE_VERSION)
 	## generate the release manifest
-	$(KUSTOMIZE) build $(RELEASE_MANIFEST_SOURCE_BASE) > $(RELEASE_DIR)/infrastructure-components.yaml
+	go tool kustomize build $(RELEASE_MANIFEST_SOURCE_BASE) > $(RELEASE_DIR)/infrastructure-components.yaml
 
 .PHONY: release-templates
 release-templates: ## Generate release templates
@@ -335,30 +262,14 @@ ARTIFACTS ?= $(ROOT_DIR)/_artifacts
 SKIP_CLEANUP ?= false
 SKIP_CREATE_MGMT_CLUSTER ?= false
 
-# Install tools
-
-GINKGO_BIN := ginkgo
-GINKGO := $(LOCALBIN)/$(GINKGO_BIN)
-
-ENVSUBST_VER := v1.4.2
-ENVSUBST_BIN := envsubst
-ENVSUBST := $(LOCALBIN)/$(ENVSUBST_BIN)
-
-$(ENVSUBST): ## Build envsubst.
-	test -s $(LOCALBIN)/$(ENVSUBST_BIN) || \
-	GOBIN=$(LOCALBIN) go install github.com/a8m/envsubst/cmd/envsubst@$(ENVSUBST_VER)
-
-$(GINKGO): ## Build ginkgo.
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/v2/ginkgo
-
 .PHONY: e2e-image
 e2e-image:
 	docker build --tag="$(REPOSITORY):e2e" .
 
 .PHONY: test-e2e
-test-e2e: $(ENVSUBST) $(KUBECTL) $(GINKGO) kustomize e2e-image ## Run the end-to-end tests
-	$(ENVSUBST) < $(E2E_CONF_FILE) > $(E2E_CONF_FILE_ENVSUBST) && \
-	time $(GINKGO) -v --trace -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
+test-e2e: e2e-image ## Run the end-to-end tests
+	go tool envsubst < $(E2E_CONF_FILE) > $(E2E_CONF_FILE_ENVSUBST) && \
+	time go tool ginkgo -v --trace -poll-progress-after=$(GINKGO_POLL_PROGRESS_AFTER) -poll-progress-interval=$(GINKGO_POLL_PROGRESS_INTERVAL) \
 	--tags=e2e --focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) \
 	--timeout=$(GINKGO_TIMEOUT) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" --fail-fast  $(GINKGO_ARGS) ./test/e2e -- \
 		-e2e.artifacts-folder="$(ARTIFACTS)" \
