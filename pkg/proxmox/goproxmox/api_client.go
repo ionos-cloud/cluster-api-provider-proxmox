@@ -20,6 +20,7 @@ package goproxmox
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"slices"
 	"strings"
@@ -27,7 +28,9 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 )
 
@@ -144,75 +147,64 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 
 // FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
 func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error) {
-	vmTemplates := make([]*proxmox.ClusterResource, 0)
-
-	sortedTags := make([]string, len(templateTags))
-	for i, tag := range templateTags {
-		// Proxmox VM tags are always lowercase
-		sortedTags[i] = strings.ToLower(tag)
-	}
-	slices.Sort(sortedTags)
-	uniqueTags := slices.Compact(sortedTags)
+	logger := log.FromContext(ctx)
 
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
 		return "", -1, fmt.Errorf("cannot get cluster status: %w", err)
 	}
-
 	vmResources, err := cluster.Resources(ctx, "vm")
 	if err != nil {
 		return "", -1, fmt.Errorf("could not list vm resources: %w", err)
 	}
 
+	for i, tag := range templateTags {
+		// Proxmox VM tags are always lowercase
+		templateTags[i] = strings.ToLower(tag)
+	}
+	// compact templateTags because of collisions after lowercasing
+	slices.Sort(templateTags)
+	templateTags = slices.Compact(templateTags)
+
+	var vmTemplate *proxmox.ClusterResource
+	matches := 0
+NEXT_VM:
 	for _, vm := range vmResources {
-		if vm.Template == 0 {
-			continue
-		}
-		if len(vm.Tags) == 0 {
+		if vm.Template == 0 || len(vm.Tags) == 0 {
 			continue
 		}
 
-		vmTags := strings.Split(vm.Tags, ";")
-		for i := range vmTags {
-			vmTags[i] = strings.ToLower(strings.TrimSpace(vmTags[i]))
+		vmTagMap := make(map[string]string)
+		for _, tag := range strings.Split(vm.Tags, ";") {
+			vmTagMap[strings.ToLower(strings.TrimSpace(tag))] = ""
 		}
-		slices.Sort(vmTags)
-		vmTags = slices.Compact(vmTags)
 
-		// Check whether the template’s tags (tagsPresent) contain all the requested tags (tagsWanted)
-		isSuperset := func(tagsPresent, tagsWanted []string) bool {
-			presentIdx, wantedIdx := 0, 0
-			for presentIdx < len(tagsPresent) && wantedIdx < len(tagsWanted) {
-				switch {
-				case tagsPresent[presentIdx] == tagsWanted[wantedIdx]:
-					presentIdx++
-					wantedIdx++
-				case tagsPresent[presentIdx] < tagsWanted[wantedIdx]:
-					presentIdx++
-				default:
-					return false
-				}
+		logger.V(4).Info("VM Template Tags", "Name", vm.Name, "Tags", maps.Values(vmTagMap))
+
+		for _, tag := range templateTags {
+			if _, exists := vmTagMap[tag]; !exists {
+				continue NEXT_VM
 			}
-			return wantedIdx == len(tagsWanted)
 		}
 
-		matches := false
-		if resolutionPolicy == "subset" {
-			matches = isSuperset(vmTags, uniqueTags)
-		} else if len(vmTags) == len(uniqueTags) && slices.Equal(vmTags, uniqueTags) {
-			matches = true
+		switch infrav1.TemplateResolutionPolicy(resolutionPolicy) {
+		case infrav1.TemplateResolutionPolicyExact:
+			if len(vmTagMap) != len(templateTags) {
+				continue NEXT_VM
+			}
+			fallthrough
+		default:
+			matches++
 		}
 
-		if matches {
-			vmTemplates = append(vmTemplates, vm)
-		}
+		vmTemplate = vm
 	}
 
-	if n := len(vmTemplates); n != 1 {
-		return "", -1, fmt.Errorf("%w: found %d VM templates with tags %q", ErrTemplateNotFound, n, strings.Join(templateTags, ";"))
+	if matches != 1 {
+		return "", -1, fmt.Errorf("%w: found %d VM templates with tags %q", ErrTemplateNotFound, matches, strings.Join(templateTags, ";"))
 	}
 
-	return vmTemplates[0].Node, int32(vmTemplates[0].VMID), nil
+	return vmTemplate.Node, int32(vmTemplate.VMID), nil
 }
 
 // DeleteVM deletes a VM based on the nodeName and vmID.
