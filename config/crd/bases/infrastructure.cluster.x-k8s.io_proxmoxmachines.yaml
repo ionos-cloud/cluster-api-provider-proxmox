@@ -1354,8 +1354,9 @@ spec:
                 format: int32
                 type: integer
               templateSelector:
-                description: templateSelector defines MatchTags for looking up VM
-                  templates.
+                description: |-
+                  templateSelector defines MatchTags for looking up VM templates.
+                  If a templateID is defined, templateSelector will be ignored.
                 properties:
                   matchTags:
                     description: |-
@@ -1371,7 +1372,7 @@ spec:
                   resolutionPolicy:
                     default: exact
                     description: |-
-                      ResolutionPolicy controls how MatchTags are evaluated against template tags.
+                      resolutionPolicy controls how MatchTags are evaluated against template tags.
                       When not set, or set to "exact", the behaviour is identical to the previous implementation
                       and requires an exact 1:1 tag match. When set to "subset", the template's tags must contain
                       all MatchTags, but may include additional tags.
@@ -1425,6 +1426,8 @@ spec:
               rule: self.full || !has(self.format)
             - message: Must set full=true when specifying storage
               rule: self.full || !has(self.storage)
+            - message: Must specify either templateID or templateSelector
+              rule: has(self.templateSelector) || (has(self.templateID) && has(self.sourceNode))
           status:
             description: status is the status of the Proxmox machine.
             properties:
