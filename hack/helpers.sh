@@ -276,6 +276,30 @@ e2econfig_set_k8s() {
     if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "test/e2e/config: Updated KUBERNETES_VERSION ${old} to ${new}"; fi
 }
 
+# e2econfig_get_capi returns the cluster-api provider version from the first
+# e2e config file (e.g. "v1.10.4").
+e2econfig_get_capi() {
+    yq '.providers[] | select(.type == "CoreProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+}
+
+# e2econfig_set_capi updates the cluster-api provider version in all e2e
+# config files, including both the provider name and download URL.
+e2econfig_set_capi() {
+    local new="$1" old old_escaped
+    old=$(e2econfig_get_capi)
+    if [[ -z "${old}" ]]; then return; fi
+    old_escaped="${old//./\\.}"
+    for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
+        if [[ -f "${f}" ]]; then
+            yq -i '
+              (.providers[].versions[] | select(.value | test("cluster-api/releases/download"))) |=
+                (.name = "'"${new}"'" | .value = (.value | sub("'"${old_escaped}"'", "'"${new}"'")))
+            ' "${f}"
+        fi
+    done
+    if [[ "${old}" != "${new}" ]]; then echo "test/e2e/config: Updated cluster-api ${old} to ${new}"; fi
+}
+
 # ---- version extraction: docs kubernetes-version ----
 
 # docs_get_k8s returns the first --kubernetes-version value found in docs
@@ -297,4 +321,27 @@ docs_set_k8s() {
         fi
     done < <(find "${REPO_ROOT}/docs" -name '*.md' -type f)
     if [[ "${changed}" == true ]]; then echo "docs: Updated --kubernetes-version references to ${new}"; fi
+}
+
+# ---- version extraction: metadata.yaml ----
+
+# Top-level metadata.yaml is the source of truth for the contract version
+# that the current release adheres to.
+METADATA_FILE="${REPO_ROOT}/metadata.yaml"
+# E2E test metadata maps CAPI release series to contract versions.
+E2E_METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
+
+# metadata_has_release returns 0 (true) when a releaseSeries entry with the
+# given major and minor version already exists in the e2e metadata file.
+metadata_has_release() {
+    local major="$1" minor="$2"
+    yq -e '.releaseSeries[] | select(.major == '"${major}"' and .minor == '"${minor}"')' "${E2E_METADATA_FILE}" > /dev/null 2>&1
+}
+
+# metadata_add_release prepends a new releaseSeries entry to the e2e metadata
+# file and prints a confirmation message.
+metadata_add_release() {
+    local major="$1" minor="$2" contract="$3"
+    yq -i '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}] + .releaseSeries' "${E2E_METADATA_FILE}"
+    echo "test/e2e/data/shared/v1beta1/metadata.yaml: Added releaseSeries entry for v${major}.${minor} (${contract})"
 }
