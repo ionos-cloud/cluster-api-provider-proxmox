@@ -179,7 +179,15 @@ deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/c
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	go tool kustomize build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-##@ Test
+SHELLSPEC_ARGS ?=
+
+.PHONY: lint-sh
+lint-sh: ## Run shellcheck on hack/ scripts.
+	shellcheck hack/*.sh
+
+.PHONY: test-sh
+test-sh: ## Run ShellSpec tests for hack/ scripts with kcov coverage.
+	cd hack/spec && shellspec --kcov --kcov-options='--include-path=$(CURDIR)/hack/' $(SHELLSPEC_ARGS)
 
 .PHONY: tilt-up
 tilt-up: ## Start Tilt in a kind cluster.
