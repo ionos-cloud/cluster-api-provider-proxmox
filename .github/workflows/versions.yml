@@ -1,0 +1,88 @@
+name: Version Consistency
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  pull_request_target:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: auto-bump
+    # Only run on dependabot pull_request_target events to complete partial
+    # version bumps.  When bump pushes, the new commit triggers a
+    # pull_request synchronize event which re-runs the verify job below.
+    if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Checkout base scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: _base
+
+      - name: Checkout PR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          # Use the default GITHUB_TOKEN — dependabot PRs from the same repo
+          # have write access when triggered via pull_request_target.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: pr
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: pr/go.mod
+
+      - name: Install yq
+        uses: mikefarah/yq@5a7e72a743649b1b3a47d1a1d8214f3453173c51 # v4.52.4
+
+      - name: Run auto-bump
+        id: bump
+        working-directory: pr
+        run: |
+          output=$(REPO_ROOT="$(pwd)" "${{ github.workspace }}/_base/hack/auto-bump.sh" 2>&1)
+          echo "${output}"
+          # Expose whether changes were made.
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.bump.outputs.changed == 'true'
+        working-directory: pr
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: auto-bump related versions"
+          git push
+
+  verify:
+    name: verify-versions
+    # Only run on push and pull_request events — never on pull_request_target
+    # to avoid running scripts from an untrusted checkout.
+    if: github.event_name != 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Install yq
+        uses: mikefarah/yq@5a7e72a743649b1b3a47d1a1d8214f3453173c51 # v4.52.4
+
+      - name: Verify version consistency
+        run: hack/verify-versions.sh
