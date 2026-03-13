@@ -21,18 +21,18 @@ import (
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 // ConvertTo converts this ProxmoxCluster to the Hub version (v1alpha2).
 func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*infrav1.ProxmoxCluster)
+	dst := dstRaw.(*v1alpha2.ProxmoxCluster)
 	if err := Convert_v1alpha1_ProxmoxCluster_To_v1alpha2_ProxmoxCluster(src, dst, nil); err != nil {
 		return err
 	}
 
 	// Manually restore data from annotations
-	restored := &infrav1.ProxmoxCluster{}
+	restored := &v1alpha2.ProxmoxCluster{}
 	ok, err := utilconversion.UnmarshalData(src, restored)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 
 // ConvertFrom converts from the Hub version (v1alpha2) to this version.
 func (dst *ProxmoxCluster) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*infrav1.ProxmoxCluster)
+	src := srcRaw.(*v1alpha2.ProxmoxCluster)
 	if err := Convert_v1alpha2_ProxmoxCluster_To_v1alpha1_ProxmoxCluster(src, dst, nil); err != nil {
 		return err
 	}
@@ -64,12 +64,12 @@ func (dst *ProxmoxCluster) ConvertFrom(srcRaw conversion.Hub) error {
 
 // ConvertTo converts this ProxmoxClusterList to the Hub version (v1alpha2).
 func (src *ProxmoxClusterList) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*infrav1.ProxmoxClusterList)
+	dst := dstRaw.(*v1alpha2.ProxmoxClusterList)
 	return Convert_v1alpha1_ProxmoxClusterList_To_v1alpha2_ProxmoxClusterList(src, dst, nil)
 }
 
 // ConvertFrom converts from the Hub version (v1beta1) to this version.
 func (dst *ProxmoxClusterList) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*infrav1.ProxmoxClusterList)
+	src := srcRaw.(*v1alpha2.ProxmoxClusterList)
 	return Convert_v1alpha2_ProxmoxClusterList_To_v1alpha1_ProxmoxClusterList(src, dst, nil)
 }

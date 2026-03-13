@@ -21,17 +21,17 @@ import (
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 // ConvertTo converts this ProxmoxClusterTemplate to the Hub version (v1alpha2).
 func (src *ProxmoxClusterTemplate) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*infrav1.ProxmoxClusterTemplate)
+	dst := dstRaw.(*v1alpha2.ProxmoxClusterTemplate)
 	if err := Convert_v1alpha1_ProxmoxClusterTemplate_To_v1alpha2_ProxmoxClusterTemplate(src, dst, nil); err != nil {
 		return err
 	}
 
-	restored := &infrav1.ProxmoxClusterTemplate{}
+	restored := &v1alpha2.ProxmoxClusterTemplate{}
 	ok, err := utilconversion.UnmarshalData(src, restored)
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (src *ProxmoxClusterTemplate) ConvertTo(dstRaw conversion.Hub) error {
 
 // ConvertFrom converts from the Hub version (v1alpha2) to this version.
 func (dst *ProxmoxClusterTemplate) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*infrav1.ProxmoxClusterTemplate)
+	src := srcRaw.(*v1alpha2.ProxmoxClusterTemplate)
 	if err := Convert_v1alpha2_ProxmoxClusterTemplate_To_v1alpha1_ProxmoxClusterTemplate(src, dst, nil); err != nil {
 		return err
 	}
@@ -73,12 +73,12 @@ func (dst *ProxmoxClusterTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 
 // ConvertTo converts this ProxmoxMachineTemplate to the Hub version (v1alpha2).
 func (src *ProxmoxClusterTemplateList) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*infrav1.ProxmoxClusterTemplateList)
+	dst := dstRaw.(*v1alpha2.ProxmoxClusterTemplateList)
 	return Convert_v1alpha1_ProxmoxClusterTemplateList_To_v1alpha2_ProxmoxClusterTemplateList(src, dst, nil)
 }
 
 // ConvertFrom converts from the Hub version (v1alpha2) to this version.
 func (dst *ProxmoxClusterTemplateList) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*infrav1.ProxmoxClusterTemplateList)
+	src := srcRaw.(*v1alpha2.ProxmoxClusterTemplateList)
 	return Convert_v1alpha2_ProxmoxClusterTemplateList_To_v1alpha1_ProxmoxClusterTemplateList(src, dst, nil)
 }
