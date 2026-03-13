@@ -58,6 +58,24 @@ split_version() {
     PATCH=$(echo "${no_v}" | cut -d. -f3)
 }
 
+# version_gte returns 0 when version $1 >= version $2 (semver, optional v prefix).
+# Compares major, minor, patch numerically; ignores pre-release suffixes.
+version_gte() {
+    local a b
+    a=$(strip_v_prefix "${1%%-*}")
+    b=$(strip_v_prefix "${2%%-*}")
+    local -a va vb
+    IFS=. read -ra va <<< "${a}"
+    IFS=. read -ra vb <<< "${b}"
+    local i na nb
+    for i in 0 1 2; do
+        na="${va[$i]:-0}"; nb="${vb[$i]:-0}"
+        if (( na > nb )); then return 0; fi
+        if (( na < nb )); then return 1; fi
+    done
+    return 0
+}
+
 # versions_differ returns 0 when two non-empty versions are different.
 # Usage: if versions_differ "$a" "$b"; then fail "mismatch"; fi
 versions_differ() {
@@ -71,9 +89,9 @@ gomod_get_go() {
     awk '/^go /{print $2; exit}' "${REPO_ROOT}/go.mod"
 }
 
-# gomod_get_replace returns the target version from a replace directive
-# for the given package in go.mod.
-# Returns empty string if not found or if there is no replace for this package.
+# gomod_get_require returns the version of a package from a require
+# directive in go.mod (direct or indirect).
+# Returns empty string if not found.
 gomod_get_require() {
     local pkg="$1"
     (cd "${REPO_ROOT}" && go list -m -f '{{.Version}}' "${pkg}" 2>/dev/null) || true
@@ -338,8 +356,7 @@ metadata_latest_contract() {
 }
 
 # metadata_has_release returns 0 when a releaseSeries entry with the
-# given major and minor version already exists in the top-level metadata.yaml
-# (the capmox release catalog).
+# given major and minor version already exists in the e2e metadata file.
 metadata_has_release() {
     local major="$1" minor="$2"
     yq -e '.releaseSeries[] | select(.major == '"${major}"' and .minor == '"${minor}"')' "${E2E_METADATA_FILE}" > /dev/null 2>&1
