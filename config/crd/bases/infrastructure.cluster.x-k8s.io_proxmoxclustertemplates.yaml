@@ -129,27 +129,119 @@ spec:
                                     Disks contains a set of disk configuration options,
                                     which will be applied before the first startup.
                                   properties:
+                                    additionalVolumes:
+                                      description: |-
+                                        AdditionalVolumes defines additional volumes to be added to the virtual machine.
+                                        Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (additional
+                                        items with boot:false). Use for v1alpha1/v1alpha2; plan to migrate to `volumes[]` when available.
+                                      items:
+                                        description: DiskSpec is contains values for
+                                          the disk device and size.
+                                        properties:
+                                          discard:
+                                            description: |-
+                                              Discard enables TRIM/UNMAP support for this virtual disk.
+                                              Safe on IDE/SATA/SCSI/VirtIO; maps to Proxmox "discard=on".
+                                              If omitted or false, the flag is not set.
+                                            type: boolean
+                                          disk:
+                                            description: |-
+                                              Disk is the name of the disk device, that should be resized.
+                                              Example values are: ide[0-3], scsi[0-30], sata[0-5].
+                                            type: string
+                                          format:
+                                            description: 'Format is optional:'
+                                            enum:
+                                            - raw
+                                            - qcow2
+                                            - vmdk
+                                            type: string
+                                          ioThread:
+                                            description: |-
+                                              IOThread enables the option IO Thread,
+                                              With IO Thread enabled, QEMU creates one I/O thread per storage controller rather than handling all I/O in the main event loop or vCPU threads.
+                                              The option IO Thread can only be used when using a disk with the VirtIO controller, or with the SCSI controller
+                                            type: boolean
+                                          sizeGb:
+                                            description: |-
+                                              Size defines the size in gigabyte.
+                                              As Proxmox does not support shrinking, the size
+                                              must be bigger than the already configured size in the
+                                              template.
+                                            format: int32
+                                            minimum: 5
+                                            type: integer
+                                          ssd:
+                                            description: |-
+                                              SSD enables SSD emulation feature
+                                              SSD emulation sets a drive to be presented to the guest as a solid-state drive rather than a rotational hard disk
+                                              There is no requirement that the underlying storage actually be backed by SSDs; this feature can be used with physical media of any type
+                                              SSD emulation is not supported on VirtIO Block drives.
+                                            type: boolean
+                                          storage:
+                                            description: |-
+                                              Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
+                                              If omitted, falls back to the machine's .spec.storage if exists, otherwise the Proxmox node’s default storage.
+                                            type: string
+                                        required:
+                                        - disk
+                                        - sizeGb
+                                        type: object
+                                      type: array
                                     bootVolume:
                                       description: |-
                                         BootVolume defines the storage size for the boot volume.
+                                        Deprecated: This field will be replaced by a unified `spec.disks.volumes[]` list (one item
+                                        with boot:true). Use BootVolume for v1alpha1/v1alpha2, but plan to migrate to `volumes[]` when
+                                        available.
                                         This field is optional, and should only be set if you want
                                         to change the size of the boot volume.
                                       properties:
+                                        discard:
+                                          description: |-
+                                            Discard enables TRIM/UNMAP support for this virtual disk.
+                                            Safe on IDE/SATA/SCSI/VirtIO; maps to Proxmox "discard=on".
+                                            If omitted or false, the flag is not set.
+                                          type: boolean
                                         disk:
                                           description: |-
                                             Disk is the name of the disk device, that should be resized.
                                             Example values are: ide[0-3], scsi[0-30], sata[0-5].
                                           type: string
+                                        format:
+                                          description: 'Format is optional:'
+                                          enum:
+                                          - raw
+                                          - qcow2
+                                          - vmdk
+                                          type: string
+                                        ioThread:
+                                          description: |-
+                                            IOThread enables the option IO Thread,
+                                            With IO Thread enabled, QEMU creates one I/O thread per storage controller rather than handling all I/O in the main event loop or vCPU threads.
+                                            The option IO Thread can only be used when using a disk with the VirtIO controller, or with the SCSI controller
+                                          type: boolean
                                         sizeGb:
                                           description: |-
                                             Size defines the size in gigabyte.
-
                                             As Proxmox does not support shrinking, the size
                                             must be bigger than the already configured size in the
                                             template.
                                           format: int32
                                           minimum: 5
                                           type: integer
+                                        ssd:
+                                          description: |-
+                                            SSD enables SSD emulation feature
+                                            SSD emulation sets a drive to be presented to the guest as a solid-state drive rather than a rotational hard disk
+                                            There is no requirement that the underlying storage actually be backed by SSDs; this feature can be used with physical media of any type
+                                            SSD emulation is not supported on VirtIO Block drives.
+                                          type: boolean
+                                        storage:
+                                          description: |-
+                                            Storage is an optional per-volume Proxmox storage name (e.g., "local-lvm", "nfs-data").
+                                            If omitted, falls back to the machine's .spec.storage if exists, otherwise the Proxmox node’s default storage.
+                                          type: string
                                       required:
                                       - disk
                                       - sizeGb
@@ -159,12 +251,17 @@ spec:
                                         rule: self == oldSelf
                                   type: object
                                 format:
+                                  allOf:
+                                  - enum:
+                                    - raw
+                                    - qcow2
+                                    - vmdk
+                                  - enum:
+                                    - raw
+                                    - qcow2
+                                    - vmdk
                                   description: Format for file storage. Only valid
                                     for full clone.
-                                  enum:
-                                  - raw
-                                  - qcow2
-                                  - vmdk
                                   type: string
                                 full:
                                   default: true
