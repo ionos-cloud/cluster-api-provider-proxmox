@@ -17,13 +17,14 @@ limitations under the License.
 package v1alpha2
 
 import (
+	"fmt"
+	"net"
+	"slices"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 )
 
 const (
@@ -32,109 +33,163 @@ const (
 	// ClusterFinalizer allows cleaning up resources associated with a
 	// ProxmoxCluster before removing it from the apiserver.
 	ClusterFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io"
-	// SecretFinalizer is the finalizer for ProxmoxCluster credentials secrets .
+	// SecretFinalizer is the finalizer for ProxmoxCluster credentials secrets.
 	SecretFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io/secret" //nolint:gosec
 )
 
 // ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.
 type ProxmoxClusterSpec struct {
-	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
+	// controlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.port > 0 && self.port < 65536",message="port must be within 1-65535"
-	ControlPlaneEndpoint *clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
+	ControlPlaneEndpoint APIEndpoint `json:"controlPlaneEndpoint,omitempty,omitzero"`
 
-	// ExternalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
+	// externalManagedControlPlane can be enabled to allow externally managed Control Planes to patch the
 	// Proxmox cluster with the Load Balancer IP provided by Control Plane provider.
-	ExternalManagedControlPlane bool `json:"externalManagedControlPlane,omitempty"`
+	// +optional
+	// +default=false
+	ExternalManagedControlPlane *bool `json:"externalManagedControlPlane,omitempty"`
 
-	// AllowedNodes specifies all Proxmox nodes which will be considered
+	// allowedNodes specifies all Proxmox nodes which will be considered
 	// for operations. This implies that VMs can be cloned on different nodes from
 	// the node which holds the VM template.
+	// +listType=set
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
-	// SchedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
+	// schedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
 	// to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
 	// +optional
 	SchedulerHints *SchedulerHints `json:"schedulerHints,omitempty"`
 
-	// IPv4Config contains information about available IPV4 address pools and the gateway.
+	// ipv4Config contains information about available IPv4 address pools and the gateway.
 	// This can be combined with ipv6Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
-	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty"`
+	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty,omitzero"`
 
-	// IPv6Config contains information about available IPV6 address pools and the gateway.
+	// ipv6Config contains information about available IPv6 address pools and the gateway.
 	// This can be combined with ipv4Config in order to enable dual stack.
 	// Either IPv4Config or IPv6Config must be provided.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
-	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty"`
+	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty,omitzero"`
 
-	// DNSServers contains information about nameservers used by the machines.
+	// dnsServers contains information about nameservers used by the machines.
+	// +required
+	// +listType=set
 	// +kubebuilder:validation:MinItems=1
-	DNSServers []string `json:"dnsServers"`
+	DNSServers []string `json:"dnsServers,omitempty"`
 
-	// NodeCloneSpec is the configuration pertaining to all items configurable
-	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
+	// zoneConfig defines a IPAddress config per deployment zone.
+	// +listType=map
+	// +listMapKey=zone
 	// +optional
-	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
+	ZoneConfigs []ZoneConfigSpec `json:"zoneConfig,omitempty"`
 
-	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
+	// credentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
 	// supplied then the credentials of the controller will be used.
 	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
 	// +optional
 	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
 }
 
-// ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
-// in the configuration and cloning of a proxmox VM.
-type ProxmoxClusterCloneSpec struct {
-	ProxmoxMachineSpec map[string]ProxmoxMachineSpec `json:"machineSpec"`
-
-	// SshAuthorizedKeys contains the authorized keys deployed to the PROXMOX VMs.
+// APIEndpoint represents a reachable Kubernetes API endpoint.
+// +kubebuilder:validation:MinProperties=1
+// The XValidation rule below is necessary because port uses omitempty, so a zero
+// value is omitted from JSON and the field-level Minimum=1 constraint never fires.
+// +kubebuilder:validation:XValidation:rule="self.port > 0 && self.port < 65536",message="port must be within 1-65535"
+type APIEndpoint struct {
+	// host is the hostname on which the API server is serving.
 	// +optional
-	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitzero"`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=512
+	Host string `json:"host,omitempty"`
 
-	// VirtualIPNetworkInterface is the interface the k8s control plane binds to.
+	// port is the port on which the API server is serving.
 	// +optional
-	VirtualIPNetworkInterface string `json:"virtualIPNetworkInterface"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port int32 `json:"port,omitempty"`
+}
+
+// IsZero returns true if both host and port are zero values.
+func (v APIEndpoint) IsZero() bool {
+	return v.Host == "" && v.Port == 0
+}
+
+// String returns a formatted version HOST:PORT of this APIEndpoint.
+func (v APIEndpoint) String() string {
+	return net.JoinHostPort(v.Host, fmt.Sprintf("%d", v.Port))
+}
+
+// ZoneConfigSpec is the Network Configuration for further deployment zones.
+type ZoneConfigSpec struct {
+	// zone is the name of your deployment zone.
+	// +required
+	Zone Zone `json:"zone,omitempty"`
+
+	// ipv4Config contains information about available IPv4 address pools and the gateway.
+	// This can be combined with ipv6Config in order to enable dual stack.
+	// Either IPv4Config or IPv6Config must be provided.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv4Config addresses must be provided"
+	IPv4Config *IPConfigSpec `json:"ipv4Config,omitempty,omitzero"`
+
+	// ipv6Config contains information about available IPv6 address pools and the gateway.
+	// This can be combined with ipv4Config in order to enable dual stack.
+	// Either IPv4Config or IPv6Config must be provided.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.addresses.size() > 0",message="IPv6Config addresses must be provided"
+	IPv6Config *IPConfigSpec `json:"ipv6Config,omitempty,omitzero"`
+
+	// dnsServers contains information about nameservers used by the machines in this zone.
+	// +required
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	DNSServers []string `json:"dnsServers,omitempty"`
 }
 
 // IPConfigSpec contains information about available IP config.
 type IPConfigSpec struct {
-	// Addresses is a list of IP addresses that can be assigned. This set of
-	// addresses can be non-contiguous.
-	Addresses []string `json:"addresses"`
+	// addresses is a list of IP addresses that can be assigned. This set of addresses can be non-contiguous.
+	// +required
+	// +listType=set
+	Addresses []string `json:"addresses,omitempty"`
 
-	// Prefix is the network prefix to use.
+	// prefix is the network prefix to use.
+	// +required
+	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=128
-	Prefix int `json:"prefix"`
+	Prefix int32 `json:"prefix,omitempty"`
 
-	// Gateway
-	// +optional
+	// gateway is the network gateway
+	// +required
+	// +kubebuilder:validation:MinLength=1
 	Gateway string `json:"gateway,omitempty"`
 
-	// Metric is the route priority applied to the default gateway
-	// +kubebuilder:default=100
-	Metric *uint32 `json:"metric"`
+	// metric is the route priority applied to the default gateway
+	// +optional
+	// +default=100
+	// +kubebuilder:validation:Minimum=0
+	Metric *int32 `json:"metric,omitempty"`
 }
 
 // SchedulerHints allows to pass the scheduler instructions to (dis)allow over- or enforce underprovisioning of resources.
 type SchedulerHints struct {
-	// MemoryAdjustment allows to adjust a node's memory by a given percentage.
+	// memoryAdjustment allows to adjust a node's memory by a given percentage.
 	// For example, setting it to 300 allows to allocate 300% of a host's memory for VMs,
 	// and setting it to 95 limits memory allocation to 95% of a host's memory.
 	// Setting it to 0 entirely disables scheduling memory constraints.
 	// By default 100% of a node's memory will be used for allocation.
+	// +kubebuilder:validation:Minimum=0
 	// +optional
-	MemoryAdjustment *uint64 `json:"memoryAdjustment,omitempty"`
+	MemoryAdjustment *int64 `json:"memoryAdjustment,omitempty"`
 }
 
 // GetMemoryAdjustment returns the memory adjustment percentage to use within the scheduler.
-func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
-	memoryAdjustment := uint64(100)
+func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
+	memoryAdjustment := int64(100)
 
 	if sh != nil {
 		memoryAdjustment = ptr.Deref(sh.MemoryAdjustment, 100)
@@ -145,83 +200,95 @@ func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
 
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
 type ProxmoxClusterStatus struct {
-	// Ready indicates that the cluster is ready.
+	// conditions represents the observations of a ProxmoxCluster's current state.
+	// Known condition types are Ready, ProxmoxAvailable and Paused.
 	// +optional
-	// +kubebuilder:default=false
-	Ready bool `json:"ready"`
+	// +listType=map
+	// +listMapKey=type
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// InClusterIPPoolRef is the reference to the created in-cluster IP pool.
+	// initialization provides observations of the ProxmoxCluster initialization process.
+	// NOTE: Fields in this struct are part of the Cluster API contract and are used to orchestrate initial Cluster provisioning.
 	// +optional
-	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIpPoolRef,omitempty"`
+	Initialization ProxmoxClusterInitializationStatus `json:"initialization,omitempty,omitzero"`
 
-	// NodeLocations keeps track of which nodes have been selected
+	// inClusterIPPoolRef is the reference to the created in-cluster IP pool.
+	// +listType=atomic
+	// +optional
+	InClusterIPPoolRef []corev1.LocalObjectReference `json:"inClusterIPPoolRef,omitempty"`
+
+	// inClusterZoneRef lists InClusterIPPools per proxmox-zone.
+	// +optional
+	// +listType=map
+	// +listMapKey=zone
+	//nolint:kubeapilinter
+	InClusterZoneRef []InClusterZoneRef `json:"inClusterZoneRef,omitempty"`
+	// justification: InClusterZoneRef legitimately consists of optional fields.
+	// It has an AtLeastOneOf validation rule but that's not enough to pay the linter.
+	// We should come up with a better data structure but for now, nolint.
+
+	// nodeLocations keeps track of which nodes have been selected
 	// for different machines.
 	// +optional
 	NodeLocations *NodeLocations `json:"nodeLocations,omitempty"`
+}
 
-	// FailureReason will be set in the event that there is a terminal problem
-	// reconciling the Machine and will contain a succinct value suitable
-	// for machine interpretation.
-	//
-	// This field should not be set for transitive errors that a controller
-	// faces that are expected to be fixed automatically over
-	// time (like service outages), but instead indicate that something is
-	// fundamentally wrong with the Machine's spec or the configuration of
-	// the controller, and that manual intervention is required. Examples
-	// of terminal errors would be invalid combinations of settings in the
-	// spec, values that are unsupported by the controller, or the
-	// responsible controller itself being critically misconfigured.
-	//
-	// Any transient errors that occur during the reconciliation of ProxmoxCluster
-	// can be added as events to the ProxmoxCluster object and/or logged in the
-	// controller's output.
+// ProxmoxClusterInitializationStatus provides observations of the ProxmoxCluster initialization process.
+// +kubebuilder:validation:MinProperties=1
+type ProxmoxClusterInitializationStatus struct {
+	// provisioned is true when the infrastructure provider reports that the Cluster's infrastructure is fully provisioned.
+	// NOTE: this field is part of the Cluster API contract, and it is used to orchestrate initial Cluster provisioning.
 	// +optional
-	FailureReason *capmoxerrors.DeprecatedCAPIClusterStatusError `json:"failureReason,omitempty"`
+	Provisioned *bool `json:"provisioned,omitempty"`
+}
 
-	// FailureMessage will be set in the event that there is a terminal problem
-	// reconciling the Machine and will contain a more verbose string suitable
-	// for logging and human consumption.
-	//
-	// This field should not be set for transitive errors that a controller
-	// faces that are expected to be fixed automatically over
-	// time (like service outages), but instead indicate that something is
-	// fundamentally wrong with the Machine's spec or the configuration of
-	// the controller, and that manual intervention is required. Examples
-	// of terminal errors would be invalid combinations of settings in the
-	// spec, values that are unsupported by the controller, or the
-	// responsible controller itself being critically misconfigured.
-	//
-	// Any transient errors that occur during the reconciliation of ProxmoxMachines
-	// can be added as events to the ProxmoxCluster object and/or logged in the
-	// controller's output.
+// InClusterZoneRef holds the InClusterIPPools associated with a zone.
+// +kubebuilder:validation:AtLeastOneOf=InClusterIPPoolRefV4,InClusterIPPoolRefV6
+type InClusterZoneRef struct {
+	// zone defines the deployment proxmox-zone.
+	// +default="default"
 	// +optional
-	FailureMessage *string `json:"failureMessage,omitempty"`
+	Zone Zone `json:"zone,omitempty"`
 
-	// Conditions defines current service state of the ProxmoxCluster.
+	// inClusterIPPoolRefV4 is the reference to the created in-cluster IP pool.
 	// +optional
-	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
+	InClusterIPPoolRefV4 *corev1.LocalObjectReference `json:"inClusterIPPoolRefV4,omitempty"`
+
+	// inClusterIPPoolRefV6 is the reference to the created in-cluster IP pool.
+	// +optional
+	InClusterIPPoolRefV6 *corev1.LocalObjectReference `json:"inClusterIPPoolRefV6,omitempty"`
 }
 
 // NodeLocations holds information about the deployment state of
 // control plane and worker nodes in Proxmox.
 type NodeLocations struct {
-	// ControlPlane contains all deployed control plane nodes.
+	// controlPlane contains all deployed control plane nodes.
 	// +optional
+	// +listType=atomic
 	ControlPlane []NodeLocation `json:"controlPlane,omitempty"`
 
-	// Workers contains all deployed worker nodes.
+	// workers contains all deployed worker nodes.
 	// +optional
+	// +listType=atomic
 	Workers []NodeLocation `json:"workers,omitempty"`
 }
 
 // NodeLocation holds information about a single VM
 // in Proxmox.
 type NodeLocation struct {
-	// Machine is the reference to the ProxmoxMachine.
-	Machine corev1.LocalObjectReference `json:"machine"`
+	// machine is the reference to the ProxmoxMachine that the node is on.
+	// +required
+	Machine corev1.LocalObjectReference `json:"machine,omitempty"`
 
-	// Node is the Proxmox node.
-	Node string `json:"node"`
+	// node is the Proxmox node.
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	Node string `json:"node,omitempty"`
+
+	// zone is the zone the Machine is in.
+	// +optional
+	Zone Zone `json:"zone,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -229,17 +296,27 @@ type NodeLocation struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=proxmoxclusters,scope=Namespaced,categories=cluster-api,singular=proxmoxcluster
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels['cluster\\.x-k8s\\.io/cluster-name']",description="Cluster"
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Cluster infrastructure is ready"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.initialization.provisioned",description="Cluster infrastructure is ready"
 // +kubebuilder:printcolumn:name="Endpoint",type="string",JSONPath=".spec.controlPlaneEndpoint",description="API Endpoint"
 
 // ProxmoxCluster is the Schema for the proxmoxclusters API.
 type ProxmoxCluster struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// metadata is the standard object metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// spec is the Proxmox Cluster spec
 	// +kubebuilder:validation:XValidation:rule="self.ipv4Config != null || self.ipv6Config != null",message="at least one ip config must be set, either ipv4Config or ipv6Config"
-	Spec   ProxmoxClusterSpec   `json:"spec,omitempty"`
-	Status ProxmoxClusterStatus `json:"status,omitempty"`
+	// +required
+	Spec ProxmoxClusterSpec `json:"spec,omitzero"`
+
+	// status is the Proxmox Cluster status
+	// +optional
+	//nolint:kubeapilinter
+	Status ProxmoxClusterStatus `json:"status,omitempty,omitzero"`
+	// Justification: this is the paradigm used by cluster-api.
 }
 
 // +kubebuilder:object:root=true
@@ -252,13 +329,60 @@ type ProxmoxClusterList struct {
 }
 
 // GetConditions returns the observations of the operational state of the ProxmoxCluster resource.
-func (c *ProxmoxCluster) GetConditions() clusterv1.Conditions {
+func (c *ProxmoxCluster) GetConditions() []metav1.Condition {
 	return c.Status.Conditions
 }
 
-// SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed clusterv1.Conditions.
-func (c *ProxmoxCluster) SetConditions(conditions clusterv1.Conditions) {
+// SetConditions sets the underlying service state of the ProxmoxCluster to the predescribed []metav1.Condition.
+func (c *ProxmoxCluster) SetConditions(conditions []metav1.Condition) {
 	c.Status.Conditions = conditions
+}
+
+// AddInClusterZoneRef will set the Zone references status for the provided pool.
+func (c *ProxmoxCluster) AddInClusterZoneRef(pool client.Object) {
+	if pool == nil || pool.GetName() == "" {
+		c.Status.InClusterZoneRef = nil
+		return
+	}
+
+	annotations := pool.GetAnnotations()
+	poolType, exists := annotations[ProxmoxIPFamilyAnnotation]
+
+	// Nothing to do, we can not detect ip family because that
+	// code may error.
+	if !exists {
+		return
+	}
+
+	labels := pool.GetLabels()
+	zone, exists := labels[ProxmoxZoneLabel]
+
+	// Add to default zone (as that has no label yet)
+	if !exists {
+		zone = "default"
+	}
+
+	if c.Status.InClusterZoneRef == nil {
+		c.Status.InClusterZoneRef = []InClusterZoneRef{{
+			Zone: &zone,
+		}}
+	}
+
+	index := slices.IndexFunc(c.Status.InClusterZoneRef, func(r InClusterZoneRef) bool {
+		return *r.Zone == zone
+	})
+
+	if index < 0 {
+		c.Status.InClusterZoneRef = append(c.Status.InClusterZoneRef, InClusterZoneRef{Zone: &zone})
+		index = len(c.Status.InClusterZoneRef)
+	}
+
+	poolRef := corev1.LocalObjectReference{Name: pool.GetName()}
+	if poolType == IPv4Type {
+		c.Status.InClusterZoneRef[index].InClusterIPPoolRefV4 = &poolRef
+	} else if poolType == IPv6Type {
+		c.Status.InClusterZoneRef[index].InClusterIPPoolRefV6 = &poolRef
+	}
 }
 
 // SetInClusterIPPoolRef will set the reference to the provided InClusterIPPool.
@@ -284,6 +408,9 @@ func (c *ProxmoxCluster) SetInClusterIPPoolRef(pool client.Object) {
 	if !found {
 		c.Status.InClusterIPPoolRef = append(c.Status.InClusterIPPoolRef, corev1.LocalObjectReference{Name: pool.GetName()})
 	}
+
+	// also add to Zone information
+	c.AddInClusterZoneRef(pool)
 }
 
 // AddNodeLocation will add a node location to either the control plane or worker

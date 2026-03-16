@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,40 +29,87 @@ const (
 
 	// VirtualMachineStateReady is the string representing a powered-on VM with reported IP addresses.
 	VirtualMachineStateReady VirtualMachineState = "ready"
+
+	// ProxmoxZoneLabel is a label key used for proxmox zone objects.
+	ProxmoxZoneLabel string = "topology.kubernetes.io/proxmox-zone"
+
+	// ProxmoxIPFamilyAnnotation is an annotation key used for denoting the ip family of InClusterIPPools.
+	ProxmoxIPFamilyAnnotation string = "ipam.capmox.cluster.x-k8s.io/ip-family"
+
+	// IPv4Type marks an object as belong to the IPv4 family.
+	IPv4Type string = "ipv4"
+
+	// IPv6Type marks an object as belong to the IPv6 family.
+	IPv6Type string = "ipv6"
+
+	// ProxmoxPoolOffsetAnnotation allows multiple IP Addresses per IPPool.
+	ProxmoxPoolOffsetAnnotation string = "ipam.capmox.cluster.x-k8s.io/pool-ref-counter"
+
+	// ProxmoxGatewayMetricAnnotation is an annotation key used for denoting metric of a gateway.
+	ProxmoxGatewayMetricAnnotation string = "ipam.capmox.cluster.x-k8s.io/gateway-metric"
+
+	// ProxmoxDefaultGatewayAnnotation marks an IPAddress spec as containing a default gateway.
+	ProxmoxDefaultGatewayAnnotation string = "ipam.capmox.cluster.x-k8s.io/default-gateway"
 )
 
 // VirtualMachine represents data about a Proxmox virtual machine object.
 type VirtualMachine struct {
-	// Node is the VM node.
-	Node string `json:"node"`
+	// node is the VM node.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Node string `json:"node,omitempty"`
 
-	// Name is the VM's name.
-	Name string `json:"name"`
+	// name is the VM's name.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name,omitempty"`
 
-	// VMID is the VM's ID.
-	VMID uint64 `json:"vmID"`
+	// vmID is the VM's ID.
+	// +required
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:ExclusiveMinimum=false
+	VMID int64 `json:"vmID,omitempty"`
 
-	// State is the VM's state.
-	State VirtualMachineState `json:"state"`
+	// state is the VM's state.
+	// +required
+	// +kubebuilder:validation:Enum=notfound;pending;ready
+	State VirtualMachineState `json:"state,omitempty"`
 
-	// Network is the status of the VM's network devices.
-	Network []NetworkStatus `json:"network"`
+	// network is the status of the VM's network devices.
+	// +required
+	// +listType=atomic
+	Network []NetworkStatus `json:"network,omitempty"`
 }
 
 // NetworkStatus provides information about one of a VM's networks.
 type NetworkStatus struct {
-	// Connected is a flag that indicates whether this network is currently
+	// connected is a flag that indicates whether this network is currently
 	// connected to the VM.
-	Connected bool `json:"connected,omitempty"`
+	// +required
+	Connected *bool `json:"connected,omitempty"`
 
-	// IPAddrs is one or more IP addresses reported by vm-tools.
+	// ipAddrs is one or more IP addresses reported by vm-tools.
+	// +listType=set
 	// +optional
 	IPAddrs []string `json:"ipAddrs,omitempty"`
 
-	// MACAddr is the MAC address of the network device.
-	MACAddr string `json:"macAddr"`
+	// macAddr is the MAC address of the network device.
+	// +required
+	// +kubebuilder:validation:Pattern=`^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$`
+	// +kubebuilder:validation:MinLength=17
+	// +kubebuilder:validation:MaxLength=17
+	MACAddr string `json:"macAddr,omitempty"`
 
-	// NetworkName is the name of the network.
+	// networkName is the name of the network.
 	// +optional
-	NetworkName string `json:"networkName,omitempty"`
+	NetworkName NetName `json:"networkName,omitempty"`
 }
+
+// NetName is a formally verified Proxmox network name string.
+// +kubebuilder:validation:MinLength=4
+// +kubebuilder:validation:Pattern=`^net[0-9]+$`
+type NetName string
+
+// Zone is a formally verified Proxmox network zone name. Needs to adhere to Label rules.
+// +kubebuilder:validation:Pattern=`^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$`
+type Zone *string
