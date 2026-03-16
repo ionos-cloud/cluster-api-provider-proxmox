@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2024 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,7 +30,10 @@ import (
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/test/helpers"
+
 	// +kubebuilder:scaffold:imports
+
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -56,6 +59,16 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	proxmoxClient = proxmoxtest.NewMockClient(GinkgoT())
 	testEnv = helpers.NewTestEnvironment(false, proxmoxClient)
+	// TODO: do I need this?
+	cache := testEnv.GetCache()
+
+	indexFunc := func(obj client.Object) []string {
+		return []string{obj.(*ipamv1.IPAddress).Spec.PoolRef.Name}
+	}
+
+	if err := cache.IndexField(testEnv.GetContext(), &ipamv1.IPAddress{}, "spec.poolRef.name", indexFunc); err != nil {
+		panic(err)
+	}
 
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
