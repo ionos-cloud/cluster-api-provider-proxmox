@@ -31,14 +31,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util/conditions"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
@@ -113,7 +112,7 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 			// Fail the cluster if no credentials found.
 			// set failure reason
 			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)
 
 			if err = clusterScope.Close(); err != nil {
 				return nil, err
@@ -146,7 +145,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 		if apierrors.IsNotFound(err) {
 			// set failure reason
 			s.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			s.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			s.ProxmoxCluster.Status.FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
@@ -205,13 +204,6 @@ func (s *ClusterScope) KubernetesClusterName() string {
 
 // PatchObject persists the cluster configuration and status.
 func (s *ClusterScope) PatchObject() error {
-	// always update the readyCondition.
-	conditions.SetSummary(s.ProxmoxCluster,
-		conditions.WithConditions(
-			infrav1alpha1.ProxmoxClusterReady,
-		),
-	)
-
 	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster)
 }
 

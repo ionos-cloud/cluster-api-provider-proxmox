@@ -20,9 +20,6 @@ import (
 	"context"
 	"strings"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/pkg/errors"
@@ -40,12 +37,12 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 	if _, err := machineScope.InfraCluster.ProxmoxClient.DeleteVM(ctx, node, vmID); err != nil {
 		if VMNotFound(err) || errors.Is(err, goproxmox.ErrVMIDFree) {
 			// remove machine from cluster status
-			machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), util.IsControlPlaneMachine(machineScope.Machine))
+			machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), machineScope.IsControlPlane())
 			// The VM is deleted so remove the finalizer.
 			ctrlutil.RemoveFinalizer(machineScope.ProxmoxMachine, infrav1alpha1.MachineFinalizer)
 			return machineScope.InfraCluster.PatchObject()
 		}
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, clusterv1.DeletionFailedReason, clusterv1.ConditionSeverityWarning, "")
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 		return err
 	}
 

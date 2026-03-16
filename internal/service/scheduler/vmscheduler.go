@@ -24,7 +24,6 @@ import (
 	"sort"
 
 	"github.com/go-logr/logr"
-	"sigs.k8s.io/cluster-api/util"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -51,7 +50,7 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 	allowedNodes := machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
 	schedulerHints := machineScope.InfraCluster.ProxmoxCluster.Spec.SchedulerHints
 	locations := machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.Workers
-	if util.IsControlPlaneMachine(machineScope.Machine) {
+	if machineScope.IsControlPlane() {
 		locations = machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.ControlPlane
 	}
 

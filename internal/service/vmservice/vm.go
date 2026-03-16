@@ -25,12 +25,10 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
@@ -105,7 +103,7 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1alpha1.
 
 	// if the root machine is ready, we can assume that the VM is ready as well.
 	// unmount the cloud-init iso if it is still mounted.
-	if scope.Machine.Status.BootstrapReady && scope.Machine.Status.NodeRef != nil {
+	if scope.Machine.Status.NodeRef.IsDefined() {
 		if err := unmountCloudInitISO(ctx, scope); err != nil {
 			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
 		}
@@ -133,9 +131,9 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 				return true, nil
 			}
 			if errors.Is(goproxmox.ErrCloudInitFailed, err) {
-				conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
+				// TODO(v1alpha2): re-enable with v1beta2 conditions API
 				machineScope.SetFailureMessage(err)
-				machineScope.SetFailureReason(capierrors.MachineStatusError("BootstrapFailed"))
+				machineScope.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("BootstrapFailed"))
 			}
 			return false, err
 		}
@@ -170,14 +168,12 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		// Otherwise, this is a new machine and the VM should be created.
 		// NOTE: We are setting this condition only in case it does not exist, so we avoid to get flickering LastConditionTime
 		// in case of cloning errors or powering on errors.
-		if !conditions.Has(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition) {
-			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningReason, clusterv1.ConditionSeverityInfo, "")
-		}
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 
 		// Create the VM.
 		resp, err := createVM(ctx, machineScope)
 		if err != nil {
-			conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+			// TODO(v1alpha2): re-enable with v1beta2 conditions API
 			return false, err
 		}
 		machineScope.Logger.V(4).Info("Task created", "taskID", resp.Task.ID)
@@ -351,7 +347,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	if err != nil {
 		if errors.Is(err, ErrNoVMIDInRangeFree) {
 			scope.SetFailureMessage(err)
-			scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
+			scope.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("InsufficientResourcesMachineError"))
 		}
 		return proxmox.VMCloneResponse{}, err
 	}
@@ -402,7 +398,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		if err != nil {
 			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
 				scope.SetFailureMessage(err)
-				scope.SetFailureReason(capierrors.InsufficientResourcesMachineError)
+				scope.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("InsufficientResourcesMachineError"))
 			}
 			return proxmox.VMCloneResponse{}, err
 		}
@@ -417,8 +413,8 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		if err != nil {
 			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
 				scope.SetFailureMessage(err)
-				scope.SetFailureReason(capierrors.MachineStatusError("VMTemplateNotFound"))
-				conditions.MarkFalse(scope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityError, "%s", err)
+				scope.SetFailureReason(capmoxerrors.DeprecatedCAPIMachineStatusError("VMTemplateNotFound"))
+				// TODO(v1alpha2): re-enable with v1beta2 conditions API
 			}
 			return proxmox.VMCloneResponse{}, err
 		}
@@ -440,7 +436,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	scope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1alpha1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: options.Name},
 		Node:    node,
-	}, util.IsControlPlaneMachine(scope.Machine))
+	}, scope.IsControlPlane())
 
 	return res, scope.InfraCluster.PatchObject()
 }
