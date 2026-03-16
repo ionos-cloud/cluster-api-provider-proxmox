@@ -1617,7 +1617,7 @@ func Convert_v1alpha2_Storage_To_v1alpha1_Storage(in *v1alpha2.Storage, out *Sto
 
 func autoConvert_v1alpha1_TemplateSelector_To_v1alpha2_TemplateSelector(in *TemplateSelector, out *v1alpha2.TemplateSelector, s conversion.Scope) error {
 	out.MatchTags = *(*[]string)(unsafe.Pointer(&in.MatchTags))
-	out.ResolutionPolicy = v1alpha2.TemplateResolutionPolicy(in.ResolutionPolicy)
+	out.MatchPolicy = v1alpha2.TemplateMatchPolicy(in.MatchPolicy)
 	return nil
 }
 
@@ -1628,7 +1628,7 @@ func Convert_v1alpha1_TemplateSelector_To_v1alpha2_TemplateSelector(in *Template
 
 func autoConvert_v1alpha2_TemplateSelector_To_v1alpha1_TemplateSelector(in *v1alpha2.TemplateSelector, out *TemplateSelector, s conversion.Scope) error {
 	out.MatchTags = *(*[]string)(unsafe.Pointer(&in.MatchTags))
-	out.ResolutionPolicy = TemplateResolutionPolicy(in.ResolutionPolicy)
+	out.MatchPolicy = TemplateMatchPolicy(in.MatchPolicy)
 	return nil
 }
 
