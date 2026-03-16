@@ -26,9 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	ipamv1 "sigs.k8s.io/cluster-api/exp/ipam/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
@@ -41,7 +39,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 		return false, nil
 	}
 	machineScope.Logger.V(4).Info("reconciling IPAddresses.")
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityInfo, "")
+	// TODO(v1alpha2): re-enable with v1beta2 conditions API
 
 	addresses := make(map[string]infrav1alpha1.IPAddress)
 

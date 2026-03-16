@@ -26,15 +26,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
-	"sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/cluster-api/util/conditions"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 )
 
@@ -118,15 +117,25 @@ func (m *MachineScope) Namespace() string {
 
 // IsControlPlane returns true if the machine is a control plane.
 func (m *MachineScope) IsControlPlane() bool {
-	return util.IsControlPlaneMachine(m.Machine)
+	return isControlPlaneMachine(m.Machine)
 }
 
 // Role returns the machine role from the labels.
 func (m *MachineScope) Role() string {
-	if util.IsControlPlaneMachine(m.Machine) {
+	if isControlPlaneMachine(m.Machine) {
 		return "control-plane"
 	}
 	return "node"
+}
+
+// isControlPlaneMachine checks if the machine has the control plane label.
+// Inlined from util.IsControlPlaneMachine which now requires v1beta2.Machine.
+func isControlPlaneMachine(machine *clusterv1.Machine) bool {
+	if machine == nil {
+		return false
+	}
+	_, ok := machine.Labels[clusterv1.MachineControlPlaneLabel]
+	return ok
 }
 
 // LocateProxmoxNode will attempt to get information about the currently deployed Proxmox node.
@@ -135,7 +144,7 @@ func (m *MachineScope) LocateProxmoxNode() string {
 		return *status
 	}
 
-	node := m.InfraCluster.ProxmoxCluster.GetNode(m.Name(), util.IsControlPlaneMachine(m.Machine))
+	node := m.InfraCluster.ProxmoxCluster.GetNode(m.Name(), isControlPlaneMachine(m.Machine))
 	if node == "" {
 		node = m.ProxmoxMachine.GetNode()
 	}
@@ -183,7 +192,7 @@ func (m *MachineScope) SetFailureMessage(v error) {
 }
 
 // SetFailureReason sets the ProxmoxMachine status failure reason.
-func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
+func (m *MachineScope) SetFailureReason(v capmoxerrors.DeprecatedCAPIMachineStatusError) {
 	m.ProxmoxMachine.Status.FailureReason = &v
 }
 
@@ -207,26 +216,19 @@ func (m *MachineScope) SetVirtualMachine(vm *proxmox.VirtualMachine) {
 
 // PatchObject persists the machine spec and status.
 func (m *MachineScope) PatchObject() error {
-	// always update the readyCondition.
-	conditions.SetSummary(m.ProxmoxMachine,
-		conditions.WithConditions(
-			infrav1alpha1.VMProvisionedCondition,
-		),
-	)
-
-	// Patch the ProxmoxMachine resource.
-	return m.patchHelper.Patch(
-		context.TODO(),
-		m.ProxmoxMachine,
-		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.ReadyCondition,
-			infrav1alpha1.VMProvisionedCondition,
-		}})
+	return m.patchHelper.Patch(context.TODO(), m.ProxmoxMachine)
 }
 
 // SetAddresses sets the addresses in the status.
 func (m *MachineScope) SetAddresses(addr []clusterv1.MachineAddress) {
-	m.ProxmoxMachine.Status.Addresses = addr
+	v1beta1Addrs := make([]clusterv1beta1.MachineAddress, len(addr))
+	for i, a := range addr {
+		v1beta1Addrs[i] = clusterv1beta1.MachineAddress{
+			Type:    clusterv1beta1.MachineAddressType(a.Type),
+			Address: a.Address,
+		}
+	}
+	m.ProxmoxMachine.Status.Addresses = v1beta1Addrs
 }
 
 // Close the MachineScope by updating the machine spec, machine status.

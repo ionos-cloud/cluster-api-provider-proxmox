@@ -51,11 +51,11 @@ func extractUUID(input string) string {
 }
 
 // IPAddressWithPrefix return formatted IP Address with prefix.
-func IPAddressWithPrefix(ip string, prefix int) string {
-	if ip == "" {
+func IPAddressWithPrefix(ip string, prefix *int32) string {
+	if ip == "" || prefix == nil {
 		return ""
 	}
-	return fmt.Sprintf("%s/%d", ip, prefix)
+	return fmt.Sprintf("%s/%d", ip, *prefix)
 }
 
 // extractNetworkModel returns the model out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500.

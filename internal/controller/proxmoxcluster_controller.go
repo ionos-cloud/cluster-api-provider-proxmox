@@ -20,7 +20,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -30,12 +29,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	clustererrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
-	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
+
+	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -194,23 +193,17 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	if clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane {
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint == nil {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
-
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint")
-
+			// TODO(v1alpha2): re-enable with v1beta2 conditions API
 			return ctrl.Result{Requeue: true}, nil
 		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Host == "" {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint host")
-
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint host")
-
+			// TODO(v1alpha2): re-enable with v1beta2 conditions API
 			return ctrl.Result{Requeue: true}, nil
 		}
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.Port == 0 {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint port")
-
-			conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.MissingControlPlaneEndpointReason, clusterv1.ConditionSeverityWarning, "The ProxmoxCluster is missing or waiting for a ControlPlaneEndpoint port")
-
+			// TODO(v1alpha2): re-enable with v1beta2 conditions API
 			return ctrl.Result{Requeue: true}, nil
 		}
 	}
@@ -233,40 +226,30 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	}
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
-		conditions.MarkFalse(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady, infrav1alpha1.ProxmoxUnreachableReason, clusterv1.ConditionSeverityError, "%s", err)
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 		if apierrors.IsNotFound(err) {
 			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(clustererrors.InvalidConfigurationClusterError)
+			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)
 		}
 		return reconcile.Result{}, err
 	}
 
-	conditions.MarkTrue(clusterScope.ProxmoxCluster, infrav1alpha1.ProxmoxClusterReady)
+	// TODO(v1alpha2): re-enable with v1beta2 conditions API
 
 	clusterScope.ProxmoxCluster.Status.Ready = true
 
 	return ctrl.Result{}, nil
 }
 
-func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(ctx context.Context, clusterScope *scope.ClusterScope) error {
+func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(_ context.Context, clusterScope *scope.ClusterScope) error {
 	if clusterScope.ProxmoxClient != nil &&
-		ptr.Deref(clusterScope.Cluster.Status.FailureReason, "") == clustererrors.InvalidConfigurationClusterError &&
-		strings.Contains(ptr.Deref(clusterScope.Cluster.Status.FailureMessage, ""), "No credentials found") {
+		clusterScope.ProxmoxCluster.Status.FailureReason != nil &&
+		*clusterScope.ProxmoxCluster.Status.FailureReason == capmoxerrors.InvalidConfigurationClusterError {
 		// Clear the failure reason and patch the proxmox cluster.
 		clusterScope.ProxmoxCluster.Status.FailureMessage = nil
 		clusterScope.ProxmoxCluster.Status.FailureReason = nil
 		if err := clusterScope.PatchObject(); err != nil {
 			return err
-		}
-
-		// Clear the failure reason and patch the root cluster.
-		newCluster := clusterScope.Cluster.DeepCopy()
-		newCluster.Status.FailureMessage = nil
-		newCluster.Status.FailureReason = nil
-
-		err := r.Status().Patch(ctx, newCluster, client.MergeFrom(clusterScope.Cluster))
-		if err != nil {
-			return errors.Wrapf(err, "failed to patch cluster %s/%s", newCluster.Namespace, newCluster.Name)
 		}
 
 		return errors.New("reconciling cluster failure state")

@@ -45,7 +45,7 @@ linters:
           alias: kerrors
         - pkg: sigs.k8s.io/controller-runtime
           alias: ctrl
-        - pkg: sigs.k8s.io/cluster-api/api/v1beta1
+        - pkg: sigs.k8s.io/cluster-api/api/core/v1beta1
           alias: clusterv1
       no-unaliased: true
     loggercheck:

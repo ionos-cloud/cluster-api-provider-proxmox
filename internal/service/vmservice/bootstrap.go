@@ -25,8 +25,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
@@ -44,7 +42,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	if !machineHasIPAddress(machineScope.ProxmoxMachine) {
 		// skip machine doesn't have an IpAddress yet.
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "no ip address")
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 		return true, nil
 	}
 
@@ -58,7 +56,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	// Get the bootstrap data.
 	bootstrapData, format, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.CloningFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 		return false, err
 	}
 
@@ -66,14 +64,11 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 
 	nicData, err := getNetworkConfigData(ctx, machineScope)
 	if err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.WaitingForStaticIPAllocationReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 		return false, err
 	}
 
-	kubernetesVersion := ""
-	if machineScope.Machine.Spec.Version != nil {
-		kubernetesVersion = *machineScope.Machine.Spec.Version
-	}
+	kubernetesVersion := machineScope.Machine.Spec.Version
 
 	machineScope.Logger.V(4).Info("reconciling BootstrapData.", "format", format)
 
@@ -101,7 +96,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	if err := injector.Inject(ctx, inject.CloudConfigFormat); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 		return err
 	}
 	return nil
@@ -122,7 +117,7 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 
 	injector := getIgnitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
 	if err := injector.Inject(ctx, inject.IgnitionFormat); err != nil {
-		conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, infrav1alpha1.VMProvisionFailedReason, clusterv1.ConditionSeverityWarning, "%s", err)
+		// TODO(v1alpha2): re-enable with v1beta2 conditions API
 		return err
 	}
 	return nil
