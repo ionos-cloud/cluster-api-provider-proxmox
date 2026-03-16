@@ -4,4 +4,4 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: capmox-system/capmox-serving-cert
-  name: proxmoxclusters.infrastructure.cluster.x-k8s.io
+  name: proxmoxclustertemplates.infrastructure.cluster.x-k8s.io
