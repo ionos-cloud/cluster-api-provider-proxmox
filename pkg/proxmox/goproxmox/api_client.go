@@ -146,7 +146,7 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 }
 
 // FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
-func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error) {
+func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string, matchPolicy string) (string, int32, error) {
 	logger := log.FromContext(ctx)
 
 	cluster, err := c.Cluster(ctx)
@@ -167,11 +167,11 @@ func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []str
 	templateTags = slices.Compact(templateTags)
 
 	var vmTemplate *proxmox.ClusterResource
-	matches := 0
+	matches, bestDistance := 0, int(^uint(0)>>1)
 NEXT_VM:
 	for _, vm := range vmResources {
 		if vm.Template == 0 || len(vm.Tags) == 0 {
-			continue
+			continue NEXT_VM
 		}
 
 		vmTagMap := make(map[string]string)
@@ -187,16 +187,21 @@ NEXT_VM:
 			}
 		}
 
-		switch infrav1.TemplateResolutionPolicy(resolutionPolicy) {
-		case infrav1.TemplateResolutionPolicyExact:
-			if len(vmTagMap) != len(templateTags) {
+		// distance is always >= 0 because all other cases already jump to NEXT_VM.
+		distance := len(vmTagMap) - len(templateTags)
+		switch infrav1.TemplateMatchPolicy(matchPolicy) {
+		case infrav1.TemplateMatchPolicyExact:
+			if distance != 0 {
 				continue NEXT_VM
 			}
-			fallthrough
-		default:
-			matches++
+		case infrav1.TemplateMatchPolicyBest:
+			if distance > bestDistance {
+				continue NEXT_VM
+			}
+			bestDistance = distance
 		}
 
+		matches++
 		vmTemplate = vm
 	}
 

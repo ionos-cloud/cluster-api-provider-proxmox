@@ -434,27 +434,27 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		})
 	})
 
-	Context("TemplateResolutionPolicy", func() {
+	Context("TemplateMatchPolicy", func() {
 		It("defaults to exact when TemplateSelector is nil", func() {
 			dm := defaultMachine()
 			dm.Spec.TemplateSelector = nil
-			Expect(dm.GetTemplateResolutionPolicy()).To(Equal(TemplateResolutionPolicyExact))
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicyExact))
 		})
 
-		It("defaults to exact when ResolutionPolicy is empty", func() {
+		It("defaults to exact when MatchPolicy is empty", func() {
 			dm := defaultMachine()
 			dm.Spec.TemplateSource.SourceNode = nil
 			dm.Spec.TemplateSource.TemplateID = nil
 			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}}
-			Expect(dm.GetTemplateResolutionPolicy()).To(Equal(TemplateResolutionPolicyExact))
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicyExact))
 		})
 
-		It("returns subset when ResolutionPolicy is subset", func() {
+		It("returns subset when MatchPolicy is subset", func() {
 			dm := defaultMachine()
 			dm.Spec.TemplateSource.SourceNode = nil
 			dm.Spec.TemplateSource.TemplateID = nil
-			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}, ResolutionPolicy: TemplateResolutionPolicySubset}
-			Expect(dm.GetTemplateResolutionPolicy()).To(Equal(TemplateResolutionPolicySubset))
+			dm.Spec.TemplateSelector = &TemplateSelector{MatchTags: []string{"test"}, MatchPolicy: TemplateMatchPolicySubset}
+			Expect(dm.GetTemplateMatchPolicy()).To(Equal(TemplateMatchPolicySubset))
 		})
 	})
 })
