@@ -35,6 +35,24 @@ const (
 	SecretFinalizer = "proxmoxcluster.infrastructure.cluster.x-k8s.io/secret" //nolint:gosec
 )
 
+// CloudInitNetworkConfigFormat specifies the format for cloud-init network-config.
+// +kubebuilder:validation:Enum=netplan;nocloud
+type CloudInitNetworkConfigFormat string
+
+const (
+	// CloudInitNetworkConfigFormatNetplan generates network-config in netplan format
+	// with a top-level "network:" key. This is the default format and works with
+	// distributions that support netplan (Ubuntu, Debian with netplan).
+	CloudInitNetworkConfigFormatNetplan CloudInitNetworkConfigFormat = "netplan"
+
+	// CloudInitNetworkConfigFormatNoCloud generates network-config in nocloud format
+	// without the top-level "network:" key. This is the correct format for the
+	// cloud-init nocloud datasource's network-config file, which expects version: at
+	// the root level. Systems like Talos Linux that use the nocloud datasource require
+	// this format.
+	CloudInitNetworkConfigFormatNoCloud CloudInitNetworkConfigFormat = "nocloud"
+)
+
 // ProxmoxClusterSpec defines the desired state of a ProxmoxCluster.
 type ProxmoxClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
@@ -85,6 +103,15 @@ type ProxmoxClusterSpec struct {
 	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
 	// +optional
 	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
+
+	// CloudInitNetworkConfigFormat specifies the format for cloud-init network-config.
+	// Defaults to "netplan" which generates configuration with a top-level "network:" key
+	// suitable for netplan-based distributions (Ubuntu, Debian).
+	// Set to "nocloud" when using the cloud-init nocloud datasource, which expects the
+	// network-config file to have version: at the root level without a "network:" wrapper.
+	// +optional
+	// +kubebuilder:default=netplan
+	CloudInitNetworkConfigFormat CloudInitNetworkConfigFormat `json:"cloudInitNetworkConfigFormat,omitempty"`
 }
 
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
