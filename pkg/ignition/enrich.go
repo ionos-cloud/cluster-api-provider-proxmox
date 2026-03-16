@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -113,11 +113,16 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 
 func (e *Enricher) getProxmoxEnvContent() string {
 	content := fmt.Sprintf("COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s", e.Hostname, e.InstanceID, e.ProviderID)
-	if len(e.Network) > 0 && e.Network[0].IPAddress != "" {
-		content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", e.Network[0].IPAddress)
-	}
-	if len(e.Network) > 0 && e.Network[0].IPV6Address != "" {
-		content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", e.Network[0].IPV6Address)
+	// TODO: consider adding a kube-vip config field to NetworkConfigData
+	for _, network := range e.Network {
+		for _, ipconfig := range network.IPConfigs {
+			if ipconfig.IPAddress.Addr().Is4() && ipconfig.Default {
+				content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", ipconfig.IPAddress.String())
+			}
+			if ipconfig.IPAddress.Addr().Is6() && ipconfig.Default {
+				content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", ipconfig.IPAddress.String())
+			}
+		}
 	}
 	return url.PathEscape(content)
 }

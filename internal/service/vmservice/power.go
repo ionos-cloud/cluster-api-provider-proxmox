@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,26 +21,40 @@ import (
 	"fmt"
 
 	"github.com/luthermonson/go-proxmox"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/cluster-api/util/conditions"
 
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
 func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
-	if !machineHasIPAddress(machineScope.ProxmoxMachine) {
-		machineScope.V(4).Info("ip address not set for machine")
-		// machine doesn't have an ip address yet
-		// needs to reconcile again
-		return true, nil
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) != infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason {
+		// Machine is in the wrong state to reconcile, we only reconcile machines waiting to power on
+		return false, nil
 	}
 
+	/*
+		if !machineHasIPAddress(machineScope.ProxmoxMachine) {
+			machineScope.V(4).Info("ip address not set for machine")
+			// machine doesn't have an ip address yet
+			// needs to reconcile again
+			return true, nil
+		}
+	*/
+
 	machineScope.V(4).Info("ensuring machine is started")
-	// TODO(v1alpha2): re-enable with v1beta2 conditions API
 
 	t, err := startVirtualMachine(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine)
 	if err != nil {
-		// TODO(v1alpha2): re-enable with v1beta2 conditions API
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedPoweringOnFailedReason,
+			Message: err.Error(),
+		})
 		return false, err
 	}
 
@@ -49,6 +63,11 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 		return true, nil
 	}
 
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason,
+	})
 	return false, nil
 }
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,14 +30,15 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
-	capmoxerrors "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/errors"
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/tlshelper"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
@@ -49,7 +50,7 @@ type ClusterScopeParams struct {
 	Client         client.Client
 	Logger         *logr.Logger
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1.ProxmoxCluster
 	ProxmoxClient  capmox.Client
 	ControllerName string
 	IPAMHelper     *ipam.Helper
@@ -62,7 +63,7 @@ type ClusterScope struct {
 	patchHelper *patch.Helper
 
 	Cluster        *clusterv1.Cluster
-	ProxmoxCluster *infrav1alpha1.ProxmoxCluster
+	ProxmoxCluster *infrav1.ProxmoxCluster
 
 	ProxmoxClient  capmox.Client
 	controllerName string
@@ -110,9 +111,12 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	if clusterScope.ProxmoxClient == nil {
 		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
 			// Fail the cluster if no credentials found.
-			// set failure reason
-			clusterScope.ProxmoxCluster.Status.FailureMessage = ptr.To("No credentials found, ProxmoxCluster missing credentialsRef")
-			clusterScope.ProxmoxCluster.Status.FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)
+			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Message: "No credentials found, ProxmoxCluster missing credentialsRef",
+			})
 
 			if err = clusterScope.Close(); err != nil {
 				return nil, err
@@ -143,9 +147,12 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	}, &secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// set failure reason
-			s.ProxmoxCluster.Status.FailureMessage = ptr.To("credentials secret not found")
-			s.ProxmoxCluster.Status.FailureReason = ptr.To(capmoxerrors.InvalidConfigurationClusterError)
+			conditions.Set(s.ProxmoxCluster, metav1.Condition{
+				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Message: "credentials secret not found",
+			})
 		}
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
@@ -168,7 +175,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 			// setting the connection insecure. If it is set we compare
 			// against YAML true-ish values.
 			//
-			//#nosec:G402 // Intended to enable insecure mode for unknown CAs
+			// #nosec:G402 // Intended to enable insecure mode for unknown CAs
 			InsecureSkipVerify: !tlsInsecureSet || slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
 			RootCAs:            rootCerts,
 		},
@@ -204,12 +211,21 @@ func (s *ClusterScope) KubernetesClusterName() string {
 
 // PatchObject persists the cluster configuration and status.
 func (s *ClusterScope) PatchObject() error {
-	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster)
+	// always update the readyCondition.
+	_ = conditions.SetSummaryCondition(s.ProxmoxCluster, s.ProxmoxCluster, "Ready",
+		conditions.ForConditionTypes{infrav1.ProxmoxClusterProxmoxAvailableCondition},
+	)
+
+	return s.patchHelper.Patch(context.TODO(), s.ProxmoxCluster,
+		patch.WithOwnedConditions{Conditions: []string{
+			"Ready",
+			infrav1.ProxmoxClusterProxmoxAvailableCondition,
+		}})
 }
 
 // ListProxmoxMachinesForCluster returns all the ProxmoxMachines that belong to this cluster.
-func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]infrav1alpha1.ProxmoxMachine, error) {
-	var machineList infrav1alpha1.ProxmoxMachineList
+func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]infrav1.ProxmoxMachine, error) {
+	var machineList infrav1.ProxmoxMachineList
 
 	err := s.client.List(ctx, &machineList, client.InNamespace(s.Namespace()), client.MatchingLabels{
 		clusterv1.ClusterNameLabel: s.Name(),
@@ -224,4 +240,9 @@ func (s *ClusterScope) ListProxmoxMachinesForCluster(ctx context.Context) ([]inf
 // Close closes the current scope persisting the cluster configuration and status.
 func (s *ClusterScope) Close() error {
 	return s.PatchObject()
+}
+
+// SetReady sets the ProxmoxCluster as provisioned.
+func (s *ClusterScope) SetReady() {
+	s.ProxmoxCluster.Status.Initialization.Provisioned = ptr.To(true)
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2025 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,4 +19,5 @@ package cloudinit
 // Renderer renders cloud-init data.
 type Renderer interface {
 	Render() ([]byte, error)
+	Inspect() ([]byte, error)
 }
