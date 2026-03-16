@@ -25,8 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -85,7 +85,7 @@ func defaultCluster() *ProxmoxCluster {
 				Addresses: []string{"10.0.0.0/24"},
 				Prefix:    24,
 				Gateway:   "10.0.0.254",
-				Metric:    func() *uint32 { var a uint32 = 123; return &a }(),
+				Metric:    ptr.To(int32(123)),
 			},
 			DNSServers: []string{"1.2.3.4"},
 		},
@@ -101,15 +101,24 @@ var _ = Describe("ProxmoxCluster Test", func() {
 	Context("ClusterPort", func() {
 		It("Should not allow ports higher than 65535", func() {
 			dc := defaultCluster()
-			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+			dc.Spec.ControlPlaneEndpoint = APIEndpoint{
 				Port: 65536,
 			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be less than or equal to 65535")))
+		})
+
+		It("Should not allow negative ports", func() {
+			dc := defaultCluster()
+			dc.Spec.ControlPlaneEndpoint = APIEndpoint{
+				Port: -1,
+			}
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
 		})
 
 		It("Should not allow port 0", func() {
 			dc := defaultCluster()
-			dc.Spec.ControlPlaneEndpoint = &clusterv1.APIEndpoint{
+			dc.Spec.ControlPlaneEndpoint = APIEndpoint{
+				Host: "example.com",
 				Port: 0,
 			}
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("port must be within 1-65535")))
@@ -121,7 +130,7 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv4Config.Addresses = []string{}
 
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("IPv4Config addresses must be provided")))
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.ipv4Config.addresses: Required value")))
 		})
 
 		It("Should not allow prefix higher than 128", func() {
@@ -143,22 +152,21 @@ var _ = Describe("ProxmoxCluster Test", func() {
 		dc := defaultCluster()
 		dc.Spec.DNSServers = []string{}
 
-		Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should have at least 1 items")))
+		Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.dnsServers: Required value")))
 	})
 
 	It("Should allow creating valid clusters", func() {
 		Expect(k8sClient.Create(context.Background(), defaultCluster())).To(Succeed())
 	})
 
-	Context("IPV6Config", func() {
+	Context("IPv6Config", func() {
 		It("Should not allow empty addresses", func() {
 			dc := defaultCluster()
 			dc.Spec.IPv6Config = &IPConfigSpec{
 				Addresses: []string{},
 				Prefix:    0,
-				Gateway:   "",
 			}
-			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("IPv6Config addresses must be provided")))
+			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("spec.ipv6Config.addresses: Required value")))
 		})
 
 		It("Should not allow prefix higher than 128", func() {
@@ -166,7 +174,6 @@ var _ = Describe("ProxmoxCluster Test", func() {
 			dc.Spec.IPv6Config = &IPConfigSpec{
 				Addresses: []string{},
 				Prefix:    129,
-				Gateway:   "",
 			}
 
 			Expect(k8sClient.Create(context.Background(), dc)).Should(MatchError(ContainSubstring("should be less than or equal to 128")))
