@@ -499,6 +499,12 @@ func Convert_v1beta1_ObjectMeta_To_v1beta2_ObjectMeta(in *clusterv1beta1.ObjectM
 	return nil
 }
 
+func Convert_v1alpha1_VirtualMachineCloneSpec_To_v1alpha2_VirtualMachineCloneSpec(in *VirtualMachineCloneSpec, out *v1alpha2.VirtualMachineCloneSpec, s conversion.Scope) error {
+	err := autoConvert_v1alpha1_VirtualMachineCloneSpec_To_v1alpha2_VirtualMachineCloneSpec(in, out, s)
+	// Target is honored as a single item slice in ConvertTo.
+	return err
+}
+
 // //
 // helpers
 // //

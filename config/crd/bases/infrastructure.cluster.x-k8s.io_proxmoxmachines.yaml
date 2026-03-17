@@ -1345,10 +1345,6 @@ spec:
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: set
-              target:
-                description: target node. Only allowed if the original VM is on shared
-                  storage.
-                type: string
               templateID:
                 description: templateID the vm_template vmid used for cloning a new
                   VM.

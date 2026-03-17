@@ -87,6 +87,12 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumSockets, ok, restored.NumSockets, &dst.NumSockets)
 	clusterv1.Convert_int32_To_Pointer_int32(src.MemoryMiB, ok, restored.MemoryMiB, &dst.MemoryMiB)
 
+	// Turn ProxmoxMachineSpec.Target into allowedNodes. in v1alpha1, target will
+	// ignore AllowedNodes, so we can literally overwrite these.
+	if src.Target != nil {
+		dst.AllowedNodes = []string{*src.Target}
+	}
+
 	// restore fields that don't exist in v1alpha1
 	if dst.Network != nil && restored.Network != nil {
 		dst.Network.Zone = restored.Network.Zone
