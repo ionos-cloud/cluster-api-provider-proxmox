@@ -249,10 +249,6 @@ type VirtualMachineCloneSpec struct {
 	// storage for full clone.
 	// +optional
 	Storage *string `json:"storage,omitempty"`
-
-	// target node. Only allowed if the original VM is on shared storage.
-	// +optional
-	Target *string `json:"target,omitempty"`
 }
 
 // TemplateMatchPolicy defines how MatchTags are evaluated against template tags.
@@ -702,8 +698,8 @@ func (r *ProxmoxMachine) GetTemplateMatchPolicy() TemplateMatchPolicy {
 	return TemplateMatchPolicyExact
 }
 
-// GetNode get the Proxmox node used to provision this machine.
-func (r *ProxmoxMachine) GetNode() string {
+// GetSourceNode gets the Proxmox node used to clone this machine from.
+func (r *ProxmoxMachine) GetSourceNode() string {
 	return ptr.Deref(r.Spec.SourceNode, "")
 }
 

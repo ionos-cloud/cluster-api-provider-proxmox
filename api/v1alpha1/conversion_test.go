@@ -282,6 +282,13 @@ func spokeProxmoxMachineSpec(in *ProxmoxMachineSpec, c randfill.Continue) {
 		in.Network = &NetworkSpec{}
 	}
 
+	// Target is converted to AllowedNodes[0] in hub and not restored on down-conversion.
+	// Normalize by moving Target to AllowedNodes (Target dominates AllowedNodes in v1alpha1).
+	if in.Target != nil {
+		in.AllowedNodes = []string{*in.Target}
+		in.Target = nil
+	}
+
 	// Handle Default Network Device
 	if in.Network.Default == nil {
 		in.Network.Default = &NetworkDevice{
