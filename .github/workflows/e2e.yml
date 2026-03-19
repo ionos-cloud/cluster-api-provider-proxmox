@@ -10,7 +10,7 @@ on:
 jobs:
   e2e:
     if: ${{ ! contains( github.event.pull_request.labels.*.name, 'e2e/none') }}
-    runs-on: [capmox,e2e,dcd-playground]
+    runs-on: capmox-e2e
     environment: e2e
     env:
       PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
