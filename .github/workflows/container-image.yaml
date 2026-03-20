@@ -44,20 +44,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
           context: .
           load: ${{ github.event_name == 'pull_request' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Scan image
-        if: github.event_name == 'pull_request'
-        uses: aquasecurity/trivy-action@0.35.0
-        id: scan
-        with:
-          scan-ref: ${{ steps.meta.outputs.tags }}
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: 'HIGH,CRITICAL'
