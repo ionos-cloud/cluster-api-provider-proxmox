@@ -48,9 +48,8 @@ jobs:
           path: _artifacts
           retention-days: 7
 
-      - name: Cleanup kind clusters
-        uses: gacts/run-and-post-run@v1
-        with:
-          post: |
-            kind get clusters | xargs -I% kind delete cluster --name %
-            docker system prune -a -f
+      - name: Clean up kind clusters
+        if: always()
+        run: |
+          kind get clusters | xargs -I% kind delete cluster --name %
+          docker system prune -a -f
