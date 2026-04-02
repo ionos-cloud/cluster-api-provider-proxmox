@@ -30,7 +30,7 @@ require (
 	k8s.io/api v0.33.3
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.33.3
-	k8s.io/klog/v2 v2.130.1
+	k8s.io/klog/v2 v2.140.0
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	sigs.k8s.io/cluster-api v1.11.4
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.0.3
