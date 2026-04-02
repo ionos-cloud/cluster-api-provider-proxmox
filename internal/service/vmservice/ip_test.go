@@ -31,7 +31,7 @@ import (
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 )
 
-const ipTag = "ip_net0_10.10.10.10"
+const ipTag = "ip_net0_192.0.2.10"
 
 // TestReconcileIPAddresses_CreateDefaultClaim tests if the cluster provided InclusterIPPool IPAddressClaim gets created.
 func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
@@ -90,7 +90,7 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 
 	createIPPools(t, kubeClient, machineScope)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0, &defaultPool)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 
@@ -133,7 +133,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 
 	createIPPools(t, kubeClient, machineScope)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0, &defaultPool)
 
 	proxmoxClient.EXPECT().TagVM(context.Background(), vm, ipTag).Return(task, nil).Once()
 
@@ -179,8 +179,8 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 		},
 	}
 	createIPPools(t, kubeClient, machineScope)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.10", 0, &extraPool0)
 
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.Tags = ipTag
@@ -194,13 +194,13 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net0"))
 	require.Equal(
 		t,
-		infrav1.IPAddressesSpec{NetName: string(infrav1.DefaultNetworkDevice), IPv4: []string{"10.10.10.10"}, IPv6: nil},
+		infrav1.IPAddressesSpec{NetName: string(infrav1.DefaultNetworkDevice), IPv4: []string{"192.0.2.10"}, IPv6: nil},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice),
 	)
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
 	require.Equal(
 		t,
-		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10"}, IPv6: nil},
+		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"203.0.113.10"}, IPv6: nil},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
 	)
 
@@ -252,9 +252,9 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope.SetVirtualMachine(vm)
 
 	createIPPools(t, kubeClient, machineScope)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.11.10.10", 1, &ipv4pool0)
-	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &ipv4pool1)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.110", 1, &ipv4pool0)
+	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.10", 0, &ipv4pool1)
 	createIPAddress(t, kubeClient, machineScope, "net2", "fe80::ffee", 0, &ipv6pool)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
@@ -265,13 +265,13 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	require.Len(t, machineScope.ProxmoxMachine.GetIPAddresses(), 3+1)
 
 	require.Equal(t,
-		[]string{"10.10.10.10", "10.11.10.10"},
+		[]string{"192.0.2.10", "203.0.113.110"},
 		machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv4,
 	)
 	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv6)
 
 	require.ElementsMatch(t,
-		[]string{"10.100.10.10"},
+		[]string{"203.0.113.10"},
 		machineScope.ProxmoxMachine.GetIPAddressesNet("net1").IPv4,
 	)
 	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1").IPv6)
@@ -347,9 +347,9 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	vm.VirtualMachineConfig.Tags = ipTag
 	machineScope.SetVirtualMachine(vm)
 	createIPPools(t, kubeClient, machineScope)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0, &defaultPool)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "fe80::1", 1, &defaultPoolV6)
-	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.10", 0, &extraPool0)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -362,12 +362,12 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net0"))
 	require.Equal(t,
-		infrav1.IPAddressesSpec{NetName: string(infrav1.DefaultNetworkDevice), IPv4: []string{"10.10.10.10"}, IPv6: []string{"fe80::1"}},
+		infrav1.IPAddressesSpec{NetName: string(infrav1.DefaultNetworkDevice), IPv4: []string{"192.0.2.10"}, IPv6: []string{"fe80::1"}},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net0"),
 	)
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
 	require.Equal(t,
-		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10"}, IPv6: nil},
+		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"203.0.113.10"}, IPv6: nil},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
 	)
 
@@ -414,14 +414,14 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	vm.VirtualMachineConfig.Tags = ipTag
 	machineScope.SetVirtualMachine(vm)
 
-	defaultIP := "10.10.10.10"
+	defaultIP := "192.0.2.10"
 	createIPPools(t, kubeClient, machineScope)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, defaultIP, 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.50.10.10", 1, &extraPool0)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.50.10.11", 2, &extraPool0)
-	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &extraPool1)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.510", 1, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.511", 2, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.10", 0, &extraPool1)
 	createIPAddress(t, kubeClient, machineScope, "net1", "2001:db8::1", 1, &extraPool2)
-	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.11", 2, &extraPool1)
+	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.11", 2, &extraPool1)
 	createIPAddress(t, kubeClient, machineScope, "net1", "2001:db8::2", 3, &extraPool2)
 
 	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
@@ -430,13 +430,13 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice))
 	require.Equal(t,
-		[]string{defaultIP, "10.50.10.10", "10.50.10.11"},
+		[]string{defaultIP, "203.0.113.510", "203.0.113.511"},
 		machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv4,
 	)
 	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv6)
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1"))
 	require.Equal(t,
-		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"10.100.10.10", "10.100.10.11"}, IPv6: []string{"2001:db8::1", "2001:db8::2"}},
+		infrav1.IPAddressesSpec{NetName: "net1", IPv4: []string{"203.0.113.10", "203.0.113.11"}, IPv6: []string{"2001:db8::1", "2001:db8::2"}},
 		*machineScope.ProxmoxMachine.GetIPAddressesNet("net1"),
 	)
 

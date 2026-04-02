@@ -55,7 +55,7 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"192.0.2.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
@@ -68,14 +68,14 @@ func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+	// require.Equal(t, "192.0.2.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestReconcileVM_CloudInitCheckDisabled(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"192.0.2.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
@@ -95,7 +95,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason)
 	vm := newRunningVM()
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
-	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"10.10.10.10"}}}
+	// machineScope.ProxmoxMachine.Status.IPAddresses = map[string]*infrav1.IPAddresses{infrav1.DefaultNetworkDevice: {IPv4: []string{"192.0.2.10"}}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
 	machineScope.ProxmoxMachine.Spec.Checks = &infrav1.ProxmoxMachineChecks{
@@ -108,7 +108,7 @@ func TestReconcileVM_InitCheckDisabled(t *testing.T) {
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
-	// require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+	// require.Equal(t, "192.0.2.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
@@ -538,16 +538,16 @@ func TestReconcileMachineAddresses_IPv4(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
 		NetName: string(infrav1.DefaultNetworkDevice),
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}, {
 		NetName: "default",
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 
 	require.NoError(t, reconcileMachineAddresses(machineScope))
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "10.10.10.10")
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "192.0.2.10")
 }
 
 func TestReconcileMachineAddresses_IPv6(t *testing.T) {
@@ -589,18 +589,18 @@ func TestReconcileMachineAddresses_DualStack(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
 		NetName: string(infrav1.DefaultNetworkDevice),
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 		IPv6:    []string{"2001:db8::2"},
 	}, {
 		NetName: "default",
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 		IPv6:    []string{"2001:db8::2"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 
 	require.NoError(t, reconcileMachineAddresses(machineScope))
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[0].Address, machineScope.ProxmoxMachine.GetName())
-	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "10.10.10.10")
+	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[1].Address, "192.0.2.10")
 	require.Equal(t, machineScope.ProxmoxMachine.Status.Addresses[2].Address, "2001:db8::2")
 }
 
@@ -653,10 +653,10 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
 		NetName: string(infrav1.DefaultNetworkDevice),
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}, {
 		NetName: "default",
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
@@ -679,10 +679,10 @@ func TestReconcileVM_CloudInitRunning(t *testing.T) {
 	machineScope.SetVirtualMachineID(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
 		NetName: string(infrav1.DefaultNetworkDevice),
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}, {
 		NetName: "default",
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
 	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)

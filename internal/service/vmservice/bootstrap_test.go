@@ -187,7 +187,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	// NetworkSetup
 	// defaultPool addresses need to be created individually since they refer to no interface atm
 	defaultPool := addDefaultIPPool(machineScope)
-	createIPAddress(t, kubeClient, machineScope, "net0", "10.10.10.10/24", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, "net0", "192.0.2.10/24", 0, &defaultPool)
 
 	// reconcile BootstrapData
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -197,7 +197,7 @@ func TestReconcileBootstrapData_NoNetworkConfig_UpdateStatus(t *testing.T) {
 	// Check generated bootstrapData against setup
 	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
 	require.Equal(t, 1, len(networkConfigData))
-	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
+	require.Equal(t, "192.0.2.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
 	require.Equal(t, infrav1.DefaultNetworkDevice, networkConfigData[0].ProxName)
@@ -223,11 +223,11 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	// update extraPool for gateway/prefix test
 	poolObj := getIPAddressPool(t, machineScope, extraPool0)
 	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix = 16
-	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway = "10.100.10.1"
+	poolObj.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway = "203.0.113.1"
 	createOrUpdateIPPool(t, kubeClient, machineScope, nil, poolObj)
 
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10/24", 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, "net1", "10.100.10.10", 0, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10/24", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.10", 0, &extraPool0)
 
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
@@ -240,13 +240,13 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	// Check generated bootstrapData against setup
 	networkConfigData := getNetworkConfigDataFromVM(t, *networkDataPtr)
 	require.True(t, len(networkConfigData) > 0)
-	require.Equal(t, "10.10.10.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
+	require.Equal(t, "192.0.2.10"+"/24", networkConfigData[0].IPConfigs[0].IPAddress.String())
 	require.Equal(t, "A6:23:64:4D:84:CB", networkConfigData[0].MacAddress)
 	require.Equal(t, "eth0", networkConfigData[0].Name)
 	require.Equal(t, infrav1.DefaultNetworkDevice, networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
-	require.Equal(t, "10.100.10.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress.String())
-	require.Equal(t, "10.100.10.1", networkConfigData[1].IPConfigs[0].Gateway)
+	require.Equal(t, "203.0.113.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.1", networkConfigData[1].IPConfigs[0].Gateway)
 	require.Equal(t, "AA:23:64:4D:84:CD", networkConfigData[1].MacAddress)
 	require.Equal(t, "eth1", networkConfigData[1].Name)
 	require.Equal(t, infrav1.NetName("net1"), networkConfigData[1].ProxName)
@@ -266,7 +266,7 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	defaultPool := addDefaultIPPool(machineScope)
 
 	createIPPools(t, kubeClient, machineScope)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0, &defaultPool)
 
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
 		return FakeISOInjector{Error: errors.New("bad FakeISOInjector")}
@@ -393,12 +393,12 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 					LinkMTU:    &MTU,
 					Routing: infrav1.Routing{
 						Routes: []infrav1.RouteSpec{
-							{To: ptr.To("default"), Via: ptr.To("192.168.178.1")},
-							{To: ptr.To("172.24.16.0/24"), Via: ptr.To("192.168.178.1"), Table: ptr.To(int32(100))},
+							{To: ptr.To("default"), Via: ptr.To("198.51.100.171")},
+							{To: ptr.To("203.0.113.160/24"), Via: ptr.To("198.51.100.171"), Table: ptr.To(int32(100))},
 						},
 						RoutingPolicy: []infrav1.RoutingPolicySpec{
-							{To: ptr.To("10.10.10.0/24"), Table: ptr.To(int32(100))},
-							{From: ptr.To("172.24.16.0/24"), Table: ptr.To(int32(100))},
+							{To: ptr.To("192.0.2.0/24"), Table: ptr.To(int32(100))},
+							{From: ptr.To("203.0.113.160/24"), Table: ptr.To(int32(100))},
 						},
 					},
 				},
@@ -410,9 +410,9 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
 	require.Equal(t, "default", *cfg.Routes[0].To)
-	require.Equal(t, "172.24.16.0/24", *cfg.Routes[1].To)
-	require.Equal(t, "10.10.10.0/24", *cfg.FIBRules[0].To)
-	require.Equal(t, "172.24.16.0/24", *cfg.FIBRules[1].From)
+	require.Equal(t, "203.0.113.160/24", *cfg.Routes[1].To)
+	require.Equal(t, "192.0.2.0/24", *cfg.FIBRules[0].To)
+	require.Equal(t, "203.0.113.160/24", *cfg.FIBRules[1].From)
 }
 
 func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
@@ -467,7 +467,7 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 
 	// create missing defaultPoolV6 and ipAddresses
 	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.254", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.254", 0, &defaultPool)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", 1, &defaultPoolV6)
 
 	// perform test
@@ -482,8 +482,8 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData))
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.0.0.254/24", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.1", ipConfigs[0].Gateway)
+	require.Equal(t, "203.0.113.254/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
 	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress.String())
 }
@@ -524,7 +524,7 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	addGlobalInClusterIPPool(machineScope, "extraPool1", "net1")
 
 	// Create missing ip addresses and pools.
-	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "2001:db8::2", "10.0.0.10", "2001:db8::9")
+	createNetworkSpecForMachine(t, kubeClient, machineScope, "192.0.2.10", "2001:db8::2", "203.0.113.10", "2001:db8::9")
 
 	// Perform test.
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -539,13 +539,13 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	require.Equal(t, 2, len(networkConfigData[1].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.1", ipConfigs[0].Gateway)
+	require.Equal(t, "192.0.2.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
 	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress.String())
 	ipConfigs = networkConfigData[1].IPConfigs
 	require.Equal(t, "", ipConfigs[0].Gateway) // No Gateway assigned
-	require.Equal(t, "10.0.0.10/24", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "", ipConfigs[1].Gateway) // No Gateway assigned
 	require.Equal(t, "2001:db8::9/64", ipConfigs[1].IPAddress.String())
 }
@@ -582,7 +582,7 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	addDefaultIPPoolV6(machineScope, 1)
 
 	// Create missing ip addresses and pools.
-	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "2001:db8::2")
+	createNetworkSpecForMachine(t, kubeClient, machineScope, "192.0.2.10", "2001:db8::2")
 
 	// Perform test.
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -597,8 +597,8 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData[0].IPConfigs))
 	require.Equal(t, 1, len(networkConfigData[1].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.1", ipConfigs[0].Gateway)
+	require.Equal(t, "192.0.2.10/24", ipConfigs[0].IPAddress.String())
 	require.True(t, ipConfigs[0].Default)
 	ipConfigs = networkConfigData[1].IPConfigs
 	require.Equal(t, "2001:db8::1", ipConfigs[0].Gateway)
@@ -629,7 +629,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	addGlobalInClusterIPPool(machineScope, "extraPool0", "net0")
 	addGlobalInClusterIPPool(machineScope, "extraPool1", "net1")
 
-	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "10.20.10.10/23", "10.100.10.10/22")
+	createNetworkSpecForMachine(t, kubeClient, machineScope, "192.0.2.10", "203.0.113.210/23", "203.0.113.10/22")
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -645,11 +645,11 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	require.Equal(t, 0, len(networkConfigData[2].IPConfigs))
 	require.Equal(t, 1, len(networkConfigData[2].Interfaces))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
-	require.Equal(t, "10.20.10.10/23", ipConfigs[1].IPAddress.String())
+	require.Equal(t, "203.0.113.1", ipConfigs[0].Gateway)
+	require.Equal(t, "192.0.2.10/24", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.210/23", ipConfigs[1].IPAddress.String())
 	ipConfigs = networkConfigData[1].IPConfigs
-	require.Equal(t, "10.100.10.10/22", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.10/22", ipConfigs[0].IPAddress.String())
 	// VRF Data
 	require.Equal(t, "vrf", networkConfigData[2].Type)
 	require.Equal(t, "vrf-blue", networkConfigData[2].Name)
@@ -670,7 +670,7 @@ func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0)
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
 	require.Error(t, err)
@@ -698,7 +698,7 @@ func TestReconcileBootstrapData_Format_CloudConfig(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0)
 
 	setupFakeIsoInjector(t)
 
@@ -719,7 +719,7 @@ func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
 	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
 	createBootstrapSecret(t, kubeClient, machineScope, ignition.FormatIgnition)
 
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0)
 
 	getIgnitionISOInjector = func(_ *proxmox.VirtualMachine, _ cloudinit.Renderer, _ *ignition.Enricher) isoInjector {
 		return FakeIgnitionISOInjector{}
@@ -767,7 +767,7 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	// NetworkSetup for extra pools.
 	addGlobalInClusterIPPool(machineScope, "extraPool0", "net0")
 
-	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "10.5.10.10/23")
+	createNetworkSpecForMachine(t, kubeClient, machineScope, "192.0.2.10", "10.5.10.10/23")
 
 	// Perform the test
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
@@ -781,8 +781,8 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData))
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
-	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
+	require.Equal(t, "203.0.113.1", ipConfigs[0].Gateway)
+	require.Equal(t, "192.0.2.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "", ipConfigs[1].Gateway)
 	require.Equal(t, "10.5.10.10/23", ipConfigs[1].IPAddress.String())
 }

@@ -82,9 +82,9 @@ func defaultCluster() *ProxmoxCluster {
 		},
 		Spec: ProxmoxClusterSpec{
 			IPv4Config: &IPConfigSpec{
-				Addresses: []string{"10.0.0.0/24"},
+				Addresses: []string{"203.0.113.0/24"},
 				Prefix:    24,
-				Gateway:   "10.0.0.254",
+				Gateway:   "203.0.113.254",
 				Metric:    ptr.To(int32(123)),
 			},
 			DNSServers: []string{"1.2.3.4"},
@@ -228,9 +228,9 @@ func TestSetInClusterIPPoolRef(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ipamicv1.InClusterIPPoolSpec{
-			Addresses: []string{"10.10.10.2/24"},
+			Addresses: []string{"192.0.2.2/24"},
 			Prefix:    24,
-			Gateway:   "10.10.10.1",
+			Gateway:   "192.0.2.1",
 		},
 	}
 
