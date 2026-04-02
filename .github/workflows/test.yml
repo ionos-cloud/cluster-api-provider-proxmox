@@ -2,40 +2,14 @@ name: Test
 on:
   push:
     branches: ["main"]
-  pull_request_target:
+  pull_request:
     branches: ["main"]
 
 jobs:
-  confirm:
-    # check if confirmation is necessary
-    if: github.event_name == 'pull_request_target'
-    # request confirmation
-    environment: e2e
-    runs-on: ubuntu-latest
-    steps:
-      - run: ":"
-
   test:
-    # check the result of confirmation if necessary
-    # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#example-not-requiring-successful-dependent-jobs
-    # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions#always
-    if: ${{ !cancelled() }}
-    needs: [confirm]
-
     runs-on: ubuntu-latest
     steps:
-
-      - name: checkout PR ${{ github.event.pull_request.number }}
-        if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # for SonarQube
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: checkout
-        if: github.event_name == 'push'
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # for SonarQube
 
@@ -47,7 +21,7 @@ jobs:
       - run: "make test"
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
-        if: github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request'
         uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
         with:
          args: >
