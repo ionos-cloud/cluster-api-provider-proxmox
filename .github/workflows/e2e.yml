@@ -51,5 +51,5 @@ jobs:
       - name: Clean up kind clusters
         if: always()
         run: |
-          kind get clusters | xargs -I% kind delete cluster --name %
+          go tool kind get clusters | xargs -I% go tool kind delete cluster --name %
           docker system prune -a -f

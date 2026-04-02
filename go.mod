@@ -10,6 +10,7 @@ replace (
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.4
 	sigs.k8s.io/controller-runtime/tools/setup-envtest => sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250911081535-42a14a36c13b // v1.34 → k8s 34
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.18.0 // v0.19 → k8s 34, v0.20 → k8s 35
+	sigs.k8s.io/kind => sigs.k8s.io/kind v0.30.0 // v0.31.0 → k8s 35
 )
 
 require (
@@ -49,6 +50,7 @@ tool (
 	k8s.io/code-generator/cmd/conversion-gen
 	sigs.k8s.io/controller-runtime/tools/setup-envtest
 	sigs.k8s.io/controller-tools/cmd/controller-gen
+	sigs.k8s.io/kind
 	sigs.k8s.io/kustomize/kustomize/v5
 )
 
