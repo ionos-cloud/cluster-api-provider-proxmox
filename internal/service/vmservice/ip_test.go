@@ -417,8 +417,8 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	defaultIP := "192.0.2.10"
 	createIPPools(t, kubeClient, machineScope)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, defaultIP, 0, &defaultPool)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.510", 1, &extraPool0)
-	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.511", 2, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.50", 1, &extraPool0)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "203.0.113.51", 2, &extraPool0)
 	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.10", 0, &extraPool1)
 	createIPAddress(t, kubeClient, machineScope, "net1", "2001:db8::1", 1, &extraPool2)
 	createIPAddress(t, kubeClient, machineScope, "net1", "203.0.113.11", 2, &extraPool1)
@@ -430,7 +430,7 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 
 	require.NotNil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice))
 	require.Equal(t,
-		[]string{defaultIP, "203.0.113.510", "203.0.113.511"},
+		[]string{defaultIP, "203.0.113.50", "203.0.113.51"},
 		machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv4,
 	)
 	require.Nil(t, machineScope.ProxmoxMachine.GetIPAddressesNet(infrav1.DefaultNetworkDevice).IPv6)

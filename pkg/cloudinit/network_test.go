@@ -45,8 +45,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigWithLinkMTU = `network:
   version: 2
@@ -65,8 +65,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
       mtu: 9001`
 
 	expectedValidNetworkConfigWithoutDNS = `network:
@@ -102,8 +102,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
@@ -117,8 +117,8 @@ const (
           via: "196.168.100.254"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigDualStack = `network:
   version: 2
@@ -141,8 +141,8 @@ const (
           via: "2001:db8::1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigIPv6 = `network:
   version: 2
@@ -161,8 +161,8 @@ const (
           via: "2001:db8::1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigDHCP = `network:
   version: 2
@@ -175,8 +175,8 @@ const (
       dhcp6: true
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigDHCP4 = `network:
   version: 2
@@ -189,8 +189,8 @@ const (
       dhcp6: false
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigDHCP6 = `network:
   version: 2
@@ -203,8 +203,8 @@ const (
       dhcp6: true
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigWithDHCP = `network:
   version: 2
@@ -223,8 +223,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigIPAndDHCP = `network:
   version: 2
@@ -243,8 +243,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
+          - '192.0.2.53'
+          - '192.0.2.54'`
 
 	expectedValidNetworkConfigWithRoutes = `network:
   version: 2
@@ -263,8 +263,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
     eth1:
       match:
         macaddress: 92:60:a0:5b:22:c3
@@ -296,8 +296,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
     eth1:
       match:
         macaddress: 92:60:a0:5b:22:c3
@@ -329,8 +329,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
@@ -344,14 +344,14 @@ const (
           via: "196.168.100.254"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
   vrfs:
     vrf-blue:
       table: 500
       routes:
         - { "to": "default",  "via": "198.51.100.171",  "metric": 100,  "table": 100, }
-        - { "to": "192.0.2.0/24",  "via": "198.51.100.17254",  "metric": 100, }
+        - { "to": "192.0.2.0/24",  "via": "198.51.100.172",  "metric": 100, }
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "198.51.100.171/24",  "priority": 999,  "table": 100, }
       interfaces:
@@ -375,8 +375,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
@@ -390,14 +390,14 @@ const (
           via: "196.168.100.254"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
   vrfs:
     vrf-blue:
       table: 500
       routes:
         - { "to": "default",  "via": "198.51.100.171",  "metric": 100,  "table": 100, }
-        - { "to": "192.0.2.0/24",  "via": "198.51.100.17254",  "metric": 100, }
+        - { "to": "192.0.2.0/24",  "via": "198.51.100.172",  "metric": 100, }
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "198.51.100.171/24",  "priority": 999,  "table": 100, }
       interfaces:
@@ -426,8 +426,8 @@ const (
           via: "192.0.2.1"
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - '192.0.2.53'
+          - '192.0.2.54'
     asdf !.tag:
       match:
         macaddress: b4:87:18:bf:a3:60
@@ -951,7 +951,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Table:  ptr.To(int32(100)),
 						}, {
 							To:     ptr.To("192.0.2.0/24"),
-							Via:    ptr.To("198.51.100.17254"),
+							Via:    ptr.To("198.51.100.172"),
 							Metric: ptr.To(int32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
@@ -1006,7 +1006,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Table:  ptr.To(int32(100)),
 						}, {
 							To:     ptr.To("192.0.2.0/24"),
-							Via:    ptr.To("198.51.100.17254"),
+							Via:    ptr.To("198.51.100.172"),
 							Metric: ptr.To(int32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
