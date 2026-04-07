@@ -416,6 +416,33 @@ func TestSplitYAMLDocuments(t *testing.T) {
 	}
 }
 
+func TestConvert_V1Alpha1Template_GoldenFile(t *testing.T) {
+	input, err := os.ReadFile("testdata/v1alpha1-cluster-template.yaml")
+	if err != nil {
+		t.Fatalf("reading input fixture: %v", err)
+	}
+
+	expected, err := os.ReadFile("testdata/v1alpha2-cluster-template.yaml")
+	if err != nil {
+		t.Fatalf("reading golden fixture: %v", err)
+	}
+
+	out, err := Convert(input, Options{
+		Filename: "cluster-template.yaml",
+		Warn:     noopWarn,
+	})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+
+	if string(out) != string(expected) {
+		t.Errorf("output does not match golden file testdata/v1alpha2-cluster-template.yaml\n"+
+			"to update the golden file, run:\n"+
+			"  bin/capmox-convert <pkg/convert/testdata/v1alpha1-cluster-template.yaml >pkg/convert/testdata/v1alpha2-cluster-template.yaml\n\n"+
+			"diff (-want +got):\n%s", unifiedDiff(string(expected), string(out)))
+	}
+}
+
 var envsubstVarRe = regexp.MustCompile(`\$\{[^}]+\}`)
 
 func findEnvsubstVars(text string) map[string]bool {
@@ -425,4 +452,30 @@ func findEnvsubstVars(text string) map[string]bool {
 		result[m] = true
 	}
 	return result
+}
+
+// unifiedDiff returns a simple line-by-line diff for test failure messages.
+func unifiedDiff(want, got string) string {
+	wantLines := strings.Split(want, "\n")
+	gotLines := strings.Split(got, "\n")
+
+	var b strings.Builder
+	maxLines := len(wantLines)
+	if len(gotLines) > maxLines {
+		maxLines = len(gotLines)
+	}
+	for i := 0; i < maxLines; i++ {
+		var w, g string
+		if i < len(wantLines) {
+			w = wantLines[i]
+		}
+		if i < len(gotLines) {
+			g = gotLines[i]
+		}
+		if w != g {
+			b.WriteString("- " + w + "\n")
+			b.WriteString("+ " + g + "\n")
+		}
+	}
+	return b.String()
 }
