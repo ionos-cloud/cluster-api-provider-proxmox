@@ -73,20 +73,25 @@ func Convert(input []byte, opts Options) ([]byte, error) {
 }
 
 func convertDocument(rawDoc []byte, filename string, warn WarnFunc, indent int) ([]byte, error) {
-	// Detect resource type.
-	id, converterType := DetectResource(rawDoc)
+	// Phase 1: Sentinel replacement.
+	replaced, entries, err := ScanAndReplace(string(rawDoc))
+	if err != nil {
+		return nil, fmt.Errorf("sentinel replacement: %w", err)
+	}
 
-	var (
-		out []byte
-		err error
-	)
+	sentinelDoc := []byte(replaced)
 
-	// Route to converter.
+	// Phase 2: Detect resource type.
+	id, converterType := DetectResource(sentinelDoc)
+
+	var out []byte
+
+	// Phase 3: Route to converter.
 	switch converterType {
 	case ConverterCAPMOX:
-		out, err = ConvertCAPMOX(rawDoc, id, filename, indent, warn)
+		out, err = ConvertCAPMOX(sentinelDoc, id, filename, indent, warn)
 	case ConverterCAPI:
-		out, err = ConvertCAPI(rawDoc, id, filename, indent, warn)
+		out, err = ConvertCAPI(sentinelDoc, id, filename, indent, warn)
 	case ConverterPassthrough:
 		if id.APIVersion != "" || id.Kind != "" {
 			warn(Warning{
@@ -96,6 +101,7 @@ func convertDocument(rawDoc []byte, filename string, warn WarnFunc, indent int) 
 				Old:     fmt.Sprintf("apiVersion: %q, kind: %q", id.APIVersion, id.Kind),
 			})
 		}
+		// Skip sentinel restoration for passthrough — return original.
 		return rawDoc, nil
 	}
 
@@ -103,7 +109,10 @@ func convertDocument(rawDoc []byte, filename string, warn WarnFunc, indent int) 
 		return nil, err
 	}
 
-	return out, nil
+	// Phase 5: Sentinel restoration.
+	restored := Restore(string(out), entries)
+
+	return []byte(restored), nil
 }
 
 // splitYAMLDocuments splits a multi-doc YAML by "---" separators,

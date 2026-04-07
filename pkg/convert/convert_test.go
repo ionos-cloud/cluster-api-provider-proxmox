@@ -17,6 +17,8 @@ limitations under the License.
 package convert
 
 import (
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -43,6 +45,47 @@ spec:
     host: 10.0.0.1
     port: 6443
 `
+
+func TestConvert_V1Alpha1Template(t *testing.T) {
+	input, err := os.ReadFile("testdata/v1alpha1-cluster-template.yaml")
+	if err != nil {
+		t.Fatalf("reading test fixture: %v", err)
+	}
+
+	var warnings []Warning
+	out, err := Convert(input, Options{
+		Filename: "cluster-template.yaml",
+		Warn: func(w Warning) {
+			warnings = append(warnings, w)
+			t.Logf("WARNING: %s", w)
+		},
+	})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+
+	result := string(out)
+
+	// Verify apiVersion bumps.
+	if strings.Contains(result, "infrastructure.cluster.x-k8s.io/v1alpha1") {
+		t.Error("output still contains v1alpha1 CAPMOX apiVersion")
+	}
+	if !strings.Contains(result, "infrastructure.cluster.x-k8s.io/v1alpha2") {
+		t.Error("output missing v1alpha2 CAPMOX apiVersion")
+	}
+	if strings.Contains(result, "cluster.x-k8s.io/v1beta1") {
+		t.Error("output still contains v1beta1 CAPI apiVersion")
+	}
+
+	// Verify all ${VAR} expressions are preserved.
+	inputVars := findEnvsubstVars(string(input))
+	outputVars := findEnvsubstVars(result)
+	for v := range inputVars {
+		if !outputVars[v] {
+			t.Errorf("envsubst var %s lost during conversion", v)
+		}
+	}
+}
 
 func TestConvert_Passthrough(t *testing.T) {
 	input := configMapYAML + `data:
@@ -357,4 +400,15 @@ func TestSplitYAMLDocuments(t *testing.T) {
 			}
 		})
 	}
+}
+
+var envsubstVarRe = regexp.MustCompile(`\$\{[^}]+\}`)
+
+func findEnvsubstVars(text string) map[string]bool {
+	matches := envsubstVarRe.FindAllString(text, -1)
+	result := make(map[string]bool)
+	for _, m := range matches {
+		result[m] = true
+	}
+	return result
 }
