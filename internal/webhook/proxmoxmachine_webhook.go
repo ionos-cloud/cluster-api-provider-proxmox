@@ -279,6 +279,13 @@ func (p *ProxmoxMachine) Default(_ context.Context, obj runtime.Object) error {
 		return nil
 	}
 
+	// Default Model to "virtio" for each network device that has none set.
+	for i := range machine.Spec.Network.NetworkDevices {
+		if machine.Spec.Network.NetworkDevices[i].Model == nil {
+			machine.Spec.Network.NetworkDevices[i].Model = ptr.To(infrav1.DefaultNetworkDeviceModel)
+		}
+	}
+
 	// Patch default networks if they are unset.
 	defaultIPv4Count := 0
 	defaultIPv6Count := 0

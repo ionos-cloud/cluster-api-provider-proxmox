@@ -160,6 +160,21 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(*machine.Spec.Network.NetworkDevices[0].DefaultIPv6).To(Equal(true))
 		})
 
+		It("should default network device model to virtio when not set", func() {
+			machine := validProxmoxMachine("default-model")
+			machine.Spec.Network.NetworkDevices[0].Model = nil
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+			g.Expect(machine.Spec.Network.NetworkDevices[0].Model).NotTo(BeNil())
+			g.Expect(*machine.Spec.Network.NetworkDevices[0].Model).To(Equal(infrav1.DefaultNetworkDeviceModel))
+		})
+
+		It("should not override network device model when already set", func() {
+			machine := validProxmoxMachine("explicit-model")
+			machine.Spec.Network.NetworkDevices[0].Model = ptr.To("e1000")
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+			g.Expect(*machine.Spec.Network.NetworkDevices[0].Model).To(Equal("e1000"))
+		})
+
 		It("should not allow non consecutive network interface names ", func() {
 			machine := validProxmoxMachine("non-consecutive-netname")
 			machine.Spec.Network.NetworkDevices[1].Name = "net2"

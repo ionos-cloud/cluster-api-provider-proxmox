@@ -41,6 +41,9 @@ const (
 	// DefaultNetworkDevice is the default network device name.
 	DefaultNetworkDevice = NetName("net0")
 
+	// DefaultNetworkDeviceModel is the default network device model applied by the webhook.
+	DefaultNetworkDeviceModel = "virtio"
+
 	// DefaultSuffix is the default suffix for the network device.
 	DefaultSuffix = "inet"
 
@@ -440,7 +443,6 @@ type NetworkDevice struct {
 	// Defaults to "virtio" when not specified.
 	// +optional
 	// +kubebuilder:validation:Enum=e1000;virtio;rtl8139;vmxnet3
-	// +default="virtio"
 	Model *string `json:"model,omitempty"`
 
 	// mtu is the network device Maximum Transmission Unit.
