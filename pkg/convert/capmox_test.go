@@ -165,11 +165,12 @@ metadata:
 }
 
 func TestConvertCAPMOX_MinimalValidInput(t *testing.T) {
-	// Minimal valid input that exercises the full happy path.
+	// Minimal valid input that exercises the full happy path including comment grafting.
 	input := `apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: ProxmoxCluster
 metadata:
   name: test
+  # a comment
 spec:
   controlPlaneEndpoint:
     host: 10.0.0.1
@@ -186,6 +187,9 @@ spec:
 	result := string(out)
 	if !strings.Contains(result, "v1alpha2") {
 		t.Error("output should contain v1alpha2")
+	}
+	if !strings.Contains(result, "a comment") {
+		t.Error("comment should be preserved")
 	}
 }
 

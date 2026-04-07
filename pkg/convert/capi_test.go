@@ -92,6 +92,7 @@ func TestConvertCAPI_MinimalValidInput(t *testing.T) {
 kind: Cluster
 metadata:
   name: test
+  # a comment
 spec:
   clusterNetwork:
     pods:
@@ -106,6 +107,9 @@ spec:
 	result := string(out)
 	if !strings.Contains(result, "v1beta2") {
 		t.Error("output should contain v1beta2")
+	}
+	if !strings.Contains(result, "a comment") {
+		t.Error("comment should be preserved")
 	}
 }
 

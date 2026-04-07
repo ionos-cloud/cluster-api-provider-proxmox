@@ -98,19 +98,23 @@ func convertObject(src, dst runtime.Object, kind string) error {
 	return nil
 }
 
-// finalizeYAML marshals the converted object to YAML, prunes defaults,
-// strips status, and applies the requested indentation.
+// finalizeYAML marshals the converted object to YAML, grafts comments from the
+// original input, prunes defaults, and applies the requested indentation.
 func finalizeYAML(srcYAML []byte, obj runtime.Object, kind, filename string, indent int, warn WarnFunc) ([]byte, error) {
 	outJSON, err := k8syaml.Marshal(obj)
 	if err != nil {
 		return nil, fmt.Errorf("marshal %s: %w", kind, err)
 	}
 
-	var dstNode yaml.Node
+	var srcNode, dstNode yaml.Node
+	if err := yaml.Unmarshal(srcYAML, &srcNode); err != nil {
+		return outJSON, nil //nolint:nilerr // graceful fallback: return without comments
+	}
 	if err := yaml.Unmarshal(outJSON, &dstNode); err != nil {
-		return outJSON, nil //nolint:nilerr // graceful fallback
+		return outJSON, nil //nolint:nilerr // graceful fallback: return without comments
 	}
 
+	GraftComments(&srcNode, &dstNode, filename, warn)
 	PruneDefaults(&dstNode, kind)
 	StripStatus(&dstNode, filename, warn)
 

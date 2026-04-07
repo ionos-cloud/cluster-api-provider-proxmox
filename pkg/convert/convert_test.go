@@ -101,6 +101,31 @@ func TestConvert_V1Alpha1Template(t *testing.T) {
 	}
 }
 
+func TestConvert_V1Alpha1Template_GoldenFile(t *testing.T) {
+	input, err := os.ReadFile("testdata/v1alpha1-cluster-template.yaml")
+	if err != nil {
+		t.Fatalf("reading input fixture: %v", err)
+	}
+
+	expected, err := os.ReadFile("testdata/v1alpha2-cluster-template.yaml")
+	if err != nil {
+		t.Fatalf("reading golden fixture: %v", err)
+	}
+
+	out, err := Convert(input, Options{
+		Filename: "cluster-template.yaml",
+		Warn:     noopWarn,
+	})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+
+	if string(out) != string(expected) {
+		t.Errorf("output does not match golden file testdata/v1alpha2-cluster-template.yaml\n"+
+			"diff (-want +got):\n%s", unifiedDiff(string(expected), string(out)))
+	}
+}
+
 func TestConvert_Passthrough(t *testing.T) {
 	input := configMapYAML + `data:
   key: value
@@ -413,33 +438,6 @@ func TestSplitYAMLDocuments(t *testing.T) {
 				t.Errorf("splitYAMLDocuments got %d docs, want %d", len(docs), tt.wantDocs)
 			}
 		})
-	}
-}
-
-func TestConvert_V1Alpha1Template_GoldenFile(t *testing.T) {
-	input, err := os.ReadFile("testdata/v1alpha1-cluster-template.yaml")
-	if err != nil {
-		t.Fatalf("reading input fixture: %v", err)
-	}
-
-	expected, err := os.ReadFile("testdata/v1alpha2-cluster-template.yaml")
-	if err != nil {
-		t.Fatalf("reading golden fixture: %v", err)
-	}
-
-	out, err := Convert(input, Options{
-		Filename: "cluster-template.yaml",
-		Warn:     noopWarn,
-	})
-	if err != nil {
-		t.Fatalf("Convert: %v", err)
-	}
-
-	if string(out) != string(expected) {
-		t.Errorf("output does not match golden file testdata/v1alpha2-cluster-template.yaml\n"+
-			"to update the golden file, run:\n"+
-			"  bin/capmox-convert <pkg/convert/testdata/v1alpha1-cluster-template.yaml >pkg/convert/testdata/v1alpha2-cluster-template.yaml\n\n"+
-			"diff (-want +got):\n%s", unifiedDiff(string(expected), string(out)))
 	}
 }
 
