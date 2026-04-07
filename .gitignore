@@ -48,4 +48,3 @@ test/e2e/config/*-envsubst.yaml
 
 .tool-versions
 e2e-env*.yaml
-

@@ -35,5 +35,7 @@ ignore:
 - .*.yml
 # these are clusterctl templates, not yaml
 - templates
+# conversion tool testdata contains envsubst templates
+- pkg/convert/testdata
 # github actions checked by actionlint
 - .github/workflows
