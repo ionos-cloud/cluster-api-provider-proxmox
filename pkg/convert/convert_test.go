@@ -85,6 +85,20 @@ func TestConvert_V1Alpha1Template(t *testing.T) {
 			t.Errorf("envsubst var %s lost during conversion", v)
 		}
 	}
+
+	// Verify no top-level null fields leaked (exclude block scalars like embedded manifests).
+	for _, line := range strings.Split(result, "\n") {
+		trimmed := strings.TrimSpace(line)
+		// Skip lines inside block scalars (indented content or literal blocks).
+		if strings.HasSuffix(trimmed, ": null") && !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			// Check this isn't inside a block scalar by seeing if it's a YAML key.
+			// Block scalar content is typically indented further than the surrounding keys.
+			indent := len(line) - len(strings.TrimLeft(line, " "))
+			if indent <= 8 { // top-level YAML keys are indented ≤ 8 spaces
+				t.Errorf("output contains null field: %s", trimmed)
+			}
+		}
+	}
 }
 
 func TestConvert_Passthrough(t *testing.T) {
