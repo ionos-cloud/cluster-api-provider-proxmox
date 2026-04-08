@@ -42,7 +42,13 @@ Cluster API v1beta1
 
 ## Documentation
 
-Further documentation is available in the `/docs` directory.
+Further documentation is available in the `/docs` directory:
+
+- [Usage Guide](./docs/Usage.md) - Getting started and basic usage
+- [Development Guide](./docs/Development.md) - Development setup and workflow
+- [Advanced Setups](./docs/advanced-setups.md) - Advanced configuration options
+- [Troubleshooting](./docs/Troubleshooting.md) - Common issues and solutions
+- [Dependabot Review Agent](./docs/Dependabot-Review-Agent.md) - Automated dependency review process
 
 ## Community, discussion, contribution, and support
 
