@@ -183,6 +183,33 @@ metadata:
 	}
 }
 
+func TestConvert_MultiDoc_PassthroughNewline(t *testing.T) {
+	input := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: ProxmoxCluster
+metadata:
+  name: test
+spec:
+  controlPlaneEndpoint:
+    host: 10.0.0.1
+    port: 6443
+`
+
+	out, err := Convert([]byte(input), Options{Warn: noopWarn})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+
+	result := string(out)
+	if !strings.Contains(result, "\n---\n") {
+		t.Errorf("passthrough document should be followed by newline before separator, got:\n%s", result)
+	}
+}
+
 func TestConvert_NilWarn(t *testing.T) {
 	// nil Warn should not panic.
 	out, err := Convert([]byte(configMapYAML), Options{})

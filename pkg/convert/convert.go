@@ -125,7 +125,8 @@ func splitYAMLDocuments(data []byte) [][]byte {
 	for _, line := range lines {
 		if bytes.Equal(bytes.TrimSpace(line), []byte("---")) {
 			if len(current) > 0 {
-				docs = append(docs, bytes.Join(current, []byte("\n")))
+				doc := bytes.Join(current, []byte("\n"))
+				docs = append(docs, append(doc, '\n'))
 				current = nil
 			}
 			docs = append(docs, append(line, '\n'))
