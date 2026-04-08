@@ -6,6 +6,9 @@ on:
   pull_request_target:
     types: ["opened", "synchronize", "reopened", "labeled", "unlabeled"]
 
+permissions:
+  contents: read
+
 jobs:
   e2e:
     if: ${{ ! contains( github.event.pull_request.labels.*.name, 'e2e/none') }}
