@@ -26,7 +26,7 @@ jobs:
           go-version-file: go.mod
       - name: generate release artifacts
         run: |
-          make release-manifests RELEASE_VERSION=${{ env.RELEASE_TAG }}
+          make release-manifests "RELEASE_VERSION=$RELEASE_TAG"
       - name: generate release templates
         run: |
           make release-templates

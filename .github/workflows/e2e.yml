@@ -43,7 +43,7 @@ jobs:
         run: echo 'SKIP_E2E=""' >> "$GITHUB_ENV"
 
       - name: Run e2e tests
-        run: "make test-e2e GINKGO_SKIP=${{ env.SKIP_E2E }}"
+        run: make test-e2e "GINKGO_SKIP=$SKIP_E2E"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
