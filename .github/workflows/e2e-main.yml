@@ -1,0 +1,15 @@
+name: "e2e (main/PR)"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: ["opened", "synchronize", "reopened", "labeled", "unlabeled"]
+
+jobs:
+  e2e:
+    if: >-
+      github.event_name == 'push' ||
+      (github.actor != 'dependabot[bot]' &&
+       !contains(github.event.pull_request.labels.*.name, 'e2e/none'))
+    uses: ./.github/workflows/e2e.yml
