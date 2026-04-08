@@ -10,6 +10,7 @@ jobs:
   e2e:
     if: >-
       github.event_name == 'push' ||
-      (github.actor != 'dependabot[bot]' &&
+      (github.event.pull_request.user.login != 'dependabot[bot]' &&
+       !github.event.pull_request.head.repo.fork &&
        !contains(github.event.pull_request.labels.*.name, 'e2e/none'))
     uses: ./.github/workflows/e2e.yml
