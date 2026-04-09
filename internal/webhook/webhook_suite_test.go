@@ -51,7 +51,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	testEnv = helpers.NewTestEnvironment(true, nil)
+	testEnv = helpers.NewTestEnvironment(managerCtx, true, nil)
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	By("bootstrapping test environment")
@@ -73,7 +73,7 @@ var _ = BeforeSuite(func() {
 
 	go func() {
 		defer GinkgoRecover()
-		err = testEnv.StartManager(managerCtx)
+		err = testEnv.StartManager()
 		Expect(err).NotTo(HaveOccurred())
 	}()
 
