@@ -92,8 +92,13 @@ tidy: ## Run go mod tidy to ensure modules are up to date
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate fmt vet build-convert ## Build manager binary.
 	go build -o bin/manager cmd/main.go
+
+.PHONY: build-convert
+build-convert: ## Build convert tool.
+	go build -o bin/convert ./cmd/convert
+	ln -sf convert bin/clusterctl-capmox-convert
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.

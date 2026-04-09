@@ -9,6 +9,7 @@ CAPMOX v0.8 (API v1alpha2).
 - [What's New in v0.8 (v1alpha2)](#whats-new-in-v08-v1alpha2)
 - [Breaking Changes](#breaking-changes)
 - [Automatic Conversion](#automatic-conversion)
+- [Converting Manifest Files](#converting-manifest-files)
 - [Migrating Your Manifests](#migrating-your-manifests)
   - [API Version and Cluster API References](#api-version-and-cluster-api-references)
   - [Integer Types](#integer-types)
@@ -98,7 +99,79 @@ However, be aware of a few things:
 - **Your YAML manifests, Helm values, and GitOps templates are NOT auto-converted.**
   You must update them to v1alpha2 as described below.
 
+## Converting Manifest Files
+
+The `convert` CLI tool automates the mechanical manifest changes listed in the
+[Breaking Changes](#breaking-changes) summary. Run it on your manifest files before
+making any manual edits.
+
+### What it converts
+
+- API versions: `v1alpha1` → `v1alpha2`, CAPI `v1beta1` → `v1beta2`
+- Resource references: `apiVersion` → `apiGroup` (infrastructureRef, controlPlaneRef, configRef)
+- `machineTemplate.infrastructureRef` → `machineTemplate.spec.infrastructureRef`
+- `kubeletExtraArgs` map → name/value list
+- `network.default` / `additionalDevices` → `network.networkDevices` list
+- `ipv4PoolRef` / `ipv6PoolRef` → `ipPoolRef` list
+- YAML comments and `${VARIABLE}` substitution expressions are preserved
+
+### What requires manual work
+
+- **`cloneSpec` decomposition** — if your ProxmoxCluster uses `cloneSpec`, the tool
+  cannot split it into separate ProxmoxMachineTemplate and KubeadmConfigSpec resources.
+  See [ProxmoxCluster → Removed: cloneSpec](#proxmoxcluster) below.
+
+### Installation
+
+```sh
+make build-convert
+```
+
+This produces `bin/convert` and a `bin/clusterctl-capmox-convert` symlink
+for use as a [clusterctl plugin](https://cluster-api.sigs.k8s.io/clusterctl/plugins).
+
+### Usage
+
+**Stdin/stdout** — convert a single file:
+
+```sh
+convert <cluster-template.yaml >cluster-template-v1alpha2.yaml
+```
+
+**In-place with backup** — overwrites the file, saving the original as `.bak`:
+
+```sh
+convert -f cluster-template.yaml -i.bak
+```
+
+**Multiple files:**
+
+```sh
+convert -f file1.yaml -f file2.yaml -i.bak
+```
+
+**As a clusterctl plugin** (requires `clusterctl-capmox-convert` in `$PATH`):
+
+```sh
+clusterctl capmox-convert -f cluster-template.yaml -i.bak
+```
+
+### Post-conversion review
+
+- Manifest files should not contain `status` fields. The tool strips zero-value
+  `status` blocks. If a `status` block with non-zero values is found, the tool
+  emits a warning — this likely means the input was exported from a live
+  resource rather than being a proper manifest template.
+  You are strongly advised to remove any `status` fields from your templates.
+- If you had `cloneSpec`, follow the manual migration in
+  [ProxmoxCluster → Removed: cloneSpec](#proxmoxcluster).
+- Run a diff against the original to verify that the output looks correct.
+
 ## Migrating Your Manifests
+
+> **Tip:** If you already ran `convert`, the changes in this section are
+> already applied. You can skip to
+> [ProxmoxCluster → Removed: cloneSpec](#proxmoxcluster) if that applies to you.
 
 ### API Version and Cluster API References
 
