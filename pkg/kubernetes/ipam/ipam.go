@@ -209,7 +209,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
 			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
 			Name:     pool.Name,
-			Kind:     pool.TypeMeta.Kind,
+			Kind:     GetInClusterIPPoolKind(),
 		}
 		pools.IPv4 = &poolSpec
 	}
@@ -232,7 +232,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
 			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
 			Name:     pool.Name,
-			Kind:     pool.TypeMeta.Kind,
+			Kind:     GetInClusterIPPoolKind(),
 		}
 		pools.IPv6 = &poolSpec
 	}

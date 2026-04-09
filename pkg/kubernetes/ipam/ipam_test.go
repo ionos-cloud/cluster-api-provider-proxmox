@@ -930,6 +930,111 @@ func (s *IPAMTestSuite) testIPAddress(namespace, name, poolName string) *ipamv1.
 	}
 }
 
+// Test_GetIPAddressByPool_APIGroupFilter verifies that GetIPAddressByPool accepts
+// PoolRef.APIGroup in both "group" and "group/version" forms and rejects unrelated groups.
+func (s *IPAMTestSuite) Test_GetIPAddressByPool_APIGroupFilter() {
+	poolName := "filter-test-pool"
+
+	// bare group — matches GetIPAMInClusterAPIVersion() directly after Cut.
+	s.NoError(s.cl.Create(s.ctx, &ipamv1.IPAddress{
+		ObjectMeta: metav1.ObjectMeta{Name: "addr-bare", Namespace: "test"},
+		Spec: ipamv1.IPAddressSpec{
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: GetIPAMInClusterAPIVersion(),
+				Kind:     GetInClusterIPPoolKind(),
+				Name:     poolName,
+			},
+			ClaimRef: ipamv1.IPAddressClaimReference{Name: "claim-bare"},
+			Address:  "192.0.2.1",
+			Prefix:   new(int32(24)),
+			Gateway:  "192.0.2.254",
+		},
+	}))
+
+	// group/version — Cut extracts the group portion before the slash.
+	s.NoError(s.cl.Create(s.ctx, &ipamv1.IPAddress{
+		ObjectMeta: metav1.ObjectMeta{Name: "addr-groupversion", Namespace: "test"},
+		Spec: ipamv1.IPAddressSpec{
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: *GetIPAMInClusterAPIGroup(),
+				Kind:     GetInClusterIPPoolKind(),
+				Name:     poolName,
+			},
+			ClaimRef: ipamv1.IPAddressClaimReference{Name: "claim-groupversion"},
+			Address:  "192.0.2.2",
+			Prefix:   new(int32(24)),
+			Gateway:  "192.0.2.254",
+		},
+	}))
+
+	// different group entirely — must be filtered out.
+	s.NoError(s.cl.Create(s.ctx, &ipamv1.IPAddress{
+		ObjectMeta: metav1.ObjectMeta{Name: "addr-other", Namespace: "test"},
+		Spec: ipamv1.IPAddressSpec{
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: "other.example.io",
+				Kind:     "OtherPool",
+				Name:     poolName,
+			},
+			ClaimRef: ipamv1.IPAddressClaimReference{Name: "claim-other"},
+			Address:  "192.0.2.3",
+			Prefix:   new(int32(24)),
+			Gateway:  "192.0.2.254",
+		},
+	}))
+
+	result, err := s.helper.GetIPAddressByPool(s.ctx, corev1.TypedLocalObjectReference{
+		APIGroup: GetIPAMInClusterAPIGroup(),
+		Kind:     GetInClusterIPPoolKind(),
+		Name:     poolName,
+	})
+	s.NoError(err)
+	s.Len(result, 2)
+	s.ElementsMatch([]string{result[0].Name, result[1].Name}, []string{"addr-bare", "addr-groupversion"})
+}
+
+// Test_GetInClusterPools_PoolRefKind verifies that the PoolRef.Kind returned by
+// GetInClusterPools is populated from the constant rather than pool.TypeMeta.Kind,
+// which is cleared by controller-runtime after every Get().
+func (s *IPAMTestSuite) Test_GetInClusterPools_PoolRefKind() {
+	pool := &ipamicv1.InClusterIPPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "zone-v4-pool",
+			Namespace: "test",
+		},
+		Spec: ipamicv1.InClusterIPPoolSpec{
+			Addresses: []string{"192.0.2.1-192.0.2.100"},
+			Prefix:    24,
+			Gateway:   "192.0.2.254",
+		},
+	}
+	s.NoError(s.cl.Create(s.ctx, pool))
+
+	defaultZone := "default"
+	s.cluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{
+		{
+			Zone:                 &defaultZone,
+			InClusterIPPoolRefV4: &corev1.LocalObjectReference{Name: pool.Name},
+		},
+	}
+
+	moxm := &infrav1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-machine",
+			Namespace: "test",
+		},
+		Spec: infrav1.ProxmoxMachineSpec{
+			Network: &infrav1.NetworkSpec{},
+		},
+	}
+
+	pools, err := s.helper.GetInClusterPools(s.ctx, moxm)
+	s.NoError(err)
+	s.NotNil(pools.IPv4)
+	s.Equal(GetInClusterIPPoolKind(), pools.IPv4.PoolRef.Kind)
+	s.Equal(pool.Name, pools.IPv4.PoolRef.Name)
+}
+
 func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ipamv1.IPAddress {
 	gvk, err := apiutil.GVKForObject(new(ipamicv1.InClusterIPPool), s.cl.Scheme())
 	if err != nil {
