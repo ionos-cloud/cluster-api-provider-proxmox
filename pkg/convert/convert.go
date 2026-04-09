@@ -112,15 +112,17 @@ func convertDocument(rawDoc []byte, filename string, warn WarnFunc, indent int) 
 	return out, nil
 }
 
-// splitYAMLDocuments splits a multi-doc YAML by "---" separators,
-// preserving the separator lines.
+// splitYAMLDocuments splits a multi-doc YAML on "---" document separators,
+// preserving the separator lines as standalone entries. Only lines that are
+// exactly "---" at column 0 (no leading whitespace) are treated as separators;
+// "---" inside block scalars is always indented and is therefore ignored.
 func splitYAMLDocuments(data []byte) [][]byte {
 	var docs [][]byte
 	lines := bytes.Split(data, []byte("\n"))
 	current := make([][]byte, 0, len(lines))
 
 	for _, line := range lines {
-		if bytes.Equal(bytes.TrimSpace(line), []byte("---")) {
+		if bytes.Equal(line, []byte("---")) {
 			if len(current) > 0 {
 				doc := bytes.Join(current, []byte("\n"))
 				docs = append(docs, append(doc, '\n'))

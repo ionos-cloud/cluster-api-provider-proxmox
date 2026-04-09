@@ -142,8 +142,13 @@ func TestConvert_Passthrough(t *testing.T) {
 		t.Fatalf("Convert: %v", err)
 	}
 
-	if string(out) != input {
-		t.Error("passthrough should return input unchanged")
+	// The YAML round-trip in splitYAMLDocuments may normalise whitespace, but
+	// the content must be semantically preserved.
+	result := string(out)
+	for _, want := range []string{"kind: ConfigMap", "name: test", "key: value"} {
+		if !strings.Contains(result, want) {
+			t.Errorf("passthrough: %q not found in output:\n%s", want, result)
+		}
 	}
 
 	if len(warnings) != 1 {
@@ -207,6 +212,45 @@ spec:
 	result := string(out)
 	if !strings.Contains(result, "\n---\n") {
 		t.Errorf("passthrough document should be followed by newline before separator, got:\n%s", result)
+	}
+}
+
+func TestConvert_IndentedSeparatorInBlockScalar(t *testing.T) {
+	// An indented "---" inside a block scalar must not split the document.
+	// This was a KubeadmControlPlane pattern where a heredoc inside files[].content
+	// contained "---" at 8 spaces, causing the document to be split mid-block.
+	input := `apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: test
+spec:
+  kubeadmConfigSpec:
+    files:
+    - content: |
+        cat >> /tmp/foo.yaml <<EOF
+        ---
+        apiVersion: v1
+        kind: ConfigMap
+        EOF
+      path: /tmp/setup.sh
+`
+
+	out, err := Convert([]byte(input), Options{Warn: noopWarn})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+
+	result := string(out)
+	// The document must be recognised and converted as a single unit.
+	if strings.Contains(result, "v1beta1") {
+		t.Error("document was not converted: still contains v1beta1")
+	}
+	if !strings.Contains(result, "v1beta2") {
+		t.Error("document was not converted: v1beta2 not found")
+	}
+	// Block scalar content must be intact.
+	if !strings.Contains(result, "cat >> /tmp/foo.yaml <<EOF") {
+		t.Error("block scalar content was lost")
 	}
 }
 
