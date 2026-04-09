@@ -58,7 +58,7 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	proxmoxClient = proxmoxtest.NewMockClient(GinkgoT())
-	testEnv = helpers.NewTestEnvironment(false, proxmoxClient)
+	testEnv = helpers.NewTestEnvironment(managerCtx, false, proxmoxClient)
 	// TODO: do I need this?
 	cache := testEnv.GetCache()
 
@@ -98,7 +98,7 @@ var _ = BeforeSuite(func() {
 
 	go func() {
 		defer GinkgoRecover()
-		err := testEnv.StartManager(managerCtx)
+		err := testEnv.StartManager()
 		Expect(err).NotTo(HaveOccurred())
 	}()
 })
