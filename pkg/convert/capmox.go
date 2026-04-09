@@ -33,7 +33,7 @@ const capmoxV1Alpha2 = "infrastructure.cluster.x-k8s.io/v1alpha2"
 
 // ConvertCAPMOX converts a CAPMOX v1alpha1 resource to v1alpha2 using typed conversion.
 // Warnings are emitted immediately via warn.
-func ConvertCAPMOX(yamlDoc []byte, id ResourceID, filename string, indent int, warn WarnFunc) ([]byte, error) { //nolint:revive // name is clear
+func ConvertCAPMOX(yamlDoc []byte, id ResourceID, filename string, indent int, warn WarnFunc, entries []SentinelEntry) ([]byte, error) { //nolint:revive // name is clear
 	src, dst, err := capmoxObjects(id.Kind)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func ConvertCAPMOX(yamlDoc []byte, id ResourceID, filename string, indent int, w
 
 	setTypeMeta(dst, capmoxV1Alpha2, id.Kind)
 
-	return finalizeYAML(yamlDoc, dst, id.Kind, filename, indent, warn)
+	return finalizeYAML(yamlDoc, dst, id.Kind, filename, indent, warn, entries)
 }
 
 func capmoxObjects(kind string) (runtime.Object, runtime.Object, error) {
@@ -98,9 +98,11 @@ func convertObject(src, dst runtime.Object, kind string) error {
 	return nil
 }
 
-// finalizeYAML marshals the converted object to YAML, grafts comments from the
-// original input, prunes defaults, and applies the requested indentation.
-func finalizeYAML(srcYAML []byte, obj runtime.Object, kind, filename string, indent int, warn WarnFunc) ([]byte, error) {
+// finalizeYAML marshals the converted object to YAML, grafts comments, prunes
+// defaults, restores sentinels, and applies indentation. RestoreNode runs on
+// the node tree (correct for block scalars); Restore runs on the text output
+// afterwards to handle array sentinels that expanded to sequence nodes.
+func finalizeYAML(srcYAML []byte, obj runtime.Object, kind, filename string, indent int, warn WarnFunc, entries []SentinelEntry) ([]byte, error) {
 	outJSON, err := k8syaml.Marshal(obj)
 	if err != nil {
 		return nil, fmt.Errorf("marshal %s: %w", kind, err)
@@ -108,19 +110,20 @@ func finalizeYAML(srcYAML []byte, obj runtime.Object, kind, filename string, ind
 
 	var srcNode, dstNode yaml.Node
 	if err := yaml.Unmarshal(srcYAML, &srcNode); err != nil {
-		return outJSON, nil //nolint:nilerr // graceful fallback: return without comments
+		return []byte(Restore(string(outJSON), entries)), nil //nolint:nilerr // graceful fallback: return without comments
 	}
 	if err := yaml.Unmarshal(outJSON, &dstNode); err != nil {
-		return outJSON, nil //nolint:nilerr // graceful fallback: return without comments
+		return []byte(Restore(string(outJSON), entries)), nil //nolint:nilerr // graceful fallback: return without comments
 	}
 
 	GraftComments(&srcNode, &dstNode, filename, warn)
 	PruneDefaults(&dstNode, kind)
 	StripStatus(&dstNode, filename, warn)
+	RestoreNode(&dstNode, entries)
 
 	out, err := marshalWithIndent(&dstNode, indent)
 	if err != nil {
-		return outJSON, nil //nolint:nilerr // graceful fallback: return without indent
+		return []byte(Restore(string(outJSON), entries)), nil //nolint:nilerr // graceful fallback: return without indent
 	}
-	return out, nil
+	return []byte(Restore(string(out), entries)), nil
 }

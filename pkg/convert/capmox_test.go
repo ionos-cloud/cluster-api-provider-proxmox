@@ -41,7 +41,7 @@ spec:
 				APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 				Kind:       kind,
 			}
-			out, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn)
+			out, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn, nil)
 			if err != nil {
 				t.Fatalf("ConvertCAPMOX %s: %v", kind, err)
 			}
@@ -60,7 +60,7 @@ kind: ProxmoxUnknown
 		APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 		Kind:       "ProxmoxUnknown",
 	}
-	_, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn)
+	_, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err == nil {
 		t.Fatal("expected error for unknown kind")
 	}
@@ -75,7 +75,7 @@ func TestConvertCAPMOX_InvalidYAML(t *testing.T) {
 		APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 		Kind:       "ProxmoxCluster",
 	}
-	_, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn)
+	_, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err == nil {
 		t.Fatal("expected error for invalid YAML")
 	}
@@ -88,7 +88,7 @@ func TestConvertCAPMOX_DoubleUnmarshalFailure(t *testing.T) {
 		APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 		Kind:       "ProxmoxCluster",
 	}
-	_, err := ConvertCAPMOX(input, id, testfile, 2, noopWarn)
+	_, err := ConvertCAPMOX(input, id, testfile, 2, noopWarn, nil)
 	if err == nil {
 		t.Fatal("expected error for completely malformed YAML")
 	}
@@ -155,7 +155,7 @@ metadata:
 	obj.APIVersion = "infrastructure.cluster.x-k8s.io/v1alpha2"
 	obj.Kind = "ProxmoxCluster"
 
-	out, err := finalizeYAML([]byte(src), obj, "ProxmoxCluster", testfile, 2, noopWarn)
+	out, err := finalizeYAML([]byte(src), obj, "ProxmoxCluster", testfile, 2, noopWarn, nil)
 	if err != nil {
 		t.Fatalf("finalizeYAML: %v", err)
 	}
@@ -180,7 +180,7 @@ spec:
 		APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 		Kind:       "ProxmoxCluster",
 	}
-	out, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn)
+	out, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err != nil {
 		t.Fatalf("ConvertCAPMOX: %v", err)
 	}
@@ -209,7 +209,7 @@ spec:
 		APIVersion: "infrastructure.cluster.x-k8s.io/v1alpha1",
 		Kind:       "ProxmoxCluster",
 	}
-	out, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn)
+	out, err := ConvertCAPMOX([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err != nil {
 		t.Fatalf("ConvertCAPMOX with extra field: %v", err)
 	}

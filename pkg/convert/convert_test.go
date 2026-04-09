@@ -210,6 +210,37 @@ spec:
 	}
 }
 
+func TestConvert_BlockScalarQuotesPreserved(t *testing.T) {
+	// Quoted expressions like "${DEV%null}" inside block scalar content must
+	// survive the conversion round-trip with their surrounding " intact.
+	input := `apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: test
+spec:
+  template:
+    spec:
+      files:
+        - content: |
+            #!/bin/bash
+            test -z "${DEV%null}" && DEV="${FALLBACK%null}"
+          path: /tmp/set-node-ip.sh
+`
+
+	out, err := Convert([]byte(input), Options{Warn: noopWarn})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+
+	result := string(out)
+	if !strings.Contains(result, `"${DEV%null}"`) {
+		t.Errorf("Convert: quoted expression \"${DEV%%null}\" was stripped from block scalar content\nOutput:\n%s", result)
+	}
+	if !strings.Contains(result, `"${FALLBACK%null}"`) {
+		t.Errorf("Convert: quoted expression \"${FALLBACK%%null}\" was stripped from block scalar content\nOutput:\n%s", result)
+	}
+}
+
 func TestConvert_NilWarn(t *testing.T) {
 	// nil Warn should not panic.
 	out, err := Convert([]byte(configMapYAML), Options{})

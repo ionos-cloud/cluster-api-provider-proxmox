@@ -86,12 +86,12 @@ func convertDocument(rawDoc []byte, filename string, warn WarnFunc, indent int) 
 
 	var out []byte
 
-	// Phase 3: Route to converter.
+	// Phase 3: Route to converter (sentinel restoration happens inside).
 	switch converterType {
 	case ConverterCAPMOX:
-		out, err = ConvertCAPMOX(sentinelDoc, id, filename, indent, warn)
+		out, err = ConvertCAPMOX(sentinelDoc, id, filename, indent, warn, entries)
 	case ConverterCAPI:
-		out, err = ConvertCAPI(sentinelDoc, id, filename, indent, warn)
+		out, err = ConvertCAPI(sentinelDoc, id, filename, indent, warn, entries)
 	case ConverterPassthrough:
 		if id.APIVersion != "" || id.Kind != "" {
 			warn(Warning{
@@ -109,10 +109,7 @@ func convertDocument(rawDoc []byte, filename string, warn WarnFunc, indent int) 
 		return nil, err
 	}
 
-	// Phase 5: Sentinel restoration.
-	restored := Restore(string(out), entries)
-
-	return []byte(restored), nil
+	return out, nil
 }
 
 // splitYAMLDocuments splits a multi-doc YAML by "---" separators,

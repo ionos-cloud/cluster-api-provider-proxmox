@@ -22,6 +22,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Sentinel type constants.
@@ -104,17 +106,15 @@ func ScanAndReplace(yamlText string) (string, []SentinelEntry, error) {
 	return replaced, entries, nil
 }
 
-// Restore reverses sentinel replacement, converting sentinels back to ${...} expressions.
+// Restore reverses sentinel replacement in raw YAML text. Used for array
+// sentinels (structural text replacement) and as a fallback. Prefer RestoreNode
+// for string/bool/int sentinels — it handles block scalar content correctly.
 func Restore(yamlText string, entries []SentinelEntry) string {
 	result := yamlText
 
-	// Process quoted variants first (longer match), then unquoted.
 	for _, e := range entries {
 		switch e.Type {
 		case typeString, typeBool:
-			// Quoted sentinels: "sentinel" → ${VAR} (remove quotes).
-			result = strings.ReplaceAll(result, `"`+e.Sentinel+`"`, e.Original)
-			// Unquoted.
 			result = strings.ReplaceAll(result, e.Sentinel, e.Original)
 		case typeInt:
 			// Quoted integer sentinels: "99900001" → ${VAR} (remove quotes).
@@ -276,4 +276,34 @@ func randomHexSentinel() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("__SENTINEL_%x__", b)
+}
+
+// RestoreNode replaces sentinels in a yaml.Node tree by operating on each
+// scalar's Value directly. This correctly handles block scalars where " chars
+// are literal content — a plain substring replace leaves them intact.
+// Array sentinels (which expand to sequence nodes) are left for Restore.
+func RestoreNode(node *yaml.Node, entries []SentinelEntry) {
+	if node == nil || len(entries) == 0 {
+		return
+	}
+	if node.Kind == yaml.ScalarNode {
+		for _, e := range entries {
+			switch e.Type {
+			case typeInt:
+				// Exact match: avoid partial replacement inside other numbers.
+				if node.Value == e.Sentinel {
+					node.Value = e.Original
+					node.Tag = ""  // drop !!int so go-yaml re-infers from the restored string
+					node.Style = 0
+				}
+			case typeArray:
+				// Array sentinels expand to sequence nodes; handled by Restore.
+			default: // typeString, typeBool
+				node.Value = strings.ReplaceAll(node.Value, e.Sentinel, e.Original)
+			}
+		}
+	}
+	for _, child := range node.Content {
+		RestoreNode(child, entries)
+	}
 }

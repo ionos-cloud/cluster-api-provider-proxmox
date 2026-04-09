@@ -38,7 +38,7 @@ var capiVersionMap = map[string]string{
 
 // ConvertCAPI converts a CAPI v1beta1 resource to v1beta2 using native ConvertTo methods.
 // Warnings are emitted immediately via warn.
-func ConvertCAPI(yamlDoc []byte, id ResourceID, filename string, indent int, warn WarnFunc) ([]byte, error) { //nolint:revive // name is clear
+func ConvertCAPI(yamlDoc []byte, id ResourceID, filename string, indent int, warn WarnFunc, entries []SentinelEntry) ([]byte, error) { //nolint:revive // name is clear
 	src, dst, err := capiObjects(id.APIVersion, id.Kind)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func ConvertCAPI(yamlDoc []byte, id ResourceID, filename string, indent int, war
 	newAPIVersion := capiVersionMap[id.APIVersion]
 	setTypeMeta(dst, newAPIVersion, id.Kind)
 
-	return finalizeYAML(yamlDoc, dst, id.Kind, filename, indent, warn)
+	return finalizeYAML(yamlDoc, dst, id.Kind, filename, indent, warn, entries)
 }
 
 func capiObjects(apiVersion, kind string) (runtime.Object, runtime.Object, error) {

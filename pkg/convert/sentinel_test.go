@@ -19,6 +19,8 @@ package convert
 import (
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestScanAndReplace_Basic(t *testing.T) {
@@ -134,10 +136,11 @@ func TestRestore_QuotedStringSentinel(t *testing.T) {
 		{Original: "${CLUSTER_NAME}", Sentinel: "__SENTINEL_abcd1234__", Type: "string"},
 	}
 
-	// Simulate YAML marshal quoting a string sentinel.
+	// Restore replaces only the sentinel; surrounding " (whether YAML quoting or
+	// literal content) are preserved in the output text.
 	yamlText := `name: "__SENTINEL_abcd1234__"`
 	restored := Restore(yamlText, entries)
-	want := `name: ${CLUSTER_NAME}`
+	want := `name: "${CLUSTER_NAME}"`
 	if restored != want {
 		t.Errorf("Restore quoted string:\ngot:  %s\nwant: %s", restored, want)
 	}
@@ -317,10 +320,10 @@ func TestRestore_BoolSentinel(t *testing.T) {
 	entries := []SentinelEntry{
 		{Original: "${ENABLED}", Sentinel: "true", Type: "bool"},
 	}
-	// Quoted bool sentinel.
+	// Quoted: surrounding " are preserved; only the sentinel itself is replaced.
 	yamlText := `enabled: "true"`
 	restored := Restore(yamlText, entries)
-	want := `enabled: ${ENABLED}`
+	want := `enabled: "${ENABLED}"`
 	if restored != want {
 		t.Errorf("Restore bool quoted:\ngot:  %s\nwant: %s", restored, want)
 	}
@@ -353,6 +356,96 @@ func TestRestore_ArraySentinel(t *testing.T) {
 				t.Errorf("Restore array %s:\ngot:  %s\nwant: %s", tt.name, restored, wantDNS)
 			}
 		})
+	}
+}
+
+func TestRestoreNode_BlockScalarPreservesQuotes(t *testing.T) {
+	// Sentinels embedded in a block scalar must not lose surrounding " characters
+	// that are part of the shell script content.
+	entries := []SentinelEntry{
+		{Original: "${DEV%null}", Sentinel: "__SENTINEL_aaa__", Type: typeString},
+		{Original: "${FALLBACK%null}", Sentinel: "__SENTINEL_bbb__", Type: typeString},
+	}
+
+	yamlText := "content: |\n  test -z \"__SENTINEL_aaa__\" && DEV=\"__SENTINEL_bbb__\"\n"
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte(yamlText), &node); err != nil {
+		t.Fatalf("yaml.Unmarshal: %v", err)
+	}
+
+	RestoreNode(&node, entries)
+
+	var buf strings.Builder
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&node); err != nil {
+		t.Fatalf("yaml.Encode: %v", err)
+	}
+	_ = enc.Close()
+
+	want := "content: |\n  test -z \"${DEV%null}\" && DEV=\"${FALLBACK%null}\"\n"
+	if got := buf.String(); got != want {
+		t.Errorf("RestoreNode block scalar:\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
+func TestRestoreNode_FlowScalar(t *testing.T) {
+	entries := []SentinelEntry{
+		{Original: "${CLUSTER_NAME}", Sentinel: "__SENTINEL_aaa__", Type: typeString},
+	}
+
+	// After the Go round-trip, YAML-level quotes are stripped and the sentinel
+	// appears bare as the node's Value.
+	yamlText := "name: __SENTINEL_aaa__\n"
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte(yamlText), &node); err != nil {
+		t.Fatalf("yaml.Unmarshal: %v", err)
+	}
+
+	RestoreNode(&node, entries)
+
+	var buf strings.Builder
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&node); err != nil {
+		t.Fatalf("yaml.Encode: %v", err)
+	}
+	_ = enc.Close()
+
+	if got := buf.String(); !strings.Contains(got, "${CLUSTER_NAME}") {
+		t.Errorf("RestoreNode flow scalar: got %q, want ${CLUSTER_NAME} in output", got)
+	}
+}
+
+func TestRestoreNode_IntExactMatch(t *testing.T) {
+	entries := []SentinelEntry{
+		{Original: "${REPLICAS:=3}", Sentinel: "99900001", Type: typeInt},
+	}
+
+	// Exact match: the sentinel integer must only be replaced when it is the
+	// entire scalar value, not when it appears as a substring.
+	yamlText := "replicas: 99900001\nport: 199900001\n"
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte(yamlText), &node); err != nil {
+		t.Fatalf("yaml.Unmarshal: %v", err)
+	}
+
+	RestoreNode(&node, entries)
+
+	var buf strings.Builder
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&node); err != nil {
+		t.Fatalf("yaml.Encode: %v", err)
+	}
+	_ = enc.Close()
+
+	got := buf.String()
+	if !strings.Contains(got, "${REPLICAS:=3}") {
+		t.Errorf("RestoreNode int: want ${REPLICAS:=3} in output, got:\n%s", got)
+	}
+	if !strings.Contains(got, "199900001") {
+		t.Errorf("RestoreNode int: port 199900001 should not be modified, got:\n%s", got)
 	}
 }
 

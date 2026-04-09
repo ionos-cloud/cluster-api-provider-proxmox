@@ -41,7 +41,7 @@ metadata:
 spec: {}
 `
 			id := ResourceID{APIVersion: tt.apiVersion, Kind: tt.kind}
-			out, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn)
+			out, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn, nil)
 			if err != nil {
 				t.Fatalf("ConvertCAPI %s: %v", tt.kind, err)
 			}
@@ -57,7 +57,7 @@ func TestConvertCAPI_UnknownKind(t *testing.T) {
 kind: UnknownKind
 `
 	id := ResourceID{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "UnknownKind"}
-	_, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn)
+	_, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err == nil {
 		t.Fatal("expected error for unknown kind")
 	}
@@ -69,7 +69,7 @@ kind: UnknownKind
 func TestConvertCAPI_InvalidYAML(t *testing.T) {
 	input := `not: valid: yaml: [}`
 	id := ResourceID{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Cluster"}
-	_, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn)
+	_, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err == nil {
 		t.Fatal("expected error for invalid YAML")
 	}
@@ -78,7 +78,7 @@ func TestConvertCAPI_InvalidYAML(t *testing.T) {
 func TestConvertCAPI_DoubleUnmarshalFailure(t *testing.T) {
 	input := []byte("{{{{")
 	id := ResourceID{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Cluster"}
-	_, err := ConvertCAPI(input, id, testfile, 2, noopWarn)
+	_, err := ConvertCAPI(input, id, testfile, 2, noopWarn, nil)
 	if err == nil {
 		t.Fatal("expected error for completely malformed YAML")
 	}
@@ -100,7 +100,7 @@ spec:
         - 10.0.0.0/16
 `
 	id := ResourceID{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Cluster"}
-	out, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn)
+	out, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err != nil {
 		t.Fatalf("ConvertCAPI: %v", err)
 	}
@@ -122,7 +122,7 @@ spec:
   unknownExtraField: value
 `
 	id := ResourceID{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Cluster"}
-	out, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn)
+	out, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn, nil)
 	if err != nil {
 		t.Fatalf("ConvertCAPI with extra field: %v", err)
 	}
