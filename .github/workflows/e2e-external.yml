@@ -11,3 +11,4 @@ jobs:
        github.event.pull_request.user.login == 'dependabot[bot]') &&
       !contains(github.event.pull_request.labels.*.name, 'e2e/none')
     uses: ./.github/workflows/e2e.yml
+    secrets: inherit
