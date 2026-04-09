@@ -32,8 +32,8 @@ func graftNode(src, dst *yaml.Node, path, filename string, warn WarnFunc) {
 		return
 	}
 
-	// Copy comments from src to dst at this level.
-	copyComments(src, dst)
+	// Copy comments and scalar style from src to dst at this level.
+	copyMetadata(src, dst)
 
 	switch src.Kind {
 	case yaml.DocumentNode:
@@ -74,7 +74,7 @@ func graftMapping(src, dst *yaml.Node, path, filename string, warn WarnFunc) {
 		if dstIdx, ok := dstKeys[keyName]; ok {
 			dstKey := dst.Content[dstIdx]
 			dstVal := dst.Content[dstIdx+1]
-			copyComments(srcKey, dstKey)
+			copyMetadata(srcKey, dstKey)
 			graftNode(srcVal, dstVal, childPath, filename, warn)
 		} else {
 			// Key exists in src but not dst — emit lost comments immediately.
@@ -90,7 +90,7 @@ func graftSequence(src, dst *yaml.Node, path, filename string, warn WarnFunc) {
 	}
 }
 
-func copyComments(src, dst *yaml.Node) {
+func copyMetadata(src, dst *yaml.Node) {
 	if src.HeadComment != "" {
 		dst.HeadComment = src.HeadComment
 	}
@@ -99,6 +99,13 @@ func copyComments(src, dst *yaml.Node) {
 	}
 	if src.FootComment != "" {
 		dst.FootComment = src.FootComment
+	}
+	// Preserve block scalar style (literal |, folded >) from source when the
+	// Go struct round-trip changed it.  k8syaml.Marshal always emits literal
+	// style, so folded (>) would be lost without this.
+	if dst.Kind == yaml.ScalarNode && src.Kind == yaml.ScalarNode &&
+		(src.Style == yaml.LiteralStyle || src.Style == yaml.FoldedStyle) {
+		dst.Style = src.Style
 	}
 }
 

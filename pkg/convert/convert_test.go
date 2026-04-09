@@ -241,6 +241,31 @@ spec:
 	}
 }
 
+func TestConvert_FoldedScalarStylePreserved(t *testing.T) {
+	input := `apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: test
+spec:
+  template:
+    spec:
+      files:
+        - content: >
+            This is a long description
+            that spans multiple lines
+            and uses the folded style.
+          path: /tmp/desc.txt
+          owner: root:root
+`
+	out, err := Convert([]byte(input), Options{Warn: noopWarn})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+	if !strings.Contains(string(out), "content: >") {
+		t.Errorf("folded scalar style (>) was not preserved:\n%s", out)
+	}
+}
+
 func TestConvert_NilWarn(t *testing.T) {
 	// nil Warn should not panic.
 	out, err := Convert([]byte(configMapYAML), Options{})

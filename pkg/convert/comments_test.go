@@ -230,7 +230,7 @@ func TestEmitFromNode_Nil(t *testing.T) {
 	})
 }
 
-func TestCopyComments_EmptySrc(t *testing.T) {
+func TestCopyMetadata_EmptySrc(t *testing.T) {
 	const existing = "existing"
 	src := &yaml.Node{}
 	dst := &yaml.Node{
@@ -238,7 +238,7 @@ func TestCopyComments_EmptySrc(t *testing.T) {
 		LineComment: existing,
 		FootComment: existing,
 	}
-	copyComments(src, dst)
+	copyMetadata(src, dst)
 
 	// Empty src comments should not overwrite existing dst comments.
 	if dst.HeadComment != existing {
@@ -249,6 +249,60 @@ func TestCopyComments_EmptySrc(t *testing.T) {
 	}
 	if dst.FootComment != existing {
 		t.Errorf("FootComment overwritten: %q", dst.FootComment)
+	}
+}
+
+func TestCopyMetadata_ScalarStyle(t *testing.T) {
+	src := &yaml.Node{Kind: yaml.ScalarNode, Style: yaml.LiteralStyle}
+	dst := &yaml.Node{Kind: yaml.ScalarNode, Style: 0}
+	copyMetadata(src, dst)
+	if dst.Style != yaml.LiteralStyle {
+		t.Errorf("Style not copied: got %d, want %d", dst.Style, yaml.LiteralStyle)
+	}
+
+	// Folded style should also be copied.
+	src.Style = yaml.FoldedStyle
+	dst.Style = yaml.LiteralStyle
+	copyMetadata(src, dst)
+	if dst.Style != yaml.FoldedStyle {
+		t.Errorf("Folded style not copied: got %d, want %d", dst.Style, yaml.FoldedStyle)
+	}
+
+	// Non-block styles (e.g. DoubleQuotedStyle) should NOT be copied.
+	src.Style = yaml.DoubleQuotedStyle
+	dst.Style = 0
+	copyMetadata(src, dst)
+	if dst.Style != 0 {
+		t.Errorf("DoubleQuotedStyle should not be copied, got %d", dst.Style)
+	}
+}
+
+func TestGraftComments_PreservesFoldedStyle(t *testing.T) {
+	srcYAML := `spec:
+  content: >
+    This is folded
+    multiline content.
+`
+	dstYAML := `spec:
+  content: |
+    This is folded multiline content.
+`
+	var srcNode, dstNode yaml.Node
+	if err := yaml.Unmarshal([]byte(srcYAML), &srcNode); err != nil {
+		t.Fatal(err)
+	}
+	if err := yaml.Unmarshal([]byte(dstYAML), &dstNode); err != nil {
+		t.Fatal(err)
+	}
+
+	GraftComments(&srcNode, &dstNode, testfile, noopWarn)
+
+	out, err := yaml.Marshal(&dstNode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsSubstring(string(out), "content: >") {
+		t.Errorf("folded style (>) not preserved after GraftComments:\n%s", out)
 	}
 }
 
