@@ -83,7 +83,7 @@ type TestEnvironment struct {
 
 // NewTestEnvironment creates a new testing environment with a
 // pre-configured manager, that can be used to register reconcilers.
-func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnvironment {
+func NewTestEnvironment(ctx context.Context, setupWebhook bool, pmClient proxmox.Client) *TestEnvironment {
 	_, filename, _, ok := goruntime.Caller(0)
 	if !ok {
 		klog.Fatalf("Failed to get information for current file from runtime")
@@ -137,7 +137,7 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 		panic(fmt.Errorf("failed to create a new manager: %w", err))
 	}
 
-	return &TestEnvironment{
+	testEnv := &TestEnvironment{
 		env:           env,
 		Manager:       mgr,
 		Client:        mgr.GetClient(),
@@ -148,17 +148,17 @@ func NewTestEnvironment(setupWebhook bool, pmClient proxmox.Client) *TestEnviron
 			Port: whio.LocalServingPort,
 		},
 	}
+	testEnv.ctx, testEnv.cancel = context.WithCancel(ctx)
+	return testEnv
 }
 
 // GetContext returns the context of the test environment.
-// This context will be initialized once `StartManager` was called.
 func (t *TestEnvironment) GetContext() context.Context {
 	return t.ctx
 }
 
 // StartManager starts the manager.
-func (t *TestEnvironment) StartManager(ctx context.Context) error {
-	t.ctx, t.cancel = context.WithCancel(ctx)
+func (t *TestEnvironment) StartManager() error {
 	return t.Manager.Start(t.ctx)
 }
 
