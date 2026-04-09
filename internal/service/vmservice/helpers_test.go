@@ -268,7 +268,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
-		poolSpec := getPoolSpec(getIPAddressPool(t, machineScope, *pool))
+		poolSpec := getPoolSpec(t, getIPAddressPool(t, machineScope, *pool))
 		if poolSpec.prefix != 0 {
 			prefix = int32(poolSpec.prefix)
 		}
@@ -391,10 +391,13 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 
 	_, err := controllerutil.CreateOrUpdate(context.Background(), c, pool, func() error {
 		// TODO: Metric change in annotations
-		if pool.GetObjectKind().GroupVersionKind().Kind == InClusterIPPool {
-			pool.(*ipamicv1.InClusterIPPool).Spec = desired.(*ipamicv1.InClusterIPPool).Spec
-		} else if pool.GetObjectKind().GroupVersionKind().Kind == GlobalInClusterIPPool {
-			pool.(*ipamicv1.GlobalInClusterIPPool).Spec = desired.(*ipamicv1.GlobalInClusterIPPool).Spec
+		switch p := pool.(type) {
+		case *ipamicv1.InClusterIPPool:
+			p.Spec = desired.(*ipamicv1.InClusterIPPool).Spec
+		case *ipamicv1.GlobalInClusterIPPool:
+			p.Spec = desired.(*ipamicv1.GlobalInClusterIPPool).Spec
+		default:
+			return fmt.Errorf("unexpected IP pool type %T", pool)
 		}
 		return nil
 	},
@@ -426,20 +429,20 @@ func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneR
 	return cluster.Status.InClusterZoneRef[zoneIndex]
 }
 
-func getPoolSpec(pool client.Object) struct {
+func getPoolSpec(t *testing.T, pool client.Object) struct {
 	gateway string
 	prefix  int
 } {
 	var gateway string
 	var prefix int
-	if pool.GetObjectKind().GroupVersionKind().Kind == InClusterIPPool {
-		prefix = pool.(*ipamicv1.InClusterIPPool).Spec.Prefix
-		gateway = pool.(*ipamicv1.InClusterIPPool).Spec.Gateway
-	} else if pool.GetObjectKind().GroupVersionKind().Kind == GlobalInClusterIPPool {
-		prefix = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Prefix
-		gateway = pool.(*ipamicv1.GlobalInClusterIPPool).Spec.Gateway
+	switch p := pool.(type) {
+	case *ipamicv1.InClusterIPPool:
+		gateway, prefix = p.Spec.Gateway, p.Spec.Prefix
+	case *ipamicv1.GlobalInClusterIPPool:
+		gateway, prefix = p.Spec.Gateway, p.Spec.Prefix
+	default:
+		t.Fatalf("unexpected pool type %T", pool)
 	}
-
 	return struct {
 		gateway string
 		prefix  int
