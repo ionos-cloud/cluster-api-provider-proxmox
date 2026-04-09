@@ -293,7 +293,7 @@ func RestoreNode(node *yaml.Node, entries []SentinelEntry) {
 				// Exact match: avoid partial replacement inside other numbers.
 				if node.Value == e.Sentinel {
 					node.Value = e.Original
-					node.Tag = ""  // drop !!int so go-yaml re-infers from the restored string
+					node.Tag = "" // drop !!int so go-yaml re-infers from the restored string
 					node.Style = 0
 				}
 			case typeArray:
