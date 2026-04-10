@@ -206,14 +206,6 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		}
 	}
 
-	// when a Cluster is marked failed cause the Proxmox client is nil.
-	// the cluster doesn't reconcile the failed state if we restart the controller.
-	// so we need to check if the ProxmoxClient is not nil and the ProxmoxCluster has a failure reason.
-	err := r.reconcileFailedClusterState(clusterScope)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
 	res, err := r.reconcileIPAM(ctx, clusterScope)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -224,10 +216,14 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	}
 
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
+		reason := infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason
+		if apierrors.IsNotFound(err) {
+			reason = infrav1.ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason
+		}
 		conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+			Reason:  reason,
 			Message: err.Error(),
 		})
 		return reconcile.Result{}, err
@@ -242,27 +238,6 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	clusterScope.SetReady()
 
 	return ctrl.Result{}, nil
-}
-
-func (r *ProxmoxClusterReconciler) reconcileFailedClusterState(clusterScope *scope.ClusterScope) error {
-	if clusterScope.ProxmoxClient != nil {
-		cond := conditions.Get(clusterScope.ProxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
-		if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason {
-			// Clear the failure condition on the proxmox cluster.
-			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-				Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
-				Status: metav1.ConditionTrue,
-				Reason: clusterv1.ProvisionedReason,
-			})
-			if err := clusterScope.PatchObject(); err != nil {
-				return err
-			}
-
-			return errors.New("reconciling cluster failure state")
-		}
-	}
-
-	return nil
 }
 
 func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
