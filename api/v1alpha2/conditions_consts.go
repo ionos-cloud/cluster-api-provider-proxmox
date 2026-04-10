@@ -31,6 +31,10 @@ const (
 	// detecting issues with Proxmox reachability.
 	ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason = "ProxmoxUnreachable"
 
+	// ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason documents a controller
+	// detecting that the referenced credentials secret was not found.
+	ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason = "CredentialsNotFound"
+
 	// ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason documents a
 	// missing Control Plane endpoint when the cluster uses an externally managed
 	// control plane.

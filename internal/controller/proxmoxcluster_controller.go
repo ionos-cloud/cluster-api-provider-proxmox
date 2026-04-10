@@ -227,7 +227,7 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+			Reason:  infrav1.ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason,
 			Message: err.Error(),
 		})
 		return reconcile.Result{}, err
