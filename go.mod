@@ -7,7 +7,7 @@ replace (
 	k8s.io/apimachinery => k8s.io/apimachinery v0.33.3 // temp override until 34
 	k8s.io/code-generator/cmd/conversion-gen => k8s.io/code-generator/cmd/conversion-gen v0.33.3
 	k8s.io/kube-openapi/pkg/schemaconv => k8s.io/kube-openapi/pkg/schemaconv v0.0.0-20250701173324-9bd5c66d9911 // drop for k8s 34
-	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.7
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.8
 	sigs.k8s.io/controller-runtime/tools/setup-envtest => sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250911081535-42a14a36c13b // v1.34 → k8s 34
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.18.0 // v0.19 → k8s 34, v0.20 → k8s 35
 	sigs.k8s.io/kind => sigs.k8s.io/kind v0.30.0 // v0.31.0 → k8s 35
@@ -34,9 +34,9 @@ require (
 	k8s.io/client-go v0.33.3
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
-	sigs.k8s.io/cluster-api v1.11.7
+	sigs.k8s.io/cluster-api v1.11.8
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.0.3
-	sigs.k8s.io/cluster-api/test v1.11.7-0.20260407183904-8370e29c0f6a
+	sigs.k8s.io/cluster-api/test v1.11.8
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/randfill v1.0.0
 	sigs.k8s.io/yaml v1.6.0
