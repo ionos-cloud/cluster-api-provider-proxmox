@@ -65,6 +65,12 @@ type ProxmoxMachineChecks struct {
 type ProxmoxMachineSpec struct {
 	VirtualMachineCloneSpec `json:",inline"`
 
+	// failureDomain is the failure domain the machine is placed in.
+	// This field is part of the Cluster API InfrastructureMachine contract
+	// and is set by the CAPI machine controller.
+	// +optional
+	FailureDomain string `json:"failureDomain,omitempty"`
+
 	// providerID is the virtual machine BIOS UUID formatted as
 	// proxmox://6c3fa683-bef9-4425-b413-eaa45a9d6191
 	// +optional

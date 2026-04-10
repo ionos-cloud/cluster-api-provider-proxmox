@@ -1056,7 +1056,7 @@ func (s *IPAMTestSuite) Test_GetInClusterPools_PoolRefKind() {
 		},
 	}
 
-	pools, err := s.helper.GetInClusterPools(s.ctx, moxm)
+	pools, err := s.helper.GetInClusterPools(s.ctx, moxm, nil)
 	s.NoError(err)
 	s.NotNil(pools.IPv4)
 	s.Equal(GetInClusterIPPoolKind(), pools.IPv4.PoolRef.Kind)

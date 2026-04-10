@@ -41,6 +41,9 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 
 	restoreProxmoxMachineSpec(&src.Spec, &dst.Spec, &restored.Spec, ok)
 
+	// Restore FailureDomain (v1alpha2-only field, set by CAPI machine controller).
+	dst.Spec.FailureDomain = restored.Spec.FailureDomain
+
 	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok,
 		restored.Status.Initialization.Provisioned,
 		&dst.Status.Initialization.Provisioned)
