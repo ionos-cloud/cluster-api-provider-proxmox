@@ -278,6 +278,95 @@ volumes:
 ```
 
 
+## Failure Domains (Zone-Based Placement)
+
+CAPMOX zones can be mapped to CAPI failure domains, enabling KubeadmControlPlane
+to automatically distribute control plane nodes across zones and MachineDeployments
+to target specific zones.
+
+### Configuration
+
+Add `nodes` and optionally `controlPlane` to each zone in `ProxmoxCluster.spec.zoneConfig`:
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxCluster
+metadata:
+  name: my-cluster
+spec:
+  allowedNodes:
+    - pve1
+    - pve2
+    - pve3
+    - pve4
+  ipv4Config:
+    addresses: ["10.0.0.10-10.0.0.50"]
+    prefix: 24
+    gateway: "10.0.0.1"
+  dnsServers: ["8.8.8.8"]
+  zoneConfig:
+    - zone: "rack-a"
+      nodes: ["pve1", "pve2"]
+      ipv4Config:
+        addresses: ["10.0.1.10-10.0.1.30"]
+        prefix: 24
+        gateway: "10.0.1.1"
+      dnsServers: ["8.8.8.8"]
+    - zone: "rack-b"
+      nodes: ["pve3", "pve4"]
+      controlPlane: false          # workers only
+      ipv4Config:
+        addresses: ["10.0.2.10-10.0.2.30"]
+        prefix: 24
+        gateway: "10.0.2.1"
+      dnsServers: ["8.8.8.8"]
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `nodes` | `[]string` | — | Proxmox nodes belonging to this zone. VMs assigned to this failure domain are scheduled only on these nodes. |
+| `controlPlane` | `*bool` | `true` | Whether this zone is eligible for control plane machines. Set to `false` for worker-only zones. |
+
+### How it works
+
+When `zoneConfig` entries include a `nodes` field, the cluster controller populates
+`status.failureDomains` on the ProxmoxCluster. The CAPI Cluster controller copies
+these to `Cluster.status.failureDomains`, and KubeadmControlPlane uses them to
+distribute control plane replicas round-robin across eligible zones.
+
+For workers, set `failureDomain` on MachineDeployments to pin them to a specific zone:
+
+```yaml
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: MachineDeployment
+metadata:
+  name: workers-rack-a
+spec:
+  clusterName: my-cluster
+  replicas: 3
+  template:
+    spec:
+      clusterName: my-cluster
+      failureDomain: "rack-a"
+      # ...
+```
+
+Each zone gets its own IPAM pool (e.g. `my-cluster-rack-a-v4-icip`). Machines
+assigned to a zone receive IP addresses from that zone's pool automatically.
+
+### Behavior without zones
+
+When no `zoneConfig` entries are present, `status.failureDomains` is not set.
+KubeadmControlPlane does not perform failure domain placement. Existing clusters
+without zones continue to work exactly as before.
+
+### Limitations
+
+- Failure domains operate within a single Proxmox cluster (single API endpoint).
+  For multi-datacenter deployments spanning separate Proxmox clusters, see [#370](https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/370).
+- Zones without a `nodes` list appear as failure domains but do not restrict VM placement
+  to specific Proxmox nodes. The IPAM pool selection still works per-zone.
+
 ## Custom Allowed Nodes for ProxmoxMachine
 
 Previously, the Proxmox nodes that will host the Machines are defined in `ProxmoxCluster.spec.allowedNodes`, that config restrict us from placing some set of machines into some specific nodes.

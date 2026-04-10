@@ -1128,6 +1128,11 @@ spec:
                           description: ZoneConfigSpec is the Network Configuration
                             for further deployment zones.
                           properties:
+                            controlPlane:
+                              description: |-
+                                controlPlane indicates whether this zone is eligible for control plane machines.
+                                Defaults to true when not set.
+                              type: boolean
                             dnsServers:
                               description: dnsServers contains information about nameservers
                                 used by the machines in this zone.
@@ -1214,6 +1219,15 @@ spec:
                               x-kubernetes-validations:
                               - message: IPv6Config addresses must be provided
                                 rule: self.addresses.size() > 0
+                            nodes:
+                              description: |-
+                                nodes specifies the Proxmox nodes that belong to this zone.
+                                When set, machines assigned to this failure domain will only
+                                be placed on these nodes.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
                             zone:
                               description: zone is the name of your deployment zone.
                               pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
