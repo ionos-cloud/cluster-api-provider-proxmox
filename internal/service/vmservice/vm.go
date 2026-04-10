@@ -464,7 +464,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		scope.InfraCluster.ProxmoxCluster.Status.NodeLocations = new(infrav1.NodeLocations)
 	}
 
-	if len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 || len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
+	if len(scope.GetEffectiveAllowedNodes()) > 0 || len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 {
 		var err error
 		options.Target, err = selectNextNode(ctx, scope)
 		if err != nil {
@@ -516,6 +516,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	scope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: options.Name},
 		Node:    node,
+		Zone:    scope.GetEffectiveZone(),
 	}, util.IsControlPlaneMachine(scope.Machine))
 
 	return res, scope.InfraCluster.PatchObject()

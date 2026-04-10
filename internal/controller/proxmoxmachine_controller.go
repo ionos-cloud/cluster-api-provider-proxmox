@@ -18,6 +18,8 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -213,6 +215,21 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		}
 	}
 
+	// If the CAPI Machine has a failure domain set, restrict allowed nodes
+	// to those belonging to that zone and set the effective zone for IPAM.
+	if fd := machineScope.Machine.Spec.FailureDomain; fd != "" {
+		if err := machineScope.ApplyFailureDomainNodes(fd); err != nil {
+			machineScope.Logger.Error(err, "failure domain not found", "failureDomain", fd)
+			conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedFailureDomainNotReadyReason,
+				Message: fmt.Sprintf("failure domain %q not found in ProxmoxCluster zones", fd),
+			})
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		}
+	}
+
 	// find the vm
 	// Get or create the VM.
 	vm, err := vmservice.ReconcileVM(ctx, machineScope)
@@ -238,7 +255,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	// Set proxmox deployment zone for label selectors.
 	labels := machineScope.ProxmoxMachine.GetLabels()
 	labels[infrav1.ProxmoxZoneLabel] =
-		ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.Zone, "default")
+		ptr.Deref(machineScope.GetEffectiveZone(), "default")
 	machineScope.ProxmoxMachine.SetLabels(labels)
 
 	machineScope.SetReady()

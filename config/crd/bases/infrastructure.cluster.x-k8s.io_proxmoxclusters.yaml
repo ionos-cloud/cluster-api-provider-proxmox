@@ -1244,6 +1244,11 @@ spec:
                   description: ZoneConfigSpec is the Network Configuration for further
                     deployment zones.
                   properties:
+                    controlPlane:
+                      description: |-
+                        controlPlane indicates whether this zone is eligible for control plane machines.
+                        Defaults to true when not set.
+                      type: boolean
                     dnsServers:
                       description: dnsServers contains information about nameservers
                         used by the machines in this zone.
@@ -1328,6 +1333,15 @@ spec:
                       x-kubernetes-validations:
                       - message: IPv6Config addresses must be provided
                         rule: self.addresses.size() > 0
+                    nodes:
+                      description: |-
+                        nodes specifies the Proxmox nodes that belong to this zone.
+                        When set, machines assigned to this failure domain will only
+                        be placed on these nodes.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
                     zone:
                       description: zone is the name of your deployment zone.
                       pattern: ^[a-z0-9A-Z](?:[a-z0-9A-Z-_.]{0,61}[a-z0-9A-Z])?$
@@ -1411,6 +1425,38 @@ spec:
                 type: array
                 x-kubernetes-list-map-keys:
                 - type
+                x-kubernetes-list-type: map
+              failureDomains:
+                description: |-
+                  failureDomains is a slice of failure domains synced from zone configurations.
+                  This field is part of the Cluster API contract and is used by KubeadmControlPlane
+                  to distribute control plane machines across zones.
+                items:
+                  description: |-
+                    FailureDomain is the Schema for Cluster API failure domains.
+                    It allows controllers to understand how many failure domains a cluster can optionally span across.
+                  properties:
+                    attributes:
+                      additionalProperties:
+                        type: string
+                      description: attributes is a free form map of attributes an
+                        infrastructure provider might use or require.
+                      type: object
+                    controlPlane:
+                      description: controlPlane determines if this failure domain
+                        is suitable for use by control plane machines.
+                      type: boolean
+                    name:
+                      description: name is the name of the failure domain.
+                      maxLength: 256
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
                 x-kubernetes-list-type: map
               inClusterIPPoolRef:
                 description: inClusterIPPoolRef is the reference to the created in-cluster

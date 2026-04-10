@@ -94,6 +94,12 @@ const (
 	// documents a ProxmoxMachine assigning host addresses for Cluster API.
 	ProxmoxMachineVirtualMachineProvisionedWaitingForClusterAPIMachineAddressesReason = "WaitingForClusterAPIMachineAddresses"
 
+	// ProxmoxMachineVirtualMachineProvisionedFailureDomainNotReadyReason documents
+	// a ProxmoxMachine waiting for its failure domain (zone) to be configured
+	// in the ProxmoxCluster. This is a transient condition that resolves when
+	// the zone is added to spec.zoneConfig.
+	ProxmoxMachineVirtualMachineProvisionedFailureDomainNotReadyReason = "FailureDomainNotReady"
+
 	// ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason documents a failure
 	// during virtual machine provisioning.
 	ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason = "VMProvisionFailed"
