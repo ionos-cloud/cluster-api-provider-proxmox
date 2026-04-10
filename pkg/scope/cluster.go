@@ -114,7 +114,7 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason,
 				Message: "No credentials found, ProxmoxCluster missing credentialsRef",
 			})
 
@@ -150,7 +150,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 			conditions.Set(s.ProxmoxCluster, metav1.Condition{
 				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
+				Reason:  infrav1.ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason,
 				Message: "credentials secret not found",
 			})
 		}
