@@ -208,7 +208,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
 			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
 			Name:     pool.Name,
-			Kind:     pool.TypeMeta.Kind,
+			Kind:     GetInClusterIPPoolKind(),
 		}
 		pools.IPv4 = &poolSpec
 	}
@@ -231,7 +231,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
 			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
 			Name:     pool.Name,
-			Kind:     pool.TypeMeta.Kind,
+			Kind:     GetInClusterIPPoolKind(),
 		}
 		pools.IPv6 = &poolSpec
 	}
@@ -586,12 +586,6 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 	if err != nil {
 		return nil, err
 	}
-
-	addresses.Items = slices.DeleteFunc(addresses.Items, func(n ipamv1.IPAddress) bool {
-		// Check if we are actually dealing with the right resource kind.
-		groupVersion, _ := schema.ParseGroupVersion(n.APIVersion)
-		return groupVersion.Group != GetIPAMInClusterAPIVersion()
-	})
 
 	// Sort result by IPAddress.Name to provide stability to testing.
 	slices.SortFunc(addresses.Items, func(a, b ipamv1.IPAddress) int {
