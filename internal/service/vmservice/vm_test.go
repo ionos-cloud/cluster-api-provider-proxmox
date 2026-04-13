@@ -790,11 +790,11 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 	// Provide IPAddresses fields to fake network bootstrap.
 	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
 		NetName: string(infrav1.DefaultNetworkDevice),
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 		IPv6:    []string{"2001:db8::2"},
 	}, {
 		NetName: "default",
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 		IPv6:    []string{"2001:db8::2"},
 	}}
 	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
@@ -851,6 +851,6 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 
 	// Test that reconcileMachineAddresses ran.
 	require.Equal(t, machineScope.ProxmoxMachine.GetName(), machineScope.ProxmoxMachine.Status.Addresses[0].Address)
-	require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
+	require.Equal(t, "192.0.2.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 	require.Equal(t, "2001:db8::2", machineScope.ProxmoxMachine.Status.Addresses[2].Address)
 }
