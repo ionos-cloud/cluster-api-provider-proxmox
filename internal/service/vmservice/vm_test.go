@@ -723,6 +723,12 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.NumSockets = ptr.To[int32](1)
 	machineScope.ProxmoxMachine.Spec.NumCores = ptr.To[int32](1)
 	machineScope.ProxmoxMachine.Spec.MemoryMiB = ptr.To[int32](1024)
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1.Storage{
+		BootVolume: &infrav1.DiskSize{
+			Disk:   "scsi0",
+			SizeGB: 50,
+		},
+	}
 	task := newTask()
 	expectedVMConfigureRequest := []interface{}{
 		proxmox.VirtualMachineOption{Name: optionSockets, Value: *machineScope.ProxmoxMachine.Spec.NumSockets},
@@ -748,11 +754,12 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 		),
 	)
 
-	// Round 2: requeue machine until providing BootstrapData.
+	// Round 2: ConfigureVM task has completed; reconcileDisks resizes the boot volume,
+	// then reconcileIPAddresses advances the state to WaitingForBootstrapData.
 	// We're not mocking the entirety of a network setup.
+	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(&lutherproxmox.Task{UPID: "result", IsSuccessful: true}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
-	// remove ConfigureVM task (we don't care).
-	machineScope.ProxmoxMachine.Status.TaskRef = nil
+	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "scsi0", "50G").Return(nil, nil).Once()
 
 	result, err = ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -804,25 +811,16 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 		),
 	)
 
-	// Round 4: VMPowerUP requires a task, move state machine forwards one step again.
-	conditions.Set(
-		machineScope.ProxmoxMachine,
-		metav1.Condition{
-			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-			Status: metav1.ConditionFalse,
-			Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForClusterAPIMachineAddressesReason,
-		},
-	)
+	// Round 4: StartVM task has completed; the VM is now running. reconcilePowerState
+	// sees it's already up and advances, then reconcileMachineAddresses sets addresses,
+	// and checkCloudInitStatus finds cloud-init done.
+	vm.Status = lutherproxmox.StatusVirtualMachineRunning
+	vm.QMPStatus = lutherproxmox.StatusVirtualMachineRunning
 
+	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(&lutherproxmox.Task{UPID: "result", IsSuccessful: true}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
-
-	// remove StartVM task (we don't care).
-	machineScope.ProxmoxMachine.Status.TaskRef = nil
-	// Set machine to running manually.
-	machineScope.VirtualMachine.Status = lutherproxmox.StatusVirtualMachineRunning
-	machineScope.VirtualMachine.QMPStatus = lutherproxmox.StatusVirtualMachineRunning
 
 	result, err = ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -851,7 +849,7 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 	result, err = ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
 
-	// Test that reconcileIPAddresses ran.
+	// Test that reconcileMachineAddresses ran.
 	require.Equal(t, machineScope.ProxmoxMachine.GetName(), machineScope.ProxmoxMachine.Status.Addresses[0].Address)
 	require.Equal(t, "10.10.10.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 	require.Equal(t, "2001:db8::2", machineScope.ProxmoxMachine.Status.Addresses[2].Address)
