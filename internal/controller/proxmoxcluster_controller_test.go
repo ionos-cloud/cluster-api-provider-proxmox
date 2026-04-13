@@ -550,7 +550,7 @@ func setRandomOwnerRefOnSecret(secret *corev1.Secret, ownerRef string) {
 
 func refreshCluster(proxmoxCluster *infrav1.ProxmoxCluster) *infrav1.ProxmoxCluster {
 	key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
-	Expect(testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)).To(Succeed())
+	Expect(k8sClient.Get(testEnv.GetContext(), key, proxmoxCluster)).To(Succeed())
 	return proxmoxCluster
 }
 
