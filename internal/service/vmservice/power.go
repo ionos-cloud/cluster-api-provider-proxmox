@@ -36,15 +36,6 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 		return false, nil
 	}
 
-	/*
-		if !machineHasIPAddress(machineScope.ProxmoxMachine) {
-			machineScope.V(4).Info("ip address not set for machine")
-			// machine doesn't have an ip address yet
-			// needs to reconcile again
-			return true, nil
-		}
-	*/
-
 	machineScope.V(4).Info("ensuring machine is started")
 
 	t, err := startVirtualMachine(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine)
@@ -66,7 +57,7 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
-		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason,
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForClusterAPIMachineAddressesReason,
 	})
 	return false, nil
 }
