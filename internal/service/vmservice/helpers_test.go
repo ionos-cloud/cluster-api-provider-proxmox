@@ -544,7 +544,11 @@ func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.Ma
 }
 
 func newTask() *proxmox.Task {
-	return &proxmox.Task{UPID: "result"}
+	return &proxmox.Task{
+		UPID:         "result",
+		IsSuccessful: true,
+		IsCompleted:  true,
+	}
 }
 
 func newVMResource() *proxmox.ClusterResource {

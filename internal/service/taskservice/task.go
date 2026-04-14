@@ -103,26 +103,36 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 	case task.IsRunning:
 		logger.Info("task is still pending", "description", task.Type)
 		return true, nil
-	case task.IsSuccessful:
+	case task.IsSuccessful && task.IsCompleted:
 		logger.Info("task is a success", "description", task.Type)
 		scope.ProxmoxMachine.Status.TaskRef = nil
 		return false, nil
 	case task.IsFailed:
-		logger.Info("task failed", "description", task.Type)
+		// Failing tasks are actually red herrings. Some tasks fail, other
+		// tasks can fail successfully (like qmstart).
+		// We save the condition so the ReconcileVM statemachine keeps on working.
+		conditionReason := conditions.GetReason(scope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 
-		// NOTE: When a task fails there is not simple way to understand which operation is failing (e.g. cloning or powering on)
-		// so we are reporting failures using a dedicated reason until we find a better solution.
-		var errorMessage string
-
-		if task.ExitStatus != "OK" {
-			errorMessage = task.ExitStatus
-		} else {
-			errorMessage = "task failed but its exit status is OK; this should not happen"
+		// qmstart can fail and yet actually start the VM. We can not handle qmstart properly.
+		// In fact qmstart can find a machine already started, because proxmox's api is
+		// eventually consistent here.
+		// For all other jobs we do set the condition to failed.
+		if task.Type != "qmstart" {
+			logger.Info("task failed", "description", task.Type)
+			// We notify the user that intervention is required. This should stop the state machine.
+			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason
 		}
+
+		errorMessage := fmt.Sprintf("%s: %s", task.Type, task.ExitStatus)
+		if task.ExitStatus == "OK" {
+			// If you end up here, file a bug with go-proxmox.
+			errorMessage = fmt.Sprintf("task %s failed but its exit status is OK; this should not happen", task.UPID)
+		}
+
 		conditions.Set(scope.ProxmoxMachine, metav1.Condition{
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason,
+			Reason:  conditionReason,
 			Message: errorMessage,
 		})
 
