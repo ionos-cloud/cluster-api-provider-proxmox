@@ -726,6 +726,8 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 		},
 	}
 
+	task := newTask()
+
 	// Round 0: no VM exists yet; CloneVM creates one and requeues for the task to complete.
 	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node1", int64(100)).Return(0, nil).Once()
 	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
@@ -739,7 +741,7 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 		SnapName:    "snap",
 		Storage:     "storage",
 		Target:      "node2",
-	}).Return(proxmox.VMCloneResponse{NewID: 123, Task: newTask()}, nil).Once()
+	}).Return(proxmox.VMCloneResponse{NewID: 123, Task: task}, nil).Once()
 
 	result, err := ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -754,10 +756,9 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 	)
 
 	// Round 1: clone task complete; ConfigureVM sets VM options and requeues.
-	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(&lutherproxmox.Task{UPID: "result", IsSuccessful: true}, nil).Once()
+	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(task, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node2", int64(123)).Return(vm, nil).Once()
 
-	task := newTask()
 	expectedVMConfigureRequest := []interface{}{
 		proxmox.VirtualMachineOption{Name: optionSockets, Value: *machineScope.ProxmoxMachine.Spec.NumSockets},
 		proxmox.VirtualMachineOption{Name: optionCores, Value: *machineScope.ProxmoxMachine.Spec.NumCores},
@@ -782,7 +783,7 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 	// Round 2: ConfigureVM task has completed; reconcileDisks resizes the boot volume,
 	// then reconcileIPAddresses advances the state to WaitingForBootstrapData.
 	// We're not mocking the entirety of a network setup.
-	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(&lutherproxmox.Task{UPID: "result", IsSuccessful: true}, nil).Once()
+	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(task, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node2", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "scsi0", "50G").Return(nil, nil).Once()
 
@@ -842,7 +843,7 @@ func TestReconcileVM_EndToEnd(t *testing.T) {
 	vm.Status = lutherproxmox.StatusVirtualMachineRunning
 	vm.QMPStatus = lutherproxmox.StatusVirtualMachineRunning
 
-	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(&lutherproxmox.Task{UPID: "result", IsSuccessful: true}, nil).Once()
+	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(task, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node2", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
 	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
