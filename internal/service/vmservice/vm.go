@@ -80,7 +80,7 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 	} // VirtualMachineProvisioned reason is Cloning
 
 	if requeue, err := reconcileVirtualMachineConfig(ctx, scope); err != nil || requeue {
-		scope.Logger.V(4).Info("after reconcileVirtualMachineCOnfig", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
+		scope.Logger.V(4).Info("after reconcileVirtualMachineConfig", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err
 	} // VirtualMachineProvisioned reason is WaitingForDiskReconciliation
 
