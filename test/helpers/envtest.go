@@ -71,7 +71,10 @@ type WebhookConfig struct {
 // TestEnvironment is used to wrap the testing setup for integration tests.
 type TestEnvironment struct {
 	manager.Manager
+	// Client is the manager's cached client; reads go through the informer cache.
 	client.Client
+	// DirectClient bypasses the informer cache and reads directly from the API server.
+	DirectClient  client.Client
 	Config        *rest.Config
 	ProxmoxClient proxmox.Client
 	WebhookConfig WebhookConfig
@@ -137,10 +140,16 @@ func NewTestEnvironment(ctx context.Context, setupWebhook bool, pmClient proxmox
 		panic(fmt.Errorf("failed to create a new manager: %w", err))
 	}
 
+	directClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: scheme})
+	if err != nil {
+		panic(fmt.Errorf("failed to create direct client: %w", err))
+	}
+
 	testEnv := &TestEnvironment{
 		env:           env,
 		Manager:       mgr,
 		Client:        mgr.GetClient(),
+		DirectClient:  directClient,
 		Config:        mgr.GetConfig(),
 		ProxmoxClient: pmClient,
 		WebhookConfig: WebhookConfig{

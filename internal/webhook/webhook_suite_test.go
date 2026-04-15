@@ -58,11 +58,9 @@ var _ = BeforeSuite(func() {
 
 	//+kubebuilder:scaffold:scheme
 
-	var err error
-	k8sClient, err = client.New(testEnv.GetConfig(), client.Options{Scheme: testEnv.GetScheme()})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+	k8sClient = testEnv.DirectClient
 
+	var err error
 	err = (&ProxmoxCluster{}).SetupWebhookWithManager(testEnv.Manager)
 	Expect(err).NotTo(HaveOccurred())
 

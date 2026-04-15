@@ -74,11 +74,7 @@ var _ = BeforeSuite(func() {
 
 	// +kubebuilder:scaffold:scheme
 
-	cachingClient, err := client.New(testEnv.GetConfig(), client.Options{Scheme: testEnv.Scheme()})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cachingClient).NotTo(BeNil())
-
-	k8sClient = cachingClient
+	k8sClient = testEnv.DirectClient
 
 	proxmoxClusterReconciler := ProxmoxClusterReconciler{
 		Client:        k8sClient,
