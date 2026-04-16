@@ -1114,6 +1114,14 @@ spec:
                           minLength: 4
                           pattern: ^net[0-9]+$
                           type: string
+                        queues:
+                          description: |-
+                            Queues is the number of queues assigned to the device.
+                            This value is passed to the Multiqueue field in PROXMOX.
+                          format: int32
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
                         routes:
                           description: routes are the routes associated with this
                             interface.

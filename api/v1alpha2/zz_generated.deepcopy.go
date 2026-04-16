@@ -207,6 +207,11 @@ func (in *NetworkDevice) DeepCopyInto(out *NetworkDevice) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.Queues != nil {
+		in, out := &in.Queues, &out.Queues
+		*out = new(int32)
+		**out = **in
+	}
 	in.InterfaceConfig.DeepCopyInto(&out.InterfaceConfig)
 }
 
