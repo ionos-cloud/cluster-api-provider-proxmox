@@ -698,7 +698,7 @@ func TestReconcileVM_CloudInitRunning(t *testing.T) {
 }
 
 // This test is supposed to test the entire state machine transition.
-func TestReconcileVM_EndToEnd(t *testing.T) {
+func TestReconcileVM_StateMachine(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.IDE0 = "local:iso/cloud-init.iso,media=cdrom"

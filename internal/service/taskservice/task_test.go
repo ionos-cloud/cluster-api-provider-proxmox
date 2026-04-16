@@ -123,7 +123,7 @@ func setupTaskTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockClient) 
 }
 
 // Do not return task if there is no task.
-func TestGetTask_NilTaskRef(t *testing.T) {
+func TestGetTask_NoTaskRef(t *testing.T) {
 	machineScope, _ := setupTaskTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = nil
 
@@ -133,7 +133,7 @@ func TestGetTask_NilTaskRef(t *testing.T) {
 }
 
 // Test missing task erroring.
-func TestGetTask_Error(t *testing.T) {
+func TestGetTask_ErrorNotFound(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
 
@@ -158,7 +158,7 @@ func TestGetTask_Success(t *testing.T) {
 }
 
 // Test ReconcileInFlightTask on empty task.
-func TestReconcileInFlightTask_NilTaskRef(t *testing.T) {
+func TestReconcileInFlightTask_NoTaskRef(t *testing.T) {
 	machineScope, _ := setupTaskTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = nil
 
@@ -168,7 +168,7 @@ func TestReconcileInFlightTask_NilTaskRef(t *testing.T) {
 }
 
 // Test ReconcileInFlightTask on empty task but existing TaskRef.
-func TestReconcileInFlightTask_NilTask(t *testing.T) {
+func TestReconcileInFlightTask_NilTaskReturned(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
 
@@ -207,7 +207,7 @@ func TestReconcileInFlightTask_TaskSuccessful(t *testing.T) {
 }
 
 // Test ReconcileInflightTask on task failure switch case if not qmstart.
-func TestReconcileInFlightTask_TaskFailed_NonQMStart(t *testing.T) {
+func TestReconcileInFlightTask_CloneTaskFailed(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
 
