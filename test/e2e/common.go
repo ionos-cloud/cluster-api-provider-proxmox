@@ -25,11 +25,15 @@ import (
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
 func Byf(format string, a ...interface{}) {
@@ -120,5 +124,44 @@ func dumpSpecResourcesAndCleanup(ctx context.Context, input cleanupInput) {
 	if input.AdditionalCleanup != nil {
 		Byf("Running additional cleanup for the %q test spec", input.SpecName)
 		input.AdditionalCleanup()
+	}
+}
+
+// verifyProxmoxMachineAddresses lists all ProxmoxMachine objects for a given cluster
+// and verifies that each machine has populated Status.Addresses with at least one
+// MachineHostName and one MachineInternalIP entry.
+// This catches state machine bugs where reconcileMachineAddresses is skipped.
+func verifyProxmoxMachineAddresses(ctx context.Context, clusterProxy framework.ClusterProxy, namespace, clusterName string) {
+	Byf("Listing ProxmoxMachine objects for cluster %q in namespace %q", clusterName, namespace)
+	machineList := &infrav1.ProxmoxMachineList{}
+	Expect(clusterProxy.GetClient().List(ctx, machineList,
+		client.InNamespace(namespace),
+		client.MatchingLabels{clusterv1.ClusterNameLabel: clusterName},
+	)).To(Succeed(), "Failed to list ProxmoxMachines")
+
+	Expect(machineList.Items).ToNot(BeEmpty(), "Expected at least one ProxmoxMachine for cluster %q", clusterName)
+
+	for i := range machineList.Items {
+		machine := &machineList.Items[i]
+		Byf("Verifying addresses for ProxmoxMachine %q", machine.Name)
+
+		Expect(machine.Status.Addresses).ToNot(BeEmpty(),
+			"ProxmoxMachine %q has no addresses in Status.Addresses", machine.Name)
+
+		hasHostName := false
+		hasInternalIP := false
+		for _, addr := range machine.Status.Addresses {
+			switch addr.Type {
+			case clusterv1.MachineHostName:
+				hasHostName = true
+			case clusterv1.MachineInternalIP:
+				hasInternalIP = true
+			}
+		}
+
+		Expect(hasHostName).To(BeTrue(),
+			"ProxmoxMachine %q has no MachineHostName address", machine.Name)
+		Expect(hasInternalIP).To(BeTrue(),
+			"ProxmoxMachine %q has no MachineInternalIP address", machine.Name)
 	}
 }

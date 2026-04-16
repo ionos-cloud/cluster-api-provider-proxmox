@@ -102,6 +102,9 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
+			By("Verifying ProxmoxMachine status addresses are populated")
+			verifyProxmoxMachineAddresses(ctx, bootstrapClusterProxy, namespace.Name, clusterName)
+
 			By("Scaling worker node to 3")
 			framework.ScaleAndWaitMachineDeployment(ctx, framework.ScaleAndWaitMachineDeploymentInput{
 				ClusterProxy:              bootstrapClusterProxy,
