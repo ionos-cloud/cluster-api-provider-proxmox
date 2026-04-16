@@ -102,6 +102,9 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
 
+			By("Verifying ProxmoxMachine status addresses are populated")
+			verifyProxmoxMachineAddresses(ctx, bootstrapClusterProxy, namespace.Name, clusterName)
+
 			By("Scaling worker node to 3")
 			framework.ScaleAndWaitMachineDeployment(ctx, framework.ScaleAndWaitMachineDeploymentInput{
 				ClusterProxy:              bootstrapClusterProxy,
@@ -134,33 +137,6 @@ var _ = Describe("Workload cluster creation", func() {
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
 				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 			}, result)
-		})
-	})
-
-	Context("[Generic] Creating a cluster and verifying ProxmoxMachine status addresses", func() {
-		It("Should have populated addresses on ProxmoxMachine status", func() {
-			By("Creating a cluster with 1 control-plane and 1 worker node")
-			clusterctl.ApplyClusterTemplateAndWait(ctx, clusterctl.ApplyClusterTemplateAndWaitInput{
-				ClusterProxy: bootstrapClusterProxy,
-				ConfigCluster: clusterctl.ConfigClusterInput{
-					LogFolder:                clusterctlLogFolder,
-					ClusterctlConfigPath:     clusterctlConfigPath,
-					KubeconfigPath:           bootstrapClusterProxy.GetKubeconfigPath(),
-					InfrastructureProvider:   clusterctl.DefaultInfrastructureProvider,
-					Flavor:                   clusterctl.DefaultFlavor,
-					Namespace:                namespace.Name,
-					ClusterName:              clusterName,
-					KubernetesVersion:        e2eConfig.MustGetVariable(KubernetesVersion),
-					ControlPlaneMachineCount: pointer.Int64Ptr(1),
-					WorkerMachineCount:       pointer.Int64Ptr(1),
-				},
-				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
-				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
-				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
-			}, result)
-
-			By("Verifying ProxmoxMachine status addresses are populated")
-			verifyProxmoxMachineAddresses(ctx, bootstrapClusterProxy, namespace.Name, clusterName)
 		})
 	})
 
