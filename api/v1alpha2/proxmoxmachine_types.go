@@ -455,6 +455,13 @@ type NetworkDevice struct {
 	// +kubebuilder:validation:Maximum=4094
 	VLAN *int32 `json:"vlan,omitempty"`
 
+	// Queues is the number of queues assigned to the device.
+	// This value is passed to the Multiqueue field in PROXMOX.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Queues *int32 `json:"queues,omitempty"`
+
 	// name is the network device name.
 	// +default="net0"
 	// +optional

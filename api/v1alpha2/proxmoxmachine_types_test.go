@@ -367,6 +367,20 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		})
 	})
 
+	Context("Queues", func() {
+		It("Should not allow machine with network device queue equal to 0", func() {
+			dm := defaultMachine()
+			dm.Spec.Network = &NetworkSpec{
+				NetworkDevices: []NetworkDevice{{
+					Bridge: ptr.To("vmbr0"),
+					Queues: ptr.To(int32(0)),
+				}},
+			}
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
+		})
+	})
+
 	Context("VMIDRange", func() {
 		It("Should only allow spec.vmIDRange.start >= 100", func() {
 			dm := defaultMachine()
