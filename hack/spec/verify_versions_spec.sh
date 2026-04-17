@@ -65,4 +65,11 @@ Describe 'verify-versions.sh'
     The output should include 'cluster-api version mismatch'
     The output should include 'e2e config'
   End
+
+  It 'detects k8s.io/code-generator replace version mismatch'
+    gomod_add_replace 'v0.31.0' 'k8s.io/code-generator' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'k8s.io/code-generator version mismatch'
+  End
 End

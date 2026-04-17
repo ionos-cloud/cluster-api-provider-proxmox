@@ -30,6 +30,18 @@ Describe 'bump-k8s.sh'
     The output should include 'go.mod: Removed replace k8s.io/apimachinery'
   End
 
+  It 'updates k8s.io/code-generator replace to match k8s version'
+    bash ../bump-k8s.sh 0.33.0 >/dev/null 2>&1
+    When call gomod_get_replace 'k8s.io/code-generator'
+    The output should equal 'v0.33.0'
+  End
+
+  It 'reports k8s.io/code-generator replace update'
+    When run script ../bump-k8s.sh 0.33.0
+    The status should be success
+    The output should include 'Updated replace k8s.io/code-generator'
+  End
+
   It 'does not modify ENVTEST_K8S_VERSION derivation'
     bash ../bump-k8s.sh 0.33.0 >/dev/null 2>&1
     When call makefile_get_envtest
