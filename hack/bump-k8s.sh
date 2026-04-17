@@ -4,6 +4,10 @@
 # ENVTEST_K8S_VERSION is derived dynamically via hack/envtest-ver.sh
 # and does not need to be updated by this script.
 #
+# In go.mod, this also updates the replace pin for k8s.io/code-generator
+# (home of the conversion-gen tool), which must stay in sync with the k8s.io
+# trio.
+#
 # In addition to go.mod, this updates:
 #   - test/e2e/config: KUBERNETES_VERSION defaults (v1.MINOR.PATCH)
 #   - docs: --kubernetes-version references (v1.MINOR.PATCH)
@@ -70,8 +74,14 @@ if [[ ${#OVERRIDE_PKGS[@]} -gt 0 ]]; then
     done
 fi
 
-# Step 5: Update KUBERNETES_VERSION in e2e config files.
+# Step 5: Update k8s.io/code-generator replace.
+# This module hosts the conversion-gen tool. It appears as an indirect
+# require and is pinned via `replace`; its version must stay in sync with
+# the k8s.io trio.
+gomod_add_replace "${NEW}" 'k8s.io/code-generator'
+
+# Step 6: Update KUBERNETES_VERSION in e2e config files.
 e2econfig_set_k8s "${K8S_VER}"
 
-# Step 6: Update --kubernetes-version references in docs.
+# Step 7: Update --kubernetes-version references in docs.
 docs_set_k8s "${K8S_VER}"

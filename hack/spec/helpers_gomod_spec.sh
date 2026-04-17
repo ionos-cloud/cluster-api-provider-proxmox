@@ -55,6 +55,13 @@ Describe 'helpers.sh — go.mod functions'
       When call gomod_get_replace 'k8s.io/api'
       The output should equal ''
     End
+
+    It 'returns version for a replace on an indirect dep'
+      # k8s.io/code-generator is an indirect require with a replace pin
+      # (for the conversion-gen tool).
+      When call gomod_get_replace 'k8s.io/code-generator'
+      The output should equal 'v0.32.3'
+    End
   End
 
   Describe 'gomod_get_version'

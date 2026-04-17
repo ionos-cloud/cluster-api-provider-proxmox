@@ -86,6 +86,17 @@ if ! gomod_has_version_match "${K8S_PKGS[@]}"; then
     fail "k8s.io package version mismatch:${version_details}"
 fi
 
+# ---- k8s.io/code-generator ----
+# k8s.io/code-generator hosts the conversion-gen tool. It's pinned via
+# `replace` only. Its target version must match the effective k8s.io
+# package version.
+
+CODE_GEN_VER=$(gomod_get_replace 'k8s.io/code-generator')
+K8S_EFFECTIVE_VER=$(gomod_get_version 'k8s.io/api')
+if [[ -n "${CODE_GEN_VER}" ]] && versions_differ "${CODE_GEN_VER}" "${K8S_EFFECTIVE_VER}"; then
+    fail "k8s.io/code-generator version mismatch: k8s.io/api is '${K8S_EFFECTIVE_VER}', replace for k8s.io/code-generator is '${CODE_GEN_VER}'"
+fi
+
 # ---- k8s.io and ENVTEST_K8S_VERSION ----
 # The Makefile is meant to call gomod_make_envtest to derive ENVTEST_K8S_VERSION.
 # This check verifies that it still does.

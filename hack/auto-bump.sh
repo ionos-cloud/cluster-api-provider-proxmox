@@ -116,6 +116,14 @@ if [[ -n "${K8S_LATEST}" ]]; then
         fi
     fi
 
+    # Also check k8s.io/code-generator replace alignment (home of conversion-gen).
+    if [[ "${NEEDS_BUMP}" != true ]]; then
+        CODE_GEN=$(gomod_get_replace 'k8s.io/code-generator')
+        if [[ -n "${CODE_GEN}" ]] && versions_differ "${CODE_GEN}" "${K8S_LATEST}"; then
+            NEEDS_BUMP=true
+        fi
+    fi
+
     if [[ "${NEEDS_BUMP}" == true ]]; then
         echo "Auto-bump: k8s.io ${K8S_LATEST}"
         "${SCRIPT_DIR}/bump-k8s.sh" "${K8S_LATEST}"
