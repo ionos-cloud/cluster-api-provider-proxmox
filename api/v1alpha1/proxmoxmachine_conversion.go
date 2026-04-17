@@ -102,6 +102,7 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 			if i < len(restored.Network.NetworkDevices) {
 				dst.Network.NetworkDevices[i].DefaultIPv4 = restored.Network.NetworkDevices[i].DefaultIPv4
 				dst.Network.NetworkDevices[i].DefaultIPv6 = restored.Network.NetworkDevices[i].DefaultIPv6
+				dst.Network.NetworkDevices[i].Queues = restored.Network.NetworkDevices[i].Queues
 			}
 		}
 	}

@@ -611,6 +611,7 @@ func autoConvert_v1alpha2_NetworkDevice_To_v1alpha1_NetworkDevice(in *v1alpha2.N
 	} else {
 		out.VLAN = nil
 	}
+	// WARNING: in.Queues requires manual conversion: does not exist in peer-type
 	// WARNING: in.Name requires manual conversion: does not exist in peer-type
 	// WARNING: in.InterfaceConfig requires manual conversion: does not exist in peer-type
 	return nil
