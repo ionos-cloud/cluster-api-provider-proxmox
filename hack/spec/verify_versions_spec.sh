@@ -25,6 +25,14 @@ Describe 'verify-versions.sh'
     The output should include 'Go version mismatch'
   End
 
+  It 'detects Go version mismatch in .golangci-kal.yml'
+    golangcikal_set_go '1.24' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'Go version mismatch'
+    The output should include '.golangci-kal.yml'
+  End
+
   It 'detects golangci-lint version mismatch'
     customgcl_set_version 'v2.8.0' >/dev/null
     When run script ../verify-versions.sh
