@@ -159,6 +159,10 @@ verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are
 		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
 	fi
 
+.PHONY: verify-versions
+verify-versions: ## Verify repository version definitions are consistent.
+	hack/verify-versions.sh
+
 
 ##@ Deployment
 
