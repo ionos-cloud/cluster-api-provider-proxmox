@@ -9,8 +9,15 @@ Describe 'bump-golangci-lint.sh'
   It 'bumps golangci-lint version'
     When run script ../bump-golangci-lint.sh v2.10.0
     The status should be success
+    The output should include 'go.mod: Updated require github.com/golangci/golangci-lint/v2 v2.9.0 to v2.10.0'
     The output should include 'go.mod: Updated replace github.com/golangci/golangci-lint/v2 v2.9.0 to v2.10.0'
     The output should include '.custom-gcl.yaml: Updated golangci-lint v2.9.0 to v2.10.0'
+  End
+
+  It 'updates go.mod require version'
+    bash ../bump-golangci-lint.sh v2.10.0 >/dev/null 2>&1
+    When call gomod_get_require 'github.com/golangci/golangci-lint/v2'
+    The output should equal 'v2.10.0'
   End
 
   It 'updates go.mod replace version'
@@ -29,5 +36,11 @@ Describe 'bump-golangci-lint.sh'
     When run script ../bump-golangci-lint.sh
     The status should be failure
     The output should include 'Usage:'
+  End
+
+  It 'fails with invalid version'
+    When run script ../bump-golangci-lint.sh 'not-a-version'
+    The status should be failure
+    The output should include 'invalid version format'
   End
 End

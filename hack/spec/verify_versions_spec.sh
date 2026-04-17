@@ -33,8 +33,15 @@ Describe 'verify-versions.sh'
     The output should include '.golangci-kal.yml'
   End
 
-  It 'detects golangci-lint version mismatch'
+  It 'detects golangci-lint version mismatch in .custom-gcl.yaml'
     customgcl_set_version 'v2.8.0' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'golangci-lint version mismatch'
+  End
+
+  It 'detects golangci-lint require/replace drift (dependabot bump)'
+    gomod_set_require 'v2.10.0' 'github.com/golangci/golangci-lint/v2' >/dev/null
     When run script ../verify-versions.sh
     The status should be failure
     The output should include 'golangci-lint version mismatch'
