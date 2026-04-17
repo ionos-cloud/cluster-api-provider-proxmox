@@ -145,6 +145,34 @@ if [[ "${E2E_CAPI_VER}" != "${CAPI_REQUIRE}" ]]; then
     fail "cluster-api version mismatch: go.mod require is '${CAPI_REQUIRE}', but e2e config has '${E2E_CAPI_VER}'"
 fi
 
+# ---- capmox release version consistency ----
+# clusterctl-settings.json (nextVersion), sonar-project.properties
+# (projectVersion), metadata.yaml (releaseSeries), and the e2e sentinel
+# must all agree on the upcoming release's major.minor. release.sh keeps
+# them in sync; this check catches drift.
+
+CAPMOX_NEXT=$(clusterctl_get_version)
+CAPMOX_SONAR=$(sonar_get_version)
+CAPMOX_SENTINEL=$(e2econfig_get_capmox)
+
+# clusterctl carries the v-prefix, sonar does not — strip before compare.
+if [[ "$(strip_v_prefix "${CAPMOX_NEXT}")" != "${CAPMOX_SONAR}" ]]; then
+    fail "capmox version mismatch: clusterctl-settings.json has '${CAPMOX_NEXT}', sonar-project.properties has '${CAPMOX_SONAR}'"
+fi
+
+split_version "${CAPMOX_NEXT}"
+CAPMOX_MAJOR="${MAJOR}"
+CAPMOX_MINOR="${MINOR}"
+
+if ! metadata_has_release "${CAPMOX_MAJOR}" "${CAPMOX_MINOR}"; then
+    fail "capmox v${CAPMOX_MAJOR}.${CAPMOX_MINOR} is not listed in metadata.yaml"
+fi
+
+EXPECTED_SENTINEL="v${CAPMOX_MAJOR}.${CAPMOX_MINOR}.99"
+if [[ "${CAPMOX_SENTINEL}" != "${EXPECTED_SENTINEL}" ]]; then
+    fail "capmox e2e sentinel mismatch: clusterctl-settings.json is '${CAPMOX_NEXT}', expected sentinel '${EXPECTED_SENTINEL}' but e2e config has '${CAPMOX_SENTINEL}'"
+fi
+
 if [[ "${HAD_ERRORS}" == true ]]; then
     exit 1
 fi
