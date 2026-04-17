@@ -39,13 +39,15 @@ if [[ "${GOLANGCI_KAL_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
 fi
 
 # ---- golangci-lint version ----
-# The golangci-lint replace directive in go.mod and the version in
-# .custom-gcl.yaml must use the same version.
+# The golangci-lint require directive, replace directive, and .custom-gcl.yaml
+# must all use the same version. Dependabot bumps `require` but leaves
+# `replace` and `.custom-gcl.yaml` stale; this catches that.
 
-GOLANGCI_VERSION_GOMOD=$(gomod_get_replace 'github.com/golangci/golangci-lint/v2')
-GOLANGCI_VERSION_CUSTOM=$(customgcl_get_version)
-if [[ "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_CUSTOM}" ]]; then
-    fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
+GOLANGCI_REQUIRE=$(gomod_get_require 'github.com/golangci/golangci-lint/v2')
+GOLANGCI_REPLACE=$(gomod_get_replace 'github.com/golangci/golangci-lint/v2')
+GOLANGCI_CUSTOM=$(customgcl_get_version)
+if [[ "${GOLANGCI_REQUIRE}" != "${GOLANGCI_REPLACE}" || "${GOLANGCI_REPLACE}" != "${GOLANGCI_CUSTOM}" ]]; then
+    fail "golangci-lint version mismatch: require='${GOLANGCI_REQUIRE}', replace='${GOLANGCI_REPLACE}', .custom-gcl.yaml='${GOLANGCI_CUSTOM}'"
 fi
 
 # ---- cluster-api: require and replace ----
