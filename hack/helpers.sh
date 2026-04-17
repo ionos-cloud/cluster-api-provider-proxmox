@@ -299,6 +299,56 @@ customgcl_set_version() {
     return
 }
 
+# ---- version extraction: release files ----
+
+# clusterctl_get_version returns the capmox nextVersion from
+# clusterctl-settings.json (e.g. "v0.8.1"). Returns empty string if the
+# file does not exist.
+clusterctl_get_version() {
+    local f="${REPO_ROOT}/clusterctl-settings.json"
+    if [[ -f "${f}" ]]; then
+        yq -oy '.config.nextVersion' "${f}"
+    fi
+    return
+}
+
+# clusterctl_set_version updates nextVersion in clusterctl-settings.json.
+# The input is the full v-prefixed version (e.g. "v0.8.2" or "v0.9.0-rc.0").
+clusterctl_set_version() {
+    local new="$1" f="${REPO_ROOT}/clusterctl-settings.json" old
+    if [[ -f "${f}" ]]; then
+        old=$(clusterctl_get_version)
+        if yqsi ".config.nextVersion = \"${new}\"" "${f}"; then
+            echo "clusterctl-settings.json: Updated nextVersion ${old} to ${new}"
+        fi
+    fi
+    return
+}
+
+# sonar_get_version returns the sonar.projectVersion value from
+# sonar-project.properties (e.g. "0.8.1"). Returns empty string if the file
+# does not exist.
+sonar_get_version() {
+    local f="${REPO_ROOT}/sonar-project.properties"
+    if [[ -f "${f}" ]]; then
+        awk -F= '/^sonar\.projectVersion=/{print $2; exit}' "${f}"
+    fi
+    return
+}
+
+# sonar_set_version updates sonar.projectVersion in sonar-project.properties.
+# The input is the bare version string without a v-prefix (e.g. "0.8.2").
+sonar_set_version() {
+    local new="$1" f="${REPO_ROOT}/sonar-project.properties" old
+    if [[ -f "${f}" ]]; then
+        old=$(sonar_get_version)
+        if sedi "s/^(sonar\.projectVersion=).+/\1${new}/" "${f}"; then
+            echo "sonar-project.properties: Updated sonar.projectVersion ${old} to ${new}"
+        fi
+    fi
+    return
+}
+
 # ---- version extraction: e2e config ----
 
 # E2E config files contain KUBERNETES_VERSION defaults and CAPI provider
@@ -331,6 +381,30 @@ e2econfig_set_k8s() {
 # e2e config file (e.g. "v1.10.4").
 e2econfig_get_capi() {
     yq '.providers[] | select(.type == "CoreProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    return
+}
+
+# e2econfig_get_capmox returns the capmox provider sentinel from the first
+# e2e config file (e.g. "v0.8.99"). This sentinel uses the current release
+# major.minor with a fixed .99 patch component to denote "the development
+# version of this series".
+e2econfig_get_capmox() {
+    yq '.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    return
+}
+
+# e2econfig_set_capmox updates the capmox provider sentinel in all e2e
+# config files. The input is the target sentinel string (e.g. "v0.9.99").
+e2econfig_set_capmox() {
+    local new="$1" old changed=false
+    old=$(e2econfig_get_capmox)
+    if [[ -z "${old}" ]]; then return; fi
+    for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
+        if [[ -f "${f}" ]] && yqsi '(.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name) = "'"${new}"'"' "${f}"; then
+            changed=true
+        fi
+    done
+    if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated capmox ${old} to ${new}"; fi
     return
 }
 
@@ -394,6 +468,25 @@ CAPI_CONTRACT="${CAPI_CONTRACT:-v1beta2}"
 # "v1beta1"). This is the contract the project currently implements.
 metadata_latest_contract() {
     yq '[.releaseSeries[] | {"v": ((.major * 1000) + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
+    return
+}
+
+# metadata_has_release returns 0 when a releaseSeries entry with the
+# given major and minor version already exists in the top-level metadata.yaml
+# (the capmox release catalog).
+metadata_has_release() {
+    local major="$1" minor="$2"
+    yq -e '.releaseSeries[] | select(.major == '"${major}"' and .minor == '"${minor}"')' "${METADATA_FILE}" > /dev/null 2>&1
+    return
+}
+
+# metadata_add_release appends a new releaseSeries entry to the top-level
+# metadata.yaml (chronological order, newest last) and prints a confirmation
+# message.
+metadata_add_release() {
+    local major="$1" minor="$2" contract="$3"
+    yq -i '.releaseSeries += [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}]' "${METADATA_FILE}"
+    echo "metadata.yaml: Added releaseSeries entry for v${major}.${minor} (${contract})"
     return
 }
 
