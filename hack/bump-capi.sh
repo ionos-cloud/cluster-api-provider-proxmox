@@ -35,8 +35,8 @@ gomod_add_replace "${NEW}" 'sigs.k8s.io/cluster-api'
 
 # ---- test/e2e/data/shared/v1beta1/metadata.yaml ----
 # Add new releaseSeries entry as the first element if not already present.
-if ! metadata_has_release "${CAPI_MAJOR}" "${CAPI_MINOR}"; then
-    metadata_add_release "${CAPI_MAJOR}" "${CAPI_MINOR}" "${CONTRACT}"
+if ! e2emetadata_has_release "${CAPI_MAJOR}" "${CAPI_MINOR}"; then
+    e2emetadata_add_release "${CAPI_MAJOR}" "${CAPI_MINOR}" "${CONTRACT}"
 fi
 
 # ---- test/e2e/config ----

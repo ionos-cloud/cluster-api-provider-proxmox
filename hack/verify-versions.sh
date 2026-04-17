@@ -70,7 +70,7 @@ if [[ -n "${CAPI_REQUIRE}" ]]; then
     split_version "${CAPI_REQUIRE}"
     CAPI_MAJOR="${MAJOR}"
     CAPI_MINOR="${MINOR}"
-    if ! metadata_has_release "${CAPI_MAJOR}" "${CAPI_MINOR}"; then
+    if ! e2emetadata_has_release "${CAPI_MAJOR}" "${CAPI_MINOR}"; then
         fail "cluster-api v${CAPI_MAJOR}.${CAPI_MINOR} is not listed in test/e2e/data/shared/v1beta1/metadata.yaml"
     fi
 fi

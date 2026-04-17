@@ -73,27 +73,66 @@ YAML
   End
 
   Describe 'metadata_has_release'
-    It 'returns success for an existing entry'
-      When call metadata_has_release 1 10
+    It 'returns success for an existing capmox entry'
+      When call metadata_has_release 0 8
       The status should be success
     End
 
-    It 'returns failure for a missing entry'
-      When call metadata_has_release 1 99
+    It 'returns failure for a missing capmox entry'
+      When call metadata_has_release 0 99
       The status should be failure
     End
   End
 
   Describe 'metadata_add_release'
-    It 'adds a new releaseSeries entry'
-      When call metadata_add_release 1 11 'v1beta2'
+    It 'adds a new capmox releaseSeries entry'
+      When call metadata_add_release 0 9 'v1beta2'
+      The output should include 'metadata.yaml: Added releaseSeries entry for v0.9'
+    End
+
+    It 'makes the new entry discoverable'
+      metadata_add_release 0 9 'v1beta2' >/dev/null
+      When call metadata_has_release 0 9
+      The status should be success
+    End
+
+    It 'appends (chronological order, newest last)'
+      metadata_add_release 0 9 'v1beta2' >/dev/null
+      _last_minor() { yq '.releaseSeries[-1].minor' "${METADATA_FILE}"; }
+      When call _last_minor
+      The output should equal '9'
+    End
+  End
+
+  Describe 'e2emetadata_has_release'
+    It 'returns success for an existing CAPI entry'
+      When call e2emetadata_has_release 1 10
+      The status should be success
+    End
+
+    It 'returns failure for a missing CAPI entry'
+      When call e2emetadata_has_release 1 99
+      The status should be failure
+    End
+  End
+
+  Describe 'e2emetadata_add_release'
+    It 'adds a new CAPI releaseSeries entry'
+      When call e2emetadata_add_release 1 11 'v1beta2'
       The output should include 'Added releaseSeries entry for v1.11'
     End
 
     It 'makes the new entry discoverable'
-      metadata_add_release 1 11 'v1beta2' >/dev/null
-      When call metadata_has_release 1 11
+      e2emetadata_add_release 1 11 'v1beta2' >/dev/null
+      When call e2emetadata_has_release 1 11
       The status should be success
+    End
+
+    It 'prepends (reverse-chronological order, newest first)'
+      e2emetadata_add_release 1 11 'v1beta2' >/dev/null
+      _first_minor() { yq '.releaseSeries[0].minor' "${E2E_METADATA_FILE}"; }
+      When call _first_minor
+      The output should equal '11'
     End
   End
 End
