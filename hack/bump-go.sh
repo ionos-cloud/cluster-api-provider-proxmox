@@ -2,6 +2,7 @@
 # bump-go.sh bumps the Go version in all places it is referenced:
 #   - go.mod
 #   - Dockerfile
+#   - .golangci-kal.yml (run.go)
 #
 # Usage:   ./hack/bump-go.sh <new-version>
 # Example: ./hack/bump-go.sh 1.26.0
@@ -25,5 +26,6 @@ NEW_MINOR=$(echo "${NEW}" | cut -d. -f1-2)
 
 gomod_set_go "${NEW}"
 dockerfile_set_go "${NEW_MINOR}"
+golangcikal_set_go "${NEW_MINOR}"
 
 gomod_tidy
