@@ -194,8 +194,17 @@ lint-sh: ## Run shellcheck on hack/ scripts.
 	shellcheck hack/*.sh
 
 .PHONY: test-sh
-test-sh: ## Run ShellSpec tests for hack/ scripts with kcov coverage.
+test-sh: hack/spec/coverage/sonarqube.xml ## Run ShellSpec tests for hack/ scripts with kcov coverage.
+
+.PHONY: hack/spec/coverage/cobertura.xml
+hack/spec/coverage/cobertura.xml:
 	cd hack/spec && shellspec --kcov --kcov-options='--include-path=$(CURDIR)/hack/' $(SHELLSPEC_ARGS)
+
+# kcov 43+ writes this file natively alongside cobertura.xml; the xsltproc
+# fallback below only runs when kcov is older (e.g. Debian 12, Ubuntu <= 24.04).
+# TODO: drop this rule and hack/spec/cobertura-to-sonar.xslt once CI's kcov is >= 43.
+hack/spec/coverage/sonarqube.xml: hack/spec/coverage/cobertura.xml hack/spec/cobertura-to-sonar.xslt
+	@if [ ! -s $@ ]; then xsltproc --nonet --novalid hack/spec/cobertura-to-sonar.xslt $< > $@; fi
 
 .PHONY: tilt-up
 tilt-up: ## Start Tilt in a kind cluster.
