@@ -217,12 +217,23 @@ dockerfile_get_go() {
     return
 }
 
+# golangcikal_get_go returns the Go major.minor from the run.go field in
+# .golangci-kal.yml (e.g. "1.25"). Returns empty string if the file does
+# not exist.
+golangcikal_get_go() {
+    local f="${REPO_ROOT}/.golangci-kal.yml"
+    if [[ -f "${f}" ]]; then
+        yq '.run.go' "${f}"
+    fi
+    return
+}
+
 # customgcl_get_version returns the golangci-lint version from .custom-gcl.yaml
 # (e.g. "v2.9.0"). Returns empty string if the file does not exist.
 customgcl_get_version() {
     local f="${REPO_ROOT}/.custom-gcl.yaml"
     if [[ -f "${f}" ]]; then
-        awk '/^version:/{print $2; exit}' "${f}"
+        yq '.version' "${f}"
     fi
     return
 }
@@ -244,6 +255,20 @@ dockerfile_set_go() {
     old=$(dockerfile_get_go)
     if sedi "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"; then
         echo "Dockerfile: Updated golang:${old} to golang:${new}"
+    fi
+    return
+}
+
+# golangcikal_set_go updates the Go major.minor in .golangci-kal.yml run.go.
+# The value is kept as a double-quoted string (e.g. "1.25") so golangci-lint
+# parses it as a string rather than a float.
+golangcikal_set_go() {
+    local new="$1" f="${REPO_ROOT}/.golangci-kal.yml" old
+    if [[ -f "${f}" ]]; then
+        old=$(golangcikal_get_go)
+        if yqsi ".run.go = \"${new}\" | .run.go style=\"double\"" "${f}"; then
+            echo ".golangci-kal.yml: Updated Go ${old} to ${new}"
+        fi
     fi
     return
 }

@@ -11,6 +11,13 @@ Describe 'bump-go.sh'
     The status should be success
     The output should include 'go.mod: Updated go 1.25.0 to 1.26.0'
     The output should include 'Dockerfile: Updated golang:1.25 to golang:1.26'
+    The output should include '.golangci-kal.yml: Updated Go 1.25 to 1.26'
+  End
+
+  It 'updates .golangci-kal.yml run.go'
+    bash ../bump-go.sh 1.26.0 >/dev/null 2>&1
+    When call golangcikal_get_go
+    The output should equal '1.26'
   End
 
   It 'updates go.mod go directive'

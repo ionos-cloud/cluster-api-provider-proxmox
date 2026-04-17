@@ -18,11 +18,12 @@ Describe 'verify-versions.sh'
     The error should include 'Go version mismatch'
   End
 
-  It 'detects Go version mismatch in docs'
-    docs_set_go '1.24' >/dev/null
+  It 'detects Go version mismatch in .golangci-kal.yml'
+    golangcikal_set_go '1.24' >/dev/null
     When run script ../verify-versions.sh
     The status should be failure
     The error should include 'Go version mismatch'
+    The error should include '.golangci-kal.yml'
   End
 
   It 'detects golangci-lint version mismatch'
