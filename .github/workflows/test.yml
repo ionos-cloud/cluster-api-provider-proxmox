@@ -26,8 +26,8 @@ jobs:
       - name: Add ShellSpec to PATH
         run: echo "${{ github.workspace }}/.shellspec" >> "$GITHUB_PATH"
 
-      - name: Install kcov
-        run: sudo apt-get update && sudo apt-get install -y kcov
+      - name: Install kcov and xsltproc
+        run: sudo apt-get update && sudo apt-get install -y kcov xsltproc
 
       - run: make verify
       - run: make test
