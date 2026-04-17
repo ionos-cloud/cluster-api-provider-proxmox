@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # bump-golangci-lint.sh bumps the golangci-lint version in all places it is
 # referenced:
+#   - go.mod (require directive, indirect)
 #   - go.mod (replace directive)
 #   - .custom-gcl.yaml
 #
@@ -21,6 +22,7 @@ fi
 NEW=$(ensure_v_prefix "$1")
 validate_semver "${NEW}"
 
+gomod_set_require "${NEW}" 'github.com/golangci/golangci-lint/v2'
 gomod_add_replace "${NEW}" 'github.com/golangci/golangci-lint/v2'
 customgcl_set_version "${NEW}"
 
