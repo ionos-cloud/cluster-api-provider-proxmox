@@ -145,6 +145,42 @@ if [[ -n "${CAPI_REQUIRE}" && -n "${E2E_CAPI_VER}" ]]; then
     fi
 fi
 
+# ---- capmox release version consistency ----
+# clusterctl-settings.json (nextVersion), sonar-project.properties
+# (projectVersion), metadata.yaml (releaseSeries), and the e2e sentinel
+# must all agree on the upcoming release's major.minor. release.sh keeps
+# them in sync; this check catches drift.
+
+CAPMOX_NEXT=$(clusterctl_get_version)
+CAPMOX_SONAR=$(sonar_get_version)
+CAPMOX_SENTINEL=$(e2econfig_get_capmox)
+
+if [[ -n "${CAPMOX_NEXT}" && -n "${CAPMOX_SONAR}" ]]; then
+    # clusterctl carries the v-prefix, sonar does not — strip before compare.
+    if [[ "$(strip_v_prefix "${CAPMOX_NEXT}")" != "${CAPMOX_SONAR}" ]]; then
+        fail "capmox version mismatch: clusterctl-settings.json has '${CAPMOX_NEXT}', sonar-project.properties has '${CAPMOX_SONAR}'"
+    fi
+fi
+
+if [[ -n "${CAPMOX_NEXT}" ]]; then
+    # Strip any pre-release suffix (-rc.0, -beta.1, ...) to compare major.minor.
+    CAPMOX_CORE="${CAPMOX_NEXT%%-*}"
+    split_version "${CAPMOX_CORE}"
+    CAPMOX_MAJOR="${MAJOR}"
+    CAPMOX_MINOR="${MINOR}"
+
+    if ! metadata_has_release "${CAPMOX_MAJOR}" "${CAPMOX_MINOR}"; then
+        fail "capmox v${CAPMOX_MAJOR}.${CAPMOX_MINOR} is not listed in metadata.yaml"
+    fi
+
+    if [[ -n "${CAPMOX_SENTINEL}" ]]; then
+        EXPECTED_SENTINEL="v${CAPMOX_MAJOR}.${CAPMOX_MINOR}.99"
+        if versions_differ "${CAPMOX_SENTINEL}" "${EXPECTED_SENTINEL}"; then
+            fail "capmox e2e sentinel mismatch: clusterctl-settings.json is '${CAPMOX_NEXT}', expected sentinel '${EXPECTED_SENTINEL}' but e2e config has '${CAPMOX_SENTINEL}'"
+        fi
+    fi
+fi
+
 # ---- Report results ----
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then

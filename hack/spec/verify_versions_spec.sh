@@ -80,4 +80,34 @@ Describe 'verify-versions.sh'
     The status should be failure
     The output should include 'k8s.io/code-generator version mismatch'
   End
+
+  It 'detects capmox clusterctl/sonar drift'
+    sonar_set_version '0.8.2' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'capmox version mismatch'
+  End
+
+  It 'detects capmox major.minor not listed in metadata.yaml'
+    clusterctl_set_version 'v0.99.0' >/dev/null
+    sonar_set_version '0.99.0' >/dev/null
+    e2econfig_set_capmox 'v0.99.99' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'v0.99 is not listed in metadata.yaml'
+  End
+
+  It 'detects capmox e2e sentinel mismatch'
+    e2econfig_set_capmox 'v0.7.99' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'capmox e2e sentinel mismatch'
+  End
+
+  It 'accepts a pre-release clusterctl version whose core is in metadata'
+    clusterctl_set_version 'v0.8.2-rc.0' >/dev/null
+    sonar_set_version '0.8.2-rc.0' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be success
+  End
 End
