@@ -21,9 +21,9 @@ fail() {
 }
 
 # ---- Go version ----
-# go.mod, Dockerfile, and docs/Development.md must all reference the same Go
-# version. go.mod uses the full "major.minor.patch" form; Dockerfile and docs
-# use only "major.minor".
+# go.mod, Dockerfile, docs/Development.md, and .golangci-kal.yml run.go must
+# all reference the same Go version. go.mod uses the full "major.minor.patch"
+# form; the others use only "major.minor".
 
 GO_VERSION_ROOT=$(gomod_get_go)
 GO_VERSION_MINOR=$(echo "${GO_VERSION_ROOT}" | cut -d. -f1-2)
@@ -36,6 +36,11 @@ fi
 DOCS_GO_VERSION=$(docs_get_go)
 if [[ "${DOCS_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
     fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), docs/Development.md lists 'Go v${DOCS_GO_VERSION}'"
+fi
+
+GOLANGCI_KAL_GO_VERSION=$(golangcikal_get_go)
+if [[ "${GOLANGCI_KAL_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
+    fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), .golangci-kal.yml run.go has '${GOLANGCI_KAL_GO_VERSION}'"
 fi
 
 # ---- golangci-lint version ----
