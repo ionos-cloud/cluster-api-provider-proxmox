@@ -34,24 +34,31 @@ if [[ "${DOCKERFILE_GO}" != "${GO_MINOR}" \
 fi
 
 # ---- golangci-lint ----
-# Source of truth: require directive in go.mod. Dependabot bumps require but
-# leaves the replace pin stale.
+# Source of truth: the newest of the 3 references. Dependabot can bump any
+# one of them (typically `require`) and leave the others stale.
 
 GCL_REQ=$(gomod_get_require 'github.com/golangci/golangci-lint/v2')
 GCL_REP=$(gomod_get_replace 'github.com/golangci/golangci-lint/v2')
 GCL_CUSTOM=$(customgcl_get_version)
 
-GCL_NEEDS_BUMP=false
-if versions_differ "${GCL_REQ}" "${GCL_REP}"; then
-    GCL_NEEDS_BUMP=true
-fi
-if versions_differ "${GCL_REQ}" "${GCL_CUSTOM}"; then
-    GCL_NEEDS_BUMP=true
-fi
+GCL_NEWEST=""
+for v in "${GCL_REQ}" "${GCL_REP}" "${GCL_CUSTOM}"; do
+    if [[ -n "${v}" ]]; then
+        if [[ -z "${GCL_NEWEST}" || "$(printf '%s\n%s' "${GCL_NEWEST}" "${v}" | sort -V | tail -1)" == "${v}" ]]; then
+            GCL_NEWEST="${v}"
+        fi
+    fi
+done
 
-if [[ "${GCL_NEEDS_BUMP}" == true && -n "${GCL_REQ}" ]]; then
-    echo "Auto-bump: golangci-lint ${GCL_REQ}"
-    "${SCRIPT_DIR}/bump-golangci-lint.sh" "${GCL_REQ}"
+if [[ -n "${GCL_NEWEST}" ]]; then
+    GCL_NEEDS_BUMP=false
+    for v in "${GCL_REQ}" "${GCL_REP}" "${GCL_CUSTOM}"; do
+        if versions_differ "${v}" "${GCL_NEWEST}"; then GCL_NEEDS_BUMP=true; fi
+    done
+    if [[ "${GCL_NEEDS_BUMP}" == true ]]; then
+        echo "Auto-bump: golangci-lint ${GCL_NEWEST}"
+        "${SCRIPT_DIR}/bump-golangci-lint.sh" "${GCL_NEWEST}"
+    fi
 fi
 
 # ---- cluster-api ----
