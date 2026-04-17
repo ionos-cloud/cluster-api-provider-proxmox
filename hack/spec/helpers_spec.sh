@@ -49,6 +49,19 @@ Describe 'helpers.sh — pure functions'
     End
   End
 
+  Describe 'validate_capi'
+    It 'accepts a valid contract'
+      When call validate_capi 'v1beta2'
+      The status should be success
+    End
+
+    It 'rejects an invalid contract'
+      When run validate_capi 'beta2'
+      The status should be failure
+      The error should include 'invalid cluster-api contract'
+    End
+  End
+
   Describe 'split_version'
     It 'splits version into MAJOR MINOR PATCH'
       When call split_version 'v1.10.4'

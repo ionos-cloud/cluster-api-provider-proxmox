@@ -73,6 +73,38 @@ YAML
     End
   End
 
+  Describe 'metadata_has_release'
+    It 'returns success for an existing capmox entry'
+      When call metadata_has_release 0 8
+      The status should be success
+    End
+
+    It 'returns failure for a missing capmox entry'
+      When call metadata_has_release 0 99
+      The status should be failure
+    End
+  End
+
+  Describe 'metadata_add_release'
+    It 'adds a new capmox releaseSeries entry'
+      When call metadata_add_release 0 9 'v1beta2'
+      The output should include 'metadata.yaml: Added releaseSeries entry for v0.9'
+    End
+
+    It 'makes the new entry discoverable'
+      metadata_add_release 0 9 'v1beta2' >/dev/null
+      When call metadata_has_release 0 9
+      The status should be success
+    End
+
+    It 'appends (chronological order, newest last)'
+      metadata_add_release 0 9 'v1beta2' >/dev/null
+      _last_minor() { yq '.releaseSeries[-1].minor' "${METADATA_FILE}"; return; }
+      When call _last_minor
+      The output should equal '9'
+    End
+  End
+
   Describe 'e2emetadata_contracts'
     It 'lists one contract per catalog directory'
       When call e2emetadata_contracts
