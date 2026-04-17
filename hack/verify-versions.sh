@@ -31,6 +31,11 @@ if [[ -n "${DOCS_GO_VERSION}" && "${DOCS_GO_VERSION}" != "${GO_VERSION_MINOR}" ]
     fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), docs/Development.md lists 'Go v${DOCS_GO_VERSION}'"
 fi
 
+GOLANGCI_KAL_GO_VERSION=$(golangcikal_get_go)
+if [[ -n "${GOLANGCI_KAL_GO_VERSION}" && "${GOLANGCI_KAL_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
+    fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), .golangci-kal.yml run.go has '${GOLANGCI_KAL_GO_VERSION}'"
+fi
+
 # ---- golangci-lint version ----
 # The golangci-lint replace directive in go.mod and the version in
 # .custom-gcl.yaml must use the same version.
