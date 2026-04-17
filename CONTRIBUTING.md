@@ -33,6 +33,9 @@ git push origin feature-branch
 * Provide a clear and descriptive title for your changes.
 * Include details about the changes and the problem it solves.
 * Reference any relevant issues or pull requests.
+* Keep changes complete and self-contained — partial implementations are not mergeable and stall review.
+* Keep PRs focused and of reasonable size; smaller, focused changes are easier and faster to review and merge.
+* A chain of dependent PRs is a good way to break up large contributions.
 
 The ionos-cloud/cluster-api-provider-proxmox repo requires approval to run actions on external PRs.
 This includes linters, unit (go) and e2e tests, scanners.
@@ -66,6 +69,25 @@ Make sure that it's lint-free and that generated files are up to date.
 ```sh
 make lint test verify
 ```
+
+## AI-Assisted Contributions
+
+All guidelines in this document apply to AI-assisted contributions. The rules in this section are in addition to those.
+
+AI tools are welcome at any stage.
+
+**Authorship**: The git commit author must be the person responsible for the contribution. Any agent that produced code must be attributed with a `Co-Authored-By:` trailer. The only exception is a commit that solely modifies an agent instructions file (e.g. `AGENTS.md`) where the agent may be the author and the person a co-author.
+
+**Transparency**: AI agents must be clearly identified as such. We don't mind interacting with agents; we do mind agents masquerading as people. Do not have an agent interact on issues or pull requests while presenting as a human contributor.
+
+**Human oversight**: The human contributor is responsible for the entire contribution and must oversee it end to end — code, tests, and description.
+
+**Quality**: A non-draft pull request must represent completed work:
+* Includes relevant tests covering the changes
+* All tests and linters pass (`make lint test verify`)
+* Correct attribution on all commits
+
+Pull requests that violate these standards will be closed.
 
 ## Documentation
 Ensure that your changes are reflected in the documentation. If you are introducing new features, update the documentation accordingly.
