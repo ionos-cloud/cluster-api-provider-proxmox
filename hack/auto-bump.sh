@@ -24,8 +24,11 @@ GO_VERSION=$(gomod_get_go)
 GO_MINOR=$(echo "${GO_VERSION}" | cut -d. -f1-2)
 DOCKERFILE_GO=$(dockerfile_get_go)
 DOCS_GO=$(docs_get_go)
+GOLANGCI_KAL_GO=$(golangcikal_get_go)
 
-if [[ "${DOCKERFILE_GO}" != "${GO_MINOR}" || ( -n "${DOCS_GO}" && "${DOCS_GO}" != "${GO_MINOR}" ) ]]; then
+if [[ "${DOCKERFILE_GO}" != "${GO_MINOR}" \
+    || ( -n "${DOCS_GO}" && "${DOCS_GO}" != "${GO_MINOR}" ) \
+    || ( -n "${GOLANGCI_KAL_GO}" && "${GOLANGCI_KAL_GO}" != "${GO_MINOR}" ) ]]; then
     echo "Auto-bump: go ${GO_VERSION}"
     "${SCRIPT_DIR}/bump-go.sh" "${GO_VERSION}"
 fi

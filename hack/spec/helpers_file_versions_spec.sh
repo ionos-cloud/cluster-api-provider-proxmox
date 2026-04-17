@@ -46,6 +46,32 @@ Describe 'helpers.sh — file version functions'
     End
   End
 
+  Describe 'golangcikal_get_go'
+    It 'returns the Go major.minor from .golangci-kal.yml'
+      When call golangcikal_get_go
+      The output should equal '1.25'
+    End
+  End
+
+  Describe 'golangcikal_set_go'
+    It 'updates the .golangci-kal.yml Go version'
+      When call golangcikal_set_go '1.26'
+      The output should include 'Updated Go 1.25 to 1.26'
+    End
+
+    It 'writes the new version to the file'
+      golangcikal_set_go '1.26' >/dev/null
+      When call golangcikal_get_go
+      The output should equal '1.26'
+    End
+
+    It 'preserves double-quoted string style'
+      golangcikal_set_go '1.26' >/dev/null
+      When call cat "${REPO_ROOT}/.golangci-kal.yml"
+      The output should include 'go: "1.26"'
+    End
+  End
+
   Describe 'customgcl_get_version'
     It 'returns the golangci-lint version'
       When call customgcl_get_version
