@@ -85,6 +85,10 @@ Key v1alpha2 change: unified `NetworkDevices` array replacing v1alpha1's split o
 - Proxmox client mocks generated via `make mockgen` (`.mockery.yaml`)
 - E2E tests in `test/e2e/` require a live Proxmox VE instance; controlled by PR labels
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying particular attention to the [AI-Assisted Contributions](CONTRIBUTING.md#ai-assisted-contributions) section which covers authorship, transparency, and quality expectations for AI-assisted work.
+
 ## Rules
 
 ✅ **Always:**
