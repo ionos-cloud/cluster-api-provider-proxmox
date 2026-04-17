@@ -126,6 +126,73 @@ Describe 'helpers.sh — file version functions'
     End
   End
 
+  Describe 'e2econfig_get_capmox'
+    It 'returns the capmox sentinel from e2e config'
+      When call e2econfig_get_capmox
+      The output should equal 'v0.8.99'
+    End
+  End
+
+  Describe 'e2econfig_set_capmox'
+    It 'updates the capmox sentinel in e2e config files'
+      When call e2econfig_set_capmox 'v0.9.99'
+      The output should include 'Updated capmox v0.8.99 to v0.9.99'
+    End
+
+    It 'writes the new sentinel to both files'
+      e2econfig_set_capmox 'v0.9.99' >/dev/null
+      When call e2econfig_get_capmox
+      The output should equal 'v0.9.99'
+    End
+
+    It 'updates both ci and dev files'
+      e2econfig_set_capmox 'v0.9.99' >/dev/null
+      _dev_sentinel() { yq '.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; }
+      When call _dev_sentinel
+      The output should equal 'v0.9.99'
+    End
+  End
+
+  Describe 'clusterctl_get_version'
+    It 'returns the capmox nextVersion'
+      When call clusterctl_get_version
+      The output should equal 'v0.8.1'
+    End
+  End
+
+  Describe 'clusterctl_set_version'
+    It 'updates nextVersion'
+      When call clusterctl_set_version 'v0.8.2'
+      The output should include 'Updated nextVersion v0.8.1 to v0.8.2'
+    End
+
+    It 'writes the new value'
+      clusterctl_set_version 'v0.8.2' >/dev/null
+      When call clusterctl_get_version
+      The output should equal 'v0.8.2'
+    End
+  End
+
+  Describe 'sonar_get_version'
+    It 'returns the sonar.projectVersion'
+      When call sonar_get_version
+      The output should equal '0.8.1'
+    End
+  End
+
+  Describe 'sonar_set_version'
+    It 'updates sonar.projectVersion'
+      When call sonar_set_version '0.8.2'
+      The output should include 'Updated sonar.projectVersion 0.8.1 to 0.8.2'
+    End
+
+    It 'writes the new value'
+      sonar_set_version '0.8.2' >/dev/null
+      When call sonar_get_version
+      The output should equal '0.8.2'
+    End
+  End
+
   Describe 'e2econfig_set_capi'
     It 'updates the cluster-api version in e2e config files'
       When call e2econfig_set_capi 'v1.11.0'
