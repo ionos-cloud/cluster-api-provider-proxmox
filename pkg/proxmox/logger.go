@@ -33,21 +33,21 @@ var _ proxmox.LeveledLoggerInterface = Logger{}
 type Logger struct{}
 
 // Errorf logs message at error level.
-func (Logger) Errorf(format string, args ...interface{}) {
+func (Logger) Errorf(format string, args ...any) {
 	klog.Errorf(format, args...)
 }
 
 // Warnf logs message at warn level.
-func (Logger) Warnf(format string, args ...interface{}) {
+func (Logger) Warnf(format string, args ...any) {
 	klog.Infof(format, args...)
 }
 
 // Infof logs message at info level.
-func (Logger) Infof(format string, args ...interface{}) {
+func (Logger) Infof(format string, args ...any) {
 	klog.V(2).Infof(format, args...)
 }
 
 // Debugf logs message at debug level.
-func (Logger) Debugf(format string, args ...interface{}) {
+func (Logger) Debugf(format string, args ...any) {
 	klog.V(4).Infof(format, args...)
 }

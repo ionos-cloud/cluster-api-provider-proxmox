@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
@@ -140,8 +139,8 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
-							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: new(int32(100))},
+							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: new(int32(100))},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
@@ -151,15 +150,15 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
+							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: new(int32(200))},
 						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
 						FIBRules: []types.FIBRuleData{{
-							To:       ptr.To("8.7.6.5/32"),
-							From:     ptr.To("1.1.1.1/32"),
-							Priority: ptr.To(int64(100)),
-							Table:    ptr.To(int32(500)),
+							To:       new("8.7.6.5/32"),
+							From:     new("1.1.1.1/32"),
+							Priority: new(int64(100)),
+							Table:    new(int32(500)),
 						}},
 					},
 				},
@@ -178,8 +177,8 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
-							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: new(int32(100))},
+							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: new(int32(100))},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
@@ -189,7 +188,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
+							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: new(int32(200))},
 						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
@@ -201,14 +200,14 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Table:      644,
 						Interfaces: []string{"eth1"},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("3.4.5.6"),
-							Via:    ptr.To("10.0.1.1"),
-							Metric: ptr.To(int32(100)),
+							To:     new("3.4.5.6"),
+							Via:    new("10.0.1.1"),
+							Metric: new(int32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
-							To:       ptr.To("8.7.6.5/32"),
-							From:     ptr.To("1.1.1.1/32"),
-							Priority: ptr.To(int64(100)),
+							To:       new("8.7.6.5/32"),
+							From:     new("1.1.1.1/32"),
+							Priority: new(int64(100)),
 						}},
 					},
 				},

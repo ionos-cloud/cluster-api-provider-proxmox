@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -79,7 +78,7 @@ func setupTaskTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockClient) 
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: infrav1.ProxmoxMachineSpec{
-			Network: ptr.To(infrav1.NetworkSpec{}),
+			Network: new(infrav1.NetworkSpec{}),
 		},
 	}
 
@@ -135,7 +134,7 @@ func TestGetTask_NoTaskRef(t *testing.T) {
 // Test missing task erroring.
 func TestGetTask_ErrorNotFound(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(nil, errors.New("not found")).Once()
 
@@ -147,7 +146,7 @@ func TestGetTask_ErrorNotFound(t *testing.T) {
 // Test successful task returning.
 func TestGetTask_Success(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	expected := &proxmox.Task{UPID: "UPID:node1:001", IsCompleted: true, IsSuccessful: true}
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(expected, nil).Once()
@@ -170,7 +169,7 @@ func TestReconcileInFlightTask_NoTaskRef(t *testing.T) {
 // Test ReconcileInFlightTask on empty task but existing TaskRef.
 func TestReconcileInFlightTask_NilTaskReturned(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(nil, nil).Once()
 
@@ -182,7 +181,7 @@ func TestReconcileInFlightTask_NilTaskReturned(t *testing.T) {
 // Test ReconcileInflightTask on running task switch case.
 func TestReconcileInFlightTask_TaskRunning(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	task := &proxmox.Task{UPID: "UPID:node1:001", IsRunning: true, Status: "running", Type: "qmclone"}
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(task, nil).Once()
@@ -195,7 +194,7 @@ func TestReconcileInFlightTask_TaskRunning(t *testing.T) {
 // Test ReconcileInflightTask on successful task switch case.
 func TestReconcileInFlightTask_TaskSuccessful(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	task := &proxmox.Task{UPID: "UPID:node1:001", IsCompleted: true, IsSuccessful: true, Status: "stopped", ExitStatus: "OK", Type: "qmclone"}
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(task, nil).Once()
@@ -209,7 +208,7 @@ func TestReconcileInFlightTask_TaskSuccessful(t *testing.T) {
 // Test ReconcileInflightTask on task failure switch case if not qmstart.
 func TestReconcileInFlightTask_CloneTaskFailed(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	// Set an initial condition to verify it gets overwritten.
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
@@ -239,7 +238,7 @@ func TestReconcileInFlightTask_CloneTaskFailed(t *testing.T) {
 // Test ReconcileInflightTask on task failure switch case if qmstart (special case failure).
 func TestReconcileInFlightTask_TaskFailed_QMStart(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	// Set a pre-existing condition that should be preserved for qmstart.
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
@@ -264,7 +263,7 @@ func TestReconcileInFlightTask_TaskFailed_QMStart(t *testing.T) {
 // Test ReconcileInflightTask on task failure switch case clears timed out task.
 func TestReconcileInFlightTask_TaskFailed_SecondPass_ClearsTaskRef(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	// Simulate second reconciliation pass: RetryAfter is already set and expired.
 	machineScope.ProxmoxMachine.Status.RetryAfter = &metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
@@ -284,7 +283,7 @@ func TestReconcileInFlightTask_TaskFailed_SecondPass_ClearsTaskRef(t *testing.T)
 // Test ReconcileInflightTask on invalid task state in go-proxmox.
 func TestReconcileInFlightTask_TaskFailed_ExitStatusOK(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	task := &proxmox.Task{UPID: "UPID:node1:001", IsFailed: true, IsCompleted: true, Status: "stopped", ExitStatus: "OK", Type: "qmclone"}
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(task, nil).Once()
@@ -301,7 +300,7 @@ func TestReconcileInFlightTask_TaskFailed_ExitStatusOK(t *testing.T) {
 // Test ReconcileInflightTask failed task time-out.
 func TestReconcileInFlightTask_RetryAfterNotExpired(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 	machineScope.ProxmoxMachine.Status.RetryAfter = &metav1.Time{Time: time.Now().Add(5 * time.Minute)}
 
 	task := &proxmox.Task{UPID: "UPID:node1:001", IsFailed: true, IsCompleted: true, Status: "stopped", ExitStatus: "ERROR", Type: "qmclone"}
@@ -318,7 +317,7 @@ func TestReconcileInFlightTask_RetryAfterNotExpired(t *testing.T) {
 // Test ReconcileInflightTask unknown state switch case.
 func TestReconcileInFlightTask_UnknownState(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
 	// Task with no state flags set falls through to default case.
 	task := &proxmox.Task{UPID: "UPID:node1:001", ExitStatus: "weird-state", Type: "qmclone"}

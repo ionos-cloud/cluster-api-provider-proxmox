@@ -52,7 +52,7 @@ var _ = Describe("Controller Test", func() {
 	g := NewWithT(GinkgoT())
 
 	BeforeEach(func() {
-		gvk := infrav1.GroupVersion.WithKind(reflect.TypeOf(infrav1.ProxmoxCluster{}).Name())
+		gvk := infrav1.GroupVersion.WithKind(reflect.TypeFor[infrav1.ProxmoxCluster]().Name())
 
 		cl := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -61,7 +61,7 @@ var _ = Describe("Controller Test", func() {
 				UID:       "1000",
 			},
 			Spec: clusterv1.ClusterSpec{
-				Paused: ptr.To(false),
+				Paused: new(false),
 				InfrastructureRef: clusterv1.ContractVersionedObjectReference{
 					Kind:     gvk.Kind,
 					Name:     clusterName,
@@ -422,7 +422,7 @@ func dummyIPAddress(client client.Client, owner client.Object, poolName string) 
 				Name:     poolName,
 			},
 			Address: "10.10.10.11",
-			Prefix:  ptr.To[int32](24),
+			Prefix:  new(int32(24)),
 			Gateway: "10.10.10.1",
 		},
 	}

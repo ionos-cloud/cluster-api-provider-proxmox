@@ -161,17 +161,17 @@ func (m *MachineScope) SetProviderID(biosUUID string) {
 
 // SetVirtualMachineID sets the ProxmoxMachine instanceID in spec.
 func (m *MachineScope) SetVirtualMachineID(vmID int64) {
-	m.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(vmID)
+	m.ProxmoxMachine.Spec.VirtualMachineID = new(vmID)
 }
 
 // SetReady sets the ProxmoxMachine Ready Status.
 func (m *MachineScope) SetReady() {
-	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(true)
+	m.ProxmoxMachine.Status.Initialization.Provisioned = new(true)
 }
 
 // SetNotReady sets the ProxmoxMachine Ready Status to false.
 func (m *MachineScope) SetNotReady() {
-	m.ProxmoxMachine.Status.Initialization.Provisioned = ptr.To(false)
+	m.ProxmoxMachine.Status.Initialization.Provisioned = new(false)
 }
 
 // SetAnnotation sets a key value annotation on the ProxmoxMachine.

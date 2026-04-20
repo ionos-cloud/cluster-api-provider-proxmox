@@ -160,9 +160,9 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 		dst.Network = &v1alpha2.NetworkSpec{
 			NetworkDevices: []v1alpha2.NetworkDevice{{
 				Name:        v1alpha2.DefaultNetworkDevice,
-				DefaultIPv4: ptr.To(true),
-				DefaultIPv6: ptr.To(true),
-				Bridge:      ptr.To("vmbr0"),
+				DefaultIPv4: new(true),
+				DefaultIPv6: new(true),
+				Bridge:      new("vmbr0"),
 			}},
 		}
 	}

@@ -162,8 +162,8 @@ func marshalWithIndent(node *yaml.Node, indent int) ([]byte, error) {
 // detectIndent scans YAML input and returns the indentation width by finding
 // the first line whose leading spaces form a common indent unit. Defaults to 2.
 func detectIndent(data []byte) int {
-	lines := bytes.Split(data, []byte("\n"))
-	for _, line := range lines {
+	lines := bytes.SplitSeq(data, []byte("\n"))
+	for line := range lines {
 		if len(line) == 0 {
 			continue
 		}

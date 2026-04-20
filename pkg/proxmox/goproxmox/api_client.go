@@ -175,7 +175,7 @@ NEXT_VM:
 		}
 
 		vmTagMap := make(map[string]string)
-		for _, tag := range strings.Split(vm.Tags, ";") {
+		for tag := range strings.SplitSeq(vm.Tags, ";") {
 			vmTagMap[strings.ToLower(strings.TrimSpace(tag))] = ""
 		}
 

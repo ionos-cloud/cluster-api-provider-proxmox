@@ -134,7 +134,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	}
 	infraCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{{Name: ipam.InClusterPoolFormat(infraCluster, nil, infrav1.IPv4Format)}}
 	infraCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
-		Zone:                 ptr.To("default"),
+		Zone:                 new("default"),
 		InClusterIPPoolRefV4: &corev1.LocalObjectReference{Name: ipam.InClusterPoolFormat(infraCluster, nil, infrav1.IPv4Format)},
 	}}
 
@@ -154,11 +154,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 			},
 		},
 		Spec: infrav1.ProxmoxMachineSpec{
-			Network: ptr.To(infrav1.NetworkSpec{}),
+			Network: new(infrav1.NetworkSpec{}),
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
-					SourceNode: ptr.To("node1"),
-					TemplateID: ptr.To[int32](123),
+					SourceNode: new("node1"),
+					TemplateID: new(int32(123)),
 				},
 			},
 		},
@@ -285,7 +285,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		},
 		Spec: ipamv1.IPAddressSpec{
 			Address: ip.Addr().String(),
-			Prefix:  ptr.To(prefix),
+			Prefix:  new(prefix),
 			Gateway: gateway,
 			PoolRef: poolRef,
 		},
@@ -383,7 +383,7 @@ func createOrUpdateIPPool(t *testing.T, c client.Client, machineScope *scope.Mac
 		poolRef = &corev1.TypedLocalObjectReference{
 			Name:     pool.GetName(),
 			Kind:     pool.GetObjectKind().GroupVersionKind().Kind,
-			APIGroup: ptr.To(pool.GetObjectKind().GroupVersionKind().Group),
+			APIGroup: new(pool.GetObjectKind().GroupVersionKind().Group),
 		}
 	}
 
@@ -519,7 +519,7 @@ func setInClusterIPPoolStatus(scope *scope.MachineScope, poolName string, ipFami
 }
 
 func createBootstrapSecret(t *testing.T, c client.Client, machineScope *scope.MachineScope, format string) {
-	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
+	machineScope.Machine.Spec.Bootstrap.DataSecretName = new(machineScope.Name())
 	data := map[string][]byte{}
 	switch format {
 	case cloudinit.FormatCloudConfig:

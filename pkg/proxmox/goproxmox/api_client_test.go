@@ -110,8 +110,8 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu`,
 				// Somehow, setting proxmox.VirtualMachines{} ALWAYS has `Template: true` when defined this way.
 				// So it's better to just define a legitimate json response
-				newJSONResponder(200, []interface{}{
-					map[string]interface{}{
+				newJSONResponder(200, []any{
+					map[string]any{
 						"name":      "legit-worker",
 						"maxmem":    test.maxMem,
 						"vmid":      1111,
@@ -127,7 +127,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 						"netin":     0,
 						"diskread":  0,
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name":      "template",
 						"maxmem":    102400,
 						"vmid":      2222,
@@ -719,7 +719,7 @@ func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
 			// AgentExec mock
 			httpmock.RegisterResponder(http.MethodPost, fmt.Sprintf(`=~/nodes/%s/qemu/%d/agent/exec\z`, vm.Node, vm.VMID),
 				newJSONResponder(200,
-					map[string]interface{}{
+					map[string]any{
 						"pid": test.pid,
 					},
 				))

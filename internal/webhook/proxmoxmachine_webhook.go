@@ -27,7 +27,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -291,10 +290,10 @@ func (p *ProxmoxMachine) Default(_ context.Context, obj runtime.Object) error {
 	// We guarantee that DefaultNetworkDevice is a valid proxmox network device.
 	offset, _ := vmservice.NetNameToOffset(infrav1.DefaultNetworkDevice)
 	if defaultIPv4Count == 0 {
-		machine.Spec.Network.NetworkDevices[offset].DefaultIPv4 = ptr.To(true)
+		machine.Spec.Network.NetworkDevices[offset].DefaultIPv4 = new(true)
 	}
 	if defaultIPv6Count == 0 {
-		machine.Spec.Network.NetworkDevices[offset].DefaultIPv6 = ptr.To(true)
+		machine.Spec.Network.NetworkDevices[offset].DefaultIPv6 = new(true)
 	}
 
 	return nil
