@@ -42,12 +42,15 @@ generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject
 		--output-file=zz_generated.conversion.go \
 		./api/v1alpha1
 
-.PHONY: fmt
-fmt: ## Run go fmt against code.
+## Go maintenance
+.PHONY: fix fmt tidy vet
+fix:
+	go fix ./...
+fmt:
 	go fmt ./...
-
-.PHONY: vet
-vet: ## Run go vet against code.
+tidy:
+	go mod tidy
+vet:
 	go vet ./...
 
 ## Linter Binaries
@@ -73,7 +76,7 @@ WHAT ?= ./...
 LOCALBIN ?= $(shell pwd)/bin
 
 .PHONY: test
-test: manifests generate fmt vet ## Run tests. Specify packages to test using WHAT.
+test: ## Run tests. Specify packages to test using WHAT.
 	KUBEBUILDER_ASSETS="$(shell go tool setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $(WHAT) -coverprofile cover.out
 
 .PHONY: mockgen
@@ -84,10 +87,6 @@ mockgen: ## Generate mocks.
 yamlfmt: ## Run yamlfmt against yaml.
 	go tool yamlfmt -dry -quiet
 	go tool yamlfmt
-
-.PHONY: tidy
-tidy: ## Run go mod tidy to ensure modules are up to date
-	go mod tidy
 
 ##@ Build
 
@@ -135,26 +134,17 @@ docker-buildx: test ## Build and push Docker image for the manager for cross-pla
 ##@ verify
 
 .PHONY: verify
-verify: verify-modules verify-gen ## verify the manifests and the code.
-
-.PHONY: verify-modules
-verify-modules: tidy ## Verify go modules are up to date
-	@if !(git diff --quiet HEAD -- go.sum go.mod); then \
-		git diff; \
-		echo "go module files are out of date"; exit 1; \
-	fi
-	@if (find . -name 'go.mod' | xargs -n1 grep -q -i 'k8s.io/client-go.*+incompatible'); then \
-		find . -name "go.mod" -exec grep -i 'k8s.io/client-go.*+incompatible' {} \; -print; \
-		echo "go module contains an incompatible client-go version"; exit 1; \
-	fi
-
-.PHONY: verify-gen
-verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are up to date
+verify: fix fmt generate manifests mockgen tidy vet ## verify the manifests and the code.
 	@if !(git diff --quiet HEAD); then \
-		git diff; \
-		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
+		echo uncommitted changes: ;\
+		git diff --name-status HEAD ;\
+		exit 1 ;\
 	fi
-
+	@if (grep -q 'k8s.io/client-go.*+incompatible' go.mod); then \
+		echo go.mod contains an incompatible client-go version ;\
+		grep 'k8s.io/client-go.*+incompatible' go.mod ;\
+		exit 1 ;\
+	fi
 
 ##@ Deployment
 
