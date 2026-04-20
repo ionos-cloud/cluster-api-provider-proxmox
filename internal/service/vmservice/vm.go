@@ -235,7 +235,7 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		machineScope.Logger.V(4).Info("Task created", "taskID", resp.Task.ID)
 
 		// make sure spec.VirtualMachineID is always set.
-		machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(resp.Task.UPID))
+		machineScope.ProxmoxMachine.Status.TaskRef = new(string(resp.Task.UPID))
 		machineScope.SetVirtualMachineID(resp.NewID)
 
 		// requeue until cloning is finished
@@ -357,7 +357,7 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		return false, errors.Wrapf(err, "failed to configure VM %s", machineScope.Name())
 	}
 
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(task.UPID))
+	machineScope.ProxmoxMachine.Status.TaskRef = new(string(task.UPID))
 
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
@@ -515,7 +515,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		node = options.Node
 	}
 
-	scope.ProxmoxMachine.Status.ProxmoxNode = ptr.To(node)
+	scope.ProxmoxMachine.Status.ProxmoxNode = new(node)
 
 	// if the creation was successful, we store the information about the node in the
 	// cluster status

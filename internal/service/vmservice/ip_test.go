@@ -23,7 +23,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,7 +40,7 @@ func TestReconcileIPAddresses_CreateDefaultClaim(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:        infrav1.DefaultNetworkDevice,
-				DefaultIPv4: ptr.To(true),
+				DefaultIPv4: new(true),
 			},
 		},
 	}
@@ -64,11 +63,11 @@ func TestReconcileIPAddresses_CreateAdditionalClaim(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
 	}
-	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "extraPool0",
 	}
@@ -115,7 +114,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
 	}
@@ -123,7 +122,7 @@ func TestReconcileIPAddresses_AddIPTag(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:        infrav1.DefaultNetworkDevice,
-				DefaultIPv4: ptr.To(true),
+				DefaultIPv4: new(true),
 			},
 		},
 	}
@@ -155,11 +154,11 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
 	}
-	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "extraPool0",
 	}
@@ -168,7 +167,7 @@ func TestReconcileIPAddresses_SetIPAddresses(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:        infrav1.DefaultNetworkDevice,
-				DefaultIPv4: ptr.To(true),
+				DefaultIPv4: new(true),
 			},
 			{
 				Name: "net1",
@@ -212,19 +211,19 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
 	}
-	ipv4pool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	ipv4pool0 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "ipv4pool0",
 	}
-	ipv4pool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	ipv4pool1 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "ipv4pool1",
 	}
-	ipv6pool := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	ipv6pool := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "ipv6pool",
 	}
@@ -233,7 +232,7 @@ func TestReconcileIPAddresses_MultipleDevices(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:            infrav1.DefaultNetworkDevice,
-				DefaultIPv4:     ptr.To(true),
+				DefaultIPv4:     new(true),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{ipv4pool0}},
 			},
 			{
@@ -306,9 +305,9 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 		{Name: "test-v6-icip"},
 	}
 	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
-		Zone:                 ptr.To("default"),
-		InClusterIPPoolRefV4: ptr.To(corev1.LocalObjectReference{Name: "test-v4-icip"}),
-		InClusterIPPoolRefV6: ptr.To(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: new(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: new(corev1.LocalObjectReference{Name: "test-v6-icip"}),
 	}}
 	require.NoError(t, kubeClient.Status().Patch(context.Background(), proxmoxCluster, patch))
 
@@ -316,15 +315,15 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
 
 	defaultPool := corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
 	}
-	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	defaultPoolV6 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: InClusterIPPool,
 		Name: getDefaultPoolRefs(machineScope).InClusterIPPoolRefV6.Name,
 	}
-	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "extrapool0",
 	}
@@ -333,8 +332,8 @@ func TestReconcileIPAddresses_IPv6(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:        infrav1.DefaultNetworkDevice,
-				DefaultIPv4: ptr.To(true),
-				DefaultIPv6: ptr.To(true),
+				DefaultIPv4: new(true),
+				DefaultIPv6: new(true),
 			},
 			{
 				Name:            "net1",
@@ -379,19 +378,19 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
 
 	defaultPool := corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
 		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
 	}
-	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	extraPool0 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "extrapool0",
 	}
-	extraPool1 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	extraPool1 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "extrapool1",
 	}
-	extraPool2 := corev1.TypedLocalObjectReference{APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+	extraPool2 := corev1.TypedLocalObjectReference{APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind: GlobalInClusterIPPool,
 		Name: "extrapool2",
 	}
@@ -400,7 +399,7 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:            "net0",
-				DefaultIPv4:     ptr.To(true),
+				DefaultIPv4:     new(true),
 				InterfaceConfig: infrav1.InterfaceConfig{IPPoolRef: []corev1.TypedLocalObjectReference{extraPool0, extraPool0}},
 			},
 			{
