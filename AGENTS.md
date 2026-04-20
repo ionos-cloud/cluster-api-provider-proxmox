@@ -40,10 +40,24 @@ make generate     # Regenerate DeepCopy methods and conversion functions
 make mockgen      # Regenerate mocks (configured in .mockery.yaml)
 ```
 
+### Version Bumping
+
+Several dependencies appear in multiple files — always use these scripts, never edit manually:
+
+```bash
+hack/bump-go.sh <version>             # Go version in go.mod, Dockerfile, docs
+hack/bump-capi.sh <version> <stream>  # cluster-api require, replace, metadata.yaml
+hack/bump-k8s.sh <version>            # k8s.io/* and ENVTEST_K8S_VERSION in Makefile
+hack/bump-golangci-lint.sh <version>  # golangci-lint in go.mod and .custom-gcl.yaml
+```
+
+Each script accepts versions with or without a `v` prefix and runs `go mod tidy` automatically.
+
 ### Verification
 
 ```bash
 make verify           # Verify modules and generated files are up to date
+make verify-versions  # Check version references are consistent across the repo
 ```
 
 ## Architecture
@@ -95,6 +109,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying parti
 - Run `make manifests generate mockgen` after modifying API types
 - If conversion behavior changes, update `api/v1alpha1/*_conversion.go`
 - Run `make lint verify test` before committing
+- Use `hack/bump-*.sh` scripts when changing Go, cluster-api, k8s.io, or golangci-lint versions
+- Run `make verify-versions` after any version bump
 
 ⚠️ **Ask before:**
 - Changing v1alpha1 conversion functions (affects backward compatibility)
@@ -102,6 +118,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying parti
 
 🚫 **Never:**
 - Edit generated files manually — see `sonar-project.properties` `sonar.exclusions` for the full list of generated file patterns
+- Edit version-tracked dependencies without the corresponding `hack/bump-*.sh` script
 
 ## Environment
 
