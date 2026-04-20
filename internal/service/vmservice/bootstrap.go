@@ -105,7 +105,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	}
 
 	// Todo: This status field is now superfluous
-	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = ptr.To(true)
+	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = new(true)
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
@@ -120,7 +120,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: new(false)}).ProviderIDInjection)
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	return injector.Inject(ctx, inject.CloudConfigFormat)
@@ -128,7 +128,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 
 func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []types.NetworkConfigData, kubernetesVersion string) error {
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: new(false)}).ProviderIDInjection)
 
 	// create an enricher
 	enricher := &ignition.Enricher{
@@ -294,7 +294,7 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 
 	// network devices.
 	for i, nic := range network.NetworkDevices {
-		var config = ptr.To(types.NetworkConfigData{})
+		var config = new(types.NetworkConfigData{})
 
 		ipPoolRefs := ipAddressMap[nic.Name]
 
@@ -328,7 +328,7 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 	networkConfigData := make([]types.NetworkConfigData, 0, len(network.VRFs))
 
 	for _, device := range network.VRFs {
-		var config = ptr.To(types.NetworkConfigData{})
+		var config = new(types.NetworkConfigData{})
 		config.Type = "vrf"
 		config.Name = device.Name
 		config.Table = device.Table

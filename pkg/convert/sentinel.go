@@ -174,11 +174,11 @@ func inferType(expr, yamlText string) string {
 func extractDefault(expr string) string {
 	// Strip ${ and }
 	inner := expr[2 : len(expr)-1]
-	idx := strings.Index(inner, ":=")
-	if idx < 0 {
+	_, after, ok := strings.Cut(inner, ":=")
+	if !ok {
 		return ""
 	}
-	return inner[idx+2:]
+	return after
 }
 
 // extractYAMLKey finds the YAML key on the line containing expr.
@@ -194,8 +194,8 @@ func extractYAMLKey(expr, yamlText string) string {
 
 	// The key is the trimmed text before the colon.
 	line = strings.TrimSpace(line)
-	if colonIdx := strings.Index(line, ":"); colonIdx >= 0 {
-		return strings.TrimSpace(line[:colonIdx])
+	if before, _, ok := strings.Cut(line, ":"); ok {
+		return strings.TrimSpace(before)
 	}
 	return ""
 }
@@ -215,11 +215,11 @@ func isWholeValue(expr, yamlText string) bool {
 		lineEnd += idx
 	}
 	line := yamlText[lineStart:lineEnd]
-	colonIdx := strings.Index(line, ":")
-	if colonIdx < 0 {
+	_, after, ok := strings.Cut(line, ":")
+	if !ok {
 		return false
 	}
-	value := strings.TrimSpace(line[colonIdx+1:])
+	value := strings.TrimSpace(after)
 	return value == expr
 }
 

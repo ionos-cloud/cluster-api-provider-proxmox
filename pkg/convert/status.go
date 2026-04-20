@@ -16,7 +16,11 @@ limitations under the License.
 
 package convert
 
-import "gopkg.in/yaml.v3"
+import (
+	"slices"
+
+	"gopkg.in/yaml.v3"
+)
 
 // StripStatus removes the top-level "status" key from a YAML document node.
 // If the status block contains any non-zero scalar values, it is kept and a
@@ -79,12 +83,7 @@ func hasNonZeroScalar(node *yaml.Node) bool {
 	}
 
 	// SequenceNode, DocumentNode: check all children.
-	for _, child := range node.Content {
-		if hasNonZeroScalar(child) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(node.Content, hasNonZeroScalar)
 }
 
 // isZeroScalar returns true for scalars that represent zero/empty/false/null.

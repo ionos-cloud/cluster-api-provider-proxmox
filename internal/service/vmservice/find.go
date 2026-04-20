@@ -23,7 +23,6 @@ import (
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
@@ -117,7 +116,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 	}
 
 	// Update the Proxmox node in the status.
-	s.ProxmoxMachine.Status.ProxmoxNode = ptr.To(vm.Node)
+	s.ProxmoxMachine.Status.ProxmoxNode = new(vm.Node)
 
 	// Attempt to update the cluster status
 	updated := s.InfraCluster.ProxmoxCluster.UpdateNodeLocation(
