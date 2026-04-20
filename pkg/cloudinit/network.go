@@ -182,7 +182,7 @@ func (r *NetworkConfig) Render() ([]byte, error) {
 	}
 
 	// Check YAML render to be valid
-	var unused interface{}
+	var unused any
 	err = yaml.Unmarshal(nc, &unused)
 	if err != nil {
 		return nil, errors.Wrap(err,
