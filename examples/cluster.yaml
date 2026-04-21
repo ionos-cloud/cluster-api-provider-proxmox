@@ -101,27 +101,27 @@ spec:
         sshAuthorizedKeys:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJPK5kBd7cxXAHZ6UbeE+ysOlSjOFare3fCCZJ3xtXt1 capmox@k8s.io
         virtualIPNetworkInterface: ""
-#---
-#apiVersion: ipam.cluster.x-k8s.io/v1alpha2
-#kind: GlobalInClusterIPPool
-#metadata:
-#  name: shared-inclusteripv4pool
-#spec:
-#  addresses:
-#    - 10.10.11.1
-#    - 10.10.11.2
-#    - 10.10.11.3
-#  prefix: 24
-#  gateway: 10.10.11.254
-#---
-#apiVersion: ipam.cluster.x-k8s.io/v1alpha2
-#kind: GlobalInClusterIPPool
-#metadata:
-#  name: shared-inclusteripv6pool
-#spec:
-#  addresses:
-#    - 2001:db8::10
-#    - 2001:db8::11
-#    - 2001:db8::12
-#  prefix: 64
-#  gateway: "2001:db8::1"
+# ---
+# apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+# kind: GlobalInClusterIPPool
+# metadata:
+#   name: shared-inclusteripv4pool
+# spec:
+#   addresses:
+#     - 10.10.11.1
+#     - 10.10.11.2
+#     - 10.10.11.3
+#   prefix: 24
+#   gateway: 10.10.11.254
+# ---
+# apiVersion: ipam.cluster.x-k8s.io/v1alpha2
+# kind: GlobalInClusterIPPool
+# metadata:
+#   name: shared-inclusteripv6pool
+# spec:
+#   addresses:
+#     - 2001:db8::10
+#     - 2001:db8::11
+#     - 2001:db8::12
+#   prefix: 64
+#   gateway: "2001:db8::1"
