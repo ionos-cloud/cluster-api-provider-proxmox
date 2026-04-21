@@ -1,3 +1,4 @@
+---
 version: "2"
 run:
   allow-parallel-runners: true
@@ -62,9 +63,11 @@ linters:
         text: 'G108: Profiling endpoint is automatically exposed on /debug/pprof'
       - linters:
           - revive
+        # yamllint disable-line rule:line-length
         text: 'exported: exported method .*\.(Reconcile|SetupWithManager|SetupWebhookWithManager) should have comment or be unexported'
       - linters:
           - errcheck
+        # yamllint disable-line rule:line-length
         text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
       - linters:
           - revive
