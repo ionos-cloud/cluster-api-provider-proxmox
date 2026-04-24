@@ -2,7 +2,11 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.33.0
+ENVTEST_K8S_VERSION ?= $(shell hack/envtest-ver.sh)
+
+.PHONY: print-envtest-ver
+print-envtest-ver:
+	@echo $(ENVTEST_K8S_VERSION)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -155,6 +159,10 @@ verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are
 		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
 	fi
 
+.PHONY: verify-versions
+verify-versions: ## Verify repository version definitions are consistent.
+	hack/verify-versions.sh
+
 
 ##@ Deployment
 
@@ -179,7 +187,24 @@ deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/c
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	go tool kustomize build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-##@ Test
+SHELLSPEC_ARGS ?=
+
+.PHONY: lint-sh
+lint-sh: ## Run shellcheck on hack/ scripts.
+	shellcheck hack/*.sh
+
+.PHONY: test-sh
+test-sh: hack/spec/coverage/sonarqube.xml ## Run ShellSpec tests for hack/ scripts with kcov coverage.
+
+.PHONY: hack/spec/coverage/cobertura.xml
+hack/spec/coverage/cobertura.xml:
+	cd hack/spec && shellspec --kcov --kcov-options='--include-path=$(CURDIR)/hack/' $(SHELLSPEC_ARGS)
+
+# kcov 43+ writes this file natively alongside cobertura.xml; the xsltproc
+# fallback below only runs when kcov is older (e.g. Debian 12, Ubuntu <= 24.04).
+# TODO: drop this rule and hack/spec/cobertura-to-sonar.xslt once CI's kcov is >= 43.
+hack/spec/coverage/sonarqube.xml: hack/spec/coverage/cobertura.xml hack/spec/cobertura-to-sonar.xslt
+	@if [ ! -s $@ ]; then xsltproc --nonet --novalid hack/spec/cobertura-to-sonar.xslt $< > $@; fi
 
 .PHONY: tilt-up
 tilt-up: ## Start Tilt in a kind cluster.

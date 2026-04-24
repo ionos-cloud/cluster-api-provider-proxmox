@@ -1,0 +1,22 @@
+---
+providers:
+  - name: cluster-api
+    type: CoreProvider
+    versions:
+      - name: v1.10.4
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.4/core-components.yaml
+        type: url
+  - name: kubeadm
+    type: BootstrapProvider
+    versions:
+      - name: v1.10.4
+        value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.4/bootstrap-components.yaml
+        type: url
+  - name: proxmox
+    type: InfrastructureProvider
+    versions:
+      - name: v0.8.99
+        value: "${PWD}/config/default"
+
+variables:
+  KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.32.3}"

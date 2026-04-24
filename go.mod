@@ -5,7 +5,7 @@ go 1.25.0
 replace (
 	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.9.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.33.3 // temp override until 34
-	k8s.io/code-generator/cmd/conversion-gen => k8s.io/code-generator/cmd/conversion-gen v0.33.3
+	k8s.io/code-generator => k8s.io/code-generator v0.33.3 // conversion-gen
 	k8s.io/kube-openapi/pkg/schemaconv => k8s.io/kube-openapi/pkg/schemaconv v0.0.0-20250701173324-9bd5c66d9911 // drop for k8s 34
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.11.8
 	sigs.k8s.io/controller-runtime/tools/setup-envtest => sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250911081535-42a14a36c13b // v1.34 → k8s 34

@@ -19,8 +19,21 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - run: "make verify"
-      - run: "make test"
+      - name: Install ShellSpec
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: shellspec/shellspec
+          ref: 90e48c950239f3b8a9fdfa3e869592872c77b981 # v0.28.1
+          path: .shellspec
+      - name: Add ShellSpec to PATH
+        run: echo "${{ github.workspace }}/.shellspec" >> "$GITHUB_PATH"
+
+      - name: Install kcov and xsltproc
+        run: sudo apt-get update && sudo apt-get install -y kcov xsltproc
+
+      - run: make verify
+      - run: make test
+      - run: make test-sh
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request'
