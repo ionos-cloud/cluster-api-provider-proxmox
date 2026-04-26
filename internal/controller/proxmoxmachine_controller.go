@@ -97,6 +97,35 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Fetch the Machine.
 	machine, err := util.GetOwnerMachine(ctx, r.Client, proxmoxMachine.ObjectMeta)
 	if err != nil {
+		// The owner Machine OwnerRef is set but the Machine object itself is
+		// gone. This is the stuck-finalizer deadlock: without this branch the
+		// reconciler returns the NotFound error to controller-runtime, which
+		// requeues with exponential backoff forever, never reaching
+		// reconcileDelete and never removing our finalizer. The ProxmoxMachine
+		// then blocks the parent ProxmoxCluster (waiting for machines) and the
+		// Cluster from finalizing.
+		//
+		// We can hit this whenever the owner Machine is removed before the
+		// InfraMachine is finalized: a manual finalizer strip, the
+		// `cluster.x-k8s.io/force-delete-machine` annotation, or any other
+		// actor that out-of-band reaps the Machine.
+		if apierrors.IsNotFound(err) {
+			if !proxmoxMachine.ObjectMeta.DeletionTimestamp.IsZero() {
+				logger.Info("Owner Machine not found while ProxmoxMachine is being deleted; removing finalizer to unblock cluster delete. The underlying Proxmox VM may still exist and should be verified by an administrator.")
+				if ctrlutil.RemoveFinalizer(proxmoxMachine, infrav1.MachineFinalizer) {
+					if err := r.Client.Update(ctx, proxmoxMachine); err != nil {
+						return ctrl.Result{}, errors.Wrap(err, "removing finalizer after owner Machine not found")
+					}
+				}
+				return ctrl.Result{}, nil
+			}
+			// ProxmoxMachine is not being deleted. The OwnerRef points to a
+			// missing Machine — log and skip rather than error-loop. Either
+			// the OwnerRef will be corrected, or the ProxmoxMachine will be
+			// deleted, both of which trigger another reconcile.
+			logger.Info("Owner Machine not found and ProxmoxMachine is not being deleted; skipping reconcile.")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 	if machine == nil {
