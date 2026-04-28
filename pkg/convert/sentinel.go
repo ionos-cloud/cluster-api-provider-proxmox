@@ -149,7 +149,7 @@ func inferType(expr, yamlText string) string {
 		if _, err := strconv.Atoi(defaultVal); err == nil {
 			return typeInt
 		}
-		if defaultVal == "true" || defaultVal == "false" {
+		if defaultVal == "true" || defaultVal == "false" { //nolint:goconst // literal values, not type constants
 			return typeBool
 		}
 		if strings.HasPrefix(defaultVal, "[") {
