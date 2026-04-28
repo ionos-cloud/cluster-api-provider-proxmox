@@ -113,15 +113,15 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 
 func (e *Enricher) getProxmoxEnvContent() string {
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s", e.Hostname, e.InstanceID, e.ProviderID))
+	fmt.Fprintf(&content, "COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s", e.Hostname, e.InstanceID, e.ProviderID)
 	// TODO: consider adding a kube-vip config field to NetworkConfigData
 	for _, network := range e.Network {
 		for _, ipconfig := range network.IPConfigs {
 			if ipconfig.IPAddress.Addr().Is4() && ipconfig.Default {
-				content.WriteString(fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", ipconfig.IPAddress.String()))
+				fmt.Fprintf(&content, "\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", ipconfig.IPAddress.String())
 			}
 			if ipconfig.IPAddress.Addr().Is6() && ipconfig.Default {
-				content.WriteString(fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", ipconfig.IPAddress.String()))
+				fmt.Fprintf(&content, "\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", ipconfig.IPAddress.String())
 			}
 		}
 	}
