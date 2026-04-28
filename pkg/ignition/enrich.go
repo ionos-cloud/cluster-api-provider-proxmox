@@ -21,11 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
 	ignition "github.com/flatcar/ignition/config/v2_3"
 	ignitionTypes "github.com/flatcar/ignition/config/v2_3/types"
 	"github.com/pkg/errors"
-	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
@@ -58,10 +58,10 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 					Node: ignitionTypes.Node{
 						Filesystem: "root",
 						Path:       "/etc/hostname",
-						Overwrite:  ptr.To(true),
+						Overwrite:  new(true),
 					},
 					FileEmbedded1: ignitionTypes.FileEmbedded1{
-						Mode: ptr.To(0644),
+						Mode: new(0644),
 						Contents: ignitionTypes.FileContents{
 							Source: fmt.Sprintf("data:,%s", e.Hostname),
 						},
@@ -71,10 +71,10 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 					Node: ignitionTypes.Node{
 						Filesystem: "root",
 						Path:       "/etc/proxmox-env",
-						Overwrite:  ptr.To(true),
+						Overwrite:  new(true),
 					},
 					FileEmbedded1: ignitionTypes.FileEmbedded1{
-						Mode: ptr.To(420),
+						Mode: new(420),
 						Contents: ignitionTypes.FileContents{
 							Source: fmt.Sprintf("data:,%s", e.getProxmoxEnvContent()),
 						},
@@ -112,19 +112,20 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 }
 
 func (e *Enricher) getProxmoxEnvContent() string {
-	content := fmt.Sprintf("COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s", e.Hostname, e.InstanceID, e.ProviderID)
+	var content strings.Builder
+	fmt.Fprintf(&content, "COREOS_CUSTOM_HOSTNAME=%s\nCOREOS_CUSTOM_INSTANCE_ID=%s\nCOREOS_CUSTOM_PROVIDER_ID=%s", e.Hostname, e.InstanceID, e.ProviderID)
 	// TODO: consider adding a kube-vip config field to NetworkConfigData
 	for _, network := range e.Network {
 		for _, ipconfig := range network.IPConfigs {
 			if ipconfig.IPAddress.Addr().Is4() && ipconfig.Default {
-				content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", ipconfig.IPAddress.String())
+				fmt.Fprintf(&content, "\nCOREOS_CUSTOM_PRIVATE_IPV4=%s", ipconfig.IPAddress.String())
 			}
 			if ipconfig.IPAddress.Addr().Is6() && ipconfig.Default {
-				content += fmt.Sprintf("\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", ipconfig.IPAddress.String())
+				fmt.Fprintf(&content, "\nCOREOS_CUSTOM_PRIVATE_IPV6=%s", ipconfig.IPAddress.String())
 			}
 		}
 	}
-	return url.PathEscape(content)
+	return url.PathEscape(content.String())
 }
 
 func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Config) ([]byte, string, error) {

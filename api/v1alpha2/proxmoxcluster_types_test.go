@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -85,7 +84,7 @@ func defaultCluster() *ProxmoxCluster {
 				Addresses: []string{"10.0.0.0/24"},
 				Prefix:    24,
 				Gateway:   "10.0.0.254",
-				Metric:    ptr.To(int32(123)),
+				Metric:    new(int32(123)),
 			},
 			DNSServers: []string{"1.2.3.4"},
 		},

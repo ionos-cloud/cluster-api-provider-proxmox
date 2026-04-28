@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/randfill"
@@ -70,8 +69,8 @@ func TestFuzzyConversion(t *testing.T) {
 	}))
 }
 
-func ProxmoxMachineFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
-	return []interface{}{
+func ProxmoxMachineFuzzFuncs(_ runtimeserializer.CodecFactory) []any {
+	return []any{
 		fuzzObjectMeta,
 		fuzzV1beta1Condition,
 		fuzzMetav1Condition,
@@ -131,7 +130,7 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 				if device.Routing.RoutingPolicy[j].Priority != nil {
 					val := *device.Routing.RoutingPolicy[j].Priority
 					if val < 0 || val > 4294967295 {
-						device.Routing.RoutingPolicy[j].Priority = ptr.To(int64(uint32(val)))
+						device.Routing.RoutingPolicy[j].Priority = new(int64(uint32(val)))
 					}
 				}
 			}
@@ -179,7 +178,7 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 				if in.Network.VRFs[i].Routing.RoutingPolicy[j].Priority != nil {
 					val := *in.Network.VRFs[i].Routing.RoutingPolicy[j].Priority
 					if val < 0 || val > 4294967295 {
-						in.Network.VRFs[i].Routing.RoutingPolicy[j].Priority = ptr.To(int64(uint32(val)))
+						in.Network.VRFs[i].Routing.RoutingPolicy[j].Priority = new(int64(uint32(val)))
 					}
 				}
 			}
@@ -200,8 +199,8 @@ func hubProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, c randfill.Continue)
 	}
 }
 
-func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
-	return []interface{}{
+func ProxmoxMachineTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []any {
+	return []any{
 		fuzzObjectMeta,
 		hubProxmoxMachineSpec,
 		spokeProxmoxMachineSpec,
@@ -213,7 +212,7 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 
 	// Initialization.Provisioned: nil → false during hub→spoke→hub (Ready bool defaults to false)
 	if in.Initialization.Provisioned == nil {
-		in.Initialization.Provisioned = ptr.To(false)
+		in.Initialization.Provisioned = new(false)
 	}
 
 	if in.VMStatus != nil && *in.VMStatus == "" {
@@ -261,7 +260,7 @@ func hubProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, c randfill.Conti
 	// Network: nil -> empty slice conversion
 	for i := range in.Network {
 		if in.Network[i].Connected == nil {
-			in.Network[i].Connected = ptr.To(false)
+			in.Network[i].Connected = new(false)
 		}
 		if len(in.Network[i].NetworkName) == 0 {
 			in.Network[i].NetworkName = v1alpha2.DefaultNetworkDevice
@@ -273,7 +272,7 @@ func spokeProxmoxMachineSpec(in *ProxmoxMachineSpec, c randfill.Continue) {
 	c.FillNoCustom(in)
 
 	if in.ProviderID == nil {
-		in.ProviderID = ptr.To("")
+		in.ProviderID = new("")
 	}
 
 	// DefaultDevice is unconditionally added in conversion, since
@@ -392,8 +391,8 @@ func ensureIPPoolNaming(cfg *IPPoolConfig) {
 	}
 }
 
-func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
-	return []interface{}{
+func ProxmoxClusterFuzzFuncs(_ runtimeserializer.CodecFactory) []any {
+	return []any{
 		fuzzObjectMeta,
 		fuzzV1beta1Condition,
 		fuzzMetav1Condition,
@@ -498,8 +497,8 @@ func fuzzMetav1Condition(in *metav1.Condition, c randfill.Continue) {
 	}
 }
 
-func ProxmoxClusterTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []interface{} {
-	return []interface{}{
+func ProxmoxClusterTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []any {
+	return []any{
 		fuzzObjectMeta,
 		fuzzV1beta1Condition,
 		fuzzMetav1Condition,

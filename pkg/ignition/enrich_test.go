@@ -96,14 +96,14 @@ func TestEnricher_Enrich(t *testing.T) {
 
 	// Test Data. We'll only test environment variables for now.
 	var environment string
-	var jsonData interface{}
+	var jsonData any
 	err = json.Unmarshal(userdata, &jsonData)
 	require.NoError(t, err)
-	files := jsonData.(map[string]interface{})["storage"].(map[string]interface{})["files"].([]interface{})
+	files := jsonData.(map[string]any)["storage"].(map[string]any)["files"].([]any)
 	for _, file := range files {
-		if v, exists := file.(map[string]interface{})["path"]; exists {
+		if v, exists := file.(map[string]any)["path"]; exists {
 			if v.(string) == "/etc/proxmox-env" {
-				environment = file.(map[string]interface{})["contents"].(map[string]interface{})["source"].(string)
+				environment = file.(map[string]any)["contents"].(map[string]any)["source"].(string)
 			}
 		}
 	}

@@ -87,7 +87,7 @@ func TestConvert_V1Alpha1Template(t *testing.T) {
 	}
 
 	// Verify no top-level null fields leaked (exclude block scalars like embedded manifests).
-	for _, line := range strings.Split(result, "\n") {
+	for line := range strings.SplitSeq(result, "\n") {
 		trimmed := strings.TrimSpace(line)
 		// Skip lines inside block scalars (indented content or literal blocks).
 		if strings.HasSuffix(trimmed, ": null") && !strings.HasPrefix(strings.TrimSpace(line), "#") {
@@ -585,11 +585,8 @@ func unifiedDiff(want, got string) string {
 	gotLines := strings.Split(got, "\n")
 
 	var b strings.Builder
-	maxLines := len(wantLines)
-	if len(gotLines) > maxLines {
-		maxLines = len(gotLines)
-	}
-	for i := 0; i < maxLines; i++ {
+	maxLines := max(len(gotLines), len(wantLines))
+	for i := range maxLines {
 		var w, g string
 		if i < len(wantLines) {
 			w = wantLines[i]

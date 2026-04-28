@@ -120,17 +120,17 @@ func Convert_v1alpha2_NetworkDevice_To_v1alpha1_NetworkDevice(in *v1alpha2.Netwo
 			// find IPv4 pool ref
 			i := getIPPoolRefByIPFamily(in.InterfaceConfig.IPPoolRef, "inet")
 			if i != -1 {
-				out.IPPoolConfig.IPv4PoolRef = ptr.To(in.InterfaceConfig.IPPoolRef[i])
+				out.IPPoolConfig.IPv4PoolRef = new(in.InterfaceConfig.IPPoolRef[i])
 			}
 
 			// find IPv6 pool ref
 			j := getIPPoolRefByIPFamily(in.InterfaceConfig.IPPoolRef, "inet6")
 			if j != -1 {
-				out.IPPoolConfig.IPv6PoolRef = ptr.To(in.InterfaceConfig.IPPoolRef[j])
+				out.IPPoolConfig.IPv6PoolRef = new(in.InterfaceConfig.IPPoolRef[j])
 			}
 
 			if i == -1 && j == -1 && len(in.InterfaceConfig.IPPoolRef) > 0 {
-				out.IPPoolConfig.IPv4PoolRef = ptr.To(in.InterfaceConfig.IPPoolRef[0])
+				out.IPPoolConfig.IPv4PoolRef = new(in.InterfaceConfig.IPPoolRef[0])
 			}
 		}
 
@@ -200,7 +200,7 @@ func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *
 
 	// Manual conversion: Ready bool → Initialization.Provisioned *bool
 	if in.Ready {
-		out.Initialization.Provisioned = ptr.To(true)
+		out.Initialization.Provisioned = new(true)
 	}
 	// FailureReason and FailureMessage are dropped during up-conversion
 
@@ -330,8 +330,8 @@ func Convert_v1alpha1_NetworkSpec_To_v1alpha2_NetworkSpec(in *NetworkSpec, out *
 	if in.Default != nil {
 		net0 := v1alpha2.NetworkDevice{
 			Name:        v1alpha2.NetName(DefaultNetworkDevice),
-			DefaultIPv4: ptr.To(true),
-			DefaultIPv6: ptr.To(true),
+			DefaultIPv4: new(true),
+			DefaultIPv6: new(true),
 			InterfaceConfig: v1alpha2.InterfaceConfig{
 				IPPoolRef: make([]corev1.TypedLocalObjectReference, 0),
 			},
@@ -399,11 +399,11 @@ func Convert_v1alpha1_RouteSpec_To_v1alpha2_RouteSpec(in *RouteSpec, out *v1alph
 	}
 
 	if in.Metric > 0 {
-		out.Metric = ptr.To(int32(in.Metric))
+		out.Metric = new(int32(in.Metric))
 	}
 
 	if in.Table > 0 {
-		out.Table = ptr.To(int32(in.Table))
+		out.Table = new(int32(in.Table))
 	}
 	return nil
 }
@@ -414,7 +414,7 @@ func Convert_v1alpha1_RoutingPolicySpec_To_v1alpha2_RoutingPolicySpec(in *Routin
 		return err
 	}
 	if in.Priority > 0 {
-		out.Priority = ptr.To(int64(in.Priority))
+		out.Priority = new(int64(in.Priority))
 	}
 	return nil
 }
@@ -427,7 +427,7 @@ func Convert_v1alpha1_ProxmoxMachineStatus_To_v1alpha2_ProxmoxMachineStatus(in *
 
 	// Manual conversion: Ready bool → Initialization.Provisioned *bool
 	if in.Ready {
-		out.Initialization.Provisioned = ptr.To(true)
+		out.Initialization.Provisioned = new(true)
 	}
 
 	if in.VMStatus != "" {
@@ -577,7 +577,7 @@ func Convert_string_To_Pointer_string(in string, hasRestored bool, restoredIn *s
 	// In all the other cases we do not know if the value was intentionally set to "", so convert to nil.
 	if in == "" {
 		if hasRestored && restoredIn != nil && *restoredIn == "" {
-			*out = ptr.To("")
+			*out = new("")
 			return
 		}
 		*out = nil
@@ -585,7 +585,7 @@ func Convert_string_To_Pointer_string(in string, hasRestored bool, restoredIn *s
 	}
 
 	// Otherwise, if the value is not "", convert to *value.
-	*out = ptr.To(in)
+	*out = new(in)
 }
 
 // Convert_v1beta1_Condition_To_v1_Condition is the conversion stub required by conversion-gen
