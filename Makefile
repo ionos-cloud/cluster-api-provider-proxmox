@@ -134,6 +134,7 @@ docker-buildx: test ## Build and push Docker image for the manager for cross-pla
 ##@ verify
 
 .PHONY: verify
+.NOTPARALLEL: verify
 verify: fix fmt generate manifests mockgen tidy vet ## verify the manifests and the code.
 	@if !(git diff --quiet HEAD); then \
 		echo uncommitted changes: ;\
