@@ -24,7 +24,7 @@ jobs:
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request'
-        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+        uses: SonarSource/sonarqube-scan-action@55e44800a8f495208cce6e4e82f5dedb45fcf0ef # v7.2.0
         with:
          args: >
            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
@@ -34,6 +34,6 @@ jobs:
 
       - name: SonarQube
         if: github.event_name == 'push'
-        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+        uses: SonarSource/sonarqube-scan-action@55e44800a8f495208cce6e4e82f5dedb45fcf0ef # v7.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
