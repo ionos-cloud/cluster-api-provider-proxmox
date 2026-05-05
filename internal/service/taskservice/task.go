@@ -20,6 +20,7 @@ package taskservice
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
@@ -44,6 +45,11 @@ const (
 	TaskInfoStateError      = TaskInfoState("error")
 )
 
+// task type identifiers reported by Proxmox.
+const (
+	taskTypeQMStart = "qmstart"
+)
+
 var (
 	// ErrTaskNotFound task is not found.
 	ErrTaskNotFound = errors.New("task not found")
@@ -55,12 +61,27 @@ func GetTask(ctx context.Context, machineScope *scope.MachineScope) (*proxmox.Ta
 		return nil, nil
 	}
 
-	task, err := machineScope.InfraCluster.ProxmoxClient.GetTask(ctx, *machineScope.ProxmoxMachine.Status.TaskRef)
+	taskRef := *machineScope.ProxmoxMachine.Status.TaskRef
+	task, err := machineScope.InfraCluster.ProxmoxClient.GetTask(ctx, taskRef)
 	if err != nil {
-		return nil, ErrTaskNotFound
+		if isTaskNotFoundError(err) {
+			return nil, fmt.Errorf("%w: %w", ErrTaskNotFound, err)
+		}
+		return nil, fmt.Errorf("get task %s: %w", taskRef, err)
 	}
 
 	return task, nil
+}
+
+func isTaskNotFoundError(err error) bool {
+	// go-proxmox currently returns task lookup failures as plain error text instead of a
+	// typed sentinel; keep this heuristic narrow and covered by regression samples.
+	// TODO: replace string matching if go-proxmox exposes a typed task-not-found error.
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "not found") ||
+		strings.Contains(message, "does not exist") ||
+		strings.Contains(message, "no such task") ||
+		strings.Contains(message, "task expired")
 }
 
 // ReconcileInFlightTask determines if a task associated to the Proxmox VM object is in flight or not.
@@ -117,7 +138,7 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		// In fact qmstart can find a machine already started, because proxmox's api is
 		// eventually consistent here.
 		// For all other jobs we do set the condition to failed.
-		if task.Type != "qmstart" {
+		if task.Type != taskTypeQMStart {
 			logger.Info("task failed", "description", task.Type)
 			// We notify the user that intervention is required. This should stop the state machine.
 			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason
