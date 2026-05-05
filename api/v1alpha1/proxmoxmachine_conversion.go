@@ -41,9 +41,6 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 
 	restoreProxmoxMachineSpec(&src.Spec, &dst.Spec, &restored.Spec, ok)
 
-	// Restore FailureDomain (v1alpha2-only field, set by CAPI machine controller).
-	dst.Spec.FailureDomain = restored.Spec.FailureDomain
-
 	clusterv1.Convert_bool_To_Pointer_bool(src.Status.Ready, ok,
 		restored.Status.Initialization.Provisioned,
 		&dst.Status.Initialization.Provisioned)
@@ -89,6 +86,11 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumCores, ok, restored.NumCores, &dst.NumCores)
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumSockets, ok, restored.NumSockets, &dst.NumSockets)
 	clusterv1.Convert_int32_To_Pointer_int32(src.MemoryMiB, ok, restored.MemoryMiB, &dst.MemoryMiB)
+
+	// Restore FailureDomain (v1alpha2-only field, set by CAPI machine controller).
+	if ok {
+		dst.FailureDomain = restored.FailureDomain
+	}
 
 	// Turn ProxmoxMachineSpec.Target into allowedNodes. in v1alpha1, target will
 	// ignore AllowedNodes, so we can literally overwrite these.
