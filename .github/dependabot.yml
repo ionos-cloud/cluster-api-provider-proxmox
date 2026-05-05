@@ -5,6 +5,8 @@ updates:
   directory: "/"
   schedule:
     interval: "daily"
+  cooldown:
+    default-days: 5
   groups:
     kubernetes:
       patterns:
@@ -15,6 +17,10 @@ updates:
       patterns:
       - sigs.k8s.io/cluster-api
       - sigs.k8s.io/cluster-api/test
+    onsi:
+      patterns:
+      - github.com/onsi/ginkgo/v2
+      - github.com/onsi/gomega
 
 - package-ecosystem: "docker"
   directory: "/"
@@ -25,3 +31,5 @@ updates:
   directory: "/"
   schedule:
     interval: "daily"
+  cooldown:
+    default-days: 5
