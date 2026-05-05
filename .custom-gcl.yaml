@@ -1,3 +1,4 @@
+---
 version: v2.9.0
 name: golangci-lint-kube-api-linter
 destination: ./bin

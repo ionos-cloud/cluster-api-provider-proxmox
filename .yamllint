@@ -27,15 +27,13 @@ ignore:
 - config/certmanager
 - config/prometheus
 - config/rbac
-- config/manager
-- config/default
-- test/e2e
 - out
-- .*.yaml
-- .*.yml
-# these are clusterctl templates, not yaml
+# clusterctl templates use envsubst syntax that isn't valid yaml
+# TODO: find a way to lint these (preprocess with envsubst + dummy values?)
 - templates
+- test/e2e
 # conversion tool testdata contains envsubst templates
 - pkg/convert/testdata
-# github actions checked by actionlint
+# github actions have no document-start markers
+# linted by actionlint
 - .github/workflows
