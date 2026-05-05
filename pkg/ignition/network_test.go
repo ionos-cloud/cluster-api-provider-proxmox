@@ -34,10 +34,10 @@ MACAddress=E2:B8:FE:E7:50:75
 [Network]
 DNS=10.0.1.1
 [Address]
-Address=10.0.0.98/25
+Address=203.0.113.98/25
 [Route]
 Destination=0.0.0.0/0
-Gateway=10.0.0.1
+Gateway=203.0.113.1
 Metric=100
 [Address]
 Address=2001:db8:1::10/64
@@ -76,10 +76,10 @@ MACAddress=E2:B8:FE:E7:50:75
 [Network]
 DNS=10.0.1.1
 [Address]
-Address=10.0.0.98/25
+Address=203.0.113.98/25
 [Route]
 Destination=0.0.0.0/0
-Gateway=10.0.0.1
+Gateway=203.0.113.1
 Metric=100
 [Address]
 Address=2001:db8:1::10/64
@@ -140,7 +140,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("203.0.113.98/25"), Gateway: "203.0.113.1", Metric: ptr.To(int32(100))},
 							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
@@ -178,7 +178,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("203.0.113.98/25"), Gateway: "203.0.113.1", Metric: ptr.To(int32(100))},
 							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,

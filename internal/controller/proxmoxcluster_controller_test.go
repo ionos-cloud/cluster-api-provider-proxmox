@@ -369,19 +369,19 @@ func buildProxmoxCluster(name string) infrav1.ProxmoxCluster {
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
 			ControlPlaneEndpoint: infrav1.APIEndpoint{
-				Host: "10.10.10.11",
+				Host: "192.0.2.11",
 				Port: 6443,
 			},
 			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{
-					"10.10.10.2-10.10.10.10",
-					"10.10.10.100-10.10.10.125",
-					"10.10.10.192/64",
+					"192.0.2.2-192.0.2.10",
+					"192.0.2.100-192.0.2.125",
+					"192.0.2.192/64",
 				},
-				Gateway: "10.10.10.1",
+				Gateway: "192.0.2.1",
 				Prefix:  24,
 			},
-			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+			DNSServers: []string{"192.0.2.53", "192.0.2.54"},
 		},
 	}
 
@@ -421,9 +421,9 @@ func dummyIPAddress(client client.Client, owner client.Object, poolName string) 
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
-			Address: "10.10.10.11",
+			Address: "192.0.2.11",
 			Prefix:  ptr.To[int32](24),
-			Gateway: "10.10.10.1",
+			Gateway: "192.0.2.1",
 		},
 	}
 }
@@ -453,14 +453,14 @@ func createProxmoxCluster() *infrav1.ProxmoxCluster {
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{
-					"10.10.10.2-10.10.10.10",
-					"10.10.10.100-10.10.10.125",
-					"10.10.10.192/64",
+					"192.0.2.2-192.0.2.10",
+					"192.0.2.100-192.0.2.125",
+					"192.0.2.192/64",
 				},
-				Gateway: "10.10.10.1",
+				Gateway: "192.0.2.1",
 				Prefix:  24,
 			},
-			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+			DNSServers: []string{"192.0.2.53", "192.0.2.54"},
 		},
 	}
 	Expect(testEnv.Create(testEnv.GetContext(), proxmoxCluster)).To(Succeed())

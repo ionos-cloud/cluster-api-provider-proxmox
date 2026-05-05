@@ -113,8 +113,8 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24"), Gateway: "10.1.1.1"}},
-				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("198.51.100.6/24"), Gateway: "198.51.100.1"}},
+				DNSServers: []string{"192.0.2.53", "192.0.2.54"},
 			},
 		}),
 	}
@@ -156,8 +156,8 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24"), Gateway: "10.1.1.1"}},
-				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("198.51.100.6/24"), Gateway: "198.51.100.1"}},
+				DNSServers: []string{"192.0.2.53", "192.0.2.54"},
 			},
 		}),
 	}
@@ -206,8 +206,8 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 		Network: []types.NetworkConfigData{
 			{
 				Name:       "eth0",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24"), Gateway: "10.1.1.1"}},
-				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("198.51.100.6/24"), Gateway: "198.51.100.1"}},
+				DNSServers: []string{"192.0.2.53", "192.0.2.54"},
 			},
 		},
 	}
@@ -257,8 +257,8 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 		Network: []types.NetworkConfigData{
 			{
 				Name:       "eth0",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.9/24"), Gateway: "10.1.1.1"}},
-				DNSServers: []string{"10.1.1.1"},
+				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("198.51.100.9/24"), Gateway: "198.51.100.1"}},
+				DNSServers: []string{"198.51.100.1"},
 			},
 		},
 	}
@@ -310,8 +310,8 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
 			{
 				Name:       "eth0",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24"), Gateway: "10.1.1.1"}},
-				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("198.51.100.6/24"), Gateway: "198.51.100.1"}},
+				DNSServers: []string{"192.0.2.53", "192.0.2.54"},
 			},
 		}),
 	}
