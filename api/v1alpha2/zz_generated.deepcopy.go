@@ -722,6 +722,11 @@ func (in *ProxmoxMachineList) DeepCopyObject() runtime.Object {
 func (in *ProxmoxMachineSpec) DeepCopyInto(out *ProxmoxMachineSpec) {
 	*out = *in
 	in.VirtualMachineCloneSpec.DeepCopyInto(&out.VirtualMachineCloneSpec)
+	if in.FailureDomain != nil {
+		in, out := &in.FailureDomain, &out.FailureDomain
+		*out = new(string)
+		**out = **in
+	}
 	if in.VirtualMachineID != nil {
 		in, out := &in.VirtualMachineID, &out.VirtualMachineID
 		*out = new(int64)
