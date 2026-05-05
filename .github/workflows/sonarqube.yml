@@ -1,0 +1,49 @@
+name: SonarQube
+on:
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  sonar:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-slim
+    steps:
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: .
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }} # read from test workflow
+
+      - name: SonarQube scan for PR ${{ github.event.workflow_run.pull_requests[0].number }}
+        if: github.event.workflow_run.event == 'pull_request'
+        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
+        with:
+         args: >
+           -Dsonar.pullrequest.key=${{ github.event.workflow_run.pull_requests[0].number }}
+           -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarQube scan
+        if: github.event.workflow_run.event == 'push'
+        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
+        if: github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'push'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
