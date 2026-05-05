@@ -20,6 +20,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/pkg/errors"
@@ -223,6 +224,8 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		return res, nil
 	}
 
+	r.reconcileFailureDomains(clusterScope)
+
 	if err := r.reconcileNormalCredentialsSecret(ctx, clusterScope); err != nil {
 		conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 			Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
@@ -308,6 +311,33 @@ func (r *ProxmoxClusterReconciler) reconcileIPAM(ctx context.Context, clusterSco
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// reconcileFailureDomains populates Status.FailureDomains from ZoneConfigs.
+// When no zones are configured, FailureDomains is set to nil, preserving
+// backwards compatibility (KCP will not attempt failure domain placement).
+func (r *ProxmoxClusterReconciler) reconcileFailureDomains(clusterScope *scope.ClusterScope) {
+	pc := clusterScope.ProxmoxCluster
+	if len(pc.Spec.ZoneConfigs) == 0 {
+		pc.Status.FailureDomains = nil
+		return
+	}
+
+	fds := make([]clusterv1.FailureDomain, 0, len(pc.Spec.ZoneConfigs))
+	for _, zc := range pc.Spec.ZoneConfigs {
+		zoneName := ptr.Deref(zc.Zone, "")
+		if zoneName == "" {
+			continue
+		}
+
+		fds = append(fds, clusterv1.FailureDomain{
+			Name:         zoneName,
+			ControlPlane: ptr.To(ptr.Deref(zc.ControlPlane, true)),
+		})
+	}
+
+	sort.Slice(fds, func(i, j int) bool { return fds[i].Name < fds[j].Name })
+	pc.Status.FailureDomains = fds
 }
 
 func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.Context, clusterScope *scope.ClusterScope) error {

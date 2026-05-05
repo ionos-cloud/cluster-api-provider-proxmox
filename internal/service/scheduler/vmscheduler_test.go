@@ -250,6 +250,61 @@ func TestScheduleVM(t *testing.T) {
 	require.Equal(t, "pve2", node)
 }
 
+func TestScheduleVMWithEffectiveAllowedNodes(t *testing.T) {
+	ctrlClient := setupClient()
+
+	proxmoxCluster := infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"pve1", "pve2", "pve3"},
+		},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{
+				Workers: []infrav1.NodeLocation{},
+			},
+		},
+	}
+	require.NoError(t, ctrlClient.Create(context.Background(), &proxmoxCluster))
+
+	proxmoxMachine := &infrav1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "foo-machine",
+			Labels: map[string]string{"cluster.x-k8s.io/cluster-name": "bar"},
+		},
+		Spec: infrav1.ProxmoxMachineSpec{
+			MemoryMiB: ptr.To(int32(10)),
+		},
+	}
+
+	fakeProxmoxClient := proxmoxtest.NewMockClient(t)
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "default"},
+	}
+	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
+		Client:  ctrlClient,
+		Machine: &clusterv1.Machine{ObjectMeta: metav1.ObjectMeta{Name: "foo-machine", Namespace: "default"}},
+		Cluster: cluster,
+		InfraCluster: &scope.ClusterScope{
+			Cluster:        cluster,
+			ProxmoxCluster: &proxmoxCluster,
+			ProxmoxClient:  fakeProxmoxClient,
+		},
+		ProxmoxMachine: proxmoxMachine,
+		IPAMHelper:     &ipam.Helper{},
+	})
+	require.NoError(t, err)
+
+	// Set effective allowed nodes to only pve3 (simulating failure domain filtering).
+	machineScope.SetEffectiveAllowedNodes([]string{"pve3"})
+
+	// Only pve3 should be queried.
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", int64(100)).Return(miBytes(60), nil)
+
+	node, err := ScheduleVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, "pve3", node)
+}
+
 func TestInsufficientMemoryError_Error(t *testing.T) {
 	err := InsufficientMemoryError{
 		node:      "pve1",

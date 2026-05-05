@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -148,6 +149,18 @@ type ZoneConfigSpec struct {
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
 	DNSServers []string `json:"dnsServers,omitempty"`
+
+	// nodes specifies the Proxmox nodes that belong to this zone.
+	// When set, machines assigned to this failure domain will only
+	// be placed on these nodes.
+	// +optional
+	// +listType=set
+	Nodes []string `json:"nodes,omitempty"`
+
+	// controlPlane indicates whether this zone is eligible for control plane machines.
+	// Defaults to true when not set.
+	// +optional
+	ControlPlane *bool `json:"controlPlane,omitempty"`
 }
 
 // IPConfigSpec contains information about available IP config.
@@ -232,6 +245,14 @@ type ProxmoxClusterStatus struct {
 	// for different machines.
 	// +optional
 	NodeLocations *NodeLocations `json:"nodeLocations,omitempty"`
+
+	// failureDomains is a slice of failure domains synced from zone configurations.
+	// This field is part of the Cluster API contract and is used by KubeadmControlPlane
+	// to distribute control plane machines across zones.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	FailureDomains []clusterv1.FailureDomain `json:"failureDomains,omitempty"`
 }
 
 // ProxmoxClusterInitializationStatus provides observations of the ProxmoxCluster initialization process.
@@ -521,6 +542,18 @@ func (c *ProxmoxCluster) addNodeLocation(loc NodeLocation, isControlPlane bool) 
 	}
 
 	c.Status.NodeLocations.Workers = append(c.Status.NodeLocations.Workers, loc)
+}
+
+// GetZoneNodes returns the Proxmox node names for a given zone name.
+// Returns nil if the zone is not found or has no explicit nodes configured.
+func (c *ProxmoxCluster) GetZoneNodes(zoneName string) []string {
+	for _, zc := range c.Spec.ZoneConfigs {
+		if ptr.Deref(zc.Zone, "") == zoneName {
+			return zc.Nodes
+		}
+	}
+
+	return nil
 }
 
 func init() {

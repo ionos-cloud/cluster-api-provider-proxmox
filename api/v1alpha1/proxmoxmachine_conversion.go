@@ -87,6 +87,11 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumSockets, ok, restored.NumSockets, &dst.NumSockets)
 	clusterv1.Convert_int32_To_Pointer_int32(src.MemoryMiB, ok, restored.MemoryMiB, &dst.MemoryMiB)
 
+	// Restore FailureDomain (v1alpha2-only field, set by CAPI machine controller).
+	if ok {
+		dst.FailureDomain = restored.FailureDomain
+	}
+
 	// Turn ProxmoxMachineSpec.Target into allowedNodes. in v1alpha1, target will
 	// ignore AllowedNodes, so we can literally overwrite these.
 	if src.Target != nil {

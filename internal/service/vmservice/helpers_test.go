@@ -327,7 +327,7 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 	// Can't hurt to create ippools here
 	createIPPools(t, c, machineScope)
 
-	defaultPools, _ := machineScope.IPAMHelper.GetInClusterPools(context.Background(), machineScope.ProxmoxMachine)
+	defaultPools, _ := machineScope.IPAMHelper.GetInClusterPools(context.Background(), machineScope.ProxmoxMachine, machineScope.GetEffectiveZone())
 	i := 0 // counter for ipPrefix variadic argument
 	// Create the pools sequentially by ref
 	for _, device := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
@@ -419,7 +419,7 @@ func isDefaultPool(machineScope *scope.MachineScope, pool corev1.TypedLocalObjec
 func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneRef {
 	cluster := machineScope.InfraCluster.ProxmoxCluster
 
-	zone := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.Zone, "default")
+	zone := ptr.Deref(machineScope.GetEffectiveZone(), "default")
 	zoneIndex := slices.IndexFunc(cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
 		return zone == *z.Zone
 	})
