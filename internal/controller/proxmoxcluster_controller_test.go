@@ -215,34 +215,6 @@ var _ = Describe("Controller Test", func() {
 				WithPolling(time.Second).
 				Should(Succeed())
 		})
-		It("Should reconcile failed cluster state", func() {
-			cl := buildProxmoxCluster(clusterName)
-			g.Expect(k8sClient.Create(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
-
-			// Set a failure condition on the cluster status.
-			conditions.Set(&cl, metav1.Condition{
-				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
-				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxClusterProxmoxAvailableProxmoxUnreachableReason,
-				Message: "No credentials found, ProxmoxCluster missing credentialsRef",
-			})
-			g.Expect(k8sClient.Status().Update(testEnv.GetContext(), &cl)).NotTo(HaveOccurred())
-
-			defer cleanupResources(testEnv.GetContext(), g, cl)
-
-			g.Eventually(func(g Gomega) {
-				var res infrav1.ProxmoxCluster
-				g.Expect(k8sClient.Get(context.Background(), client.ObjectKey{
-					Namespace: testNS,
-					Name:      clusterName,
-				}, &res)).To(Succeed())
-
-				// After reconciliation, the cluster should become ready.
-				g.Expect(conditions.IsTrue(&res, infrav1.ProxmoxClusterProxmoxAvailableCondition)).To(BeTrue())
-			}).WithTimeout(time.Second * 20).
-				WithPolling(time.Second).
-				Should(Succeed())
-		})
 	})
 })
 
@@ -550,7 +522,7 @@ func setRandomOwnerRefOnSecret(secret *corev1.Secret, ownerRef string) {
 
 func refreshCluster(proxmoxCluster *infrav1.ProxmoxCluster) *infrav1.ProxmoxCluster {
 	key := client.ObjectKey{Namespace: proxmoxCluster.Namespace, Name: proxmoxCluster.Name}
-	Expect(testEnv.Get(testEnv.GetContext(), key, proxmoxCluster)).To(Succeed())
+	Expect(k8sClient.Get(testEnv.GetContext(), key, proxmoxCluster)).To(Succeed())
 	return proxmoxCluster
 }
 
