@@ -17,9 +17,14 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      # cache: false — pull_request_target gives this job write access to
+      # the base branch's GHA cache scope, and make verify / make test runs
+      # PR-controlled code that could otherwise poison Go module / build
+      # cache entries consumed by later main-branch builds.
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
+          cache: false
 
       - run: "make verify"
       - run: "make test"
