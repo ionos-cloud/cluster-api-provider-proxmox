@@ -117,15 +117,13 @@ func reconcileInFlightDeletionTask(ctx context.Context, machineScope *scope.Mach
 		storeDeletionTask(machineScope, task)
 		return true, nil
 	case task.IsSuccessful && task.IsCompleted:
-		clearTaskState(machineScope)
 		if task.Type == deletionTaskQMDestroy {
-			verificationContext := fmt.Sprintf("%s task %s succeeded", task.Type, task.UPID)
-			if completed, err := completeIfVMIDFree(ctx, machineScope, verificationContext); err != nil || completed {
-				return completed, err
-			}
-			setDeletionFailedCondition(machineScope, fmt.Sprintf("%s task succeeded but VMID %d is still in use", task.Type, machineScope.ProxmoxMachine.GetVirtualMachineID()))
-			return true, nil
+			// qmdestroy success is authoritative for this deletion task. Do not gate
+			// finalizer removal on CheckID because the VMID may already have been
+			// reused by a replacement VM before this reconcile observes task completion.
+			return true, completeVMDeletion(machineScope)
 		}
+		clearTaskState(machineScope)
 		return false, nil
 	case task.IsFailed:
 		verificationContext := fmt.Sprintf("%s task %s failed: %s", task.Type, task.UPID, task.ExitStatus)

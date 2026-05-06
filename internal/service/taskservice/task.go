@@ -45,11 +45,6 @@ const (
 	TaskInfoStateError      = TaskInfoState("error")
 )
 
-// task type identifiers reported by Proxmox.
-const (
-	taskTypeQMStart = "qmstart"
-)
-
 var (
 	// ErrTaskNotFound task is not found.
 	ErrTaskNotFound = errors.New("task not found")
@@ -138,7 +133,7 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		// In fact qmstart can find a machine already started, because proxmox's api is
 		// eventually consistent here.
 		// For all other jobs we do set the condition to failed.
-		if task.Type != taskTypeQMStart {
+		if task.Type != "qmstart" {
 			logger.Info("task failed", "description", task.Type)
 			// We notify the user that intervention is required. This should stop the state machine.
 			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason
