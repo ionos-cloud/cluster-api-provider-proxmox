@@ -24,4 +24,5 @@ jobs:
         with:
           name: coverage
           path: cover.out
+          retention-days: 7
 
