@@ -67,7 +67,7 @@ func GetTask(ctx context.Context, machineScope *scope.MachineScope) (*proxmox.Ta
 		if isTaskNotFoundError(err) {
 			return nil, fmt.Errorf("%w: %w", ErrTaskNotFound, err)
 		}
-		return nil, fmt.Errorf("get task %s: %w", taskRef, err)
+		return nil, fmt.Errorf("received unknown task %s: %w", taskRef, err)
 	}
 
 	return task, nil
