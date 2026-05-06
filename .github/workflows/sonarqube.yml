@@ -41,17 +41,13 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract cover.out from artifact
-        run: |
-          test -f "${RUNNER_TEMP}/coverage/cover.out"
-          cp "${RUNNER_TEMP}/coverage/cover.out" cover.out
-
       - name: SonarQube scan for PR ${{ github.event.workflow_run.pull_requests[0].number }}
         if: github.event.workflow_run.event == 'pull_request'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         with:
           args: >
             -Dproject.settings=${{ runner.temp }}/sonar-project.properties
+            -Dsonar.go.coverage.reportPaths=${{ runner.temp }}/coverage/cover.out
             -Dsonar.pullrequest.key=${{ github.event.workflow_run.pull_requests[0].number }}
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }}
         env:
@@ -61,7 +57,9 @@ jobs:
         if: github.event.workflow_run.event == 'push'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         with:
-          args: -Dproject.settings=${{ runner.temp }}/sonar-project.properties
+          args: >
+            -Dproject.settings=${{ runner.temp }}/sonar-project.properties
+            -Dsonar.go.coverage.reportPaths=${{ runner.temp }}/coverage/cover.out
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
