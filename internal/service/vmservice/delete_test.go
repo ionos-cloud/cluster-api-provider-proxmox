@@ -369,7 +369,7 @@ func TestDeleteVM_StopTaskSucceededStartsDestroyTask(t *testing.T) {
 	requireDeleteInProgress(t, machineScope, "UPID:node1:destroy")
 }
 
-func TestDeleteVM_DestroyTaskSucceededAndVMIDFreeRemovesFinalizer(t *testing.T) {
+func TestDeleteVM_DestroyTaskSucceededCompletesWithoutCheckingVMID(t *testing.T) {
 	machineScope, proxmoxClient := setupDeleteVMTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:destroy")
 	task := &proxmox.Task{
@@ -382,64 +382,9 @@ func TestDeleteVM_DestroyTaskSucceededAndVMIDFreeRemovesFinalizer(t *testing.T) 
 	}
 
 	proxmoxClient.EXPECT().GetTask(context.TODO(), "UPID:node1:destroy").Return(task, nil).Once()
-	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(true, nil).Once()
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 	requireDeleteComplete(t, machineScope)
-}
-
-func TestDeleteVM_DestroyTaskSucceededButVMIDStillAllocatedKeepsFinalizer(t *testing.T) {
-	machineScope, proxmoxClient := setupDeleteVMTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:destroy")
-	task := &proxmox.Task{
-		UPID:         "UPID:node1:destroy",
-		IsCompleted:  true,
-		IsSuccessful: true,
-		Status:       "stopped",
-		ExitStatus:   "OK",
-		Type:         "qmdestroy",
-	}
-
-	proxmoxClient.EXPECT().GetTask(context.TODO(), "UPID:node1:destroy").Return(task, nil).Once()
-	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
-
-	require.NoError(t, DeleteVM(context.TODO(), machineScope))
-	requireDeleteBlockedOnVMID(t, machineScope)
-
-	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
-	require.NotNil(t, cond)
-	require.Equal(t, metav1.ConditionFalse, cond.Status)
-	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedDeletionFailedReason, cond.Reason)
-	require.Contains(t, cond.Message, "qmdestroy task succeeded")
-	require.Contains(t, cond.Message, "VMID 123 is still in use")
-}
-
-func TestDeleteVM_DestroyTaskSucceededAndCheckIDErrorUsesDeletingReason(t *testing.T) {
-	machineScope, proxmoxClient := setupDeleteVMTest(t)
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:destroy")
-	task := &proxmox.Task{
-		UPID:         "UPID:node1:destroy",
-		IsCompleted:  true,
-		IsSuccessful: true,
-		Status:       "stopped",
-		ExitStatus:   "OK",
-		Type:         "qmdestroy",
-	}
-
-	proxmoxClient.EXPECT().GetTask(context.TODO(), "UPID:node1:destroy").Return(task, nil).Once()
-	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, errors.New("temporary checkid failure")).Once()
-
-	err := DeleteVM(context.TODO(), machineScope)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "temporary checkid failure")
-	requireDeleteBlockedOnVMID(t, machineScope)
-
-	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
-	require.NotNil(t, cond)
-	require.Equal(t, metav1.ConditionFalse, cond.Status)
-	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedDeletingReason, cond.Reason)
-	require.Contains(t, cond.Message, "qmdestroy task")
-	require.Contains(t, cond.Message, "temporary checkid failure")
 }
 
 func setupDeleteVMTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockClient) {
