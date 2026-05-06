@@ -591,6 +591,46 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("running VM starts stop task and does not destroy", func(t *testing.T) {
+		client := newTestClient(t)
+
+		// "UPID:$node:$pid:$pstart:$startime:$dtype:$id:$user"
+		stopUPID := "UPID:test:000D6BDA:041E0A54:654A5A1D:qmstop:101:root@pam:"
+		destroyUPID := "UPID:test:000D6BDB:041E0A55:654A5A1E:qmdestroy:101:root@pam:"
+
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
+			newJSONResponder(400, "VM 101 already exists"))
+		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
+			newJSONResponder(200, proxmox.Node{Name: "test"}))
+		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/status/current`,
+			newJSONResponder(200, proxmox.VirtualMachine{
+				Node:   "test",
+				VMID:   101,
+				Status: proxmox.StatusVirtualMachineRunning,
+			}))
+		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/config`,
+			newJSONResponder(200, proxmox.VirtualMachineConfig{CPU: "kvm64"}))
+		httpmock.RegisterResponder(http.MethodPost, `=~/nodes/test/qemu/101/status/stop`,
+			newJSONResponder(200, stopUPID))
+		httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/101`,
+			newJSONResponder(200, destroyUPID))
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/status`,
+			newJSONResponder(200,
+				proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
+
+		task, err := client.DeleteVM(context.Background(), "test", 101)
+
+		require.NoError(t, err)
+		require.Equal(t, "qmstop", task.Type)
+		require.Equal(t, "101", task.ID)
+		require.Equal(t, "root@pam", task.User)
+		require.Equal(t, stopUPID, string(task.UPID))
+
+		calls := httpmock.GetCallCountInfo()
+		require.Equal(t, 1, calls[`POST =~/nodes/test/qemu/101/status/stop`])
+		require.Zero(t, calls[`DELETE =~/nodes/test/qemu/101`])
+	})
 }
 
 func TestProxmoxAPIClient_GetTask(t *testing.T) {

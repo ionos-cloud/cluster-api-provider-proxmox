@@ -132,15 +132,42 @@ func TestGetTask_NoTaskRef(t *testing.T) {
 	require.Nil(t, task)
 }
 
-// Test missing task erroring.
+// Test missing task errors are normalized for the deletion path without hiding the original Proxmox message.
 func TestGetTask_ErrorNotFound(t *testing.T) {
+	taskRef := "UPID:node1:001"
+	for _, tt := range []struct {
+		name    string
+		message string
+	}{
+		{name: "not found", message: "cannot get task UPID:node1:001: not found"},
+		{name: "does not exist", message: "cannot get task UPID:node1:001: does not exist"},
+		{name: "no such task", message: "cannot get task UPID:node1:001: no such task"},
+		{name: "task expired", message: "cannot get task UPID:node1:001: task expired"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			machineScope, mockClient := setupTaskTest(t)
+			machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(taskRef)
+
+			mockClient.EXPECT().GetTask(context.Background(), taskRef).Return(nil, errors.New(tt.message)).Once()
+
+			task, err := GetTask(context.Background(), machineScope)
+			require.ErrorIs(t, err, ErrTaskNotFound)
+			require.ErrorContains(t, err, tt.message)
+			require.Nil(t, task)
+		})
+	}
+}
+
+func TestGetTask_TransientErrorPreserved(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("UPID:node1:001")
 
-	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(nil, errors.New("not found")).Once()
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(nil, errors.New("501 Not Implemented")).Once()
 
 	task, err := GetTask(context.Background(), machineScope)
-	require.ErrorIs(t, err, ErrTaskNotFound)
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrTaskNotFound)
+	require.ErrorContains(t, err, "501 Not Implemented")
 	require.Nil(t, task)
 }
 

@@ -168,6 +168,11 @@ func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineS
 
 	err := vmservice.DeleteVM(ctx, machineScope)
 	if err != nil {
+		var requeueErr *taskservice.RequeueError
+		if errors.As(err, &requeueErr) {
+			machineScope.Error(err, "Requeue requested")
+			return reconcile.Result{RequeueAfter: requeueErr.RequeueAfter()}, nil
+		}
 		return reconcile.Result{}, err
 	}
 	// VM is being deleted
