@@ -1,7 +1,7 @@
 # SECURITY: this workflow has SONAR_TOKEN and checks out untrusted PR code.
-# Never execute PR-controlled scripts (make, npm, sh, ...). When writing
-# into the PR checkout, the destination may be a PR-shipped symlink: prefer
-# writing to $RUNNER_TEMP instead, or rm -f the destination first.
+# Never execute PR-controlled scripts (make, npm, sh, ...). PR-shipped sonar
+# inputs (config, coverage) are wiped on checkout; trusted replacements come
+# from $RUNNER_TEMP.
 name: SonarQube
 on:
   workflow_run:
@@ -25,6 +25,9 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
+      - name: Erase PR-shipped sonar config and coverage
+        run: rm -f sonar-project.properties cover.out
+
       - name: Use trusted sonar config from default branch
         run: |
           git fetch --depth=1 "https://github.com/${{ github.repository }}.git" HEAD
@@ -40,7 +43,6 @@ jobs:
       - name: Extract cover.out from artifact
         run: |
           test -f "${RUNNER_TEMP}/coverage/cover.out"
-          rm -f cover.out
           cp "${RUNNER_TEMP}/coverage/cover.out" cover.out
 
       - name: SonarQube scan for PR ${{ github.event.workflow_run.pull_requests[0].number }}
