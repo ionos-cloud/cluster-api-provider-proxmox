@@ -1,7 +1,8 @@
 # SECURITY: this workflow has SONAR_TOKEN and checks out untrusted PR code.
-# Never execute PR-controlled scripts (make, npm, sh, ...). PR-shipped sonar
-# inputs (config, coverage) are wiped on checkout; trusted replacements come
-# from $RUNNER_TEMP.
+# Never execute PR-controlled scripts (make, npm, sh, ...). The sonar config
+# is fetched from upstream into $RUNNER_TEMP (trusted). The coverage artifact
+# comes from PR-controlled `make test`; only its file handling is sandboxed.
+# PR-shipped copies of both are wiped from the workspace before scan.
 name: SonarQube
 on:
   workflow_run:
@@ -26,7 +27,7 @@ jobs:
           fetch-depth: 0
 
       - name: Erase PR-shipped sonar config and coverage
-        run: rm -f sonar-project.properties cover.out
+        run: rm -rf sonar-project.properties cover.out
 
       - name: Use trusted sonar config from default branch
         run: |
