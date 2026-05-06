@@ -327,7 +327,7 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		for _, v := range devices {
 			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
 				Name:  string(v.Name),
-				Value: formatNetworkDevice(ptr.Deref(v.Model, "virtio"), ptr.Deref(v.Bridge, ""), v.MTU, v.VLAN),
+				Value: formatNetworkDevice(ptr.Deref(v.Model, "virtio"), ptr.Deref(v.Bridge, ""), v.MTU, v.VLAN, v.Queues),
 			})
 		}
 	}
