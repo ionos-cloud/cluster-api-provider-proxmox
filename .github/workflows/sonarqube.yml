@@ -28,20 +28,21 @@ jobs:
       - name: Use trusted sonar config from default branch
         run: |
           git fetch --depth=1 "https://github.com/${{ github.repository }}.git" HEAD
+          rm -f sonar-project.properties
           git show FETCH_HEAD:sonar-project.properties > sonar-project.properties
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: coverage
-          path: ./coverage
+          path: ${{ runner.temp }}/coverage
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract cover.out from artifact
         run: |
-          test -f ./coverage/cover.out
-          cp ./coverage/cover.out cover.out
-          rm -rf ./coverage
+          test -f "${RUNNER_TEMP}/coverage/cover.out"
+          rm -f cover.out
+          cp "${RUNNER_TEMP}/coverage/cover.out" cover.out
 
       - name: SonarQube scan for PR ${{ github.event.workflow_run.pull_requests[0].number }}
         if: github.event.workflow_run.event == 'pull_request'
