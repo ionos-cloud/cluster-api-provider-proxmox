@@ -1,3 +1,7 @@
+# SECURITY: This workflow runs with SONAR_TOKEN and checks out untrusted PR
+# code. It must never execute PR-controlled scripts (make, npm, shell, etc.).
+# Only invoke trusted actions that read source files; do not add `run:` steps
+# that touch the PR checkout.
 name: SonarQube
 on:
   workflow_run:
@@ -56,6 +60,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
-        if: github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'push'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
