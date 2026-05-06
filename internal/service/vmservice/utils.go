@@ -195,11 +195,14 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 				return true
 			}
 		}
-		queues := extractNetworkQueue(net)
-		if queues != ptr.Deref(v.Queues, 0) {
-			return true
-		}
 
+		if v.Queues != nil {
+			queues := extractNetworkQueue(net)
+
+			if queues != *v.Queues {
+				return true
+			}
+		}
 	}
 
 	return false
@@ -207,7 +210,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 
 // formatNetworkDevice formats a network device config
 // example 'virtio,bridge=vmbr0,tag=100,queues=4'.
-func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32, queues int32) string {
+func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32, queues *int32) string {
 	var components = []string{model, fmt.Sprintf("bridge=%s", bridge)}
 
 	if mtu != nil {
@@ -218,8 +221,8 @@ func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32, queues i
 		components = append(components, fmt.Sprintf("tag=%d", *vlan))
 	}
 
-	if queues != 0 {
-		components = append(components, fmt.Sprintf("queues=%d", queues))
+	if queues != nil {
+		components = append(components, fmt.Sprintf("queues=%d", *queues))
 	}
 
 	return strings.Join(components, ",")
