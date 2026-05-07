@@ -50,7 +50,6 @@ jobs:
       REPO: ${{ github.event.repository.name }}
       PR: ${{ github.event.pull_request.number }}
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
-      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
     steps:
       - name: SHA freshness check
         id: pr
@@ -92,21 +91,23 @@ jobs:
             exit 1
           fi
 
-      - name: Symlink and submodule scan
+      - name: Non-normal file mode scan
         run: |
           set -euo pipefail
-          tree_json=$(gh api "repos/${HEAD_REPO}/git/trees/${EXPECTED_SHA}?recursive=1")
+          # Query the base repo, not HEAD_REPO: PR head SHAs are addressable via refs/pull/N/head, so this works even if the fork is deleted/renamed and avoids any auth ambiguity against an unrelated repo.
+          tree_json=$(gh api "repos/${OWNER}/${REPO}/git/trees/${EXPECTED_SHA}?recursive=1")
           if [ "$(echo "$tree_json" | jq -r '.truncated')" = "true" ]; then
-            echo "::error::Tree response truncated (>100k entries / 7MB); cannot guarantee no symlinks/submodules. Tree too large to scan; request PR split."
+            echo "::error::Tree response truncated (>100k entries / 7MB); cannot guarantee no non-normal entries. Tree too large to scan; request PR split."
             exit 1
           fi
+          # Allowlist normal Git modes: 040000 (directory), 100644 (file), 100755 (executable). Anything else — symlinks (120000), submodules (160000), or any future mode — fails closed.
           bad=$(echo "$tree_json" | jq -r '
             .tree[]
-            | select(.mode == "120000" or .mode == "160000")
+            | select(.mode != "040000" and .mode != "100644" and .mode != "100755")
             | "\(.mode) \(.path)"
           ')
           if [ -n "$bad" ]; then
-            echo "::error::PR contains symlinks (mode 120000) or submodules (mode 160000); not allowed in fork PRs. Offending entries:"
+            echo "::error::PR contains non-normal Git tree entries (e.g. symlinks 120000, submodules 160000); only directories and regular files are allowed. Offending entries:"
             echo "$bad"
             exit 1
           fi
