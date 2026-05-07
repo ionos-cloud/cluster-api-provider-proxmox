@@ -1,39 +1,167 @@
+# Triggers on push to main and pull_request_target. PR runs use base-repo
+# YAML (a fork can't edit this file), with these layered controls:
+#   pre-screen — git-only checks (diff size, sensitive paths, file modes).
+#                No PR code execution.
+#   test       — PR code runs in a digest-pinned Go container with
+#                permissions:{}. Container is the toolchain (no
+#                cache-using actions, no cache-poisoning surface).
+#   sonar      — environment-gated SONAR_TOKEN; upstream and PR trees in
+#                separate paths so the scanner reads upstream config but
+#                PR sources, never executing PR-supplied code.
+
 name: Test
+
 on:
   push:
     branches: ["main"]
-  pull_request:
+  pull_request_target: {}
 
 permissions:
   contents: read
 
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  pre-screen:
+    # Fork PRs only. Internal PRs and push events skip; downstream `if` allows skipped.
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Bail on large diffs
+        run: |
+          if [ "$CHANGED_FILES" -gt 100 ]; then
+            echo "::error::PR changes ${CHANGED_FILES} files (cap 100); request PR split or maintainer-authored re-submission"
+            exit 1
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0  # base history back to BASE_SHA
+          persist-credentials: false
+
+      - name: Fetch PR head and verify it matches the event payload
+        run: |
+          set -euo pipefail
+          # Fetch by ref (refs/pull/N/head is always advertised); pin to event-context HEAD_SHA so we screen exactly what the test job will execute.
+          git fetch --no-tags origin "refs/pull/${PR_NUMBER}/head"
+          if [ "$(git rev-parse FETCH_HEAD)" != "$HEAD_SHA" ]; then
+            echo "::error::PR head moved since trigger ($HEAD_SHA → $(git rev-parse FETCH_HEAD)); cancel-in-progress should have aborted this run"
+            exit 1
+          fi
+
+      - name: Sensitive-path scan
+        run: |
+          set -euo pipefail
+          # --no-renames so a rename A → B yields both paths; either side touching sensitive paths fails.
+          hits=$(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" \
+            | grep -E '^(Makefile|\.github/|go\.(mod|sum)|sonar-project\.properties|Dockerfile|hack/|tilt-provider\.json|\.[^/]+)' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::PR touches sensitive paths; re-submit via maintainer-authored PR. Offending paths:"
+            echo "$hits"
+            exit 1
+          fi
+
+      - name: Non-normal file mode scan
+        run: |
+          set -euo pipefail
+          # Allowlist regular files (100644) and executables (100755). Symlinks (120000), submodules (160000), and any future mode fail closed.
+          bad=$(git ls-tree -r "$HEAD_SHA" | awk '$1 != "100644" && $1 != "100755"')
+          if [ -n "$bad" ]; then
+            echo "::error::PR contains non-normal Git tree entries (only regular files allowed). Offending entries:"
+            echo "$bad"
+            exit 1
+          fi
+
   test:
+    needs: pre-screen
+    # always() bypasses GHA's "skip when needs is skipped"; the conjunction limits to success/skipped (not failure/cancelled).
+    if: always() && (needs.pre-screen.result == 'success' || needs.pre-screen.result == 'skipped')
     runs-on: ubuntu-latest
+    permissions: {}
+    container:
+      image: golang@sha256:298734aec230b5f3e8cee450ce6d7eccc39f1797ba548ee90d57e9803030c6c3 # 1.25-bookworm
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0 # for SonarQube
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false  # keep token out of .git/config so make verify / make test can't read it
 
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - run: make verify
+      - run: make test
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          go-version-file: go.mod
+          name: coverage
+          path: cover.out
+          retention-days: 7
 
-      - run: "make verify"
-      - run: "make test"
+  # SECURITY: holds SONAR_TOKEN. Never execute PR-supplied code, scripts, or actions in this job.
+  sonar:
+    needs: test
+    runs-on: ubuntu-slim
+    environment: sonar
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}  # pin to PR base SHA (matches pre-screen's BASE_SHA); falls back to github.sha for push events
+          path: upstream
+          persist-credentials: false
 
-      - name: SonarQube for PR ${{ github.event.pull_request.number }}
-        if: github.event_name == 'pull_request'
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: pr
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage
+          path: ${{ runner.temp }}/coverage
+
+      - name: Validate coverage file format
+        run: head -1 "${RUNNER_TEMP}/coverage/cover.out" | grep -q '^mode:'  # fail-fast against malformed coverage probing the parser
+
+      - name: SonarQube scan for PR ${{ github.event.pull_request.number }}
+        if: github.event_name == 'pull_request_target'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         with:
-         args: >
-           -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-           -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+          args: >
+            -Dproject.settings=upstream/sonar-project.properties
+            -Dsonar.projectBaseDir=pr
+            -Dsonar.go.coverage.reportPaths=${{ runner.temp }}/coverage/cover.out
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: SonarQube
+      - name: SonarQube scan
         if: github.event_name == 'push'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
+        with:
+          args: >
+            -Dproject.settings=upstream/sonar-project.properties
+            -Dsonar.projectBaseDir=pr
+            -Dsonar.go.coverage.reportPaths=${{ runner.temp }}/coverage/cover.out
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
