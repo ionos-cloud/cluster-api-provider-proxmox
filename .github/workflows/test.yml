@@ -28,11 +28,13 @@ jobs:
     # Fork PRs only. Internal PRs and push events skip; downstream `if` allows skipped.
     if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-slim
-    permissions: {}
+    permissions:
+      contents: read
     env:
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: Bail on large diffs
         run: |
@@ -44,8 +46,17 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0  # base history back to BASE_SHA
+          persist-credentials: false
 
-      - run: git fetch --no-tags origin "$HEAD_SHA"  # bring PR head into object store; fails closed if GC'd after force-push
+      - name: Fetch PR head and verify it matches the event payload
+        run: |
+          set -euo pipefail
+          # Fetch by ref (refs/pull/N/head is always advertised); pin to event-context HEAD_SHA so we screen exactly what the test job will execute.
+          git fetch --no-tags origin "refs/pull/${PR_NUMBER}/head"
+          if [ "$(git rev-parse FETCH_HEAD)" != "$HEAD_SHA" ]; then
+            echo "::error::PR head moved since trigger ($HEAD_SHA → $(git rev-parse FETCH_HEAD)); cancel-in-progress should have aborted this run"
+            exit 1
+          fi
 
       - name: Sensitive-path scan
         run: |
@@ -85,6 +96,7 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false  # keep token out of .git/config so make verify / make test can't read it
 
       - run: make verify
       - run: make test
@@ -106,12 +118,14 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: upstream
+          persist-credentials: false
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: pr
+          persist-credentials: false
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
