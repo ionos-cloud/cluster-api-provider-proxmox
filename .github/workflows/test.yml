@@ -11,6 +11,7 @@
 name: Test
 
 on:
+  pull_request: {}  # TESTING ONLY — remove before merge; lets internal PRs validate the new YAML
   pull_request_target: {}
   push:
     branches: ["main"]
@@ -104,7 +105,8 @@ jobs:
       - run: make verify
       - run: make test
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - if: always()  # TESTING ONLY — upload coverage even if make test failed flakily
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage
           path: cover.out
@@ -113,6 +115,8 @@ jobs:
   # SECURITY: holds SONAR_TOKEN. Never execute PR-supplied code, scripts, or actions in this job.
   sonar:
     needs: test
+    # TESTING ONLY — default if:success() would skip sonar when test job fails (flaky test).
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'failure')
     runs-on: ubuntu-slim
     environment: sonar
     permissions:
@@ -148,7 +152,7 @@ jobs:
         run: head -1 "${RUNNER_TEMP}/coverage/cover.out" | grep -q '^mode:'
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
-        if: github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'  # TESTING ONLY — drop pull_request before merge
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         with:
           args: >
