@@ -844,6 +844,18 @@ spec:
                   SchedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
                   to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
                 properties:
+                  cpuAdjustment:
+                    description: |-
+                      CPUAdjustment allows to adjust a node's CPU capacity by a given percentage.
+                      Setting it to 0 entirely disables scheduling CPU constraints (default).
+                    format: int64
+                    type: integer
+                  cpuTolerance:
+                    description: |-
+                      CPUTolerance expresses how acceptable it is to saturate CPU (0..100).
+                      Only used when CPUAdjustment > 0. Defaults to 100 (CPU saturation tolerated).
+                    format: int64
+                    type: integer
                   memoryAdjustment:
                     description: |-
                       MemoryAdjustment allows to adjust a node's memory by a given percentage.
@@ -851,6 +863,12 @@ spec:
                       and setting it to 95 limits memory allocation to 95% of a host's memory.
                       Setting it to 0 entirely disables scheduling memory constraints.
                       By default 100% of a node's memory will be used for allocation.
+                    format: int64
+                    type: integer
+                  memoryTolerance:
+                    description: |-
+                      MemoryTolerance expresses how acceptable it is to saturate memory (0..100).
+                      Only used when CPUAdjustment > 0. Defaults to 0 (memory fully protected).
                     format: int64
                     type: integer
                 type: object
@@ -1226,6 +1244,30 @@ spec:
                   schedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
                   to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
                 properties:
+                  cpuAdjustment:
+                    description: |-
+                      cpuAdjustment allows to adjust a node's CPU capacity by a given percentage.
+                      For example, setting it to 300 allows to allocate 300% of a host's CPU cores for VMs (3:1 overcommit),
+                      and setting it to 100 limits CPU allocation to the physical core count (no overcommit).
+                      Setting it to 0 entirely disables scheduling CPU constraints (default).
+                      When set to a non-zero value, the scheduler switches from round-robin placement
+                      to a tolerance-weighted scoring that considers both CPU and memory headroom.
+                      See memoryTolerance and cpuTolerance for preference tuning.
+                    format: int64
+                    minimum: 0
+                    type: integer
+                  cpuTolerance:
+                    description: |-
+                      cpuTolerance expresses how acceptable it is to saturate CPU on a node,
+                      on a scale from 0 (protect CPU at all costs) to 100 (CPU saturation is fine).
+                      Internally it is inverted into a weight: weight = (100 - cpuTolerance) / 100.
+                      With the default of 100, CPU acts only as a hard-fit constraint and does not
+                      influence the scoring between candidate nodes. Lower it to actively spread VMs
+                      across CPU capacity. Only used when cpuAdjustment > 0.
+                    format: int64
+                    maximum: 100
+                    minimum: 0
+                    type: integer
                   memoryAdjustment:
                     description: |-
                       memoryAdjustment allows to adjust a node's memory by a given percentage.
@@ -1234,6 +1276,18 @@ spec:
                       Setting it to 0 entirely disables scheduling memory constraints.
                       By default 100% of a node's memory will be used for allocation.
                     format: int64
+                    minimum: 0
+                    type: integer
+                  memoryTolerance:
+                    description: |-
+                      memoryTolerance expresses how acceptable it is to saturate memory on a node,
+                      on a scale from 0 (protect memory at all costs) to 100 (memory saturation is fine).
+                      Internally it is inverted into a weight: weight = (100 - memoryTolerance) / 100.
+                      A lower tolerance drives the scheduler away from nodes with low memory headroom.
+                      Defaults to 0 so memory is fully protected, consistent with CAPMOX's memory-first
+                      priority for HA workloads. Only used when cpuAdjustment > 0.
+                    format: int64
+                    maximum: 100
                     minimum: 0
                     type: integer
                 type: object

@@ -134,7 +134,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	}
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
-	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), ^uint64(0), nil).Once()
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -185,8 +185,8 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
-	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node1", int64(100)).Return(0, nil).Once()
-	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node1", int64(100)).Return(uint64(0), uint64(0), nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), ^uint64(0), nil).Once()
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.NoError(t, err)
@@ -218,7 +218,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector_VMTemplateNo
 	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node2"}
 
 	proxmoxClient.EXPECT().FindVMTemplateByTags(context.Background(), vmTemplateTags, "exact").Return("", -1, goproxmox.ErrTemplateNotFound).Once()
-	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), ^uint64(0), nil).Once()
 
 	_, err := createVM(ctx, machineScope)
 

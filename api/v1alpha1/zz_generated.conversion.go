@@ -1571,6 +1571,27 @@ func autoConvert_v1alpha1_SchedulerHints_To_v1alpha2_SchedulerHints(in *Schedule
 	} else {
 		out.MemoryAdjustment = nil
 	}
+	if in.CPUAdjustment != nil {
+		in, out := &in.CPUAdjustment, &out.CPUAdjustment
+		*out = new(int64)
+		**out = int64(**in)
+	} else {
+		out.CPUAdjustment = nil
+	}
+	if in.MemoryTolerance != nil {
+		in, out := &in.MemoryTolerance, &out.MemoryTolerance
+		*out = new(int64)
+		**out = int64(**in)
+	} else {
+		out.MemoryTolerance = nil
+	}
+	if in.CPUTolerance != nil {
+		in, out := &in.CPUTolerance, &out.CPUTolerance
+		*out = new(int64)
+		**out = int64(**in)
+	} else {
+		out.CPUTolerance = nil
+	}
 	return nil
 }
 
@@ -1586,6 +1607,27 @@ func autoConvert_v1alpha2_SchedulerHints_To_v1alpha1_SchedulerHints(in *v1alpha2
 		**out = uint64(**in)
 	} else {
 		out.MemoryAdjustment = nil
+	}
+	if in.CPUAdjustment != nil {
+		in, out := &in.CPUAdjustment, &out.CPUAdjustment
+		*out = new(uint64)
+		**out = uint64(**in)
+	} else {
+		out.CPUAdjustment = nil
+	}
+	if in.MemoryTolerance != nil {
+		in, out := &in.MemoryTolerance, &out.MemoryTolerance
+		*out = new(uint64)
+		**out = uint64(**in)
+	} else {
+		out.MemoryTolerance = nil
+	}
+	if in.CPUTolerance != nil {
+		in, out := &in.CPUTolerance, &out.CPUTolerance
+		*out = new(uint64)
+		**out = uint64(**in)
+	} else {
+		out.CPUTolerance = nil
 	}
 	return nil
 }

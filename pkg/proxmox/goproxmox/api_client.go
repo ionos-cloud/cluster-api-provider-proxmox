@@ -277,23 +277,26 @@ func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, er
 	return task, nil
 }
 
-// GetReservableMemoryBytes returns the memory that can be reserved by a new VM, in bytes.
-func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, error) {
+// GetReservableMemoryBytes returns the memory that can be reserved by a new VM (in bytes),
+// along with the total allocatable memory (after applying nodeMemoryAdjustment).
+func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, uint64, error) {
 	node := (&proxmox.Node{}).New(c.Client, nodeName)
 
 	if err := node.Status(ctx); err != nil {
-		return 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
+		return 0, 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
-	reservableMemory := uint64(float64(node.Memory.Total) / 100 * float64(nodeMemoryAdjustment))
+	allocatable := uint64(float64(node.Memory.Total) / 100 * float64(nodeMemoryAdjustment))
 
 	if nodeMemoryAdjustment == 0 {
-		return node.Memory.Total, nil
+		return node.Memory.Total, node.Memory.Total, nil
 	}
+
+	available := allocatable
 
 	vms, err := node.VirtualMachines(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("cannot list vms for node %s: %w", nodeName, err)
+		return 0, 0, fmt.Errorf("cannot list vms for node %s: %w", nodeName, err)
 	}
 
 	for _, vm := range vms {
@@ -301,27 +304,73 @@ func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName strin
 		if vm.Template {
 			continue
 		}
-		if reservableMemory < vm.MaxMem {
-			reservableMemory = 0
+		if available < vm.MaxMem {
+			available = 0
 		} else {
-			reservableMemory -= vm.MaxMem
+			available -= vm.MaxMem
 		}
 	}
 
 	containers, err := node.Containers(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("cannot list containers for node %s: %w", nodeName, err)
+		return 0, 0, fmt.Errorf("cannot list containers for node %s: %w", nodeName, err)
 	}
 
 	for _, ct := range containers {
-		if reservableMemory < ct.MaxMem {
-			reservableMemory = 0
+		if available < ct.MaxMem {
+			available = 0
 		} else {
-			reservableMemory -= ct.MaxMem
+			available -= ct.MaxMem
 		}
 	}
 
-	return reservableMemory, nil
+	return available, allocatable, nil
+}
+
+// GetReservableCPUCores returns the number of CPU cores that can be reserved by a new VM,
+// along with the total allocatable cores (after applying cpuAdjustment).
+func (c *APIClient) GetReservableCPUCores(ctx context.Context, nodeName string, cpuAdjustment int64) (int, int, error) {
+	node := (&proxmox.Node{}).New(c.Client, nodeName)
+
+	if err := node.Status(ctx); err != nil {
+		return 0, 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
+	}
+
+	totalCPUs := node.CPUInfo.CPUs
+	if cpuAdjustment == 0 {
+		// CPU constraints disabled — return a large value so it never limits scheduling.
+		return totalCPUs * 100, totalCPUs * 100, nil
+	}
+
+	allocatable := totalCPUs * int(cpuAdjustment) / 100
+	available := allocatable
+
+	vms, err := node.VirtualMachines(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("cannot list vms for node %s: %w", nodeName, err)
+	}
+
+	for _, vm := range vms {
+		if vm.Template {
+			continue
+		}
+		available -= vm.CPUs
+	}
+
+	containers, err := node.Containers(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("cannot list containers for node %s: %w", nodeName, err)
+	}
+
+	for _, ct := range containers {
+		available -= ct.CPUs
+	}
+
+	if available < 0 {
+		available = 0
+	}
+
+	return available, allocatable, nil
 }
 
 // ResizeDisk resizes a VM disk to the specified size.

@@ -130,6 +130,21 @@ type SchedulerHints struct {
 	// By default 100% of a node's memory will be used for allocation.
 	// +optional
 	MemoryAdjustment *uint64 `json:"memoryAdjustment,omitempty"`
+
+	// CPUAdjustment allows to adjust a node's CPU capacity by a given percentage.
+	// Setting it to 0 entirely disables scheduling CPU constraints (default).
+	// +optional
+	CPUAdjustment *uint64 `json:"cpuAdjustment,omitempty"`
+
+	// MemoryTolerance expresses how acceptable it is to saturate memory (0..100).
+	// Only used when CPUAdjustment > 0. Defaults to 0 (memory fully protected).
+	// +optional
+	MemoryTolerance *uint64 `json:"memoryTolerance,omitempty"`
+
+	// CPUTolerance expresses how acceptable it is to saturate CPU (0..100).
+	// Only used when CPUAdjustment > 0. Defaults to 100 (CPU saturation tolerated).
+	// +optional
+	CPUTolerance *uint64 `json:"cpuTolerance,omitempty"`
 }
 
 // GetMemoryAdjustment returns the memory adjustment percentage to use within the scheduler.
@@ -141,6 +156,39 @@ func (sh *SchedulerHints) GetMemoryAdjustment() uint64 {
 	}
 
 	return memoryAdjustment
+}
+
+// GetCPUAdjustment returns the CPU adjustment percentage to use within the scheduler.
+func (sh *SchedulerHints) GetCPUAdjustment() uint64 {
+	cpuAdjustment := uint64(0)
+
+	if sh != nil {
+		cpuAdjustment = ptr.Deref(sh.CPUAdjustment, 0)
+	}
+
+	return cpuAdjustment
+}
+
+// GetMemoryTolerance returns the memory saturation tolerance used by the scheduler.
+func (sh *SchedulerHints) GetMemoryTolerance() uint64 {
+	memoryTolerance := uint64(0)
+
+	if sh != nil {
+		memoryTolerance = ptr.Deref(sh.MemoryTolerance, 0)
+	}
+
+	return memoryTolerance
+}
+
+// GetCPUTolerance returns the CPU saturation tolerance used by the scheduler.
+func (sh *SchedulerHints) GetCPUTolerance() uint64 {
+	cpuTolerance := uint64(100)
+
+	if sh != nil {
+		cpuTolerance = ptr.Deref(sh.CPUTolerance, 100)
+	}
+
+	return cpuTolerance
 }
 
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
