@@ -298,21 +298,21 @@ func (r *ProxmoxClusterReconciler) reconcileFailureDomains(clusterScope *scope.C
 		return
 	}
 
-	fds := make([]clusterv1.FailureDomain, 0, len(pc.Spec.ZoneConfigs))
+	faildoms := make([]clusterv1.FailureDomain, 0, len(pc.Spec.ZoneConfigs))
 	for _, zc := range pc.Spec.ZoneConfigs {
 		zoneName := ptr.Deref(zc.Zone, "")
 		if zoneName == "" {
 			continue
 		}
 
-		fds = append(fds, clusterv1.FailureDomain{
+		faildoms = append(faildoms, clusterv1.FailureDomain{
 			Name:         zoneName,
 			ControlPlane: ptr.To(ptr.Deref(zc.ControlPlane, true)),
 		})
 	}
 
-	sort.Slice(fds, func(i, j int) bool { return fds[i].Name < fds[j].Name })
-	pc.Status.FailureDomains = fds
+	sort.Slice(faildoms, func(i, j int) bool { return faildoms[i].Name < faildoms[j].Name })
+	pc.Status.FailureDomains = faildoms
 }
 
 func (r *ProxmoxClusterReconciler) reconcileNormalCredentialsSecret(ctx context.Context, clusterScope *scope.ClusterScope) error {

@@ -217,14 +217,14 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 
 	// If the CAPI Machine has a failure domain set, restrict allowed nodes
 	// to those belonging to that zone and set the effective zone for IPAM.
-	if fd := machineScope.Machine.Spec.FailureDomain; fd != "" {
-		if err := machineScope.ApplyFailureDomainNodes(fd); err != nil {
-			machineScope.Logger.Error(err, "failure domain not found", "failureDomain", fd)
+	if faildom := machineScope.Machine.Spec.FailureDomain; faildom != "" {
+		if err := machineScope.ApplyFailureDomainNodes(faildom); err != nil {
+			machineScope.Logger.Error(err, "failure domain not found", "failureDomain", faildom)
 			conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 				Status:  metav1.ConditionFalse,
 				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedFailureDomainNotReadyReason,
-				Message: fmt.Sprintf("failure domain %q not found in ProxmoxCluster zones", fd),
+				Message: fmt.Sprintf("failure domain %q not found in ProxmoxCluster zones", faildom),
 			})
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
