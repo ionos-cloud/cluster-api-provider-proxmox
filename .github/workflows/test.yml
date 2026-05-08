@@ -25,8 +25,8 @@ concurrency:
 
 jobs:
   pre-screen:
-    # Fork PRs only. Internal PRs and push events skip; downstream `if` allows skipped.
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
+    # TESTING ONLY — first disjunct fires on this internal PR to demo the sensitive-path scan; remove before merge.
+    if: github.event_name == 'pull_request' || (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository)
     runs-on: ubuntu-slim
     permissions: {}
     env:
