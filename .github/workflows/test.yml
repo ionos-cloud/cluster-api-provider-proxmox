@@ -1,39 +1,184 @@
+# Triggers on push to main and pull_request_target. PR runs use base-repo
+# workflow (a fork can't edit this file), with these layered controls:
+#   pre-screen — git-only checks (diff size, sensitive paths, file modes).
+#                No PR code execution.
+#   test       — PR code runs in a digest-pinned Go container with
+#                permissions:{} in a container to avoid cache poisoning.
+#   sonar      — environment-gated SONAR_TOKEN; upstream and PR trees in
+#                separate paths. Scanner reads PR sources with upstream config
+#                (fork PRs) or PR config (internal PRs); never runs PR code.
+
 name: Test
+
 on:
+  pull_request_target: {}
   push:
     branches: ["main"]
-  pull_request:
 
 permissions:
   contents: read
 
+concurrency:
+  cancel-in-progress: true
+  group: test-${{ github.event.pull_request.number || github.ref }}
+
 jobs:
+  pre-screen:
+    # Fork PRs only. Internal PRs and push events skip; downstream `if` allows skipped.
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-slim
+    permissions: {}
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Bail on large diffs
+        run: |
+          if [ "$CHANGED_FILES" -gt 20 ]; then
+            echo "::error::PR changes ${CHANGED_FILES} files (>5%); please split the PR into reviewable chunks or request maintainer adoption"
+            exit 1
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0  # base history back to BASE_SHA
+          persist-credentials: false  # keep token out of .git/config so make verify / make test can't read it
+
+      # Fetch by ref (refs/pull/N/head is always advertised); pin to event-context
+      # HEAD_SHA so we screen exactly what the test job will execute.
+      - name: Fetch PR head and verify it matches the event payload
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "refs/pull/${PR_NUMBER}/head"
+          if [ "$(git rev-parse FETCH_HEAD)" != "$HEAD_SHA" ]; then
+            echo "::error::PR head moved since trigger ($HEAD_SHA → $(git rev-parse FETCH_HEAD)); cancel-in-progress should have aborted this run"
+            exit 1
+          fi
+
+      # --no-renames so a rename yields both paths; either side touching sensitive paths fails.
+      - name: Sensitive-path scan
+        run: |
+          set -euo pipefail
+          hits=$(git diff --name-only --no-renames -z "$BASE_SHA" "$HEAD_SHA" \
+            | grep -z -E '^(Makefile|\.github/|go\.(mod|sum)|sonar-project\.properties|Dockerfile|hack/|tilt-provider\.json|\.[^/]+)' \
+            | tr '\0' '\n' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::PR touches sensitive paths; re-submit via maintainer-authored PR. Offending paths:"
+            echo "$hits"
+            exit 1
+          fi
+
+      # Allow only regular files (100644) and executables (100755).
+      - name: Non-normal file mode scan
+        run: |
+          set -euo pipefail
+          bad=$(git ls-tree -r "$HEAD_SHA" | awk '$1 != "100644" && $1 != "100755"')
+          if [ -n "$bad" ]; then
+            echo "::error::PR contains non-normal Git tree entries (only regular files allowed). Offending entries:"
+            echo "$bad"
+            exit 1
+          fi
+
   test:
+    needs: pre-screen
+    # always() bypasses GHA's "skip when needs.* == skipped"; the conjunction limits to success/skipped (not failure/cancelled).
+    if: always() && (needs.pre-screen.result == 'success' || needs.pre-screen.result == 'skipped')
     runs-on: ubuntu-latest
+    permissions: {}
+    container:
+      image: golang@sha256:298734aec230b5f3e8cee450ce6d7eccc39f1797ba548ee90d57e9803030c6c3 # 1.25-bookworm
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0 # for SonarQube
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      # Container runs as root; the workspace is owned by the runner UID. Without this, `git diff` in `make verify` would fail with "dubious ownership".
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - run: make verify
+      - run: make test
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          go-version-file: go.mod
+          name: coverage
+          path: cover.out
+          retention-days: 7
 
-      - run: "make verify"
-      - run: "make test"
+  # SECURITY: holds SONAR_TOKEN. Never execute PR-supplied code, scripts, or actions in this job.
+  sonar:
+    needs: test
+    # Default `if: success()` would skip sonar whenever test failed; on main and dependabot PRs that means flaky/genuine test failures silently bypass the quality gate. Run sonar whenever test actually executed.
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'failure')
+    runs-on: ubuntu-slim
+    environment: sonar
+    permissions:
+      contents: read
+    env:
+      # Fork PRs scan with the upstream sonar config (untrusted PR); internal PRs and pushes scan with the local pr/ tree, so the upstream checkout is skipped for those.
+      SONAR_CONFIG_DIR: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository && 'upstream' || 'pr' }}
+      # Hardcode the SonarCloud URL so the scanner can't be redirected via PR-supplied sonar.host.url; SONAR_HOST_URL env beats both -D args and sonar-project.properties.
+      SONAR_HOST_URL: https://sonarcloud.io
+    steps:
+      - if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: upstream
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha }}  # pin to PR base SHA (matches pre-screen's BASE_SHA)
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0  # SonarQube needs git history for blame and new-code attribution
+          path: pr
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage
+          path: ${{ runner.temp }}/coverage
+
+      # fail-fast against malformed coverage file
+      - name: Validate coverage file format
+        run: head -1 "${RUNNER_TEMP}/coverage/cover.out" | grep -q '^mode:'
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         with:
-         args: >
-           -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-           -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+          args: >
+            -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
+            -Dsonar.go.coverage.reportPaths=${{ runner.temp }}/coverage/cover.out
+            -Dsonar.projectBaseDir=pr
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+            -Dsonar.working.directory=${{ runner.temp }}/scannerwork
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: SonarQube
         if: github.event_name == 'push'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
+        with:
+          args: >
+            -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
+            -Dsonar.go.coverage.reportPaths=${{ runner.temp }}/coverage/cover.out
+            -Dsonar.projectBaseDir=pr
+            -Dsonar.working.directory=${{ runner.temp }}/scannerwork
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
+        with:
+          scanMetadataReportFile: ${{ runner.temp }}/scannerwork/report-task.txt
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
