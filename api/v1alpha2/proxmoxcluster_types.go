@@ -187,8 +187,8 @@ type SchedulerHints struct {
 	MemoryAdjustment *int64 `json:"memoryAdjustment,omitempty"`
 
 	// cpuAdjustment allows to adjust a node's CPU capacity by a given percentage.
-	// For example, setting it to 300 allows to allocate 300% of a host's CPU cores for VMs (3:1 overcommit),
-	// and setting it to 100 limits CPU allocation to the physical core count (no overcommit).
+	// For example, setting it to 300 allows allocating 300% of a host's CPU cores for VMs (3:1 overcommit),
+	// and setting it to 95 limits CPU allocation to 95% of the physical core count.
 	// Setting it to 0 entirely disables scheduling CPU constraints (default).
 	// When set to a non-zero value, the scheduler switches from round-robin placement
 	// to a tolerance-weighted scoring that considers both CPU and memory headroom.
