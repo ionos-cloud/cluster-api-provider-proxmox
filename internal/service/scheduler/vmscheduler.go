@@ -124,7 +124,7 @@ func selectNode(
 	}
 
 	requestedMemory := uint64(ptr.Deref(machine.Spec.MemoryMiB, 0)) * 1024 * 1024
-	requestedCPUs := int(ptr.Deref(machine.Spec.NumSockets, 0)) * int(ptr.Deref(machine.Spec.NumCores, 0))
+	requestedCPUs := ptr.Deref(machine.Spec.NumSockets, 0) * ptr.Deref(machine.Spec.NumCores, 0)
 
 	if cpuAware {
 		return selectNodeByToleranceScoring(
@@ -217,7 +217,7 @@ func selectNodeByToleranceScoring(
 	nodes []nodeInfo,
 	locations []infrav1.NodeLocation,
 	requestedMemory uint64,
-	requestedCPUs int,
+	requestedCPUs int32,
 	memoryAdjustment, cpuAdjustment int64,
 	memoryTolerance, cpuTolerance int64,
 ) (string, error) {
@@ -241,11 +241,11 @@ func selectNodeByToleranceScoring(
 	for _, n := range nodes {
 		pending := pendingCount[n.Name]
 		pendingMem := uint64(pending) * requestedMemory
-		pendingCPU := pending * requestedCPUs
+		pendingCPU := int32(pending) * requestedCPUs
 
 		// Hard-fit accounts for pending VMs too, so rapid-fire scheduling can't
 		// overflow a node that just got several placements committed.
-		if requestedMemory+pendingMem > n.AvailableMemory || requestedCPUs+pendingCPU > n.AvailableCPUs {
+		if requestedMemory+pendingMem > n.AvailableMemory || requestedCPUs+pendingCPU > int32(n.AvailableCPUs) {
 			continue
 		}
 
@@ -256,7 +256,7 @@ func selectNodeByToleranceScoring(
 		physCPU := float64(n.AllocatableCPUs) * 100.0 / float64(cpuAdjustment)
 
 		usedMem := float64(n.AllocatableMemory-n.AvailableMemory+pendingMem) + float64(requestedMemory)
-		usedCPU := float64(n.AllocatableCPUs-n.AvailableCPUs+pendingCPU) + float64(requestedCPUs)
+		usedCPU := float64(int32(n.AllocatableCPUs-n.AvailableCPUs)+pendingCPU) + float64(requestedCPUs)
 
 		scoreMem := resourceScore(physMem, float64(n.AllocatableMemory), usedMem)
 		scoreCPU := resourceScore(physCPU, float64(n.AllocatableCPUs), usedCPU)
@@ -340,7 +340,7 @@ func resourceScore(phys, alloc, used float64) float64 {
 // buildInsufficientError returns the best-fitting error when no candidate fits
 // the request: InsufficientMemoryError if no node has enough memory available,
 // otherwise InsufficientCPUError pointing at the node with the largest CPU headroom.
-func buildInsufficientError(nodes []nodeInfo, requestedMemory uint64, requestedCPUs int) error {
+func buildInsufficientError(nodes []nodeInfo, requestedMemory uint64, requestedCPUs int32) error {
 	byMem := make([]nodeInfo, len(nodes))
 	copy(byMem, nodes)
 	sort.Sort(sortByAvailableMemory(byMem))
@@ -360,7 +360,7 @@ func buildInsufficientError(nodes []nodeInfo, requestedMemory uint64, requestedC
 	return InsufficientCPUError{
 		node:      bestCPU.Name,
 		available: bestCPU.AvailableCPUs,
-		requested: requestedCPUs,
+		requested: int(requestedCPUs),
 	}
 }
 
