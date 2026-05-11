@@ -1232,9 +1232,8 @@ spec:
                       For example, setting it to 300 allows allocating 300% of a host's CPU cores for VMs (3:1 overcommit),
                       and setting it to 95 limits CPU allocation to 95% of the physical core count.
                       Setting it to 0 entirely disables scheduling CPU constraints (default).
-                      When set to a non-zero value, the scheduler switches from round-robin placement
-                      to a tolerance-weighted scoring that considers both CPU and memory headroom.
-                      See memoryTolerance and cpuTolerance for preference tuning.
+                      When set to a non-zero value, CPU becomes a hard-fit constraint and a scoring
+                      dimension alongside memory; see memoryTolerance and cpuTolerance for tuning.
                     format: int64
                     minimum: 0
                     type: integer

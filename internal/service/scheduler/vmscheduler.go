@@ -87,6 +87,24 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, schedulerHints)
 }
 
+// selectNode picks a node from the allowed list for a new VM. It always runs
+// the same scoring algorithm: each candidate node gets a non-linear score
+// based on remaining headroom after hypothetical placement, with the physical
+// range worth more than the overcommit range and near-saturation penalized
+// quadratically. Tolerance values are inverted into weights: higher tolerance
+// for a resource means it contributes less to the decision (= the operator is
+// fine saturating it). The node with the highest total score wins.
+//
+// Existing placements recorded in status.NodeLocations inflate the effective
+// usage in the score calculation, so rapid-fire scheduling — Proxmox's
+// resource API takes seconds to reflect just-cloned VMs — spreads across
+// nodes instead of clumping on the first-chosen winner. The inflation only
+// applies to the score, not to the hard-fit check, so already-up-to-date
+// availability data is never double-counted.
+//
+// When cpuAdjustment is 0, CPU information is not fetched, CPU is not used
+// as a hard-fit constraint, and CPU does not contribute to the score; the
+// algorithm degrades to memory-only scoring with the same curve.
 func selectNode(
 	ctx context.Context,
 	client resourceClient,
@@ -97,7 +115,7 @@ func selectNode(
 ) (string, error) {
 	memoryAdjustment := schedulerHints.GetMemoryAdjustment()
 	cpuAdjustment := schedulerHints.GetCPUAdjustment()
-	cpuAware := cpuAdjustment > 0
+	cpuEnabled := cpuAdjustment > 0
 
 	nodes := make([]nodeInfo, len(allowedNodes))
 	for i, nodeName := range allowedNodes {
@@ -107,7 +125,7 @@ func selectNode(
 		}
 
 		var cpus, allocCPUs int
-		if cpuAware {
+		if cpuEnabled {
 			cpus, allocCPUs, err = client.GetReservableCPUCores(ctx, nodeName, cpuAdjustment)
 			if err != nil {
 				return "", err
@@ -123,104 +141,12 @@ func selectNode(
 		}
 	}
 
-	requestedMemory := uint64(ptr.Deref(machine.Spec.MemoryMiB, 0)) * 1024 * 1024
+	requestedMemory := uint64(ptr.Deref(machine.Spec.MemoryMiB, 0)) * 1024 * 1024 // convert to bytes
 	requestedCPUs := ptr.Deref(machine.Spec.NumSockets, 0) * ptr.Deref(machine.Spec.NumCores, 0)
 
-	if cpuAware {
-		return selectNodeByToleranceScoring(
-			ctx, nodes, locations, requestedMemory, requestedCPUs,
-			memoryAdjustment, cpuAdjustment,
-			schedulerHints.GetMemoryTolerance(), schedulerHints.GetCPUTolerance(),
-		)
-	}
+	memoryTolerance := schedulerHints.GetMemoryTolerance()
+	cpuTolerance := schedulerHints.GetCPUTolerance()
 
-	return selectNodeByRoundRobin(ctx, nodes, locations, requestedMemory)
-}
-
-// selectNodeByRoundRobin is the legacy scheduling algorithm: round-robin by VM count with memory as the only constraint.
-func selectNodeByRoundRobin(
-	ctx context.Context,
-	nodes []nodeInfo,
-	locations []infrav1.NodeLocation,
-	requestedMemory uint64,
-) (string, error) {
-	byMemory := sortByAvailableMemory(nodes)
-	sort.Sort(byMemory)
-
-	if requestedMemory > byMemory[0].AvailableMemory {
-		return "", InsufficientMemoryError{
-			node:      byMemory[0].Name,
-			available: byMemory[0].AvailableMemory,
-			requested: requestedMemory,
-		}
-	}
-
-	nodeCounter := make(map[string]int)
-	for _, nl := range locations {
-		nodeCounter[nl.Node]++
-	}
-
-	for i, info := range byMemory {
-		info.ScheduledVMs = nodeCounter[info.Name]
-		byMemory[i] = info
-	}
-
-	byReplicas := make(sortByReplicas, len(byMemory))
-	copy(byReplicas, byMemory)
-	sort.Sort(byReplicas)
-
-	decision := byMemory[0].Name
-	for _, info := range byReplicas {
-		if requestedMemory < info.AvailableMemory {
-			decision = info.Name
-			break
-		}
-	}
-
-	if logger := logr.FromContextOrDiscard(ctx); logger.V(4).Enabled() {
-		logger.Info("Scheduler decision (round-robin)",
-			"byReplicas", byReplicas.String(),
-			"byMemory", byMemory.String(),
-			"requestedMemory", requestedMemory,
-			"resultNode", decision,
-		)
-	}
-
-	return decision, nil
-}
-
-// selectNodeByToleranceScoring picks the node that maximizes a tolerance-weighted
-// non-linear score across CPU and memory. Each resource contributes a score based
-// on remaining headroom after hypothetical placement, where the physical range is
-// worth more than the overcommit range and near-saturation is penalized quadratically.
-// Tolerance values are inverted into weights: higher tolerance (= more acceptable to
-// saturate that resource) means less influence on the decision.
-//
-// To avoid clumping when multiple VMs are scheduled in rapid succession (Proxmox's
-// resource API takes seconds to reflect just-cloned VMs, so back-to-back decisions
-// see identical availability and converge on the same winner) the node's effective
-// usage is inflated by the count of placements already recorded in
-// status.NodeLocations for this cluster, each treated as if it consumed the same
-// resources as the current request. The legacy round-robin branch uses the same
-// NodeLocations signal for the same reason.
-//
-// Known trade-off: a placement stays in NodeLocations for the entire lifetime of
-// the VM, so VMs that have been running for a long time double-count — once in the
-// live Proxmox resource data and once in this pending inflation. This biases the
-// scheduler against nodes with many long-lived placements from the same cluster.
-// In practice the effect is bounded (only this cluster's placements count, not
-// other clusters on the same Proxmox) and matches the spreading intent of the
-// tolerance model, so the trade-off is accepted rather than worked around with
-// timestamped entries.
-func selectNodeByToleranceScoring(
-	ctx context.Context,
-	nodes []nodeInfo,
-	locations []infrav1.NodeLocation,
-	requestedMemory uint64,
-	requestedCPUs int32,
-	memoryAdjustment, cpuAdjustment int64,
-	memoryTolerance, cpuTolerance int64,
-) (string, error) {
 	type scored struct {
 		nodeInfo
 		scoreMem   float64
@@ -232,6 +158,7 @@ func selectNodeByToleranceScoring(
 	wMem := float64(100-memoryTolerance) / 100.0
 	wCPU := float64(100-cpuTolerance) / 100.0
 
+	// count the existing placements per node from NodeLocations
 	pendingCount := make(map[string]int, len(locations))
 	for _, nl := range locations {
 		pendingCount[nl.Node]++
@@ -239,27 +166,33 @@ func selectNodeByToleranceScoring(
 
 	var candidates []scored
 	for _, n := range nodes {
-		pending := pendingCount[n.Name]
-		pendingMem := uint64(pending) * requestedMemory
-		pendingCPU := int32(pending) * requestedCPUs
-
-		// Hard-fit accounts for pending VMs too, so rapid-fire scheduling can't
-		// overflow a node that just got several placements committed.
-		if requestedMemory+pendingMem > n.AvailableMemory || requestedCPUs+pendingCPU > int32(n.AvailableCPUs) {
+		// Hard-fit against the raw availability reported by Proxmox.
+		// Pending inflation is applied only to the score below, not here,
+		// so up-to-date availability data is never double-counted.
+		if requestedMemory > n.AvailableMemory {
 			continue
 		}
+		if cpuEnabled && requestedCPUs > int32(n.AvailableCPUs) {
+			continue
+		}
+
+		pending := pendingCount[n.Name]
+		pendingMem := uint64(pending) * requestedMemory
 
 		physMem := float64(n.AllocatableMemory)
 		if memoryAdjustment > 0 {
 			physMem = float64(n.AllocatableMemory) * 100.0 / float64(memoryAdjustment)
 		}
-		physCPU := float64(n.AllocatableCPUs) * 100.0 / float64(cpuAdjustment)
-
 		usedMem := float64(n.AllocatableMemory-n.AvailableMemory+pendingMem) + float64(requestedMemory)
-		usedCPU := float64(int32(n.AllocatableCPUs-n.AvailableCPUs)+pendingCPU) + float64(requestedCPUs)
-
 		scoreMem := resourceScore(physMem, float64(n.AllocatableMemory), usedMem)
-		scoreCPU := resourceScore(physCPU, float64(n.AllocatableCPUs), usedCPU)
+
+		var scoreCPU float64
+		if cpuEnabled {
+			pendingCPU := int32(pending) * requestedCPUs
+			physCPU := float64(n.AllocatableCPUs) * 100.0 / float64(cpuAdjustment)
+			usedCPU := float64(int32(n.AllocatableCPUs-n.AvailableCPUs)+pendingCPU) + float64(requestedCPUs)
+			scoreCPU = resourceScore(physCPU, float64(n.AllocatableCPUs), usedCPU)
+		}
 
 		candidates = append(candidates, scored{
 			nodeInfo:   n,
@@ -275,12 +208,18 @@ func selectNodeByToleranceScoring(
 	}
 
 	sort.SliceStable(candidates, func(i, j int) bool {
-		return candidates[i].scoreTotal > candidates[j].scoreTotal
+		// primary: curve-based score (higher wins); tie-break: raw memory
+		// headroom (kicks in when many nodes saturate under pending inflation).
+		if candidates[i].scoreTotal != candidates[j].scoreTotal {
+			return candidates[i].scoreTotal > candidates[j].scoreTotal
+		}
+		return candidates[i].AvailableMemory > candidates[j].AvailableMemory
 	})
 
 	decision := candidates[0].Name
 
 	if logger := logr.FromContextOrDiscard(ctx); logger.V(4).Enabled() {
+		// only construct values when message should actually be logged
 		type logEntry struct {
 			Node       string  `json:"node"`
 			Mem        uint64  `json:"availMem"`
@@ -303,7 +242,7 @@ func selectNodeByToleranceScoring(
 			}
 		}
 		data, _ := json.Marshal(entries)
-		logger.Info("Scheduler decision (tolerance)",
+		logger.Info("Scheduler decision",
 			"candidates", string(data),
 			"requestedMemory", requestedMemory,
 			"requestedCPUs", requestedCPUs,
@@ -375,20 +314,6 @@ type nodeInfo struct {
 	AllocatableMemory uint64 `json:"allocMem"`
 	AvailableCPUs     int    `json:"cpu"`
 	AllocatableCPUs   int    `json:"allocCpu"`
-	ScheduledVMs      int    `json:"vms"`
-}
-
-type sortByReplicas []nodeInfo
-
-func (a sortByReplicas) Len() int      { return len(a) }
-func (a sortByReplicas) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a sortByReplicas) Less(i, j int) bool {
-	return a[i].ScheduledVMs < a[j].ScheduledVMs
-}
-
-func (a sortByReplicas) String() string {
-	o, _ := json.Marshal(a)
-	return string(o)
 }
 
 type sortByAvailableMemory []nodeInfo

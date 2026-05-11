@@ -178,21 +178,21 @@ For example, setting it to `0` (zero), entirely disables scheduling based on mem
 
 #### CPU-aware scheduling
 
-On heterogeneous Proxmox clusters — where nodes have different CPU core counts — the default round-robin scheduler distributes VMs evenly by count, which can cause CPU overcommit on nodes with fewer cores.
+On heterogeneous Proxmox clusters — where nodes have different CPU core counts — the default memory-only scheduler distributes VMs by memory headroom alone, which can cause CPU overcommit on nodes with fewer cores.
 
-Setting `.spec.schedulerHints.cpuAdjustment` to a value greater than `0` switches the scheduler from round-robin placement to a **tolerance-weighted scoring** that considers both CPU and memory headroom. For each candidate node, the scheduler computes a per-resource score based on remaining headroom after hypothetical placement: free capacity in the physical range counts fully, free capacity in the overcommit range counts less, and nodes close to saturation are penalized non-linearly. The two per-resource scores are then combined with weights derived from `memoryTolerance` and `cpuTolerance`, and the node with the highest total score wins.
+Setting `.spec.schedulerHints.cpuAdjustment` to a value greater than `0` adds CPU as a hard-fit constraint and as a scoring dimension alongside memory. For each candidate node, the scheduler computes a per-resource score based on remaining headroom after hypothetical placement: free capacity in the physical range counts fully, free capacity in the overcommit range counts less, and nodes close to saturation are penalized non-linearly. The two per-resource scores are then combined with weights derived from `memoryTolerance` and `cpuTolerance`, and the node with the highest total score wins.
 
 Two separate knobs control the behaviour:
 
 - **Adjustment** — how much overcommit to allow. `cpuAdjustment: 300` means a 64-core host can allocate up to 192 vCPUs; `cpuAdjustment: 100` disables overcommit.
-- **Tolerance** — how acceptable it is to saturate a resource, in `[0, 100]`. Higher tolerance means the scheduler is *more willing* to fill up that resource, so it contributes less to the decision. Internally the weight is inverted: `weight = (100 − tolerance) / 100`.
+- **Tolerance** — how acceptable it is to saturate a resource, in `[0, 100]`. Higher tolerance means the scheduler is *more willing* to fill up that resource, so it contributes less to the decision.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `cpuAdjustment` | `0` | CPU ignored entirely (legacy round-robin). Set to `100`+ to enable CPU-aware scoring. |
+| `cpuAdjustment` | `0` | CPU not considered: no hard-fit check, no contribution to the score. Set to `100`+ to enable CPU-aware scoring. |
 | `memoryAdjustment` | `100` | Memory allocatable as `phys × value/100`. Values below 100 reserve memory for the host. |
 | `cpuTolerance` | `100` | By default CPU is only a hard-fit constraint; it does not drive the choice between fitting nodes. Lower it (e.g. `50`) to actively spread VMs across CPU capacity. |
-| `memoryTolerance` | `0` | Memory is fully protected: the scheduler always prefers nodes with more free memory. Consistent with CAPMOX's memory-first priority for HA workloads. |
+| `memoryTolerance` | `0` | Memory is fully protected: the scheduler always prefers nodes with more free memory. |
 
 **Example 1 — spread VMs across CPU while still protecting memory:**
 

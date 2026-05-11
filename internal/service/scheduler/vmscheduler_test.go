@@ -97,10 +97,10 @@ func TestSelectNode(t *testing.T) {
 	}
 
 	expectedNodes := []string{
-		// initial round-robin: everyone has enough memory
+		// initial pass: pick by memory headroom score
 		"pve2", "pve1", "pve3",
-		// second round-robin: pve3 out of memory
-		"pve2", "pve1", "pve2",
+		// second pass: pve3 out of memory; pending inflation drives the spread
+		"pve2", "pve2", "pve1",
 	}
 
 	for i, expectedNode := range expectedNodes {
@@ -158,12 +158,12 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 	}
 
 	expectedNodes := []string{
-		// initial round-robin: everyone has enough memory
+		// initial pass: pick by memory headroom score
 		"pve2", "pve1", "pve3",
-		// second round-robin: pve3 out of memory
+		// second pass: pve3 out of memory; pending inflation spreads across pve1/pve2
 		"pve2", "pve1", "pve2",
-		// third round-robin: pve1 and pve2 has room for one more VM each
-		"pve1", "pve2",
+		// third pass: pve1 and pve2 have room for one more VM each
+		"pve2", "pve1",
 	}
 
 	for i, expectedNode := range expectedNodes {
@@ -285,12 +285,12 @@ func TestScheduleVM(t *testing.T) {
 
 	node, err := ScheduleVM(context.Background(), machineScope)
 	require.NoError(t, err)
-	require.Equal(t, "pve2", node)
+	require.Equal(t, "pve1", node)
 }
 
 func TestToleranceScoringCPUDisabled(t *testing.T) {
-	// When cpuAdjustment=0 the scheduler must fall through to the legacy round-robin,
-	// ignoring any tolerance hints.
+	// When cpuAdjustment=0 CPU is not fetched and does not influence scoring;
+	// the algorithm degrades to memory-only curve scoring regardless of tolerance hints.
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
 	availableMem := map[string]uint64{
 		"pve1": miBytes(20),
@@ -464,7 +464,7 @@ func TestToleranceScoringHardConstraintMemory(t *testing.T) {
 func TestToleranceScoringHeterogeneousRegression(t *testing.T) {
 	// Regression for issue #724: on a heterogeneous cluster (some nodes with 64 cores,
 	// others with 32 cores) scheduling N VMs with balanced tolerance must keep the
-	// per-node CPU allocation ratio spread contained, unlike the legacy round-robin.
+	// per-node CPU allocation ratio spread contained, unlike the legacy memory-only scheduler.
 	// We schedule 24 identical VMs (2 cores, 8MiB each) across 4 nodes and assert that
 	// the max_ratio / min_ratio across nodes stays below 2.0.
 	allowedNodes := []string{"big1", "big2", "small1", "small2"}
@@ -532,7 +532,7 @@ func TestToleranceScoringHeterogeneousRegression(t *testing.T) {
 		}
 	}
 	t.Logf("CPU allocation per node: %v (ratios min=%.3f max=%.3f spread=%.3fx)", usedCPU, minRatio, maxRatio, maxRatio/minRatio)
-	// Legacy round-robin on this scenario hits ~4.4x spread (see issue #724).
+	// The legacy memory-only scheduler on this scenario hits ~4.4x spread (see issue #724).
 	// The current tolerance-weighted implementation measures at ~1.43x; the bound
 	// at 1.5x catches any regression in the scoring curve or pending inflation.
 	require.Less(t, maxRatio/minRatio, 1.5,
