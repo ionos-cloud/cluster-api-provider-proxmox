@@ -198,22 +198,16 @@ type SchedulerHints struct {
 	CPUAdjustment *int64 `json:"cpuAdjustment,omitempty"`
 
 	// memoryTolerance expresses how acceptable it is to saturate memory on a node,
-	// on a scale from 0 (protect memory at all costs) to 100 (memory saturation is fine).
-	// Internally it is inverted into a weight: weight = (100 - memoryTolerance) / 100.
-	// A lower tolerance drives the scheduler away from nodes with low memory headroom.
-	// Defaults to 0 so memory is fully protected, consistent with CAPMOX's memory-first
-	// priority for HA workloads. Only used when cpuAdjustment > 0.
+	// in [0, 100]. Lower values make the scheduler more protective of memory.
+	// Only used when cpuAdjustment > 0. Defaults to 0.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	// +optional
 	MemoryTolerance *int64 `json:"memoryTolerance,omitempty"`
 
 	// cpuTolerance expresses how acceptable it is to saturate CPU on a node,
-	// on a scale from 0 (protect CPU at all costs) to 100 (CPU saturation is fine).
-	// Internally it is inverted into a weight: weight = (100 - cpuTolerance) / 100.
-	// With the default of 100, CPU acts only as a hard-fit constraint and does not
-	// influence the scoring between candidate nodes. Lower it to actively spread VMs
-	// across CPU capacity. Only used when cpuAdjustment > 0.
+	// in [0, 100]. Lower values make the scheduler more protective of CPU.
+	// Only used when cpuAdjustment > 0. Defaults to 100.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	// +optional

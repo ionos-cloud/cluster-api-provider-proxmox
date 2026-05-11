@@ -887,18 +887,6 @@ spec:
                           SchedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
                           to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
                         properties:
-                          cpuAdjustment:
-                            description: |-
-                              CPUAdjustment allows to adjust a node's CPU capacity by a given percentage.
-                              Setting it to 0 entirely disables scheduling CPU constraints (default).
-                            format: int64
-                            type: integer
-                          cpuTolerance:
-                            description: |-
-                              CPUTolerance expresses how acceptable it is to saturate CPU (0..100).
-                              Only used when CPUAdjustment > 0. Defaults to 100 (CPU saturation tolerated).
-                            format: int64
-                            type: integer
                           memoryAdjustment:
                             description: |-
                               MemoryAdjustment allows to adjust a node's memory by a given percentage.
@@ -906,12 +894,6 @@ spec:
                               and setting it to 95 limits memory allocation to 95% of a host's memory.
                               Setting it to 0 entirely disables scheduling memory constraints.
                               By default 100% of a node's memory will be used for allocation.
-                            format: int64
-                            type: integer
-                          memoryTolerance:
-                            description: |-
-                              MemoryTolerance expresses how acceptable it is to saturate memory (0..100).
-                              Only used when CPUAdjustment > 0. Defaults to 0 (memory fully protected).
                             format: int64
                             type: integer
                         type: object
@@ -1143,11 +1125,8 @@ spec:
                           cpuTolerance:
                             description: |-
                               cpuTolerance expresses how acceptable it is to saturate CPU on a node,
-                              on a scale from 0 (protect CPU at all costs) to 100 (CPU saturation is fine).
-                              Internally it is inverted into a weight: weight = (100 - cpuTolerance) / 100.
-                              With the default of 100, CPU acts only as a hard-fit constraint and does not
-                              influence the scoring between candidate nodes. Lower it to actively spread VMs
-                              across CPU capacity. Only used when cpuAdjustment > 0.
+                              in [0, 100]. Lower values make the scheduler more protective of CPU.
+                              Only used when cpuAdjustment > 0. Defaults to 100.
                             format: int64
                             maximum: 100
                             minimum: 0
@@ -1165,11 +1144,8 @@ spec:
                           memoryTolerance:
                             description: |-
                               memoryTolerance expresses how acceptable it is to saturate memory on a node,
-                              on a scale from 0 (protect memory at all costs) to 100 (memory saturation is fine).
-                              Internally it is inverted into a weight: weight = (100 - memoryTolerance) / 100.
-                              A lower tolerance drives the scheduler away from nodes with low memory headroom.
-                              Defaults to 0 so memory is fully protected, consistent with CAPMOX's memory-first
-                              priority for HA workloads. Only used when cpuAdjustment > 0.
+                              in [0, 100]. Lower values make the scheduler more protective of memory.
+                              Only used when cpuAdjustment > 0. Defaults to 0.
                             format: int64
                             maximum: 100
                             minimum: 0

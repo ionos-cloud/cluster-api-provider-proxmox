@@ -729,8 +729,8 @@ func TestReconcileVM_StateMachine(t *testing.T) {
 	task := newTask()
 
 	// Round 0: no VM exists yet; CloneVM creates one and requeues for the task to complete.
-	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node1", int64(100)).Return(0, nil).Once()
-	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node1", int64(100)).Return(uint64(0), uint64(0), nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), ^uint64(0), nil).Once()
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, proxmox.VMCloneRequest{
 		Node:        "node1",
 		Name:        "test",
