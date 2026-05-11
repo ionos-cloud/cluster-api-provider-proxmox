@@ -1116,7 +1116,7 @@ spec:
                           type: string
                         queues:
                           description: |-
-                            Queues is the number of queues assigned to the device.
+                            queues is the number of queues assigned to the device.
                             This value is passed to the Multiqueue field in PROXMOX.
                           format: int32
                           maximum: 65535
