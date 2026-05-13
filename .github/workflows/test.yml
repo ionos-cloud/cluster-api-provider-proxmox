@@ -113,6 +113,8 @@ jobs:
   # SECURITY: holds SONAR_TOKEN. Never execute PR-supplied code, scripts, or actions in this job.
   sonar:
     needs: test
+    # Default `if: success()` would skip sonar whenever test failed; on main and dependabot PRs that means flaky/genuine test failures silently bypass the quality gate. Run sonar whenever test actually executed.
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'failure')
     runs-on: ubuntu-slim
     environment: sonar
     permissions:
