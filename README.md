@@ -48,9 +48,9 @@ Further documentation is available in the `/docs` directory.
 
 Learn how to engage with the Kubernetes community on the [community page](http://kubernetes.io/community/).
 
-You can reach the maintainers of this project at:
+You can reach the maintainers of this project on the [Slack channel](https://kubernetes.slack.com/messages/cluster-api-proxmox).
 
-- [Slack channel](https://kubernetes.slack.com/messages/cluster-api-proxmox)
+See what the community is doing with CAPMOX on the [In the media page](./docs/media.md).
 
 ## Security
 
