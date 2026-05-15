@@ -16,7 +16,7 @@ limitations under the License.
 
 package goproxmox
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrCloudInitFailed is returned when cloud-init failed execution.

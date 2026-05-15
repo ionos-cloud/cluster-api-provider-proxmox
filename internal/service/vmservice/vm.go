@@ -19,10 +19,12 @@ package vmservice
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -125,7 +127,7 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 	// unmount the cloud-init iso if it is still mounted.
 	if conditions.IsTrue(scope.Machine, clusterv1.AvailableCondition) && scope.Machine.Status.NodeRef.IsDefined() {
 		if err := unmountCloudInitISO(ctx, scope); err != nil {
-			return vm, errors.Wrapf(err, "failed to unmount cloud-init iso for vm %s", scope.Name())
+			return vm, fmt.Errorf("failed to unmount cloud-init iso for vm %s: %w", scope.Name(), err)
 		}
 	} // State Machine is finished
 	scope.Logger.V(4).Info("condition", "condition", conditions.GetReason(scope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
@@ -148,7 +150,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 
 	if !machineScope.SkipQemuGuestCheck() {
 		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
-			return true, errors.Wrap(err, "error waiting for agent")
+			return true, fmt.Errorf("error waiting for agent: %w", err)
 		}
 	}
 
@@ -206,7 +208,7 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		switch {
 		case errors.Is(err, ErrVMNotFound):
 			if err := updateVMLocation(ctx, machineScope); err != nil {
-				return false, errors.Wrap(err, "error trying to locate vm")
+				return false, fmt.Errorf("error trying to locate vm: %w", err)
 			}
 
 			// we always want to trigger reconciliation at this point.
@@ -354,7 +356,7 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	task, err := machineScope.InfraCluster.ProxmoxClient.ConfigureVM(ctx, machineScope.VirtualMachine, vmOptions...)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to configure VM %s", machineScope.Name())
+		return false, fmt.Errorf("failed to configure VM %s: %w", machineScope.Name(), err)
 	}
 
 	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(task.UPID))
@@ -407,7 +409,7 @@ func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.Machi
 	})
 	// TODO: DHCP as InternalIP
 	if index == -1 {
-		return addresses, errors.Errorf("Machine has no default IPAddresses")
+		return addresses, fmt.Errorf("Machine has no default IPAddresses")
 	}
 
 	defaultAddresses := machineAddresses[index]

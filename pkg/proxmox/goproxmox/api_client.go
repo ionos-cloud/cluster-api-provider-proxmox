@@ -25,9 +25,10 @@ import (
 	"slices"
 	"strings"
 
+	"errors"
+
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -360,17 +361,17 @@ func (c *APIClient) UnmountCloudInitISO(ctx context.Context, vm *proxmox.Virtual
 // CloudInitStatus returns the cloud-init status of the VM.
 func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) (running bool, err error) {
 	if err := c.QemuAgentStatus(ctx, vm); err != nil {
-		return false, errors.Wrap(err, "error waiting for agent")
+		return false, fmt.Errorf("error waiting for agent: %w", err)
 	}
 
 	pid, err := vm.AgentExec(ctx, []string{"cloud-init", "status"}, "")
 	if err != nil {
-		return false, errors.Wrap(err, "unable to get cloud-init status")
+		return false, fmt.Errorf("unable to get cloud-init status: %w", err)
 	}
 
 	status, err := vm.WaitForAgentExecExit(ctx, pid, 2)
 	if err != nil {
-		return false, errors.Wrap(err, "unable to wait for agent exec")
+		return false, fmt.Errorf("unable to wait for agent exec: %w", err)
 	}
 
 	if status.Exited == 1 && status.ExitCode == 0 && strings.Contains(status.OutData, "running") {
@@ -386,7 +387,7 @@ func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMach
 // QemuAgentStatus returns the qemu-agent status of the VM.
 func (c *APIClient) QemuAgentStatus(ctx context.Context, vm *proxmox.VirtualMachine) error {
 	if err := vm.WaitForAgent(ctx, 5); err != nil {
-		return errors.Wrap(err, "error waiting for agent")
+		return fmt.Errorf("error waiting for agent: %w", err)
 	}
 
 	return nil

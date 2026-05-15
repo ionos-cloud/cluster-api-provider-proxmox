@@ -24,7 +24,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,9 +53,9 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	if pm.Spec.Network != nil {
 		if requeue, err = handleDevices(ctx, machineScope, netPoolAddresses); err != nil || requeue {
 			if err == nil {
-				return true, errors.Wrap(err, "requeuing network reconcillation")
+				return true, nil
 			}
-			return true, errors.Wrap(err, "unable to handle network devices")
+			return true, fmt.Errorf("unable to handle network devices: %w", err)
 		}
 	}
 
@@ -111,7 +112,7 @@ func setVMIPAddressTag(ctx context.Context, machineScope *scope.MachineScope, ip
 		machineScope.Logger.V(4).Info("adding virtual machine ip tag.", "ip", ipAddress.Spec.Address)
 		t, err := machineScope.InfraCluster.ProxmoxClient.TagVM(ctx, vm, ipTag)
 		if err != nil {
-			return false, errors.Wrapf(err, "unable to add IP tag to VirtualMachine %s", machineScope.Name())
+			return false, fmt.Errorf("unable to add IP tag to VirtualMachine %s: %w", machineScope.Name(), err)
 		}
 		machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(t.UPID))
 		requeue = true
@@ -172,7 +173,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 		// IP address not yet created.
 		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
 		if err != nil {
-			return []ipamv1.IPAddress{}, errors.Wrapf(err, "unable to create IP address claim for machine %s", machineScope.Name())
+			return []ipamv1.IPAddress{}, fmt.Errorf("unable to create IP address claim for machine %s: %w", machineScope.Name(), err)
 		}
 
 		// send the machine to requeue so ipaddresses can be created
@@ -230,7 +231,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 
 			ipAddresses, err := handleIPAddresses(ctx, machineScope, ipClaimDef)
 			if err != nil {
-				return true, errors.Wrapf(err, "unable to handle IPAddress for device %+v, pool %s", net.Name, ipPool.Name)
+				return true, fmt.Errorf("unable to handle IPAddress for device %+v, pool %s: %w", net.Name, ipPool.Name, err)
 			}
 			// fast track ip address generation with only one requeue
 			if len(ipAddresses) == 0 {
