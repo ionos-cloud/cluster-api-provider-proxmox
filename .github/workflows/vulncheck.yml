@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -15,4 +16,12 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Run govulncheck
-        run: make govulncheck
+        run: go tool govulncheck -format sarif -output govulncheck.sarif ./... || echo "GOVULNCHECK_EXIT=$?" >> "$GITHUB_ENV"
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          sarif_file: govulncheck.sarif
+      - name: Fail on vulnerabilities
+        if: env.GOVULNCHECK_EXIT != ''
+        run: exit "$GOVULNCHECK_EXIT"
