@@ -155,10 +155,9 @@ verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are
 		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
 	fi
 
-.PHONY: vuln-check
-vuln-check: govulncheck ## Run govulncheck to check for known vulnerabilities in the code.
-	$(GOVULNCHECK) ./...
-
+.PHONY: govulncheck
+govulncheck: ## Run govulncheck to check for known vulnerabilities in the code.
+	go tool govulncheck ./...
 
 ##@ Deployment
 
@@ -182,12 +181,6 @@ deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/c
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	go tool kustomize build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: govulncheck
-govulncheck: $(GOVULNCHECK) ## Download govulncheck locally if necessary. If wrong version is installed, it will be overwritten.
-$(GOVULNCHECK): $(LOCALBIN)
-	test -s $(LOCALBIN)/govulncheck && $(LOCALBIN)/govulncheck --version | grep -q $(GOVULNCHECK_VERSION) || \
-	GOBIN=$(LOCALBIN) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 
 ##@ Test
 
