@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fields "k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -146,6 +147,7 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: metav1.NamespaceDefault,
+			UID:       k8stypes.UID("test-machine-uid"),
 			Finalizers: []string{
 				infrav1.MachineFinalizer,
 			},
@@ -260,10 +262,14 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 					APIVersion: machineScope.ProxmoxMachine.APIVersion,
 					Kind:       "ProxmoxMachine",
 					Name:       machineScope.Name(),
+					UID:        machineScope.ProxmoxMachine.UID,
 				}},
 			},
 			Spec: ipamv1.IPAddressClaimSpec{
 				PoolRef: poolRef,
+			},
+			Status: ipamv1.IPAddressClaimStatus{
+				AddressRef: ipamv1.IPAddressReference{Name: name},
 			},
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
@@ -284,6 +290,9 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 			Namespace: machineScope.Namespace(),
 		},
 		Spec: ipamv1.IPAddressSpec{
+			ClaimRef: ipamv1.IPAddressClaimReference{
+				Name: name,
+			},
 			Address: ip.Addr().String(),
 			Prefix:  ptr.To(prefix),
 			Gateway: gateway,
@@ -317,8 +326,7 @@ func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineS
 		pools[1] = pools[0]
 	}
 
-	poolName := ptr.Deref(pools[0], corev1.TypedLocalObjectReference{Name: "dummy"}).Name
-	ipName := ipam.IPAddressFormat(machineScope.Name(), device, offset, poolName)
+	ipName := ipam.IPAddressFormat(machineScope.Name(), device, offset, infrav1.DefaultSuffix)
 	createIPAddressResource(t, c, ipName, machineScope, ipPrefix, offset, pools[1])
 }
 
@@ -345,7 +353,7 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 		}
 
 		for offset, poolRef := range ipPoolRefs {
-			createIPAddress(t, c, machineScope, infrav1.DefaultSuffix, ipPrefixes[i], offset, &corev1.TypedLocalObjectReference{Name: string(device.Name)}, &poolRef)
+			createIPAddress(t, c, machineScope, device.Name, ipPrefixes[i], offset, &poolRef)
 			i++
 		}
 	}
