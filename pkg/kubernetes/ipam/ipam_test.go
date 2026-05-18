@@ -85,6 +85,7 @@ func (s *IPAMTestSuite) SetupTest() {
 		WithScheme(scheme).
 		WithObjects(s.cluster).
 		WithObjects(s.capiCluster).
+		WithIndex(&ipamv1.IPAddress{}, IPAddressPoolRefNameField, IPAddressByPoolRefName).
 		Build()
 
 	s.cl = fakeCl
@@ -528,6 +529,306 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 	s.Equal(ip.Spec.Address, "10.10.10.11")
 }
 
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimMissing() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimMissing, result.Status)
+	s.Equal(IPAddressFormat(machine.Name, infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix), result.ClaimName)
+	s.Nil(result.Claim)
+	s.Nil(result.Address)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimInvalidOffset() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "not-an-int", "test-cluster-v4-icip")
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.Error(err)
+	s.Empty(result)
+}
+
+func (s *IPAMTestSuite) Test_IPClaimNameDefaultsMissingOffset() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef("net1", "2", "test-cluster-v4-icip")
+	delete(ipClaimDef.Annotations, infrav1.ProxmoxPoolOffsetAnnotation)
+
+	name, err := ipClaimName(machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(IPAddressFormat(machine.Name, "net1", 0, infrav1.DefaultSuffix), name)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimPending() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "")
+	s.NoError(s.cl.Create(s.ctx, claim))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimPending, result.Status)
+	s.Equal(claim.Name, result.ClaimName)
+	s.Equal(claim.Name, result.Claim.Name)
+	s.Nil(result.Address)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimResolved() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "allocated-address")
+	address := s.testIPAddress(claim.Namespace, "allocated-address", "test-cluster-v4-icip")
+	s.NoError(s.cl.Create(s.ctx, claim))
+	s.NoError(s.cl.Create(s.ctx, address))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimResolved, result.Status)
+	s.NotNil(result.Address)
+	s.Equal(address.Name, result.Address.Name)
+	s.Equal("192.0.2.1", result.Address.Spec.Address)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimResolvedMergesClaimAnnotations() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "2", "test-cluster-v4-icip")
+	ipClaimDef.Annotations[infrav1.ProxmoxDefaultGatewayAnnotation] = "true"
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "allocated-address")
+	address := s.testIPAddress(claim.Namespace, "allocated-address", "test-cluster-v4-icip")
+	address.Annotations = map[string]string{"address-annotation": "preserved"}
+	s.NoError(s.cl.Create(s.ctx, claim))
+	s.NoError(s.cl.Create(s.ctx, address))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimResolved, result.Status)
+	s.Equal("preserved", result.Address.Annotations["address-annotation"])
+	s.Equal("2", result.Address.Annotations[infrav1.ProxmoxPoolOffsetAnnotation])
+	s.Equal("true", result.Address.Annotations[infrav1.ProxmoxDefaultGatewayAnnotation])
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimConflictOwnerMismatch() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "")
+	claim.OwnerReferences[0].UID = types.UID("other-uid")
+	claim.OwnerReferences[0].Name = "other-machine"
+	s.NoError(s.cl.Create(s.ctx, claim))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimConflict, result.Status)
+	s.Equal(ConflictOwnerMismatch, result.ConflictReason)
+	s.Equal(claim.Name, result.Claim.Name)
+	s.Nil(result.Address)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimConflictPoolMismatch() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "")
+	claim.Spec.PoolRef.Name = "other-pool"
+	s.NoError(s.cl.Create(s.ctx, claim))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimConflict, result.Status)
+	s.Equal(ConflictPoolMismatch, result.ConflictReason)
+	s.Nil(result.Address)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimConflictAddressMissing() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "missing-address")
+	s.NoError(s.cl.Create(s.ctx, claim))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimConflict, result.Status)
+	s.Equal(ConflictAddressMissing, result.ConflictReason)
+	s.Nil(result.Address)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimConflictAddressPoolRef() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "allocated-address")
+	address := s.testIPAddress(claim.Namespace, "allocated-address", "other-pool")
+	s.NoError(s.cl.Create(s.ctx, claim))
+	s.NoError(s.cl.Create(s.ctx, address))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimConflict, result.Status)
+	s.Equal(ConflictAddressPoolRef, result.ConflictReason)
+	s.Nil(result.Address)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimDirectOwnerReferenceFallback() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "allocated-address")
+	claim.OwnerReferences[0].APIVersion = infrav1.GroupVersion.Group
+	address := s.testIPAddress(claim.Namespace, "allocated-address", "test-cluster-v4-icip")
+	s.NoError(s.cl.Create(s.ctx, claim))
+	s.NoError(s.cl.Create(s.ctx, address))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimResolved, result.Status)
+	s.NotNil(result.Address)
+	s.Equal(address.Name, result.Address.Name)
+}
+
+func (s *IPAMTestSuite) Test_ResolveIPAddressClaimMissingWithOrphanedDeterministicIPAddress() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	orphanName := IPAddressFormat(machine.Name, infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)
+	s.NoError(s.cl.Create(s.ctx, s.testIPAddress(machine.Namespace, orphanName, "test-cluster-v4-icip")))
+
+	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
+
+	s.NoError(err)
+	s.Equal(ClaimMissing, result.Status)
+	s.Equal(orphanName, result.OrphanedAddressName)
+	s.Nil(result.Claim)
+	s.Nil(result.Address)
+}
+
+func (s *IPAMTestSuite) Test_GetIPAddressByPoolFiltersByPoolRefAndSorts() {
+	poolRef := corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		Kind:     GetInClusterIPPoolKind(),
+	}
+
+	matchingB := s.testIPAddress("test", "matching-b", poolRef.Name)
+	matchingA := s.testIPAddress("test", "matching-a", poolRef.Name)
+	wrongKind := s.testIPAddress("test", "wrong-kind", poolRef.Name)
+	wrongKind.Spec.PoolRef.Kind = GetGlobalInClusterIPPoolKind()
+	wrongGroup := s.testIPAddress("test", "wrong-group", poolRef.Name)
+	wrongGroup.Spec.PoolRef.APIGroup = "other.ipam.example.com"
+	otherPool := s.testIPAddress("test", "other-pool", "other-pool")
+	s.NoError(s.cl.Create(s.ctx, matchingB))
+	s.NoError(s.cl.Create(s.ctx, matchingA))
+	s.NoError(s.cl.Create(s.ctx, wrongKind))
+	s.NoError(s.cl.Create(s.ctx, wrongGroup))
+	s.NoError(s.cl.Create(s.ctx, otherPool))
+
+	addresses, err := s.helper.GetIPAddressByPool(s.ctx, poolRef)
+
+	s.NoError(err)
+	s.Len(addresses, 2)
+	s.Equal("matching-a", addresses[0].Name)
+	s.Equal("matching-b", addresses[1].Name)
+}
+
+func (s *IPAMTestSuite) Test_HasDirectOwnerReferenceRequiresExactMachineIdentity() {
+	machine := s.testMachine()
+	ownerRef := metav1.OwnerReference{
+		APIVersion: infrav1.GroupVersion.String(),
+		Kind:       infrav1.ProxmoxMachineKind,
+		Name:       machine.Name,
+		UID:        machine.UID,
+	}
+
+	s.True(hasDirectOwnerReference([]metav1.OwnerReference{ownerRef}, machine))
+
+	groupOnly := ownerRef
+	groupOnly.APIVersion = infrav1.GroupVersion.Group
+	s.True(hasDirectOwnerReference([]metav1.OwnerReference{groupOnly}, machine))
+
+	uidMismatch := ownerRef
+	uidMismatch.UID = types.UID("other-uid")
+	s.False(hasDirectOwnerReference([]metav1.OwnerReference{uidMismatch}, machine))
+
+	nameMismatch := ownerRef
+	nameMismatch.Name = "other-machine"
+	s.False(hasDirectOwnerReference([]metav1.OwnerReference{nameMismatch}, machine))
+
+	kindMismatch := ownerRef
+	kindMismatch.Kind = "OtherMachine"
+	s.False(hasDirectOwnerReference([]metav1.OwnerReference{kindMismatch}, machine))
+
+	apiGroupMismatch := ownerRef
+	apiGroupMismatch.APIVersion = "other.infrastructure.cluster.x-k8s.io/v1alpha2"
+	s.False(hasDirectOwnerReference([]metav1.OwnerReference{apiGroupMismatch}, machine))
+}
+
+func (s *IPAMTestSuite) Test_MatchesPoolRefIgnoresIPAddressTypeMeta() {
+	ip := ipamv1.IPAddress{
+		TypeMeta: metav1.TypeMeta{Kind: "IPAddress", APIVersion: "unrelated.example.com/v1"},
+		Spec: ipamv1.IPAddressSpec{
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: "ipam.cluster.x-k8s.io",
+				Kind:     GetInClusterIPPoolKind(),
+				Name:     "test-cluster-v4-icip",
+			},
+		},
+	}
+
+	s.True(matchesPoolRef(ip, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: GetIPAMInClusterAPIGroup(),
+		Kind:     GetInClusterIPPoolKind(),
+	}))
+	s.False(matchesPoolRef(ip, corev1.TypedLocalObjectReference{
+		Name:     "other-pool",
+		APIGroup: GetIPAMInClusterAPIGroup(),
+		Kind:     GetInClusterIPPoolKind(),
+	}))
+	s.False(matchesPoolRef(ip, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: ptr.To("other.ipam.example.com"),
+		Kind:     GetInClusterIPPoolKind(),
+	}))
+	s.False(matchesPoolRef(ip, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: GetIPAMInClusterAPIGroup(),
+		Kind:     GetGlobalInClusterIPPoolKind(),
+	}))
+}
+
+func (s *IPAMTestSuite) Test_MatchesClaimPoolRefComparesNameGroupAndKind() {
+	machine := s.testMachine()
+	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, ipClaimDef, "")
+
+	s.True(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		Kind:     GetInClusterIPPoolKind(),
+	}))
+	s.False(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
+		Name:     "other-pool",
+		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		Kind:     GetInClusterIPPoolKind(),
+	}))
+	s.False(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: ptr.To("other.ipam.example.com"),
+		Kind:     GetInClusterIPPoolKind(),
+	}))
+	s.False(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
+		Name:     "test-cluster-v4-icip",
+		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		Kind:     GetGlobalInClusterIPPoolKind(),
+	}))
+}
+
 func getCluster() *infrav1.ProxmoxCluster {
 	return &infrav1.ProxmoxCluster{
 		TypeMeta: metav1.TypeMeta{
@@ -549,6 +850,82 @@ func getCluster() *infrav1.ProxmoxCluster {
 				Gateway:   "10.0.0.0",
 				Prefix:    24,
 			},
+		},
+	}
+}
+
+func (s *IPAMTestSuite) testMachine() *infrav1.ProxmoxMachine {
+	return &infrav1.ProxmoxMachine{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       infrav1.ProxmoxMachineKind,
+			APIVersion: infrav1.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-machine",
+			Namespace: "test",
+			UID:       types.UID("test-machine-uid"),
+		},
+	}
+}
+
+func (s *IPAMTestSuite) testIPClaimDef(device infrav1.NetName, offset, poolName string) IPClaimDef {
+	return IPClaimDef{
+		Device: device,
+		PoolRef: corev1.TypedLocalObjectReference{
+			Name:     poolName,
+			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+			Kind:     GetInClusterIPPoolKind(),
+		},
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolOffsetAnnotation: offset,
+		},
+	}
+}
+
+func (s *IPAMTestSuite) testIPAddressClaim(machine *infrav1.ProxmoxMachine, ipClaimDef IPClaimDef, addressName string) *ipamv1.IPAddressClaim {
+	claimName, err := ipClaimName(machine, ipClaimDef)
+	s.NoError(err)
+
+	return &ipamv1.IPAddressClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        claimName,
+			Namespace:   machine.Namespace,
+			Annotations: ipClaimDef.Annotations,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: infrav1.GroupVersion.String(),
+				Kind:       infrav1.ProxmoxMachineKind,
+				Name:       machine.Name,
+				UID:        machine.UID,
+			}},
+		},
+		Spec: ipamv1.IPAddressClaimSpec{
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: ipamicv1.GroupVersion.Group,
+				Kind:     ipClaimDef.PoolRef.Kind,
+				Name:     ipClaimDef.PoolRef.Name,
+			},
+		},
+		Status: ipamv1.IPAddressClaimStatus{
+			AddressRef: ipamv1.IPAddressReference{Name: addressName},
+		},
+	}
+}
+
+func (s *IPAMTestSuite) testIPAddress(namespace, name, poolName string) *ipamv1.IPAddress {
+	return &ipamv1.IPAddress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: ipamv1.IPAddressSpec{
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: ipamicv1.GroupVersion.Group,
+				Kind:     GetInClusterIPPoolKind(),
+				Name:     poolName,
+			},
+			Address: "192.0.2.1",
+			Prefix:  ptr.To[int32](24),
+			Gateway: "192.0.2.254",
 		},
 	}
 }

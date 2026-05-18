@@ -26,11 +26,11 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/record"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	ipam "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
@@ -120,11 +120,6 @@ func setVMIPAddressTag(ctx context.Context, machineScope *scope.MachineScope, ip
 	return requeue, nil
 }
 
-// findIPAddress returns all IPAddresses owned by a pool and a machine.
-func findIPAddress(ctx context.Context, poolRef corev1.TypedLocalObjectReference, machineScope *scope.MachineScope) ([]ipamv1.IPAddress, error) {
-	return machineScope.IPAMHelper.GetIPAddressV2(ctx, poolRef, machineScope.ProxmoxMachine)
-}
-
 func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.MachineScope, ipAddress *ipamv1.IPAddress) (*int32, error) {
 	annotations, err := machineScope.IPAMHelper.GetIPPoolAnnotations(ctx, ipAddress)
 	if err != nil {
@@ -155,19 +150,24 @@ func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.Machine
 func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error) {
 	device := ipClaimDef.Device
 
-	ipAddresses, err := findIPAddress(ctx, ipClaimDef.PoolRef, machineScope)
+	resolution, err := machineScope.IPAMHelper.ResolveIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
 	if err != nil {
-		// Technically this error cannot occur as fieldselectors just return empty lists
-		if !apierrors.IsNotFound(err) {
-			return []ipamv1.IPAddress{}, err
-		}
+		return []ipamv1.IPAddress{}, err
 	}
 
-	index := slices.IndexFunc(ipAddresses, func(ip ipamv1.IPAddress) bool {
-		return ip.GetAnnotations()[infrav1.ProxmoxPoolOffsetAnnotation] == ipClaimDef.Annotations[infrav1.ProxmoxPoolOffsetAnnotation]
-	})
-
-	if index < 0 {
+	switch resolution.Status {
+	case ipam.ClaimMissing:
+		if resolution.OrphanedAddressName != "" {
+			record.Warnf(machineScope.ProxmoxMachine, "OrphanedIPAddress",
+				"Found deterministic IPAddress %q without expected IPAddressClaim %q; ignoring orphaned address until claim exists",
+				resolution.OrphanedAddressName, resolution.ClaimName,
+			)
+			machineScope.Logger.Info("found deterministic IPAddress without expected IPAddressClaim; ignoring orphaned address until claim exists",
+				"claim", resolution.ClaimName,
+				"address", resolution.OrphanedAddressName,
+				"device", device,
+			)
+		}
 		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
 		// IP address not yet created.
 		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
@@ -177,10 +177,30 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 
 		// send the machine to requeue so ipaddresses can be created
 		return []ipamv1.IPAddress{}, nil
+	case ipam.ClaimPending:
+		machineScope.Logger.V(4).Info("IPAddressClaim has no AddressRef yet.", "claim", resolution.ClaimName, "device", device)
+		return []ipamv1.IPAddress{}, nil
+	case ipam.ClaimResolved:
+		machineScope.Logger.V(4).Info("IPAddresses found.", "ip", resolution.Address, "device", device)
+		return []ipamv1.IPAddress{*resolution.Address}, nil
+	case ipam.ClaimConflict:
+		var message string
+		if resolution.ConflictReason == ipam.ConflictAddressMissing {
+			message = fmt.Sprintf("Static IP claim %q references a missing IPAddress %q; delete the stale IPAddressClaim to allow recovery.", resolution.ClaimName, resolution.Claim.Status.AddressRef.Name)
+		} else {
+			message = fmt.Sprintf("Static IP claim %q is conflicting (%s); inspect the IPAddressClaim ownership, poolRef, and referenced IPAddress before provisioning can continue.", resolution.ClaimName, resolution.ConflictReason)
+		}
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
+			Message: message,
+		})
+		machineScope.Logger.Info("IPAddressClaim conflict blocks static IP allocation", "claim", resolution.ClaimName, "reason", resolution.ConflictReason, "device", device)
+		return []ipamv1.IPAddress{}, nil
+	default:
+		return []ipamv1.IPAddress{}, errors.Errorf("unknown IPAddressClaim resolution status %q", resolution.Status)
 	}
-
-	machineScope.Logger.V(4).Info("IPAddresses found, ", "ip", ipAddresses, "device", device)
-	return ipAddresses, nil
 }
 
 func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (bool, error) {
@@ -243,12 +263,12 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 				poolMap = make(map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 			}
 
-			poolMap[ipPool] = ipAddresses
+			poolMap[ipPool] = append(poolMap[ipPool], ipAddresses...)
 			addresses[net.Name] = poolMap
 
 			// append default pool addresses to map
-			if _, exists := defaultPoolMap[ipPool]; exists && ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false) {
-				defaultPoolMap[ipPool] = ipAddresses
+			if _, exists := defaultPoolMap[ipPool]; exists && (ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false)) {
+				defaultPoolMap[ipPool] = append(defaultPoolMap[ipPool], ipAddresses...)
 			}
 		}
 		addresses["default"] = defaultPoolMap
