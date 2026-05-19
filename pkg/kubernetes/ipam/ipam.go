@@ -434,9 +434,13 @@ type IPClaimDef struct {
 type IPAddressClaimResolutionStatus string
 
 const (
-	ClaimMissing  IPAddressClaimResolutionStatus = "ClaimMissing"
-	ClaimPending  IPAddressClaimResolutionStatus = "ClaimPending"
+	// ClaimMissing means the expected deterministic IPAddressClaim does not exist.
+	ClaimMissing IPAddressClaimResolutionStatus = "ClaimMissing"
+	// ClaimPending means the expected IPAddressClaim exists but has no AddressRef yet.
+	ClaimPending IPAddressClaimResolutionStatus = "ClaimPending"
+	// ClaimResolved means the expected IPAddressClaim and referenced IPAddress are valid.
 	ClaimResolved IPAddressClaimResolutionStatus = "ClaimResolved"
+	// ClaimConflict means the expected IPAddressClaim exists but cannot be safely consumed.
 	ClaimConflict IPAddressClaimResolutionStatus = "ClaimConflict"
 )
 
@@ -445,9 +449,13 @@ const (
 type IPAddressClaimConflictReason string
 
 const (
-	ConflictOwnerMismatch  IPAddressClaimConflictReason = "OwnerMismatch"
-	ConflictPoolMismatch   IPAddressClaimConflictReason = "PoolMismatch"
+	// ConflictOwnerMismatch means the expected IPAddressClaim is not owned by the ProxmoxMachine.
+	ConflictOwnerMismatch IPAddressClaimConflictReason = "OwnerMismatch"
+	// ConflictPoolMismatch means the expected IPAddressClaim references a different pool.
+	ConflictPoolMismatch IPAddressClaimConflictReason = "PoolMismatch"
+	// ConflictAddressMissing means the IPAddressClaim AddressRef points at a missing IPAddress.
 	ConflictAddressMissing IPAddressClaimConflictReason = "AddressMissing"
+	// ConflictAddressPoolRef means the referenced IPAddress belongs to a different pool.
 	ConflictAddressPoolRef IPAddressClaimConflictReason = "AddressPoolRef"
 )
 

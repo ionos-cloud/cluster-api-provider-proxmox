@@ -50,6 +50,8 @@ type IPAMTestSuite struct {
 	helper      *Helper
 }
 
+const otherMachineName = "other-machine"
+
 func TestIPAMTestSuite(t *testing.T) {
 	suite.Run(t, new(IPAMTestSuite))
 }
@@ -619,7 +621,7 @@ func (s *IPAMTestSuite) Test_ResolveIPAddressClaimConflictOwnerMismatch() {
 	ipClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
 	claim := s.testIPAddressClaim(machine, ipClaimDef, "")
 	claim.OwnerReferences[0].UID = types.UID("other-uid")
-	claim.OwnerReferences[0].Name = "other-machine"
+	claim.OwnerReferences[0].Name = otherMachineName
 	s.NoError(s.cl.Create(s.ctx, claim))
 
 	result, err := s.helper.ResolveIPAddressClaim(s.ctx, machine, ipClaimDef)
@@ -754,7 +756,7 @@ func (s *IPAMTestSuite) Test_GetIPAddressV2ReturnsOwnedAddressesAndMergesClaimAn
 	otherClaimDef := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "1", poolRef.Name)
 	otherClaim := s.testIPAddressClaim(machine, otherClaimDef, "")
 	otherClaim.OwnerReferences[0].UID = types.UID("other-uid")
-	otherClaim.OwnerReferences[0].Name = "other-machine"
+	otherClaim.OwnerReferences[0].Name = otherMachineName
 	otherAddress := s.testIPAddress(machine.Namespace, otherClaim.Name, poolRef.Name)
 	s.NoError(s.cl.Create(s.ctx, otherClaim))
 	s.NoError(s.cl.Create(s.ctx, otherAddress))
@@ -787,7 +789,7 @@ func (s *IPAMTestSuite) Test_HasDirectOwnerReferenceRequiresExactMachineIdentity
 	s.False(hasDirectOwnerReference([]metav1.OwnerReference{uidMismatch}, machine))
 
 	nameMismatch := ownerRef
-	nameMismatch.Name = "other-machine"
+	nameMismatch.Name = otherMachineName
 	s.False(hasDirectOwnerReference([]metav1.OwnerReference{nameMismatch}, machine))
 
 	kindMismatch := ownerRef
