@@ -92,7 +92,7 @@ jobs:
       matrix:
         include:
           - go: "1.25"
-            image: golang@sha256:298734aec230b5f3e8cee450ce6d7eccc39f1797ba548ee90d57e9803030c6c3 # 1.25-bookworm
+            image: golang@sha256:3ab92099ea4da8f4e73c67666ce1a737ff5bff44a24431be0d8ac9f0af9bcf7d # 1.25.10-trixie
           - go: "1.26"
             image: golang@sha256:a085df697019cb63b40a70f6a92b948f7dc9df96dfcb2c20ba6eed25ce28f5b3 # 1.26.3-trixie
     # Allow the 1.25 job to fail on PRs labelled go/1.26 (code requires 1.26+).
