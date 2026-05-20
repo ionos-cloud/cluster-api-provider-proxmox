@@ -26,8 +26,9 @@ import (
 	"strconv"
 	"strings"
 
+	"errors"
+
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -101,7 +102,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 			Message: err.Error(),
 		})
 		machineScope.Logger.V(0).Error(err, "nicData", "json", func() string { ret, _ := json.Marshal(nicData); return string(ret) }())
-		return false, errors.Wrap(err, "failed to inject bootstrap data")
+		return false, fmt.Errorf("failed to inject bootstrap data: %w", err)
 	}
 
 	// Todo: This status field is now superfluous
@@ -179,7 +180,7 @@ func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, *
 
 	secret := &corev1.Secret{}
 	if err := scope.GetBootstrapSecret(ctx, secret); err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret")
+		return nil, nil, fmt.Errorf("failed to retrieve bootstrap data secret: %w", err)
 	}
 
 	format := cloudinit.FormatCloudConfig
@@ -241,7 +242,7 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 		ipConfig := types.IPConfig{}
 		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ptr.Deref(ipAddr.Spec.Prefix, 0)))
 		if err != nil {
-			return nil, errors.Wrapf(err, "error converting ip address spec to netip prefix: %+v", ipAddr.Spec)
+			return nil, fmt.Errorf("error converting ip address spec to netip prefix: %+v: %w", ipAddr.Spec, err)
 		}
 		ipConfig.IPAddress = ip
 		ipConfig.Gateway = ipAddr.Spec.Gateway
@@ -249,7 +250,7 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 		// TODO: IPConfigs is stupid. No need to gather metrics here.
 		metric, err := findIPAddressGatewayMetric(ctx, machineScope, &ipAddr)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
+			return nil, fmt.Errorf("error converting metric annotation, kind=%s, name=%s: %w", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name, err)
 		}
 		ipConfig.Metric = metric
 
@@ -289,7 +290,10 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 	requeue, err := handleDevices(ctx, machineScope, ipAddressMap)
 	if requeue || err != nil {
 		// invalid state. Machine should've had all IPs assigned
-		return nil, errors.Wrapf(err, "unable to get IPs for network config data")
+		if err == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unable to get IPs for network config data: %w", err)
 	}
 
 	// network devices.
@@ -300,7 +304,7 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 
 		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, nic.Name, ipPoolRefs)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
+			return nil, fmt.Errorf("unable to get network config data for device=%s: %w", nic.Name, err)
 		}
 		if len(nic.DNSServers) != 0 {
 			config.DNSServers = nic.DNSServers
@@ -340,7 +344,7 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 				}
 			}
 			if len(config.Interfaces)-1 < i {
-				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
+				return nil, fmt.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
 			}
 		}
 

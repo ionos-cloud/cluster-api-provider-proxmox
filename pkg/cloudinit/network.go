@@ -18,9 +18,9 @@ package cloudinit
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/netip"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"k8s.io/utils/ptr"
 
@@ -185,9 +185,11 @@ func (r *NetworkConfig) Render() ([]byte, error) {
 	var unused interface{}
 	err = yaml.Unmarshal(nc, &unused)
 	if err != nil {
-		return nil, errors.Wrap(err,
+		return nil, fmt.Errorf(
 			"Template produced invalid YAML. Please file a bug at: "+
-				"https://github.com/ionos-cloud/cluster-api-provider-proxmox/")
+				"https://github.com/ionos-cloud/cluster-api-provider-proxmox/: %w",
+			err,
+		)
 	}
 
 	return nc, nil

@@ -22,8 +22,9 @@ import (
 	"fmt"
 	"time"
 
+	"errors"
+
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 

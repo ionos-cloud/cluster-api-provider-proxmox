@@ -19,9 +19,11 @@ package inject
 
 import (
 	"context"
+	"fmt"
+
+	"errors"
 
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
@@ -62,13 +64,13 @@ func (i *ISOInjector) injectCloudInit(ctx context.Context) error {
 	// Render metadata.
 	metadata, err := i.MetaRenderer.Render()
 	if err != nil {
-		return errors.Wrap(err, "unable to render metadata")
+		return fmt.Errorf("unable to render metadata: %w", err)
 	}
 
 	// Render network-config.
 	network, err := i.NetworkRenderer.Render()
 	if err != nil {
-		return errors.Wrap(err, "unable to render network-config")
+		return fmt.Errorf("unable to render network-config: %w", err)
 	}
 
 	logger.V(4).Info("CloudInit:", "network-config", string(network))
@@ -76,7 +78,7 @@ func (i *ISOInjector) injectCloudInit(ctx context.Context) error {
 	// Inject an ISO with userdata, metadata and network-config into the VirtualMachine.
 	err = i.VirtualMachine.CloudInit(ctx, CloudInitISODevice, string(i.BootstrapData), string(metadata), "", string(network))
 	if err != nil {
-		return errors.Wrap(err, "unable to inject CloudInit ISO")
+		return fmt.Errorf("unable to inject CloudInit ISO: %w", err)
 	}
 
 	return nil
@@ -100,12 +102,12 @@ func (i *ISOInjector) injectIgnition(ctx context.Context) error {
 	// Render metadata.
 	metadata, err := i.MetaRenderer.Render()
 	if err != nil {
-		return errors.Wrap(err, "unable to render metadata")
+		return fmt.Errorf("unable to render metadata: %w", err)
 	}
 
 	bootstrapData, _, err := i.IgnitionEnricher.Enrich()
 	if err != nil {
-		return errors.Wrap(err, "unable to enrich ignition")
+		return fmt.Errorf("unable to enrich ignition: %w", err)
 	}
 
 	logger.V(4).Info("Ingnition", "bootstrapData", bootstrapData)
@@ -113,7 +115,7 @@ func (i *ISOInjector) injectIgnition(ctx context.Context) error {
 	// Inject an ISO with ignition userdata, metadata and an empty network-config v1 into the VirtualMachine.
 	err = i.VirtualMachine.CloudInit(ctx, CloudInitISODevice, string(bootstrapData), string(metadata), "", string(cloudinit.EmptyNetworkV1))
 	if err != nil {
-		return errors.Wrap(err, "unable to inject ignition userdata iso")
+		return fmt.Errorf("unable to inject ignition userdata iso: %w", err)
 	}
 
 	return nil

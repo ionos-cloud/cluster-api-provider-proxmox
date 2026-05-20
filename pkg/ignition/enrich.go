@@ -24,7 +24,6 @@ import (
 
 	ignition "github.com/flatcar/ignition/config/v2_3"
 	ignitionTypes "github.com/flatcar/ignition/config/v2_3/types"
-	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
@@ -44,7 +43,7 @@ type Enricher struct {
 func (e *Enricher) Enrich() ([]byte, string, error) {
 	ign, err := e.getEnrichConfig()
 	if err != nil {
-		return nil, "", errors.Wrap(err, "getting enrich config")
+		return nil, "", fmt.Errorf("getting enrich config: %w", err)
 	}
 
 	return buildIgnitionConfig(e.BootstrapData, ign)
@@ -98,7 +97,7 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 	// populate networkd units
 	nets, err := RenderNetworkConfigData(e.Network)
 	if err != nil {
-		return nil, errors.Wrap(err, "rendering networkd units")
+		return nil, fmt.Errorf("rendering networkd units: %w", err)
 	}
 
 	for name, contents := range nets {
@@ -131,7 +130,7 @@ func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Confi
 	// We control bootstrapData config, so treat it as strict.
 	ign, reports, err := convertToIgnition(bootstrapData, false)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "converting bootstrap-data to Ignition")
+		return nil, "", fmt.Errorf("converting bootstrap-data to Ignition: %w", err)
 	}
 
 	if enrichConfig != nil {
@@ -140,7 +139,7 @@ func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Confi
 
 	userData, err := json.Marshal(&ign)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "marshaling generated Ignition config into JSON")
+		return nil, "", fmt.Errorf("marshaling generated Ignition config into JSON: %w", err)
 	}
 
 	return userData, reports, nil
@@ -149,7 +148,7 @@ func buildIgnitionConfig(bootstrapData []byte, enrichConfig *ignitionTypes.Confi
 func convertToIgnition(data []byte, strict bool) (ignitionTypes.Config, string, error) {
 	cfg, reports, err := ignition.Parse(data)
 	if err != nil {
-		return ignitionTypes.Config{}, "", errors.Wrapf(err, "parsing Ignition config")
+		return ignitionTypes.Config{}, "", fmt.Errorf("parsing Ignition config: %w", err)
 	}
 	if strict && len(reports.Entries) > 0 || reports.IsFatal() {
 		return ignitionTypes.Config{}, "", fmt.Errorf("error parsing Ignition config: %v", reports.String())

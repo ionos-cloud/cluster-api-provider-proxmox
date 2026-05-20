@@ -25,9 +25,10 @@ import (
 	"slices"
 	"strings"
 
+	"errors"
+
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,7 +104,7 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 
 	helper, err := patch.NewHelper(params.ProxmoxCluster, params.Client)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to init patch helper")
+		return nil, fmt.Errorf("failed to init patch helper: %w", err)
 	}
 
 	clusterScope.patchHelper = helper
@@ -126,7 +127,7 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		// using proxmoxcluster.spec.credentialsRef
 		pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO())
 		if err != nil {
-			return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
+			return nil, fmt.Errorf("Unable to initialize ProxmoxClient: %w", err)
 		}
 		clusterScope.ProxmoxClient = pmoxClient
 	}
@@ -154,7 +155,7 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 				Message: "credentials secret not found",
 			})
 		}
-		return nil, errors.Wrap(err, "failed to get credentials secret")
+		return nil, fmt.Errorf("failed to get credentials secret: %w", err)
 	}
 
 	token := string(secret.Data["token"])
