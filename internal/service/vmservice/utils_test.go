@@ -142,6 +142,7 @@ func TestExtractNetworkMTU(t *testing.T) {
 		"bridge=",
 		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
 		"",
+		"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9999999999", // int32 overflow
 	}
 
 	for _, m := range goodstrings {
@@ -256,6 +257,7 @@ func TestExtractNetworkVLAN(t *testing.T) {
 		"bridge=",
 		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
 		"",
+		"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,tag=9999999999", // int32 overflow
 	}
 
 	for _, m := range goodstrings {
@@ -277,4 +279,72 @@ func TestShouldUpdateNetworkDevices_VLANChanged(t *testing.T) {
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0,tag=101"))
 
 	require.True(t, shouldUpdateNetworkDevices(machineScope))
+}
+
+func TestExtractNetworkQueue(t *testing.T) {
+	type match struct {
+		test     string
+		expected int32
+	}
+
+	goodstrings := []match{
+		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,queues=4", 4},
+		{"foo,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,queues=4", 4},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500,queues=4", 4},
+		{"foo=bar,virtio=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=9000,tag=100,queues=8,foo=bar", 8},
+	}
+
+	badstrings := []string{
+		"virtio=",
+		"bridge=",
+		"uuid=7dd9b137-6a3c-4661-a4fa-375075e1776b",
+		"",
+		"virtio=A6:23:64:4D:84:CB,bridge=vmbr1,queues=65536", // uint16 overflow
+	}
+
+	for _, m := range goodstrings {
+		queue := extractNetworkQueue(m.test)
+		require.Equal(t, m.expected, queue)
+	}
+
+	for _, s := range badstrings {
+		queue := extractNetworkQueue(s)
+		require.Equal(t, int32(0), queue)
+	}
+}
+
+func TestFormatNetworkDevice(t *testing.T) {
+	require.Equal(t, "virtio,bridge=vmbr0", formatNetworkDevice("virtio", "vmbr0", nil, nil, nil))
+	require.Equal(t, "virtio,bridge=vmbr0,mtu=1500", formatNetworkDevice("virtio", "vmbr0", ptr.To(int32(1500)), nil, nil))
+	require.Equal(t, "virtio,bridge=vmbr0,tag=100", formatNetworkDevice("virtio", "vmbr0", nil, ptr.To(int32(100)), nil))
+	require.Equal(t, "virtio,bridge=vmbr0,queues=4", formatNetworkDevice("virtio", "vmbr0", nil, nil, ptr.To(int32(4))))
+	require.Equal(t, "virtio,bridge=vmbr0,mtu=1500,tag=100,queues=4", formatNetworkDevice("virtio", "vmbr0", ptr.To(int32(1500)), ptr.To(int32(100)), ptr.To(int32(4))))
+}
+
+func TestExtractMACAddress(t *testing.T) {
+	type match struct {
+		test     string
+		expected string
+	}
+
+	goodstrings := []match{
+		{"virtio=A6:23:64:4D:84:CB,bridge=vmbr1", "A6:23:64:4D:84:CB"},
+		{"e1000=A6:23:64:4D:84:CB,bridge=vmbr1,mtu=1500", "A6:23:64:4D:84:CB"},
+	}
+
+	badstrings := []string{
+		"bridge=vmbr1",
+		"virtio=,bridge=vmbr1",
+		"",
+	}
+
+	for _, m := range goodstrings {
+		mac := extractMACAddress(m.test)
+		require.Equal(t, m.expected, mac)
+	}
+
+	for _, s := range badstrings {
+		mac := extractMACAddress(s)
+		require.Empty(t, mac)
+	}
 }
