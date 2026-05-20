@@ -30,10 +30,10 @@ func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
 	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
 		NetName: string(infrav1.DefaultNetworkDevice),
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}, {
 		NetName: "default",
-		IPv4:    []string{"10.10.10.10"},
+		IPv4:    []string{"192.0.2.10"},
 	}}
 
 	vm := newStoppedVM()

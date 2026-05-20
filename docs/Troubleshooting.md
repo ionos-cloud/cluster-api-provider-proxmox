@@ -110,11 +110,11 @@ As an example:
 ```
 kubectl get nodes -o wide
 NAME                               STATUS     ROLES                AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
-test-cluster-control-plane-gcgc6   Ready      control-plane        11h   v1.26.7   10.0.1.69    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
-test-cluster-load-balancer-c8rd2   Ready      load-balancer,node   11h   v1.26.7   10.0.2.155   <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
-test-cluster-load-balancer-wqbcg   Ready      load-balancer,node   11h   v1.26.7   10.0.2.152   <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
-test-cluster-worker-hbm8s          Ready      node                 11h   v1.26.7   10.0.1.71    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
-test-cluster-worker-n2vbc          NotReady   node                 17m   v1.26.7   10.0.1.73    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-control-plane-gcgc6   Ready      control-plane        11h   v1.26.7   198.51.100.69    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-load-balancer-c8rd2   Ready      load-balancer,node   11h   v1.26.7   198.51.100.155   <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-load-balancer-wqbcg   Ready      load-balancer,node   11h   v1.26.7   198.51.100.152   <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-worker-hbm8s          Ready      node                 11h   v1.26.7   198.51.100.71    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
+test-cluster-worker-n2vbc          NotReady   node                 17m   v1.26.7   198.51.100.73    <none>        Ubuntu 22.04.3 LTS   5.15.0-89-generic   containerd://1.7.6
 ```
 
 The load-balancers have an `e1000` interface as their default network, whereas `ens19` and `ens20` are `virtio`

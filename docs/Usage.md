@@ -85,9 +85,9 @@ ALLOWED_NODES: "[pve1,pve2,pve3, ...]"                        # The Proxmox VE n
 VM_SSH_KEYS: "ssh-ed25519 ..., ssh-ed25519 ..."               # The ssh authorized keys used to ssh to the machines.
 
 ## -- networking configuration-- ##
-CONTROL_PLANE_ENDPOINT_IP: "10.10.10.4"                       # The IP that kube-vip is going to use as a control plane endpoint.
-NODE_IP_RANGES: "[10.10.10.5-10.10.10.50, ...]"               # The IP ranges for Cluster nodes.
-GATEWAY: "10.10.10.1"                                         # The gateway for the machines network-config..
+CONTROL_PLANE_ENDPOINT_IP: "192.0.2.4"                       # The IP that kube-vip is going to use as a control plane endpoint.
+NODE_IP_RANGES: "[192.0.2.5-192.0.2.50, ...]"               # The IP ranges for Cluster nodes.
+GATEWAY: "192.0.2.1"                                         # The gateway for the machines network-config..
 IP_PREFIX: "25"                                               # Subnet Mask in CIDR notation for your node IP ranges.
 DNS_SERVERS: "[8.8.8.8,8.8.4.4]"                              # The dns nameservers for the machines network-config.
 BRIDGE: "vmbr1"                                               # The network bridge device for Proxmox VE VMs.
