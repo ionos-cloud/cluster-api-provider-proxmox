@@ -80,10 +80,10 @@ func TestEnricher_Enrich(t *testing.T) {
 			{
 				Name: "eth0",
 				IPConfigs: []types.IPConfig{
-					{IPAddress: netip.MustParsePrefix("10.1.1.9/24"), Gateway: "10.1.1.1", Default: true},
+					{IPAddress: netip.MustParsePrefix("192.0.2.9/24"), Gateway: "192.0.2.1", Default: true},
 					{IPAddress: netip.MustParsePrefix("2001:db8::1/64"), Gateway: "2001:db8::1", Default: true},
 				},
-				DNSServers: []string{"10.1.1.1"},
+				DNSServers: []string{"192.0.2.1"},
 			},
 		},
 	}
@@ -107,7 +107,7 @@ func TestEnricher_Enrich(t *testing.T) {
 			}
 		}
 	}
-	require.Contains(t, environment, "CUSTOM_PRIVATE_IPV4=10.1.1.9")
+	require.Contains(t, environment, "CUSTOM_PRIVATE_IPV4=192.0.2.9")
 	require.Contains(t, environment, "CUSTOM_PRIVATE_IPV6=2001:db8::1")
 
 	cfg, _, err := ignition.Parse(userdata)

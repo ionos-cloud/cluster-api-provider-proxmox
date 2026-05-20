@@ -97,7 +97,7 @@ spec:
   clusterNetwork:
     pods:
       cidrBlocks:
-        - 10.0.0.0/16
+        - 203.0.113.0/24
 `
 	id := ResourceID{APIVersion: "cluster.x-k8s.io/v1beta1", Kind: "Cluster"}
 	out, err := ConvertCAPI([]byte(input), id, testfile, 2, noopWarn, nil)

@@ -34,7 +34,7 @@ metadata:
   name: test
 spec:
   controlPlaneEndpoint:
-    host: 10.0.0.1
+    host: 203.0.113.1
     port: 6443
 `
 			id := ResourceID{
@@ -173,7 +173,7 @@ metadata:
   # a comment
 spec:
   controlPlaneEndpoint:
-    host: 10.0.0.1
+    host: 203.0.113.1
     port: 6443
 `
 	id := ResourceID{
@@ -201,7 +201,7 @@ metadata:
   name: test
 spec:
   controlPlaneEndpoint:
-    host: 10.0.0.1
+    host: 203.0.113.1
     port: 6443
   unknownExtraField: value
 `

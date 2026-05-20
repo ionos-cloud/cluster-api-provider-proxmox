@@ -42,7 +42,7 @@ metadata:
   name: test
 spec:
   controlPlaneEndpoint:
-    host: 10.0.0.1
+    host: 203.0.113.1
     port: 6443
 `
 
@@ -200,7 +200,7 @@ metadata:
   name: test
 spec:
   controlPlaneEndpoint:
-    host: 10.0.0.1
+    host: 203.0.113.1
     port: 6443
 `
 
@@ -397,7 +397,7 @@ metadata:
   name: test
 spec:
   controlPlaneEndpoint:
-    host: 10.0.0.1
+    host: 203.0.113.1
     port: 6443
 `
 			out, err := Convert([]byte(input), Options{

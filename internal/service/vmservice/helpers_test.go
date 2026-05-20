@@ -122,11 +122,11 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{
-				Addresses: []string{"10.0.0.10-10.0.0.20"},
+				Addresses: []string{"203.0.113.10-203.0.113.20"},
 				Prefix:    24,
-				Gateway:   "10.0.0.1",
+				Gateway:   "203.0.113.1",
 			},
-			DNSServers: []string{"1.2.3.4"},
+			DNSServers: []string{"192.0.2.4"},
 		},
 		Status: infrav1.ProxmoxClusterStatus{
 			NodeLocations: &infrav1.NodeLocations{},
