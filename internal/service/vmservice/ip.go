@@ -262,7 +262,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 			addresses[net.Name] = poolMap
 
 			// append default pool addresses to map
-			if _, exists := defaultPoolMap[ipPool]; exists && ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false) {
+			if _, exists := defaultPoolMap[ipPool]; exists && (ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false)) {
 				defaultPoolMap[ipPool] = append(defaultPoolMap[ipPool], ipAddresses...)
 			}
 		}

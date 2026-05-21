@@ -304,9 +304,8 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 
 // createIPAddress creates an IP address resource from strings.
 // If no pool or nil pool is passed then a dummy pool is used.
-// If one objectRefs is passed then it's used as a pool (intended for most tests, typically pass 0 for offset).
-// If two objectRefs are passed then the first pool is used for the IP address name and the second for creating
-// the IP address resource (intended for createNetworkSpecForMachine, pass your poolRef index for offset).
+// If a pool is passed then it is used for creating the IP address resource.
+// IP address names are always derived from the machine, device, offset, and default suffix.
 func createIPAddress(t *testing.T, c client.Client, machineScope *scope.MachineScope, device infrav1.NetName, ip string, offset int, pool ...*corev1.TypedLocalObjectReference) {
 	ipPrefix, err := netip.ParsePrefix(ip)
 	if err != nil {
