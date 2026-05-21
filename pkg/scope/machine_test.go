@@ -174,6 +174,69 @@ func TestMachineScope_SkipCloudInit(t *testing.T) {
 	require.False(t, scope.SkipQemuGuestCheck())
 }
 
+func TestMachineScope_GetEffectiveAllowedNodes(t *testing.T) {
+	scope := MachineScope{
+		ProxmoxMachine: &infrav1.ProxmoxMachine{
+			Spec: infrav1.ProxmoxMachineSpec{
+				AllowedNodes: []string{"spec-node1"},
+			},
+		},
+	}
+
+	// Without override, returns spec AllowedNodes.
+	require.Equal(t, []string{"spec-node1"}, scope.GetEffectiveAllowedNodes())
+
+	// With override, returns effective nodes.
+	scope.SetEffectiveAllowedNodes([]string{"fd-node1", "fd-node2"})
+	require.Equal(t, []string{"fd-node1", "fd-node2"}, scope.GetEffectiveAllowedNodes())
+}
+
+func TestMachineScope_ApplyFailureDomainNodes(t *testing.T) {
+	cluster := &infrav1.ProxmoxCluster{
+		Spec: infrav1.ProxmoxClusterSpec{
+			ZoneConfigs: []infrav1.ZoneConfigSpec{
+				{
+					Zone:  ptr.To("zone-a"),
+					Nodes: []string{"pve1", "pve2"},
+				},
+				{
+					Zone: ptr.To("zone-b"),
+					// No explicit nodes.
+				},
+			},
+		},
+	}
+
+	t.Run("zone with nodes", func(t *testing.T) {
+		scope := MachineScope{
+			InfraCluster:   &ClusterScope{ProxmoxCluster: cluster},
+			ProxmoxMachine: &infrav1.ProxmoxMachine{},
+		}
+		require.NoError(t, scope.ApplyFailureDomainNodes("zone-a"))
+		require.Equal(t, []string{"pve1", "pve2"}, scope.GetEffectiveAllowedNodes())
+	})
+
+	t.Run("zone without nodes", func(t *testing.T) {
+		scope := MachineScope{
+			InfraCluster:   &ClusterScope{ProxmoxCluster: cluster},
+			ProxmoxMachine: &infrav1.ProxmoxMachine{},
+		}
+		require.NoError(t, scope.ApplyFailureDomainNodes("zone-b"))
+		// No override set, falls back to spec AllowedNodes.
+		require.Nil(t, scope.GetEffectiveAllowedNodes())
+	})
+
+	t.Run("zone not found", func(t *testing.T) {
+		scope := MachineScope{
+			InfraCluster:   &ClusterScope{ProxmoxCluster: cluster},
+			ProxmoxMachine: &infrav1.ProxmoxMachine{},
+		}
+		err := scope.ApplyFailureDomainNodes("zone-c")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "zone-c")
+	})
+}
+
 func TestMachineScope_SkipQemuDisablesCloudInitCheck(t *testing.T) {
 	p := infrav1.ProxmoxMachine{
 		Spec: infrav1.ProxmoxMachineSpec{
