@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
@@ -37,12 +36,12 @@ func defaultMachine() *ProxmoxMachine {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: ProxmoxMachineSpec{
-			ProviderID:       ptr.To("proxmox://abcdef"),
-			VirtualMachineID: ptr.To[int64](100),
+			ProviderID:       new("proxmox://abcdef"),
+			VirtualMachineID: new(int64(100)),
 			VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 				TemplateSource: TemplateSource{
 					SourceNode: "pve1",
-					TemplateID: ptr.To[int32](100),
+					TemplateID: new(int32(100)),
 				},
 			},
 			Disks: &Storage{
@@ -64,16 +63,16 @@ var _ = Describe("ProxmoxMachine Test", func() {
 	Context("VirtualMachineCloneSpec", func() {
 		It("Should not allow specifying format if full clone is disabled", func() {
 			dm := defaultMachine()
-			dm.Spec.Format = ptr.To(TargetStorageFormatRaw)
-			dm.Spec.Full = ptr.To(false)
+			dm.Spec.Format = new(TargetStorageFormatRaw)
+			dm.Spec.Full = new(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying format")))
 		})
 
 		It("Should not allow specifying storage if full clone is disabled", func() {
 			dm := defaultMachine()
-			dm.Spec.Storage = ptr.To("local")
-			dm.Spec.Full = ptr.To(false)
+			dm.Spec.Storage = new("local")
+			dm.Spec.Full = new(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("Must set full=true when specifying storage")))
 		})
@@ -82,7 +81,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm := defaultMachine()
 			dm.Spec.Format = nil
 			dm.Spec.Storage = nil
-			dm.Spec.Full = ptr.To(false)
+			dm.Spec.Full = new(false)
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
 		})
@@ -202,7 +201,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 						NetworkDevice: NetworkDevice{
 							IPPoolConfig: IPPoolConfig{
 								IPv4PoolRef: &corev1.TypedLocalObjectReference{
-									APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+									APIGroup: new("ipam.cluster.x-k8s.io"),
 									Kind:     InClusterIPPool,
 									Name:     "some-pool",
 								},
@@ -225,7 +224,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 						NetworkDevice: NetworkDevice{
 							IPPoolConfig: IPPoolConfig{
 								IPv4PoolRef: &corev1.TypedLocalObjectReference{
-									APIGroup: ptr.To("apps"),
+									APIGroup: new("apps"),
 									Name:     "some-app",
 								},
 							},
@@ -245,7 +244,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 						NetworkDevice: NetworkDevice{
 							IPPoolConfig: IPPoolConfig{
 								IPv4PoolRef: &corev1.TypedLocalObjectReference{
-									APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+									APIGroup: new("ipam.cluster.x-k8s.io"),
 									Kind:     "ConfigMap",
 									Name:     "some-app",
 								},
@@ -267,7 +266,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 						NetworkDevice: NetworkDevice{
 							IPPoolConfig: IPPoolConfig{
 								IPv6PoolRef: &corev1.TypedLocalObjectReference{
-									APIGroup: ptr.To("apps"),
+									APIGroup: new("apps"),
 									Name:     "some-app",
 								},
 							},
@@ -288,7 +287,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 						NetworkDevice: NetworkDevice{
 							IPPoolConfig: IPPoolConfig{
 								IPv6PoolRef: &corev1.TypedLocalObjectReference{
-									APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+									APIGroup: new("ipam.cluster.x-k8s.io"),
 									Kind:     "ConfigMap",
 									Name:     "some-app",
 								},
@@ -320,7 +319,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				Default: &NetworkDevice{
 					Bridge: "vmbr0",
-					MTU:    ptr.To(uint16(0)),
+					MTU:    new(uint16(0)),
 				},
 			}
 
@@ -332,7 +331,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				Default: &NetworkDevice{
 					Bridge: "vmbr0",
-					MTU:    ptr.To(uint16(65521)),
+					MTU:    new(uint16(65521)),
 				},
 			}
 
@@ -377,7 +376,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				Default: &NetworkDevice{
 					Bridge: "vmbr0",
-					VLAN:   ptr.To(uint16(0)),
+					VLAN:   new(uint16(0)),
 				},
 			}
 
@@ -389,7 +388,7 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			dm.Spec.Network = &NetworkSpec{
 				Default: &NetworkDevice{
 					Bridge: "vmbr0",
-					VLAN:   ptr.To(uint16(4095)),
+					VLAN:   new(uint16(4095)),
 				},
 			}
 
