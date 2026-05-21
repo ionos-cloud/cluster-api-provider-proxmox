@@ -1226,6 +1226,26 @@ spec:
                   schedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
                   to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
                 properties:
+                  cpuAdjustment:
+                    description: |-
+                      cpuAdjustment allows to adjust a node's CPU capacity by a given percentage.
+                      For example, setting it to 300 allows allocating 300% of a host's CPU cores for VMs (3:1 overcommit),
+                      and setting it to 95 limits CPU allocation to 95% of the physical core count.
+                      Setting it to 0 entirely disables scheduling CPU constraints (default).
+                      When set to a non-zero value, CPU becomes a hard-fit constraint and a scoring
+                      dimension alongside memory; see memoryTolerance and cpuTolerance for tuning.
+                    format: int64
+                    minimum: 0
+                    type: integer
+                  cpuTolerance:
+                    description: |-
+                      cpuTolerance expresses how acceptable it is to saturate CPU on a node,
+                      in [0, 100]. Lower values make the scheduler more protective of CPU.
+                      Only used when cpuAdjustment > 0. Defaults to 100.
+                    format: int64
+                    maximum: 100
+                    minimum: 0
+                    type: integer
                   memoryAdjustment:
                     description: |-
                       memoryAdjustment allows to adjust a node's memory by a given percentage.
@@ -1234,6 +1254,15 @@ spec:
                       Setting it to 0 entirely disables scheduling memory constraints.
                       By default 100% of a node's memory will be used for allocation.
                     format: int64
+                    minimum: 0
+                    type: integer
+                  memoryTolerance:
+                    description: |-
+                      memoryTolerance expresses how acceptable it is to saturate memory on a node,
+                      in [0, 100]. Lower values make the scheduler more protective of memory.
+                      Only used when cpuAdjustment > 0. Defaults to 0.
+                    format: int64
+                    maximum: 100
                     minimum: 0
                     type: integer
                 type: object

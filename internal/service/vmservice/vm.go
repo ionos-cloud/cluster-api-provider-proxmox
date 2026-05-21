@@ -474,7 +474,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		var err error
 		options.Target, err = selectNextNode(ctx, scope)
 		if err != nil {
-			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
+			if errors.As(err, &scheduler.InsufficientMemoryError{}) || errors.As(err, &scheduler.InsufficientCPUError{}) {
 				conditions.Set(scope.ProxmoxMachine, metav1.Condition{
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,

@@ -454,8 +454,73 @@ func (_c *MockClient_FindVMTemplateByTags_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// GetReservableCPUCores provides a mock function with given fields: ctx, nodeName, cpuAdjustment
+func (_m *MockClient) GetReservableCPUCores(ctx context.Context, nodeName string, cpuAdjustment int64) (int, int, error) {
+	ret := _m.Called(ctx, nodeName, cpuAdjustment)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetReservableCPUCores")
+	}
+
+	var r0 int
+	var r1 int
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (int, int, error)); ok {
+		return rf(ctx, nodeName, cpuAdjustment)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) int); ok {
+		r0 = rf(ctx, nodeName, cpuAdjustment)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) int); ok {
+		r1 = rf(ctx, nodeName, cpuAdjustment)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, int64) error); ok {
+		r2 = rf(ctx, nodeName, cpuAdjustment)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockClient_GetReservableCPUCores_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReservableCPUCores'
+type MockClient_GetReservableCPUCores_Call struct {
+	*mock.Call
+}
+
+// GetReservableCPUCores is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeName string
+//   - cpuAdjustment int64
+func (_e *MockClient_Expecter) GetReservableCPUCores(ctx interface{}, nodeName interface{}, cpuAdjustment interface{}) *MockClient_GetReservableCPUCores_Call {
+	return &MockClient_GetReservableCPUCores_Call{Call: _e.mock.On("GetReservableCPUCores", ctx, nodeName, cpuAdjustment)}
+}
+
+func (_c *MockClient_GetReservableCPUCores_Call) Run(run func(ctx context.Context, nodeName string, cpuAdjustment int64)) *MockClient_GetReservableCPUCores_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockClient_GetReservableCPUCores_Call) Return(available int, allocatable int, err error) *MockClient_GetReservableCPUCores_Call {
+	_c.Call.Return(available, allocatable, err)
+	return _c
+}
+
+func (_c *MockClient_GetReservableCPUCores_Call) RunAndReturn(run func(context.Context, string, int64) (int, int, error)) *MockClient_GetReservableCPUCores_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetReservableMemoryBytes provides a mock function with given fields: ctx, nodeName, nodeMemoryAdjustment
-func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, error) {
+func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, uint64, error) {
 	ret := _m.Called(ctx, nodeName, nodeMemoryAdjustment)
 
 	if len(ret) == 0 {
@@ -463,8 +528,9 @@ func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName str
 	}
 
 	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (uint64, error)); ok {
+	var r1 uint64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (uint64, uint64, error)); ok {
 		return rf(ctx, nodeName, nodeMemoryAdjustment)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, int64) uint64); ok {
@@ -473,13 +539,19 @@ func (_m *MockClient) GetReservableMemoryBytes(ctx context.Context, nodeName str
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) uint64); ok {
 		r1 = rf(ctx, nodeName, nodeMemoryAdjustment)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(uint64)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, string, int64) error); ok {
+		r2 = rf(ctx, nodeName, nodeMemoryAdjustment)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // MockClient_GetReservableMemoryBytes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReservableMemoryBytes'
@@ -502,12 +574,12 @@ func (_c *MockClient_GetReservableMemoryBytes_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockClient_GetReservableMemoryBytes_Call) Return(_a0 uint64, _a1 error) *MockClient_GetReservableMemoryBytes_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockClient_GetReservableMemoryBytes_Call) Return(available uint64, allocatable uint64, err error) *MockClient_GetReservableMemoryBytes_Call {
+	_c.Call.Return(available, allocatable, err)
 	return _c
 }
 
-func (_c *MockClient_GetReservableMemoryBytes_Call) RunAndReturn(run func(context.Context, string, int64) (uint64, error)) *MockClient_GetReservableMemoryBytes_Call {
+func (_c *MockClient_GetReservableMemoryBytes_Call) RunAndReturn(run func(context.Context, string, int64) (uint64, uint64, error)) *MockClient_GetReservableMemoryBytes_Call {
 	_c.Call.Return(run)
 	return _c
 }
