@@ -3,7 +3,7 @@ module github.com/ionos-cloud/cluster-api-provider-proxmox
 go 1.26.3
 
 replace (
-	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.9.0
+	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.11.4
 	k8s.io/code-generator => k8s.io/code-generator v0.34.6 // conversion-gen
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.12.5
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.19.0 // v0.20 → k8s 35
@@ -174,7 +174,7 @@ require (
 	github.com/golangci/dupl v0.0.0-20250308024227-f665c8d69b32 // indirect
 	github.com/golangci/go-printf-func-name v0.1.1 // indirect
 	github.com/golangci/gofmt v0.0.0-20250106114630-d62b90e6713d // indirect
-	github.com/golangci/golangci-lint/v2 v2.9.0 // indirect
+	github.com/golangci/golangci-lint/v2 v2.11.4 // indirect
 	github.com/golangci/golines v0.15.0 // indirect
 	github.com/golangci/misspell v0.8.0 // indirect
 	github.com/golangci/plugin-module-register v0.1.2 // indirect
