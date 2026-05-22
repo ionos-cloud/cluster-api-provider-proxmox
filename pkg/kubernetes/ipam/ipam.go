@@ -588,9 +588,11 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 	}
 
 	addresses.Items = slices.DeleteFunc(addresses.Items, func(n ipamv1.IPAddress) bool {
-		// Check if we are actually dealing with the right resource kind.
-		groupVersion, _ := schema.ParseGroupVersion(n.APIVersion)
-		return groupVersion.Group != GetIPAMInClusterAPIVersion()
+		// PoolRef.APIGroup may be "group" or "group/version"; extract only the group.
+		// Using schema.ParseGroupVersion is unreliable here because a bare group string
+		// (no "/") is parsed as a version, not a group.
+		apiGroup, _, _ := strings.Cut(n.Spec.PoolRef.APIGroup, "/")
+		return apiGroup != GetIPAMInClusterAPIVersion()
 	})
 
 	// Sort result by IPAddress.Name to provide stability to testing.
