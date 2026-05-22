@@ -268,7 +268,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
 
-		poolSpec := getPoolSpec(getIPAddressPool(t, machineScope, *pool))
+		poolSpec := getPoolSpec(t, getIPAddressPool(t, machineScope, *pool))
 		if poolSpec.prefix != 0 {
 			prefix = int32(poolSpec.prefix)
 		}
@@ -427,27 +427,24 @@ func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneR
 	return cluster.Status.InClusterZoneRef[zoneIndex]
 }
 
-func getPoolSpec(pool client.Object) struct {
+func getPoolSpec(t *testing.T, pool client.Object) struct {
 	gateway string
 	prefix  int
 } {
+	var gateway string
+	var prefix int
 	switch p := pool.(type) {
 	case *ipamicv1.InClusterIPPool:
-		return struct {
-			gateway string
-			prefix  int
-		}{gateway: p.Spec.Gateway, prefix: p.Spec.Prefix}
+		gateway, prefix = p.Spec.Gateway, p.Spec.Prefix
 	case *ipamicv1.GlobalInClusterIPPool:
-		return struct {
-			gateway string
-			prefix  int
-		}{gateway: p.Spec.Gateway, prefix: p.Spec.Prefix}
+		gateway, prefix = p.Spec.Gateway, p.Spec.Prefix
+	default:
+		t.Fatalf("unexpected pool type %T", pool)
 	}
-
 	return struct {
 		gateway string
 		prefix  int
-	}{}
+	}{gateway: gateway, prefix: prefix}
 }
 
 func getIPAddressPool(t *testing.T, machineScope *scope.MachineScope, poolRef corev1.TypedLocalObjectReference) client.Object {
