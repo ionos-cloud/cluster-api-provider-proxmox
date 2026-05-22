@@ -44,7 +44,28 @@ make mockgen      # Regenerate mocks (configured in .mockery.yaml)
 
 ```bash
 make verify           # Verify modules and generated files are up to date
+make verify-versions  # Check that version references are consistent across the repo
 ```
+
+### Shell Scripts
+
+```bash
+make lint-sh          # Run ShellCheck on hack/ scripts
+make test-sh          # Run ShellSpec tests for hack/ scripts with kcov coverage
+```
+
+### Version Bumping
+
+Several dependencies appear in multiple files and must be updated atomically. Use the helper scripts in `hack/` rather than editing files manually:
+
+```bash
+hack/bump-go.sh 1.26.0          # go.mod, Dockerfile, docs/Development.md
+hack/bump-capi.sh 1.11.0 v1beta1 # go.mod require+replace, e2e config, metadata.yaml
+hack/bump-golangci-lint.sh v2.10.0 # go.mod require+replace, .custom-gcl.yaml
+hack/bump-k8s.sh 0.33.0         # go.mod k8s.io/{api,apimachinery,client-go}
+```
+
+Each script accepts the version with or without a `v` prefix, prints a line for every file it changes (silent when nothing changes), and runs `go mod tidy` automatically.
 
 ## Architecture
 
@@ -95,6 +116,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying parti
 - Run `make manifests generate mockgen` after modifying API types
 - If conversion behavior changes, update `api/v1alpha1/*_conversion.go`
 - Run `make lint verify test` before committing
+- When bumping Go, cluster-api, golangci-lint, or k8s.io: use `hack/bump-*.sh` instead of editing files manually, then run `make verify-versions`
 
 ⚠️ **Ask before:**
 - Changing v1alpha1 conversion functions (affects backward compatibility)
@@ -103,6 +125,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying parti
 🚫 **Never:**
 - Edit files with a `Code generated … DO NOT EDIT` header
 - Edit the unmarked outputs of `make manifests` (`config/crd/bases/*.yaml`, `config/rbac/role.yaml`, `config/webhook/manifests.yaml`) or `make crs-*` (`templates/crs/cni/*.yaml`) — regenerate instead
+- Edit version-tracked dependencies without the corresponding `hack/bump-*.sh` script
 
 ## Environment
 
