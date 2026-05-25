@@ -20,8 +20,9 @@ import (
 	"context"
 	"fmt"
 
+	"errors"
+
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cluster-api/util"
@@ -89,7 +90,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 	// find the VM, to make sure the vm config is up-to-date.
 	vm, err := s.InfraCluster.ProxmoxClient.GetVM(ctx, rsc.Node, vmID)
 	if err != nil {
-		return errors.Wrapf(err, "unable to find vm with id %d", rsc.VMID)
+		return fmt.Errorf("unable to find vm with id %d: %w", rsc.VMID, err)
 	}
 
 	// Requeue if machine doesn't have a name yet.

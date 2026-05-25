@@ -28,7 +28,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -140,7 +141,7 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 
 		ret = pool
 	default:
-		return nil, errors.Errorf("unsupported pool type %s", ref.Kind)
+		return nil, fmt.Errorf("unsupported pool type %s", ref.Kind)
 	}
 
 	if err != nil {
@@ -377,7 +378,7 @@ func (h *Helper) GetIPPool(ctx context.Context, ref corev1.TypedLocalObjectRefer
 
 		ret = pool
 	default:
-		return nil, errors.Errorf("unsupported pool type %s", ref.Kind)
+		return nil, fmt.Errorf("unsupported pool type %s", ref.Kind)
 	}
 
 	if err != nil {
@@ -445,10 +446,11 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 
 	poolObj, err := h.GetIPPool(ctx, ref)
 	if err != nil {
-		return errors.Wrapf(err, "unable to find %s %s for cluster %s",
+		return fmt.Errorf("unable to find %s %s for cluster %s: %w",
 			ref.Kind,
 			ref.Name,
 			owner.GetName(),
+			err,
 		)
 	}
 
@@ -604,7 +606,7 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 func gvkForObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersionKind, error) {
 	gvk, err := apiutil.GVKForObject(obj, scheme)
 	if err != nil {
-		return schema.GroupVersionKind{}, errors.Wrapf(err, "unable to determine group version for %T", obj)
+		return schema.GroupVersionKind{}, fmt.Errorf("unable to determine group version for %T: %w", obj, err)
 	}
 	return gvk, err
 }

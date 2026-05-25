@@ -18,9 +18,11 @@ package controller
 
 import (
 	"context"
+	"fmt"
+
+	"errors"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -122,7 +124,7 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	infraCluster, err := r.getInfraCluster(ctx, &logger, cluster, proxmoxMachine)
 	if err != nil {
-		return ctrl.Result{}, errors.Errorf("error getting infra provider cluster or control plane object: %v", err)
+		return ctrl.Result{}, fmt.Errorf("error getting infra provider cluster or control plane object: %v", err)
 	}
 	if infraCluster == nil {
 		logger.Info("ProxmoxCluster is not ready yet")
@@ -222,7 +224,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 			return reconcile.Result{RequeueAfter: requeueErr.RequeueAfter()}, nil
 		}
 		machineScope.Logger.Error(err, "error reconciling VM")
-		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile VM")
+		return reconcile.Result{}, fmt.Errorf("failed to reconcile VM: %w", err)
 	}
 	machineScope.ProxmoxMachine.Status.VMStatus = &vm.State
 

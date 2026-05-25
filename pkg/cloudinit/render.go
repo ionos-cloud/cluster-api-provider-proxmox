@@ -18,10 +18,9 @@ package cloudinit
 
 import (
 	"bytes"
+	"fmt"
 	"net/netip"
 	"text/template"
-
-	"github.com/pkg/errors"
 )
 
 func is6(addr string) bool {
@@ -32,12 +31,12 @@ func render(name string, tpl string, data BaseCloudInitData) ([]byte, error) {
 	f := map[string]any{"is6": is6}
 	mt, err := template.New(name).Funcs(f).Parse(tpl)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse %s template", name)
+		return nil, fmt.Errorf("failed to parse %s template: %w", name, err)
 	}
 
 	buffer := &bytes.Buffer{}
 	if err = mt.Execute(buffer, data); err != nil {
-		return nil, errors.Wrapf(err, "failed to render %s", name)
+		return nil, fmt.Errorf("failed to render %s: %w", name, err)
 	}
 	return buffer.Bytes(), nil
 }

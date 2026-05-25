@@ -20,9 +20,10 @@ import (
 	"context"
 	"fmt"
 
+	"errors"
+
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -91,7 +92,7 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 
 	helper, err := patch.NewHelper(params.ProxmoxMachine, params.Client)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to init patch helper")
+		return nil, fmt.Errorf("failed to init patch helper: %w", err)
 	}
 	return &MachineScope{
 		Logger:      params.Logger,

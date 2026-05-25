@@ -22,7 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -134,7 +135,7 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		IPAMHelper:     ipam.NewHelper(r.Client, proxmoxCluster.DeepCopy()),
 	})
 	if err != nil {
-		return reconcile.Result{}, errors.Errorf("failed to create scope: %+v", err)
+		return reconcile.Result{}, fmt.Errorf("failed to create scope: %+v", err)
 	}
 
 	// Always close the scope when exiting this function so we can persist any ProxmoxCluster changes.
@@ -167,7 +168,7 @@ func (r *ProxmoxClusterReconciler) reconcileDelete(ctx context.Context, clusterS
 	// we should only allow to remove the finalizer when there are no ProxmoxMachines left.
 	machines, err := clusterScope.ListProxmoxMachinesForCluster(ctx)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "could not retrieve proxmox machines for cluster %q", clusterScope.InfraClusterName())
+		return reconcile.Result{}, fmt.Errorf("could not retrieve proxmox machines for cluster %q: %w", clusterScope.InfraClusterName(), err)
 	}
 
 	// Requeue if there are one or more machines left.

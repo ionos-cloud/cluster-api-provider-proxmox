@@ -22,8 +22,6 @@ import (
 	"net/netip"
 	"text/template"
 
-	"github.com/pkg/errors"
-
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
@@ -181,12 +179,12 @@ func is6(addr string) bool {
 func render(name string, tpl string, data types.NetworkConfigData) ([]byte, error) {
 	mt, err := template.New(name).Funcs(map[string]any{"is6": is6}).Parse(tpl)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse %s template", name)
+		return nil, fmt.Errorf("failed to parse %s template: %w", name, err)
 	}
 
 	buffer := &bytes.Buffer{}
 	if err = mt.Execute(buffer, data); err != nil {
-		return nil, errors.Wrapf(err, "failed to render %s", name)
+		return nil, fmt.Errorf("failed to render %s: %w", name, err)
 	}
 	return buffer.Bytes(), nil
 }

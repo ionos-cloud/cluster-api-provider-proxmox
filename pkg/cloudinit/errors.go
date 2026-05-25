@@ -16,7 +16,7 @@ limitations under the License.
 
 package cloudinit
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	// ErrMissingHostname returns an error if required hostname is empty.
