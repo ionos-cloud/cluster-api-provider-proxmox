@@ -82,8 +82,12 @@ mockgen: ## Generate mocks.
 
 .PHONY: yamlfmt
 yamlfmt: ## Run yamlfmt against yaml.
-	go tool yamlfmt -dry -quiet
-	go tool yamlfmt
+	go tool yamlfmt -verbose
+
+.PHONY: yamllint
+yamllint: ## Lint YAML files with yamllint and yamlfmt.
+	yamllint $(if $(GITHUB_ACTIONS),-f github) .
+	go tool yamlfmt -lint -quiet
 
 .PHONY: tidy
 tidy: ## Run go mod tidy to ensure modules are up to date
