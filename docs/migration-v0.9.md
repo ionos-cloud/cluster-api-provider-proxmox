@@ -13,7 +13,6 @@ API changes** — your existing v1alpha2 manifests work without modification.
   - [clusterctl move blocks paused clusters](#clusterctl-move-blocks-paused-clusters)
 - [New Features in CAPI v1.12](#new-features-in-capi-v112)
   - [Additional lifecycle hooks](#additional-lifecycle-hooks)
-  - [unhealthyMachineConditions in MachineHealthCheck](#unhealthymachineconditions-in-machinehealthcheck)
 - [Kubernetes Version Support Matrix](#kubernetes-version-support-matrix)
 - [Bug Fixes Affecting Observed Behavior](#bug-fixes-affecting-observed-behavior)
 
@@ -24,7 +23,7 @@ API changes** — your existing v1alpha2 manifests work without modification.
 - CAPMOX v0.8.x — direct upgrade from earlier releases is not tested.
 - Cluster API v1.12
 - `clusterctl` updated to v1.12
-- IPAM provider in-cluster v1.0.3+ (if using IP address management)
+- IPAM provider in-cluster v1.1.0-rc.2+ (for CAPI v1beta2 support), if using IP address management
 
 ## No Manifest Changes Required
 
@@ -90,52 +89,6 @@ CAPI v1.12 adds four new lifecycle hooks that RuntimeExtensions can handle:
 These are opt-in — existing extensions that do not register for these hooks are
 unaffected. See the [CAPI runtime extensions documentation](https://cluster-api.sigs.k8s.io/tasks/experimental-features/runtime-sdk/implement-lifecycle-hooks)
 for details.
-
-### unhealthyMachineConditions in MachineHealthCheck
-
-CAPI v1.12 adds `spec.checks.unhealthyMachineConditions` to `MachineHealthCheck`.
-This field works alongside the existing `spec.checks.unhealthyNodeConditions` and
-allows health decisions to be based on conditions set directly on Machine objects
-rather than on the underlying Kubernetes Node.
-
-The existing `unhealthyNodeConditions`-based MachineHealthChecks continue to work
-without changes. The CAPMOX-provided examples and templates do not need updating;
-`unhealthyMachineConditions` is an optional enhancement.
-
-**Example using both fields:**
-
-```yaml
-apiVersion: cluster.x-k8s.io/v1beta2
-kind: MachineHealthCheck
-metadata:
-  name: my-cluster-worker-unhealthy-5m
-spec:
-  clusterName: my-cluster
-  selector:
-    matchLabels:
-      node-role.kubernetes.io/node: ""
-  checks:
-    nodeStartupTimeoutSeconds: 900
-    unhealthyNodeConditions:
-    - type: Ready
-      status: Unknown
-      timeoutSeconds: 300
-    - type: Ready
-      status: "False"
-      timeoutSeconds: 300
-    unhealthyMachineConditions:
-    - type: InfrastructureReady
-      status: "False"
-      timeoutSeconds: 600
-  remediation:
-    triggerIf:
-      unhealthyLessThanOrEqualTo: "40%"
-```
-
-Valid Machine condition types include `InfrastructureReady`, `BootstrapConfigReady`,
-`MachinesReady`, and others defined in CAPI v1beta2. The types `Ready`, `Available`,
-`HealthCheckSucceeded`, `OwnerRemediated`, and `ExternallyRemediated` are reserved
-and rejected by the webhook.
 
 ## Kubernetes Version Support Matrix
 
