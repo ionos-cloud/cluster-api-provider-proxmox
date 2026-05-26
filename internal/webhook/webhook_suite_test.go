@@ -71,11 +71,7 @@ var _ = BeforeSuite(func() {
 
 	//+kubebuilder:scaffold:webhook
 
-	go func() {
-		defer GinkgoRecover()
-		err = testEnv.StartManager()
-		Expect(err).NotTo(HaveOccurred())
-	}()
+	go startTestManager()
 
 	// wait for the webhook server to get ready
 	dialer := &net.Dialer{Timeout: time.Second}
@@ -90,6 +86,12 @@ var _ = BeforeSuite(func() {
 	}).Should(Succeed())
 
 })
+
+func startTestManager() {
+	GinkgoHelperGo()
+	err := testEnv.StartManager()
+	Expect(err).NotTo(HaveOccurred())
+}
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")

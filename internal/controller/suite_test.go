@@ -96,12 +96,14 @@ var _ = BeforeSuite(func() {
 	}
 	Expect(proxmoxMachineReconciler.SetupWithManager(testEnv.Manager)).To(Succeed())
 
-	go func() {
-		defer GinkgoRecover()
-		err := testEnv.StartManager()
-		Expect(err).NotTo(HaveOccurred())
-	}()
+	go startTestManager()
 })
+
+func startTestManager() {
+	GinkgoHelperGo()
+	err := testEnv.StartManager()
+	Expect(err).NotTo(HaveOccurred())
+}
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
