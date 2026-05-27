@@ -6,8 +6,12 @@ FIXTURES_DIR="${SHELLSPEC_SPECDIR}/fixtures"
 # setup_fixture_repo copies the fixture tree into a temporary directory and
 # exports REPO_ROOT so that helpers.sh reads/writes the copy.
 setup_fixture_repo() {
-  FIXTURE_TMPDIR=$(mktemp -d)
-  cp -a "${FIXTURES_DIR}/." "${FIXTURE_TMPDIR}/"
+  FIXTURE_TMPDIR=$(mktemp -d "${TMPDIR:-/tmp}/capmox-spec.XXXXXX")
+  cp -pR "${FIXTURES_DIR}/." "${FIXTURE_TMPDIR}/"
+  # Copy hack scripts needed by the fixture Makefile (envtest-ver.sh).
+  mkdir -p "${FIXTURE_TMPDIR}/hack"
+  cp "${SHELLSPEC_SPECDIR}/../envtest-ver.sh" "${FIXTURE_TMPDIR}/hack/"
+  cp "${SHELLSPEC_SPECDIR}/../helpers.sh" "${FIXTURE_TMPDIR}/hack/"
   export REPO_ROOT="${FIXTURE_TMPDIR}"
   # Re-evaluate paths set at source time by helpers.sh.
   METADATA_FILE="${REPO_ROOT}/metadata.yaml"
@@ -27,7 +31,7 @@ cleanup_fixture_repo() {
 # (delegates to real go list for reliable module resolution).
 # Prepends the mock to PATH.
 setup_go_mock() {
-  GO_MOCK_DIR=$(mktemp -d)
+  GO_MOCK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/capmox-go-mock.XXXXXX")
   command -v go > "${GO_MOCK_DIR}/real-go-path"
   cat > "${GO_MOCK_DIR}/go" <<'MOCK'
 #!/usr/bin/env bash
