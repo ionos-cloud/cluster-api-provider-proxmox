@@ -27,7 +27,7 @@ CAPMOX v0.8 (API v1alpha2).
   so upgrading to v0.7 before proceeding is recommended.
 - Cluster API v1.11
 - `clusterctl` updated to v1.11
-- IPAM provider in-cluster v1.1.0-rc.1+ (earliest release with CAPI v1beta2 support), if using IP address management
+- IPAM provider in-cluster v1.1.0+ (for CAPI v1beta2 support), if using IP address management
 
 ## What's New in v0.8 (v1alpha2)
 

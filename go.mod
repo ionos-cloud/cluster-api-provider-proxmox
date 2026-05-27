@@ -32,7 +32,7 @@ require (
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	sigs.k8s.io/cluster-api v1.12.9
-	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.0.3
+	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.1.0
 	sigs.k8s.io/cluster-api/test v1.12.9
 	sigs.k8s.io/controller-runtime v0.22.5
 	sigs.k8s.io/randfill v1.0.0

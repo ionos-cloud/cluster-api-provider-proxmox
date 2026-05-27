@@ -156,6 +156,35 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	s.Equal(poolV6.ObjectMeta.Annotations["metric"], "123")
 }
 
+// Test_CreateOrUpdateInClusterIPPool_AddressReuseGracePeriod verifies that
+// CreateOrUpdateInClusterIPPool sets AddressReuseGracePeriodSeconds on both
+// IPv4 and IPv6 pools to prevent immediate IP reuse after node deletion.
+func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool_AddressReuseGracePeriod() {
+	s.cluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+		Addresses: []string{"2001:db8::/64"},
+		Prefix:    64,
+		Gateway:   "2001:db8::1",
+	}
+
+	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
+
+	var poolV4 ipamicv1.InClusterIPPool
+	s.NoError(s.cl.Get(s.ctx, types.NamespacedName{
+		Namespace: "test",
+		Name:      "test-cluster-v4-icip",
+	}, &poolV4))
+	s.NotNil(poolV4.Spec.AddressReuseGracePeriodSeconds)
+	s.EqualValues(60, *poolV4.Spec.AddressReuseGracePeriodSeconds)
+
+	var poolV6 ipamicv1.InClusterIPPool
+	s.NoError(s.cl.Get(s.ctx, types.NamespacedName{
+		Namespace: "test",
+		Name:      "test-cluster-v6-icip",
+	}, &poolV6))
+	s.NotNil(poolV6.Spec.AddressReuseGracePeriodSeconds)
+	s.EqualValues(60, *poolV6.Spec.AddressReuseGracePeriodSeconds)
+}
+
 func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
 	notFound, err := s.helper.GetDefaultInClusterIPPool(s.ctx, infrav1.IPv4Format)
 	s.Nil(notFound)
