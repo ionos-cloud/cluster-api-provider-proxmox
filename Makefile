@@ -2,7 +2,13 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.33.0
+ifndef ENVTEST_K8S_VERSION
+ENVTEST_K8S_VERSION := $(shell hack/envtest-ver.sh)
+endif
+
+.PHONY: print-envtest-ver
+print-envtest-ver:
+	@echo $(ENVTEST_K8S_VERSION)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -154,6 +160,10 @@ verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are
 		git diff; \
 		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
 	fi
+
+.PHONY: verify-versions
+verify-versions: ## Verify repository version definitions are consistent.
+	hack/verify-versions.sh
 
 .PHONY: govulncheck
 govulncheck: ## Run govulncheck to check for known vulnerabilities in the code.
