@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# verify-versions.sh checks that versions of special dependencies are consistent
-# across the repository. Add this to CI via the verify-versions Makefile target.
+# verify-versions.sh checks that versions of special dependencies are
+# consistent across the repository and that each tracked version is listed
+# in every file that should reference it. Add this to CI via the
+# verify-versions Makefile target.
 
 set -euo pipefail
 
@@ -44,6 +46,31 @@ GOLANGCI_VERSION_GOMOD=$(gomod_get_replace 'github.com/golangci/golangci-lint/v2
 GOLANGCI_VERSION_CUSTOM=$(customgcl_get_version)
 if [[ "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_CUSTOM}" ]]; then
     fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
+fi
+
+# ---- cluster-api: require and replace ----
+# The replace directive in go.mod must pin the same version as the require directive.
+
+CAPI_REQUIRE=$(gomod_get_require 'sigs.k8s.io/cluster-api')
+CAPI_REPLACE=$(gomod_get_replace 'sigs.k8s.io/cluster-api')
+if [[ "${CAPI_REQUIRE}" != "${CAPI_REPLACE}" ]]; then
+    fail "cluster-api version mismatch: require directive has '${CAPI_REQUIRE}', replace directive has '${CAPI_REPLACE}'"
+fi
+
+# ---- cluster-api and cluster-api/test ----
+# sigs.k8s.io/cluster-api and sigs.k8s.io/cluster-api/test must be the same version.
+
+CAPI_TEST=$(gomod_get_require 'sigs.k8s.io/cluster-api/test')
+if [[ "${CAPI_REQUIRE}" != "${CAPI_TEST}" ]]; then
+    fail "cluster-api version mismatch: sigs.k8s.io/cluster-api is '${CAPI_REQUIRE}', sigs.k8s.io/cluster-api/test is '${CAPI_TEST}'"
+fi
+
+# ---- cluster-api version in test/e2e metadata ----
+# The cluster-api version from go.mod must be listed in every e2e contract
+# metadata catalog.
+
+if ! e2emetadata_has_release "${CAPI_REQUIRE}"; then
+    fail "cluster-api ${CAPI_REQUIRE} is not listed in every e2e metadata catalog"
 fi
 
 # ---- k8s.io core package versions ----
@@ -104,6 +131,13 @@ if [[ $(echo "${DOCS_K8S_VER}" | wc -l) -gt 1 ]]; then
     fail "docs --kubernetes-version inconsistent across files: ${DOCS_K8S_VER//$'\n'/, }"
 elif [[ "${DOCS_K8S_VER}" != "${EXPECTED_K8S_VER}" ]]; then
     fail "docs --kubernetes-version mismatch: k8s.io/api is '${K8S_VERSION}', expected '${EXPECTED_K8S_VER}' but docs has '${DOCS_K8S_VER}'"
+fi
+
+# ---- cluster-api version in e2e config ----
+# The cluster-api provider version in e2e config files should match go.mod.
+E2E_CAPI_VER=$(e2econfig_get_capi)
+if [[ "${E2E_CAPI_VER}" != "${CAPI_REQUIRE}" ]]; then
+    fail "cluster-api version mismatch: go.mod require is '${CAPI_REQUIRE}', but e2e config has '${E2E_CAPI_VER}'"
 fi
 
 if [[ "${HAD_ERRORS}" == true ]]; then
