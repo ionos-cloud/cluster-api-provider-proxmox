@@ -1,4 +1,4 @@
-ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
+ENVTEST_K8S_VERSION ?= $(shell hack/envtest-ver.sh)
 
 .PHONY: print-envtest-ver
 print-envtest-ver:

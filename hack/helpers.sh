@@ -9,6 +9,10 @@ REPO_ROOT="${REPO_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --sh
 # Returns 0 if the file was changed, 1 if it was unchanged.
 sedi() { local file="$2"; sed -E "$@" > "${file}.tmp" && { cmp -s "${file}" "${file}.tmp" && rm "${file}.tmp" && return 1; mv "${file}.tmp" "${file}"; }; }
 
+# yqsi runs a yq expression against a file in-place.
+# Returns 0 if the file was changed, 1 if it was unchanged.
+yqsi() { local expr="$1" file="$2"; yq "${expr}" "${file}" > "${file}.tmp" && { cmp -s "${file}" "${file}.tmp" && rm "${file}.tmp" && return 1; mv "${file}.tmp" "${file}"; }; }
+
 # ---- version helpers ----
 
 # ensure_v_prefix adds a leading 'v' if not already present.
@@ -54,12 +58,56 @@ gomod_get_go() {
     return
 }
 
+# gomod_get_require returns the version of a package from a require
+# directive in go.mod (direct or indirect).
+# Returns empty string if not found or if go list errors.
+gomod_get_require() {
+    local pkg="$1"
+    (cd "${REPO_ROOT}" && go list -m -f '{{.Version}}' "${pkg}" 2>/dev/null) || true
+    return
+}
+
 # gomod_get_replace returns the target version from a replace directive
 # for the given package in go.mod.
 # Returns empty string if not found or if there is no replace for this package.
 gomod_get_replace() {
     local pkg="$1"
     (cd "${REPO_ROOT}" && go list -m -f '{{if .Replace}}{{.Replace.Version}}{{end}}' "${pkg}" 2>/dev/null) || true
+    return
+}
+
+# gomod_get_version returns the effective version of a Go module as seen by
+# the build, taking replace directives into account.
+gomod_get_version() {
+    local pkg="$1"
+    (cd "${REPO_ROOT}" && go list -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "${pkg}" 2>/dev/null) || true
+    return
+}
+
+# gomod_has_version_match returns 0 when all listed packages resolve
+# to the same effective version.
+gomod_has_version_match() {
+    if [[ $# -eq 0 ]]; then return 0; fi
+    local versions=()
+    for pkg in "$@"; do
+        versions+=("$(gomod_get_version "${pkg}")")
+    done
+    local count
+    count=$(printf '%s\n' "${versions[@]}" | sort -u | wc -l)
+    [[ "${count}" -le 1 ]]
+}
+
+# gomod_make_envtest returns the ENVTEST_K8S_VERSION derived from the
+# effective k8s.io/api version in go.mod (e.g. "1.32").
+gomod_make_envtest() {
+    local ver
+    ver=$(gomod_get_version 'k8s.io/api')
+    if [[ -z "${ver}" ]]; then
+        echo "ERROR: k8s.io/api not found in go.mod" >&2
+        return 1
+    fi
+    split_version "${ver}"
+    echo "1.${MINOR}"
     return
 }
 
@@ -76,22 +124,62 @@ gomod_set_go() {
     return
 }
 
+# gomod_set_require updates one or more package versions in the require block.
+# Usage: gomod_set_require <version> <pkg>...
+gomod_set_require() {
+    local new="$1"; shift
+    local args=() msgs=()
+    for pkg in "$@"; do
+        local old
+        old=$(gomod_get_require "${pkg}" 2>/dev/null || true)
+        args+=("-require=${pkg}@${new}")
+        if [[ -z "${old}" ]]; then
+            msgs+=("go.mod: Added require ${pkg} ${new}")
+        elif [[ "${old}" != "${new}" ]]; then
+            msgs+=("go.mod: Updated require ${pkg} ${old} to ${new}")
+        fi
+    done
+    (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+    if [[ ${#msgs[@]} -gt 0 ]]; then printf '%s\n' "${msgs[@]}"; fi
+    return
+}
+
 # gomod_add_replace adds or updates replace directives for one or more packages.
 # Usage: gomod_add_replace <version> <pkg>...
 gomod_add_replace() {
     local new="$1"; shift
-    local args=()
+    local args=() msgs=()
     for pkg in "$@"; do
         local old
         old=$(gomod_get_replace "${pkg}")
         args+=("-replace=${pkg}=${pkg}@${new}")
         if [[ -z "${old}" ]]; then
-            echo "go.mod: Added replace ${pkg} => ${pkg} ${new}"
+            msgs+=("go.mod: Added replace ${pkg} => ${pkg} ${new}")
         elif [[ "${old}" != "${new}" ]]; then
-            echo "go.mod: Updated replace ${pkg} ${old} to ${new}"
+            msgs+=("go.mod: Updated replace ${pkg} ${old} to ${new}")
         fi
     done
     (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+    if [[ ${#msgs[@]} -gt 0 ]]; then printf '%s\n' "${msgs[@]}"; fi
+    return
+}
+
+# gomod_del_replace removes replace directives for one or more packages.
+# Usage: gomod_del_replace <pkg>...
+gomod_del_replace() {
+    local args=() msgs=()
+    for pkg in "$@"; do
+        local old
+        old=$(gomod_get_replace "${pkg}")
+        if [[ -n "${old}" ]]; then
+            args+=("-dropreplace=${pkg}")
+            msgs+=("go.mod: Removed replace ${pkg} ${old}")
+        fi
+    done
+    if [[ ${#args[@]} -gt 0 ]]; then
+        (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+        printf '%s\n' "${msgs[@]}"
+    fi
     return
 }
 
@@ -120,6 +208,13 @@ customgcl_get_version() {
     return
 }
 
+# makefile_get_envtest returns the ENVTEST_K8S_VERSION value from the
+# Makefile (e.g. "1.32").
+makefile_get_envtest() {
+    make -C "${REPO_ROOT}" --no-print-directory print-envtest-ver 2>/dev/null
+    return
+}
+
 # ---- version update: other files ----
 # Each function updates a version in a file, prints "file: Updated … old to new"
 # when a change is made, and stays silent on no-op.
@@ -133,6 +228,7 @@ dockerfile_set_go() {
     fi
     return
 }
+
 # customgcl_set_version updates the version field in .custom-gcl.yaml.
 customgcl_set_version() {
     local new="$1" f="${REPO_ROOT}/.custom-gcl.yaml" old
@@ -142,5 +238,57 @@ customgcl_set_version() {
             echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"
         fi
     fi
+    return
+}
+
+# ---- version extraction: e2e config ----
+
+# E2E config files contain KUBERNETES_VERSION defaults and CAPI provider
+# version references that need to stay in sync with go.mod.
+E2E_CONFIG_DIR="${REPO_ROOT}/test/e2e/config"
+
+# e2econfig_get_k8s returns the default KUBERNETES_VERSION from the first
+# e2e config file (e.g. "v1.32.2").
+e2econfig_get_k8s() {
+    yq '.variables.KUBERNETES_VERSION | match("v[0-9]+\.[0-9]+\.[0-9]+") | .string' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    return
+}
+
+# e2econfig_set_k8s updates the KUBERNETES_VERSION default in all e2e config
+# files and prints a confirmation message.
+e2econfig_set_k8s() {
+    local new="$1" old changed=false
+    old=$(e2econfig_get_k8s)
+    for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
+        # shellcheck disable=SC2016 # literal ${KUBERNETES_VERSION:-...} is intentional
+        if [[ -f "${f}" ]] && yqsi '.variables.KUBERNETES_VERSION = "${KUBERNETES_VERSION:-'"${new}"'}"' "${f}"; then
+            changed=true
+        fi
+    done
+    if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated KUBERNETES_VERSION ${old} to ${new}"; fi
+    return
+}
+
+# ---- version extraction: docs kubernetes-version ----
+
+# docs_get_k8s returns the sorted unique --kubernetes-version values found in
+# docs, one per line (e.g. "v1.31.6"). Returns empty string if not found.
+# A multi-line result signals inconsistency across docs files.
+docs_get_k8s() {
+    grep -Eroh -- '--kubernetes-version v[0-9]+\.[0-9]+\.[0-9]+' "${REPO_ROOT}/docs/" 2>/dev/null \
+        | awk '{print $2}' | sort -u || true
+    return
+}
+
+# docs_set_k8s updates all --kubernetes-version references in docs and prints
+# a confirmation message.
+docs_set_k8s() {
+    local new="$1" changed=false
+    while IFS= read -r f; do
+        if grep -q -- '--kubernetes-version v[0-9]' "${f}" && sedi "s/(--kubernetes-version )v[0-9]+\.[0-9]+\.[0-9]+/\1${new}/g" "${f}"; then
+            changed=true
+        fi
+    done < <(find "${REPO_ROOT}/docs" -name '*.md' -type f)
+    if [[ "${changed}" == true ]]; then echo "docs: Updated --kubernetes-version references to ${new}"; fi
     return
 }
