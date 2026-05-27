@@ -96,7 +96,7 @@ var _ = BeforeSuite(func() {
 	}
 	Expect(proxmoxMachineReconciler.SetupWithManager(testEnv.Manager)).To(Succeed())
 
-	go startTestManager()
+	startTestManager()
 })
 
 func startTestManager() {

@@ -71,7 +71,7 @@ var _ = BeforeSuite(func() {
 
 	//+kubebuilder:scaffold:webhook
 
-	go startTestManager()
+	startTestManager()
 
 	// wait for the webhook server to get ready
 	dialer := &net.Dialer{Timeout: time.Second}
