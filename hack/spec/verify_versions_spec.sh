@@ -37,6 +37,13 @@ Describe 'verify-versions.sh'
     The status should be success
   End
 
+  It 'detects cluster-api require/replace mismatch'
+    gomod_set_require 'v1.11.0' 'sigs.k8s.io/cluster-api' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'cluster-api version mismatch'
+  End
+
   It 'detects KUBERNETES_VERSION mismatch in e2e config'
     e2econfig_set_k8s 'v1.30.0' >/dev/null
     When run script ../verify-versions.sh
@@ -49,6 +56,14 @@ Describe 'verify-versions.sh'
     When run script ../verify-versions.sh
     The status should be failure
     The output should include 'docs --kubernetes-version mismatch'
+  End
+
+  It 'detects cluster-api version mismatch in e2e config'
+    e2econfig_set_capi 'v1.9.0' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'cluster-api version mismatch'
+    The output should include 'e2e config'
   End
 
   It 'detects k8s.io/code-generator replace version mismatch'

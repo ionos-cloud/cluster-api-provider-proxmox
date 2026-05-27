@@ -41,6 +41,35 @@ if versions_differ "${GOLANGCI_VERSION_GOMOD}" "${GOLANGCI_VERSION_CUSTOM}"; the
     fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
 fi
 
+# ---- cluster-api: require and replace ----
+# The replace directive in go.mod must pin the same version as the require directive.
+
+CAPI_REQUIRE=$(gomod_get_require 'sigs.k8s.io/cluster-api')
+CAPI_REPLACE=$(gomod_get_replace 'sigs.k8s.io/cluster-api')
+if versions_differ "${CAPI_REQUIRE}" "${CAPI_REPLACE}"; then
+    fail "cluster-api version mismatch: require directive has '${CAPI_REQUIRE}', replace directive has '${CAPI_REPLACE}'"
+fi
+
+# ---- cluster-api and cluster-api/test ----
+# sigs.k8s.io/cluster-api and sigs.k8s.io/cluster-api/test must be the same version.
+
+CAPI_TEST=$(gomod_get_require 'sigs.k8s.io/cluster-api/test')
+if versions_differ "${CAPI_REQUIRE}" "${CAPI_TEST}"; then
+    fail "cluster-api version mismatch: sigs.k8s.io/cluster-api is '${CAPI_REQUIRE}', sigs.k8s.io/cluster-api/test is '${CAPI_TEST}'"
+fi
+
+# ---- cluster-api version in test/e2e metadata ----
+# The cluster-api major.minor from go.mod must be listed in the e2e metadata file.
+
+if [[ -n "${CAPI_REQUIRE}" ]]; then
+    split_version "${CAPI_REQUIRE}"
+    CAPI_MAJOR="${MAJOR}"
+    CAPI_MINOR="${MINOR}"
+    if ! e2emetadata_has_release "${CAPI_MAJOR}" "${CAPI_MINOR}"; then
+        fail "cluster-api v${CAPI_MAJOR}.${CAPI_MINOR} is not listed in test/e2e/data/shared/v1beta1/metadata.yaml"
+    fi
+fi
+
 # ---- k8s.io core package versions ----
 # k8s.io/api, k8s.io/apimachinery, and k8s.io/client-go follow the same release
 # cycle and must all be at the same effective version. When a replace directive
@@ -99,6 +128,15 @@ if [[ -n "${K8S_VERSION}" ]]; then
         if versions_differ "${DOCS_K8S_VER}" "${EXPECTED_K8S_VER}"; then
             fail "docs --kubernetes-version mismatch: k8s.io/api is '${K8S_VERSION}', expected '${EXPECTED_K8S_VER}' but docs has '${DOCS_K8S_VER}'"
         fi
+    fi
+fi
+
+# ---- cluster-api version in e2e config ----
+# The cluster-api provider version in e2e config files should match go.mod.
+E2E_CAPI_VER=$(e2econfig_get_capi)
+if [[ -n "${CAPI_REQUIRE}" && -n "${E2E_CAPI_VER}" ]]; then
+    if versions_differ "${E2E_CAPI_VER}" "${CAPI_REQUIRE}"; then
+        fail "cluster-api version mismatch: go.mod require is '${CAPI_REQUIRE}', but e2e config has '${E2E_CAPI_VER}'"
     fi
 fi
 

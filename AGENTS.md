@@ -46,6 +46,26 @@ make mockgen      # Regenerate mocks (configured in .mockery.yaml)
 make verify           # Verify modules and generated files are up to date
 ```
 
+### Shell Scripts
+
+```bash
+make lint-sh          # Run ShellCheck on hack/ scripts
+make test-sh          # Run ShellSpec tests for hack/ scripts with kcov coverage
+```
+
+### Version Bumping
+
+Several dependencies appear in multiple files and must be updated atomically. Use the helper scripts in `hack/` rather than editing files manually:
+
+```bash
+hack/bump-go.sh 1.26.0          # go.mod, Dockerfile, docs/Development.md, .golangci-kal.yml
+hack/bump-capi.sh 1.11.0 v1beta2 # go.mod require+replace, e2e config, test/e2e/data/shared/<contract>/metadata.yaml
+hack/bump-golangci-lint.sh v2.10.0 # go.mod require+replace, .custom-gcl.yaml
+hack/bump-k8s.sh 0.33.0         # go.mod k8s.io/{api,apimachinery,client-go,code-generator}
+```
+
+Each script accepts the version with or without a `v` prefix, prints a line for every file it changes (silent when nothing changes), and runs `go mod tidy` automatically.
+
 ## Architecture
 
 ### Reconciliation Flow
