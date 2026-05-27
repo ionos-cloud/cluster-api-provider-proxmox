@@ -44,6 +44,7 @@ make mockgen      # Regenerate mocks (configured in .mockery.yaml)
 
 ```bash
 make verify           # Verify modules and generated files are up to date
+make verify-versions  # Check that version references are consistent across the repo
 ```
 
 ### Shell Scripts
@@ -115,6 +116,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying parti
 - Run `make manifests generate mockgen` after modifying API types
 - If conversion behavior changes, update `api/v1alpha1/*_conversion.go`
 - Run `make lint verify test` before committing
+- When bumping Go, cluster-api, golangci-lint, or k8s.io: use `hack/bump-*.sh` instead of editing files manually, then run `make verify-versions`
 
 ⚠️ **Ask before:**
 - Changing v1alpha1 conversion functions (affects backward compatibility)
@@ -123,6 +125,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying parti
 🚫 **Never:**
 - Edit files with a `Code generated … DO NOT EDIT` header
 - Edit the unmarked outputs of `make manifests` (`config/crd/bases/*.yaml`, `config/rbac/role.yaml`, `config/webhook/manifests.yaml`) or `make crs-*` (`templates/crs/cni/*.yaml`) — regenerate instead
+- Edit version-tracked dependencies without the corresponding `hack/bump-*.sh` script
 
 ## Environment
 
