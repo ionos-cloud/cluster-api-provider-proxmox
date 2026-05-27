@@ -46,6 +46,66 @@ if [[ "${GOLANGCI_VERSION_GOMOD}" != "${GOLANGCI_VERSION_CUSTOM}" ]]; then
     fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
 fi
 
+# ---- k8s.io core package versions ----
+# k8s.io/api, k8s.io/apimachinery, and k8s.io/client-go follow the same release
+# cycle and must all be at the same effective version. When a replace directive
+# overrides a package, the replace version is the effective one; otherwise the
+# version from the require block (direct or indirect) is used.
+
+K8S_PKGS=('k8s.io/api' 'k8s.io/apimachinery' 'k8s.io/client-go')
+
+if ! gomod_has_version_match "${K8S_PKGS[@]}"; then
+    version_details=""
+    for pkg in "${K8S_PKGS[@]}"; do
+        version_details+=" ${pkg}=$(gomod_get_version "${pkg}")"
+    done
+    fail "k8s.io package version mismatch:${version_details}"
+fi
+
+# ---- k8s.io/code-generator ----
+# k8s.io/code-generator hosts the conversion-gen tool. It's pinned via
+# `replace` only. Its target version must match the effective k8s.io
+# package version.
+
+CODE_GEN_VER=$(gomod_get_replace 'k8s.io/code-generator')
+K8S_EFFECTIVE_VER=$(gomod_get_version 'k8s.io/api')
+if [[ "${CODE_GEN_VER}" != "${K8S_EFFECTIVE_VER}" ]]; then
+    fail "k8s.io/code-generator version mismatch: k8s.io/api is '${K8S_EFFECTIVE_VER}', replace for k8s.io/code-generator is '${CODE_GEN_VER}'"
+fi
+
+# ---- k8s.io and ENVTEST_K8S_VERSION ----
+# The Makefile is meant to call gomod_make_envtest to derive ENVTEST_K8S_VERSION.
+# This check verifies that it still does.
+
+EXPECTED_ENVTEST=$(gomod_make_envtest)
+ENVTEST_VERSION=$(makefile_get_envtest)
+if [[ "${EXPECTED_ENVTEST}" != "${ENVTEST_VERSION}" ]]; then
+    fail "ENVTEST_K8S_VERSION mismatch: k8s.io/api is '$(gomod_get_version 'k8s.io/api')' but ENVTEST_K8S_VERSION is '${ENVTEST_VERSION}'"
+fi
+
+# ---- KUBERNETES_VERSION in e2e config ----
+# test/e2e/config files should reference the matching Kubernetes version
+# (v1.MINOR.PATCH).
+
+K8S_VERSION=$(gomod_get_version 'k8s.io/api')
+split_version "${K8S_VERSION}"
+EXPECTED_K8S_VER="v1.${MINOR}.${PATCH}"
+
+E2E_K8S_VER=$(e2econfig_get_k8s)
+if [[ "${E2E_K8S_VER}" != "${EXPECTED_K8S_VER}" ]]; then
+    fail "KUBERNETES_VERSION mismatch: k8s.io/api is '${K8S_VERSION}', expected KUBERNETES_VERSION '${EXPECTED_K8S_VER}' but e2e config has '${E2E_K8S_VER}'"
+fi
+
+# ---- --kubernetes-version in docs ----
+# Docs should reference the same Kubernetes version as k8s.io packages.
+
+DOCS_K8S_VER=$(docs_get_k8s)
+if [[ $(echo "${DOCS_K8S_VER}" | wc -l) -gt 1 ]]; then
+    fail "docs --kubernetes-version inconsistent across files: ${DOCS_K8S_VER//$'\n'/, }"
+elif [[ "${DOCS_K8S_VER}" != "${EXPECTED_K8S_VER}" ]]; then
+    fail "docs --kubernetes-version mismatch: k8s.io/api is '${K8S_VERSION}', expected '${EXPECTED_K8S_VER}' but docs has '${DOCS_K8S_VER}'"
+fi
+
 if [[ "${HAD_ERRORS}" == true ]]; then
     exit 1
 fi

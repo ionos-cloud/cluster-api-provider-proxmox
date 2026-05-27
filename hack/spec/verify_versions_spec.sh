@@ -31,4 +31,30 @@ Describe 'verify-versions.sh'
     The status should be failure
     The error should include 'golangci-lint version mismatch'
   End
+
+  It 'passes with dynamic ENVTEST_K8S_VERSION derived from k8s.io/api'
+    When run script ../verify-versions.sh
+    The status should be success
+  End
+
+  It 'detects KUBERNETES_VERSION mismatch in e2e config'
+    e2econfig_set_k8s 'v1.30.0' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The error should include 'KUBERNETES_VERSION mismatch'
+  End
+
+  It 'detects --kubernetes-version mismatch in docs'
+    docs_set_k8s 'v1.30.0' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The error should include 'docs --kubernetes-version mismatch'
+  End
+
+  It 'detects k8s.io/code-generator replace version mismatch'
+    gomod_add_replace 'v0.31.0' 'k8s.io/code-generator' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The error should include 'k8s.io/code-generator version mismatch'
+  End
 End
