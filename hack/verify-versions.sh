@@ -31,6 +31,16 @@ if [[ -n "${DOCS_GO_VERSION}" && "${DOCS_GO_VERSION}" != "${GO_VERSION_MINOR}" ]
     fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), docs/Development.md lists 'Go v${DOCS_GO_VERSION}'"
 fi
 
+# ---- golangci-lint version ----
+# The golangci-lint replace directive in go.mod and the version in
+# .custom-gcl.yaml must use the same version.
+
+GOLANGCI_VERSION_GOMOD=$(gomod_get_replace 'github.com/golangci/golangci-lint/v2')
+GOLANGCI_VERSION_CUSTOM=$(customgcl_get_version)
+if versions_differ "${GOLANGCI_VERSION_GOMOD}" "${GOLANGCI_VERSION_CUSTOM}"; then
+    fail "golangci-lint version mismatch: go.mod replace has '${GOLANGCI_VERSION_GOMOD}', .custom-gcl.yaml has '${GOLANGCI_VERSION_CUSTOM}'"
+fi
+
 # ---- Report results ----
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then

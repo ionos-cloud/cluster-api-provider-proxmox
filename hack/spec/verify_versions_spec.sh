@@ -24,4 +24,11 @@ Describe 'verify-versions.sh'
     The status should be failure
     The output should include 'Go version mismatch'
   End
+
+  It 'detects golangci-lint version mismatch'
+    customgcl_set_version 'v2.8.0' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The output should include 'golangci-lint version mismatch'
+  End
 End
