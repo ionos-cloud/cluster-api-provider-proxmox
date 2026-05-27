@@ -62,7 +62,7 @@ Several dependencies appear in multiple files and must be updated atomically. Us
 hack/bump-go.sh 1.26.0          # go.mod, Dockerfile, docs/Development.md, .golangci-kal.yml
 hack/bump-capi.sh 1.11.0 v1beta2 # go.mod require+replace, e2e config, test/e2e/data/shared/<contract>/metadata.yaml
 hack/bump-golangci-lint.sh v2.10.0 # go.mod require+replace, .custom-gcl.yaml
-hack/bump-k8s.sh 0.33.0         # go.mod k8s.io/{api,apimachinery,client-go,code-generator}
+hack/bump-k8s.sh 0.33.0         # go.mod k8s.io/{api,apimachinery,client-go,code-generator}, test/e2e/config KUBERNETES_VERSION, docs --kubernetes-version
 ```
 
 Each script accepts the version with or without a `v` prefix, prints a line for every file it changes (silent when nothing changes), and runs `go mod tidy` automatically.
