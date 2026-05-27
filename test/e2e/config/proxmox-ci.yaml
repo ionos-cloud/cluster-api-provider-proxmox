@@ -52,8 +52,8 @@ providers:
   - name: in-cluster
     type: IPAMProvider
     versions:
-      - name: v1.1.0-rc.1
-        value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v1.1.0-rc.1/ipam-components.yaml
+      - name: v1.1.0
+        value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v1.1.0/ipam-components.yaml
         type: url
         files:
           - sourcePath: "../data/shared/ipam/metadata.yaml"
