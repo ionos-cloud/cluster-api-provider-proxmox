@@ -99,7 +99,12 @@ func TestEnricher_Enrich(t *testing.T) {
 	var jsonData interface{}
 	err = json.Unmarshal(userdata, &jsonData)
 	require.NoError(t, err)
-	files := jsonData.(map[string]interface{})["storage"].(map[string]interface{})["files"].([]interface{})
+	root, ok := jsonData.(map[string]any)
+	require.True(t, ok, "expected root to be map[string]any")
+	storage, ok := root["storage"].(map[string]any)
+	require.True(t, ok, "expected storage to be map[string]any")
+	require.IsType(t, []any{}, storage["files"], "expected storage.files to be a slice")
+	files := storage["files"].([]any)
 	for _, file := range files {
 		if v, exists := file.(map[string]interface{})["path"]; exists {
 			if v.(string) == "/etc/proxmox-env" {
