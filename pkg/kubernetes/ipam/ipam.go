@@ -312,6 +312,9 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 					Addresses: poolSpec.Addresses,
 					Prefix:    int(poolSpec.Prefix),
 					Gateway:   poolSpec.Gateway,
+					// TODO(v0.9): decide whether to expose this as a knob or change the default.
+					// 60s covers typical ARP cache expiry on switches during node replacement.
+					AddressReuseGracePeriodSeconds: new(int32(60)),
 				},
 			}
 
