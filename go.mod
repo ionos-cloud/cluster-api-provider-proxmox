@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
-go 1.25.10
+go 1.26.2
 
 replace (
 	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.9.0
@@ -35,7 +35,7 @@ require (
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	sigs.k8s.io/cluster-api v1.11.8
-	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.0.3
+	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.1.0
 	sigs.k8s.io/cluster-api/test v1.11.8
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/randfill v1.0.0
