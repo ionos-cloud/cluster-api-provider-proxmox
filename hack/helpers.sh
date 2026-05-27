@@ -269,6 +269,32 @@ e2econfig_set_k8s() {
     return
 }
 
+# e2econfig_get_capi returns the cluster-api provider version from the first
+# e2e config file (e.g. "v1.10.4").
+e2econfig_get_capi() {
+    yq '.providers[] | select(.type == "CoreProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    return
+}
+
+# e2econfig_set_capi updates the cluster-api provider version in all e2e
+# config files, including both the provider name and download URL.
+e2econfig_set_capi() {
+    local new="$1" old old_escaped changed=false
+    old=$(e2econfig_get_capi)
+    if [[ -z "${old}" ]]; then return; fi
+    old_escaped="${old//./\\.}"
+    for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
+        if [[ -f "${f}" ]] && yqsi '
+              (.providers[].versions[] | select(.value | test("cluster-api/releases/download"))) |=
+                (.name = "'"${new}"'" | .value = (.value | sub("'"${old_escaped}"'", "'"${new}"'")))
+            ' "${f}"; then
+            changed=true
+        fi
+    done
+    if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated cluster-api ${old} to ${new}"; fi
+    return
+}
+
 # ---- version extraction: docs kubernetes-version ----
 
 # docs_get_k8s returns the sorted unique --kubernetes-version values found in
@@ -291,4 +317,91 @@ docs_set_k8s() {
     done < <(find "${REPO_ROOT}/docs" -name '*.md' -type f)
     if [[ "${changed}" == true ]]; then echo "docs: Updated --kubernetes-version references to ${new}"; fi
     return
+}
+
+# ---- version extraction: metadata.yaml ----
+
+# Top-level metadata.yaml is the source of truth for the contract version
+# that the current release adheres to.
+METADATA_FILE="${REPO_ROOT}/metadata.yaml"
+# CAPI_CONTRACT is the cluster-api contract capmox targets. Override via the
+# environment to work with a future contract (e.g. a v1beta3 port); defaults
+# to the contract capmox currently implements. Reserved for metadata.yaml
+# verification and release tooling.
+# shellcheck disable=SC2034  # consumed by sourcing scripts; checks land next
+CAPI_CONTRACT="${CAPI_CONTRACT:-v1beta2}"
+
+# metadata_latest_contract returns the contract version of the releaseSeries
+# entry with the highest major.minor in the top-level metadata.yaml (e.g.
+# "v1beta1"). This is the contract the project currently implements.
+metadata_latest_contract() {
+    yq '[.releaseSeries[] | {"v": ((.major * 1000) + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
+    return
+}
+
+# e2emetadata_contracts lists the cluster-api contract catalogs under
+# test/e2e/data/shared (one directory per contract, e.g. v1beta1, v1beta2).
+# The directory name is the contract version.
+e2emetadata_contracts() {
+    local d
+    for d in "${REPO_ROOT}"/test/e2e/data/shared/v1beta*/; do
+        [[ -d "${d}" ]] || continue
+        basename "${d}"
+    done
+    return
+}
+
+# e2emetadata_contract_has_release returns 0 when a releaseSeries entry with the
+# given major and minor exists in the named contract's e2e metadata catalog.
+e2emetadata_contract_has_release() {
+    local major="$1" minor="$2" contract="$3"
+    yq -e '.releaseSeries[] | select(.major == '"${major}"' and .minor == '"${minor}"')' \
+        "${REPO_ROOT}/test/e2e/data/shared/${contract}/metadata.yaml" > /dev/null 2>&1
+    return
+}
+
+# e2emetadata_contract_add_release prepends a releaseSeries entry to the named
+# contract's e2e metadata catalog (newest first) and prints a confirmation.
+e2emetadata_contract_add_release() {
+    local major="$1" minor="$2" contract="$3"
+    local rel="test/e2e/data/shared/${contract}/metadata.yaml"
+    yq -i '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}] + .releaseSeries' \
+        "${REPO_ROOT}/${rel}"
+    echo "${rel}: Added releaseSeries entry for v${major}.${minor} (${contract})"
+    return
+}
+
+# e2emetadata_add_release adds a releaseSeries entry for the given version's
+# major.minor to every contract catalog missing it, each entry tagged with its
+# catalog's contract.
+e2emetadata_add_release() {
+    local ver="$1" major minor contract
+    split_version "${ver}"
+    major="${MAJOR}"; minor="${MINOR}"
+    while IFS= read -r contract; do
+        if ! e2emetadata_contract_has_release "${major}" "${minor}" "${contract}"; then
+            e2emetadata_contract_add_release "${major}" "${minor}" "${contract}"
+        fi
+    done < <(e2emetadata_contracts)
+    return
+}
+
+# e2emetadata_has_release returns 0 when the given version's major.minor is
+# listed in every contract catalog. On failure it reports the catalogs missing
+# the entry.
+e2emetadata_has_release() {
+    local ver="$1" major minor contract
+    local missing=()
+    split_version "${ver}"
+    major="${MAJOR}"; minor="${MINOR}"
+    while IFS= read -r contract; do
+        if ! e2emetadata_contract_has_release "${major}" "${minor}" "${contract}"; then
+            missing+=("${contract}")
+        fi
+    done < <(e2emetadata_contracts)
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "v${major}.${minor} missing from e2e metadata catalog(s): ${missing[*]}" >&2
+        return 1
+    fi
+    return 0
 }
