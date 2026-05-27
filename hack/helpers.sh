@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# helpers.sh provides shared routines for the hack/ scripts.
+# Source this file, do not execute it directly.
+
+# Repo root; resolved at source time unless pre-set by the caller.
+REPO_ROOT="${REPO_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)}"
+
+# sedi performs portable in-place sed (avoids GNU vs BSD sed -i incompatibility).
+# Returns 0 if the file was changed, 1 if it was unchanged.
+sedi() { local file="$2"; sed -E "$@" > "${file}.tmp" && { cmp -s "${file}" "${file}.tmp" && rm "${file}.tmp" && return 1; mv "${file}.tmp" "${file}"; }; }
+
+# ---- version helpers ----
+
+# strip_v_prefix removes a leading 'v' if present.
+strip_v_prefix() { local v="$1"; echo "${v#v}"; return; }
+
+# validate_semver exits with an error if the argument is not a valid version.
+# Accepts major.minor.patch with an optional pre-release suffix (e.g. -rc.0)
+# and an optional leading 'v' prefix.
+validate_semver() {
+    local raw="$1"
+    local v; v=$(strip_v_prefix "${raw}")
+    if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9][A-Za-z0-9.\-]*)?$ ]]; then
+        echo "ERROR: invalid version format '${raw}'" >&2
+        echo "Expected: major.minor.patch[-prerelease] (e.g. 1.11.0 or v0.9.0-rc.0)" >&2
+        exit 1
+    fi
+    return
+}
+
+# ---- go.mod getters ----
+
+# gomod_get_go returns the Go version from go.mod (e.g. "1.25.0").
+gomod_get_go() {
+    awk '/^go /{print $2; exit}' "${REPO_ROOT}/go.mod"
+    return
+}
+
+# ---- go.mod setters ----
+# Helpers that accept packages take the version as the first argument followed
+# by one or more package names: gomod_set_require <version> <pkg>...
+
+# gomod_set_go updates the "go X.Y.Z" directive in go.mod.
+gomod_set_go() {
+    local new="$1" old
+    old=$(gomod_get_go)
+    (cd "${REPO_ROOT}" && go mod edit -go="${new}")
+    if [[ "${old}" != "${new}" ]]; then echo "go.mod: Updated go ${old} to ${new}"; fi
+    return
+}
+
+# gomod_tidy runs go mod tidy from the repo root.
+gomod_tidy() {
+    (cd "${REPO_ROOT}" && go mod tidy)
+    return
+}
+
+# ---- version extraction: other files ----
+
+# dockerfile_get_go returns the Go major.minor from the Dockerfile
+# base image (e.g. "1.25").
+dockerfile_get_go() {
+    awk '/^FROM golang:[0-9]+\.[0-9]+/{match($0, /[0-9]+\.[0-9]+/); print substr($0, RSTART, RLENGTH); exit}' "${REPO_ROOT}/Dockerfile"
+    return
+}
+
+# ---- version update: other files ----
+# Each function updates a version in a file, prints "file: Updated … old to new"
+# when a change is made, and stays silent on no-op.
+
+# dockerfile_set_go updates the Go major.minor in the Dockerfile base image.
+dockerfile_set_go() {
+    local new="$1" old
+    old=$(dockerfile_get_go)
+    if sedi "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"; then
+        echo "Dockerfile: Updated golang:${old} to golang:${new}"
+    fi
+    return
+}
+
