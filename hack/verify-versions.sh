@@ -10,7 +10,8 @@ source "$(dirname "$0")/helpers.sh"
 ERRORS=()
 
 fail() {
-    ERRORS+=("$1")
+    local msg="$1"
+    ERRORS+=("${msg}")
 }
 
 # ---- Go version ----

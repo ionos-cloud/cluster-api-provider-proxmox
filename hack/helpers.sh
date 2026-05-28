@@ -6,7 +6,7 @@
 REPO_ROOT="${REPO_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)}"
 
 # sedi performs portable in-place sed (avoids GNU vs BSD sed -i incompatibility).
-sedi() { sed -E "$@" > "$2.tmp" && mv "$2.tmp" "$2"; }
+sedi() { local file="$2"; sed -E "$@" > "${file}.tmp" && mv "${file}.tmp" "${file}"; }
 
 # ---- version helpers ----
 
@@ -50,13 +50,13 @@ validate_version() {
 }
 
 # Convenience wrappers for validate_version.
-validate_semver() { validate_version "$1"; }
-validate_go_version() { validate_version "$1" false; }
+validate_semver() { local v="$1"; validate_version "${v}"; }
+validate_go_version() { local v="$1"; validate_version "${v}" false; }
 
 # split_version sets MAJOR, MINOR and PATCH for a given semver string.
 split_version() {
-    local no_v
-    no_v=$(strip_v_prefix "$1")
+    local ver="$1" no_v
+    no_v=$(strip_v_prefix "${ver}")
     # These globals are used by callers after invoking split_version.
     # shellcheck disable=SC2034
     MAJOR=$(echo "${no_v}" | cut -d. -f1)
@@ -87,7 +87,8 @@ version_gte() {
 # versions_differ returns 0 when two non-empty versions are different.
 # Usage: if versions_differ "$a" "$b"; then fail "mismatch"; fi
 versions_differ() {
-    [[ -n "$1" && -n "$2" && "$1" != "$2" ]]
+    local a="$1" b="$2"
+    [[ -n "${a}" && -n "${b}" && "${a}" != "${b}" ]]
 }
 
 # ---- go.mod getters ----
