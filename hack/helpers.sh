@@ -98,11 +98,10 @@ gomod_get_go() {
 }
 
 # gomod_get_require returns the version of a package from a require
-# directive in go.mod (direct or indirect).
-# Returns empty string if not found.
+# directive in go.mod (direct or indirect). Fails if go list errors.
 gomod_get_require() {
     local pkg="$1"
-    (cd "${REPO_ROOT}" && go list -m -f '{{.Version}}' "${pkg}" 2>/dev/null) || true
+    (cd "${REPO_ROOT}" && go list -m -f '{{.Version}}' "${pkg}")
 }
 
 # gomod_get_replace returns the target version from a replace directive
@@ -162,54 +161,53 @@ gomod_set_go() {
 # Usage: gomod_set_require <version> <pkg>...
 gomod_set_require() {
     local new="$1"; shift
-    local args=() msgs=()
+    local args=()
     for pkg in "$@"; do
         local old
-        old=$(gomod_get_require "${pkg}")
+        old=$(gomod_get_require "${pkg}" 2>/dev/null || true)
         args+=("-require=${pkg}@${new}")
-        if [[ -n "${old}" && "${old}" != "${new}" ]]; then
-            msgs+=("go.mod: Updated require ${pkg} ${old} to ${new}")
+        if [[ -z "${old}" ]]; then
+            echo "go.mod: Added require ${pkg} ${new}"
+        elif [[ "${old}" != "${new}" ]]; then
+            echo "go.mod: Updated require ${pkg} ${old} to ${new}"
         fi
     done
     (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
-    for msg in "${msgs[@]}"; do echo "${msg}"; done
 }
 
 # gomod_add_replace adds or updates replace directives for one or more packages.
 # Usage: gomod_add_replace <version> <pkg>...
 gomod_add_replace() {
     local new="$1"; shift
-    local args=() msgs=()
+    local args=()
     for pkg in "$@"; do
         local old
         old=$(gomod_get_replace "${pkg}")
         args+=("-replace=${pkg}=${pkg}@${new}")
-        if [[ -n "${old}" && "${old}" != "${new}" ]]; then
-            msgs+=("go.mod: Updated replace ${pkg} ${old} to ${new}")
-        elif [[ -z "${old}" ]]; then
-            msgs+=("go.mod: Added replace ${pkg} => ${pkg} ${new}")
+        if [[ -z "${old}" ]]; then
+            echo "go.mod: Added replace ${pkg} => ${pkg} ${new}"
+        elif [[ "${old}" != "${new}" ]]; then
+            echo "go.mod: Updated replace ${pkg} ${old} to ${new}"
         fi
     done
     (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
-    for msg in "${msgs[@]}"; do echo "${msg}"; done
 }
 
 # gomod_del_replace removes replace directives for one or more packages.
 # Usage: gomod_del_replace <pkg>...
 gomod_del_replace() {
-    local args=() msgs=()
+    local args=()
     for pkg in "$@"; do
         local old
         old=$(gomod_get_replace "${pkg}")
         if [[ -n "${old}" ]]; then
             args+=("-dropreplace=${pkg}")
-            msgs+=("go.mod: Removed replace ${pkg} ${old}")
+            echo "go.mod: Removed replace ${pkg} ${old}"
         fi
     done
     if [[ ${#args[@]} -gt 0 ]]; then
         (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
     fi
-    for msg in "${msgs[@]}"; do echo "${msg}"; done
 }
 
 # gomod_tidy runs go mod tidy from the repo root.
