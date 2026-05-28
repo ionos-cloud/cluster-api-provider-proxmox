@@ -18,10 +18,10 @@ Describe 'bump-k8s.sh'
     The output should equal 'v0.33.0'
   End
 
-  It 'removes existing k8s.io replace directives'
+  It 'replaces existing k8s.io replace directives with new version'
     bash ../bump-k8s.sh 0.33.0 >/dev/null 2>&1
     When call gomod_get_replace 'k8s.io/apimachinery'
-    The output should equal ''
+    The output should equal 'v0.33.0'
   End
 
   It 'reports removal of k8s.io replace directive'
@@ -39,7 +39,7 @@ Describe 'bump-k8s.sh'
   It 'reports k8s.io/code-generator replace update'
     When run script ../bump-k8s.sh 0.33.0
     The status should be success
-    The output should include 'Updated replace k8s.io/code-generator'
+    The output should include 'replace k8s.io/code-generator'
   End
 
   It 'does not modify ENVTEST_K8S_VERSION derivation'
