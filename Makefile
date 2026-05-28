@@ -2,9 +2,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ifndef ENVTEST_K8S_VERSION
-ENVTEST_K8S_VERSION = $(shell hack/envtest-ver.sh)
-endif
+ENVTEST_K8S_VERSION ?= $(shell hack/envtest-ver.sh)
 
 .PHONY: print-envtest-ver
 print-envtest-ver:
