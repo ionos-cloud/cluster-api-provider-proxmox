@@ -6,7 +6,12 @@
 REPO_ROOT="${REPO_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)}"
 
 # sedi performs portable in-place sed (avoids GNU vs BSD sed -i incompatibility).
-sedi() { local file="$2"; sed -E "$@" > "${file}.tmp" && mv "${file}.tmp" "${file}"; }
+# Returns 0 if the file was changed, 1 if it was unchanged.
+sedi() { local file="$2"; sed -E "$@" > "${file}.tmp" && { cmp -s "${file}" "${file}.tmp" && rm "${file}.tmp" && return 1; mv "${file}.tmp" "${file}"; }; }
+
+# yqsi runs a yq expression against a file in-place.
+# Returns 0 if the file was changed, 1 if it was unchanged.
+yqsi() { local expr="$1" file="$2"; yq "${expr}" "${file}" > "${file}.tmp" && { cmp -s "${file}" "${file}.tmp" && rm "${file}.tmp" && return 1; mv "${file}.tmp" "${file}"; }; }
 
 # ---- version helpers ----
 
@@ -263,16 +268,18 @@ makefile_get_envtest() {
 dockerfile_set_go() {
     local new="$1" old
     old=$(dockerfile_get_go)
-    sedi "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"
-    if [[ "${old}" != "${new}" ]]; then echo "Dockerfile: Updated golang:${old} to golang:${new}"; fi
+    if sedi "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"; then
+        echo "Dockerfile: Updated golang:${old} to golang:${new}"
+    fi
 }
 
 # docs_set_go updates the Go major.minor in docs/Development.md.
 docs_set_go() {
     local new="$1" old
     old=$(docs_get_go)
-    sedi "s/(- Go v)[0-9]+\.[0-9]+/\1${new}/" "${REPO_ROOT}/docs/Development.md"
-    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "docs/Development.md: Updated Go v${old} to Go v${new}"; fi
+    if sedi "s/(- Go v)[0-9]+\.[0-9]+/\1${new}/" "${REPO_ROOT}/docs/Development.md"; then
+        echo "docs/Development.md: Updated Go v${old} to Go v${new}"
+    fi
 }
 
 # golangcikal_set_go updates the Go major.minor in .golangci-kal.yml run.go.
@@ -282,8 +289,9 @@ golangcikal_set_go() {
     local new="$1" f="${REPO_ROOT}/.golangci-kal.yml" old
     if [[ -f "${f}" ]]; then
         old=$(golangcikal_get_go)
-        GOLANGCI_KAL_GO="${new}" yq -i '.run.go = strenv(GOLANGCI_KAL_GO) | .run.go style="double"' "${f}"
-        if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo ".golangci-kal.yml: Updated Go ${old} to ${new}"; fi
+        if yqsi ".run.go = \"${new}\" | .run.go style=\"double\"" "${f}"; then
+            echo ".golangci-kal.yml: Updated Go ${old} to ${new}"
+        fi
     fi
 }
 
@@ -292,8 +300,9 @@ customgcl_set_version() {
     local new="$1" f="${REPO_ROOT}/.custom-gcl.yaml" old
     if [[ -f "${f}" ]]; then
         old=$(customgcl_get_version)
-        sedi "s/^(version:) .+/\1 ${new}/" "${f}"
-        if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"; fi
+        if sedi "s/^(version:) .+/\1 ${new}/" "${f}"; then
+            echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"
+        fi
     fi
 }
 
@@ -315,8 +324,9 @@ clusterctl_set_version() {
     local new="$1" f="${REPO_ROOT}/clusterctl-settings.json" old
     if [[ -f "${f}" ]]; then
         old=$(clusterctl_get_version)
-        CLUSTERCTL_NEXT="${new}" yq -i '.config.nextVersion = strenv(CLUSTERCTL_NEXT)' "${f}"
-        if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "clusterctl-settings.json: Updated nextVersion ${old} to ${new}"; fi
+        if yqsi ".config.nextVersion = \"${new}\"" "${f}"; then
+            echo "clusterctl-settings.json: Updated nextVersion ${old} to ${new}"
+        fi
     fi
 }
 
@@ -336,8 +346,9 @@ sonar_set_version() {
     local new="$1" f="${REPO_ROOT}/sonar-project.properties" old
     if [[ -f "${f}" ]]; then
         old=$(sonar_get_version)
-        sedi "s/^(sonar\.projectVersion=).+/\1${new}/" "${f}"
-        if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "sonar-project.properties: Updated sonar.projectVersion ${old} to ${new}"; fi
+        if sedi "s/^(sonar\.projectVersion=).+/\1${new}/" "${f}"; then
+            echo "sonar-project.properties: Updated sonar.projectVersion ${old} to ${new}"
+        fi
     fi
 }
 
@@ -356,15 +367,17 @@ e2econfig_get_k8s() {
 # e2econfig_set_k8s updates the KUBERNETES_VERSION default in all e2e config
 # files and prints a confirmation message.
 e2econfig_set_k8s() {
-    local new="$1" old
+    local new="$1" old changed=false
     old=$(e2econfig_get_k8s)
     for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
         if [[ -f "${f}" ]]; then
             # shellcheck disable=SC2016 # literal ${KUBERNETES_VERSION:-...} is intentional
-            yq -i '.variables.KUBERNETES_VERSION = "${KUBERNETES_VERSION:-'"${new}"'}"' "${f}"
+            if yqsi '.variables.KUBERNETES_VERSION = "${KUBERNETES_VERSION:-'"${new}"'}"' "${f}"; then
+                changed=true
+            fi
         fi
     done
-    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "test/e2e/config: Updated KUBERNETES_VERSION ${old} to ${new}"; fi
+    if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated KUBERNETES_VERSION ${old} to ${new}"; fi
 }
 
 # e2econfig_get_capi returns the cluster-api provider version from the first
@@ -384,33 +397,37 @@ e2econfig_get_capmox() {
 # e2econfig_set_capmox updates the capmox provider sentinel in all e2e
 # config files. The input is the target sentinel string (e.g. "v0.9.99").
 e2econfig_set_capmox() {
-    local new="$1" old
+    local new="$1" old changed=false
     old=$(e2econfig_get_capmox)
     if [[ -z "${old}" ]]; then return; fi
     for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
         if [[ -f "${f}" ]]; then
-            E2E_CAPMOX="${new}" yq -i '(.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name) = strenv(E2E_CAPMOX)' "${f}"
+            if yqsi '(.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name) = "'"${new}"'"' "${f}"; then
+                changed=true
+            fi
         fi
     done
-    if [[ "${old}" != "${new}" ]]; then echo "test/e2e/config: Updated capmox ${old} to ${new}"; fi
+    if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated capmox ${old} to ${new}"; fi
 }
 
 # e2econfig_set_capi updates the cluster-api provider version in all e2e
 # config files, including both the provider name and download URL.
 e2econfig_set_capi() {
-    local new="$1" old old_escaped
+    local new="$1" old old_escaped changed=false
     old=$(e2econfig_get_capi)
     if [[ -z "${old}" ]]; then return; fi
     old_escaped="${old//./\\.}"
     for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
         if [[ -f "${f}" ]]; then
-            yq -i '
+            if yqsi '
               (.providers[].versions[] | select(.value | test("cluster-api/releases/download"))) |=
                 (.name = "'"${new}"'" | .value = (.value | sub("'"${old_escaped}"'", "'"${new}"'")))
-            ' "${f}"
+            ' "${f}"; then
+                changed=true
+            fi
         fi
     done
-    if [[ "${old}" != "${new}" ]]; then echo "test/e2e/config: Updated cluster-api ${old} to ${new}"; fi
+    if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated cluster-api ${old} to ${new}"; fi
 }
 
 # ---- version extraction: docs kubernetes-version ----
@@ -425,14 +442,16 @@ docs_get_k8s() {
 # docs_set_k8s updates all --kubernetes-version references in docs and prints
 # a confirmation message.
 docs_set_k8s() {
-    local new="$1" old
+    local new="$1" old changed=false
     old=$(docs_get_k8s)
     while IFS= read -r f; do
         if grep -q -- '--kubernetes-version v[0-9]' "${f}"; then
-            sedi "s/(--kubernetes-version )v[0-9]+\.[0-9]+\.[0-9]+/\1${new}/g" "${f}"
+            if sedi "s/(--kubernetes-version )v[0-9]+\.[0-9]+\.[0-9]+/\1${new}/g" "${f}"; then
+                changed=true
+            fi
         fi
     done < <(find "${REPO_ROOT}/docs" -name '*.md' -type f)
-    if [[ -n "${old}" && "${old}" != "${new}" ]]; then echo "docs: Updated --kubernetes-version references to ${new}"; fi
+    if [[ "${changed}" == true ]]; then echo "docs: Updated --kubernetes-version references to ${new}"; fi
 }
 
 # ---- version extraction: metadata.yaml ----
