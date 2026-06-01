@@ -75,12 +75,12 @@ Describe 'bump-k8s.sh'
   It 'rejects non-zero major version'
     When run script ../bump-k8s.sh 1.33.0
     The status should be failure
-    The output should include 'k8s.io packages use major version 0'
+    The error should include 'k8s.io packages use major version 0'
   End
 
   It 'fails without arguments'
     When run script ../bump-k8s.sh
     The status should be failure
-    The output should include 'Usage:'
+    The error should include 'Usage:'
   End
 End

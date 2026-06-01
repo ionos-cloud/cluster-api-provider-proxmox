@@ -35,20 +35,20 @@ validate_version() {
     v=$(strip_v_prefix "${raw}")
     if [[ "${allow_prerelease}" == true ]]; then
         if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9][A-Za-z0-9.\-]*)?$ ]]; then
-            echo "ERROR: invalid version format '${raw}'"
-            echo "Expected: major.minor.patch[-prerelease] (e.g. 1.11.0 or v0.9.0-rc.0)"
+            echo "ERROR: invalid version format '${raw}'" >&2
+            echo "Expected: major.minor.patch[-prerelease] (e.g. 1.11.0 or v0.9.0-rc.0)" >&2
             exit 1
         fi
     elif [[ "${require_patch}" == true ]]; then
         if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "ERROR: invalid version format '${raw}'"
-            echo "Expected: major.minor.patch (e.g. 1.11.0 or v1.11.0)"
+            echo "ERROR: invalid version format '${raw}'" >&2
+            echo "Expected: major.minor.patch (e.g. 1.11.0 or v1.11.0)" >&2
             exit 1
         fi
     else
         if ! [[ "${v}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-            echo "ERROR: invalid version format '${raw}'"
-            echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)"
+            echo "ERROR: invalid version format '${raw}'" >&2
+            echo "Expected: major.minor (e.g. 1.26) or major.minor.patch (e.g. 1.26.0)" >&2
             exit 1
         fi
     fi

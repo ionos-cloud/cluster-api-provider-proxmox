@@ -39,13 +39,13 @@ Describe 'helpers.sh — pure functions'
     It 'rejects missing patch'
       When run validate_semver '1.2'
       The status should be failure
-      The output should include 'invalid version format'
+      The error should include 'invalid version format'
     End
 
     It 'rejects non-numeric'
       When run validate_semver 'abc'
       The status should be failure
-      The output should include 'invalid version format'
+      The error should include 'invalid version format'
     End
   End
 
@@ -63,7 +63,7 @@ Describe 'helpers.sh — pure functions'
     It 'rejects single number'
       When run validate_go_version '1'
       The status should be failure
-      The output should include 'invalid version format'
+      The error should include 'invalid version format'
     End
   End
 

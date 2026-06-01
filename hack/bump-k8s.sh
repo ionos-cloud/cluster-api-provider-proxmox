@@ -14,8 +14,8 @@ set -euo pipefail
 source "$(dirname "$0")/helpers.sh"
 
 if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 <new-version>"
-    echo "Example: $0 0.33.0"
+    echo "Usage: $0 <new-version>" >&2
+    echo "Example: $0 0.33.0" >&2
     exit 1
 fi
 
@@ -24,8 +24,8 @@ NEW=$(ensure_v_prefix "$1")
 
 split_version "${NEW}"
 if [[ "${MAJOR}" -ne 0 ]]; then
-    echo "ERROR: k8s.io packages use major version 0, got '${MAJOR}'"
-    echo "Provide a v0.MINOR.PATCH version (e.g. 0.33.0 or v0.33.0)"
+    echo "ERROR: k8s.io packages use major version 0, got '${MAJOR}'" >&2
+    echo "Provide a v0.MINOR.PATCH version (e.g. 0.33.0 or v0.33.0)" >&2
     exit 1
 fi
 

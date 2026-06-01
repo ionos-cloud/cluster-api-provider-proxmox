@@ -26,9 +26,9 @@ set -euo pipefail
 source "$(dirname "$0")/helpers.sh"
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
-    echo "Usage: $0 <version> [<capi-contract>]"
-    echo "Example: $0 0.8.2"
-    echo "Example: $0 0.9.0 v1beta2"
+    echo "Usage: $0 <version> [<capi-contract>]" >&2
+    echo "Example: $0 0.8.2" >&2
+    echo "Example: $0 0.9.0 v1beta2" >&2
     exit 1
 fi
 

@@ -14,8 +14,8 @@ set -euo pipefail
 source "$(dirname "$0")/helpers.sh"
 
 if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 <new-version>"
-    echo "Example: $0 v2.10.0"
+    echo "Usage: $0 <new-version>" >&2
+    echo "Example: $0 v2.10.0" >&2
     exit 1
 fi
 

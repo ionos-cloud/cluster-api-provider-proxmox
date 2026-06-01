@@ -101,25 +101,25 @@ Describe 'release.sh'
     It 'fails without arguments'
       When run script ../release.sh
       The status should be failure
-      The output should include 'Usage:'
+      The error should include 'Usage:'
     End
 
     It 'fails with too many arguments'
       When run script ../release.sh 0.9.0 v1beta2 extra
       The status should be failure
-      The output should include 'Usage:'
+      The error should include 'Usage:'
     End
 
     It 'fails with an invalid version'
       When run script ../release.sh 'not-a-version'
       The status should be failure
-      The output should include 'invalid version format'
+      The error should include 'invalid version format'
     End
 
     It 'fails with a trailing dash (malformed pre-release)'
       When run script ../release.sh '0.9.0-'
       The status should be failure
-      The output should include 'invalid version format'
+      The error should include 'invalid version format'
     End
   End
 End

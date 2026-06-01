@@ -35,12 +35,12 @@ Describe 'bump-golangci-lint.sh'
   It 'fails without arguments'
     When run script ../bump-golangci-lint.sh
     The status should be failure
-    The output should include 'Usage:'
+    The error should include 'Usage:'
   End
 
   It 'fails with invalid version'
     When run script ../bump-golangci-lint.sh 'not-a-version'
     The status should be failure
-    The output should include 'invalid version format'
+    The error should include 'invalid version format'
   End
 End
