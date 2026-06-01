@@ -16,10 +16,10 @@ yqsi() { local expr="$1" file="$2"; yq "${expr}" "${file}" > "${file}.tmp" && { 
 # ---- version helpers ----
 
 # ensure_v_prefix adds a leading 'v' if not already present.
-ensure_v_prefix() { local v="$1"; [[ "${v}" == v* ]] && echo "${v}" || echo "v${v}"; }
+ensure_v_prefix() { local v="$1"; [[ "${v}" == v* ]] && echo "${v}" || echo "v${v}"; return; }
 
 # strip_v_prefix removes a leading 'v' if present.
-strip_v_prefix() { echo "${1#v}"; }
+strip_v_prefix() { local v="$1"; echo "${v#v}"; return; }
 
 # validate_version exits with an error if the argument is not a valid version.
 # When called with a single argument, the patch component is required
@@ -52,11 +52,12 @@ validate_version() {
             exit 1
         fi
     fi
+    return
 }
 
 # Convenience wrappers for validate_version.
-validate_semver() { local v="$1"; validate_version "${v}"; }
-validate_go_version() { local v="$1"; validate_version "${v}" false; }
+validate_semver() { local v="$1"; validate_version "${v}"; return; }
+validate_go_version() { local v="$1"; validate_version "${v}" false; return; }
 
 # split_version sets MAJOR, MINOR and PATCH for a given semver string.
 split_version() {
@@ -69,6 +70,7 @@ split_version() {
     MINOR=$(echo "${no_v}" | cut -d. -f2)
     # shellcheck disable=SC2034
     PATCH=$(echo "${no_v}" | cut -d. -f3)
+    return
 }
 
 # version_gte returns 0 when version $1 >= version $2 (semver, optional v prefix).
@@ -101,6 +103,7 @@ versions_differ() {
 # gomod_get_go returns the Go version from go.mod (e.g. "1.25.0").
 gomod_get_go() {
     awk '/^go /{print $2; exit}' "${REPO_ROOT}/go.mod"
+    return
 }
 
 # gomod_get_require returns the version of a package from a require
@@ -108,6 +111,7 @@ gomod_get_go() {
 gomod_get_require() {
     local pkg="$1"
     (cd "${REPO_ROOT}" && go list -m -f '{{.Version}}' "${pkg}")
+    return
 }
 
 # gomod_get_replace returns the target version from a replace directive
@@ -116,6 +120,7 @@ gomod_get_require() {
 gomod_get_replace() {
     local pkg="$1"
     (cd "${REPO_ROOT}" && go list -m -f '{{if .Replace}}{{.Replace.Version}}{{end}}' "${pkg}" 2>/dev/null) || true
+    return
 }
 
 # gomod_get_version returns the effective version of a Go module as seen by
@@ -123,6 +128,7 @@ gomod_get_replace() {
 gomod_get_version() {
     local pkg="$1"
     (cd "${REPO_ROOT}" && go list -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "${pkg}" 2>/dev/null) || true
+    return
 }
 
 # gomod_has_version_match returns 0 when all listed packages resolve
@@ -149,6 +155,7 @@ gomod_make_envtest() {
     fi
     split_version "${ver}"
     echo "1.${MINOR}"
+    return
 }
 
 # ---- go.mod setters ----
@@ -161,6 +168,7 @@ gomod_set_go() {
     old=$(gomod_get_go)
     (cd "${REPO_ROOT}" && go mod edit -go="${new}")
     if [[ "${old}" != "${new}" ]]; then echo "go.mod: Updated go ${old} to ${new}"; fi
+    return
 }
 
 # gomod_set_require updates one or more package versions in the require block.
@@ -179,6 +187,7 @@ gomod_set_require() {
         fi
     done
     (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+    return
 }
 
 # gomod_add_replace adds or updates replace directives for one or more packages.
@@ -197,6 +206,7 @@ gomod_add_replace() {
         fi
     done
     (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
+    return
 }
 
 # gomod_del_replace removes replace directives for one or more packages.
@@ -214,11 +224,13 @@ gomod_del_replace() {
     if [[ ${#args[@]} -gt 0 ]]; then
         (cd "${REPO_ROOT}" && go mod edit "${args[@]}")
     fi
+    return
 }
 
 # gomod_tidy runs go mod tidy from the repo root.
 gomod_tidy() {
     (cd "${REPO_ROOT}" && go mod tidy)
+    return
 }
 
 # ---- version extraction: other files ----
@@ -227,12 +239,14 @@ gomod_tidy() {
 # base image (e.g. "1.25").
 dockerfile_get_go() {
     awk '/^FROM golang:[0-9]+\.[0-9]+/{match($0, /[0-9]+\.[0-9]+/); print substr($0, RSTART, RLENGTH); exit}' "${REPO_ROOT}/Dockerfile"
+    return
 }
 
 # docs_get_go returns the Go major.minor listed in docs/Development.md
 # (e.g. "1.25"). Returns empty string if not found.
 docs_get_go() {
     awk '/Go v[0-9]+\.[0-9]+/{match($0, /v[0-9]+\.[0-9]+/); print substr($0, RSTART+1, RLENGTH-1); exit}' "${REPO_ROOT}/docs/Development.md"
+    return
 }
 
 # golangcikal_get_go returns the Go major.minor from the run.go field in
@@ -243,6 +257,7 @@ golangcikal_get_go() {
     if [[ -f "${f}" ]]; then
         yq '.run.go' "${f}"
     fi
+    return
 }
 
 # customgcl_get_version returns the golangci-lint version from .custom-gcl.yaml
@@ -252,12 +267,14 @@ customgcl_get_version() {
     if [[ -f "${f}" ]]; then
         yq '.version' "${f}"
     fi
+    return
 }
 
 # makefile_get_envtest returns the ENVTEST_K8S_VERSION value from the
 # Makefile (e.g. "1.32").
 makefile_get_envtest() {
     make -C "${REPO_ROOT}" --no-print-directory print-envtest-ver 2>/dev/null
+    return
 }
 
 # ---- version update: other files ----
@@ -271,6 +288,7 @@ dockerfile_set_go() {
     if sedi "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"; then
         echo "Dockerfile: Updated golang:${old} to golang:${new}"
     fi
+    return
 }
 
 # docs_set_go updates the Go major.minor in docs/Development.md.
@@ -280,6 +298,7 @@ docs_set_go() {
     if sedi "s/(- Go v)[0-9]+\.[0-9]+/\1${new}/" "${REPO_ROOT}/docs/Development.md"; then
         echo "docs/Development.md: Updated Go v${old} to Go v${new}"
     fi
+    return
 }
 
 # golangcikal_set_go updates the Go major.minor in .golangci-kal.yml run.go.
@@ -293,6 +312,7 @@ golangcikal_set_go() {
             echo ".golangci-kal.yml: Updated Go ${old} to ${new}"
         fi
     fi
+    return
 }
 
 # customgcl_set_version updates the version field in .custom-gcl.yaml.
@@ -304,6 +324,7 @@ customgcl_set_version() {
             echo ".custom-gcl.yaml: Updated golangci-lint ${old} to ${new}"
         fi
     fi
+    return
 }
 
 # ---- version extraction: release files ----
@@ -316,6 +337,7 @@ clusterctl_get_version() {
     if [[ -f "${f}" ]]; then
         yq -oy '.config.nextVersion' "${f}"
     fi
+    return
 }
 
 # clusterctl_set_version updates nextVersion in clusterctl-settings.json.
@@ -328,6 +350,7 @@ clusterctl_set_version() {
             echo "clusterctl-settings.json: Updated nextVersion ${old} to ${new}"
         fi
     fi
+    return
 }
 
 # sonar_get_version returns the sonar.projectVersion value from
@@ -338,6 +361,7 @@ sonar_get_version() {
     if [[ -f "${f}" ]]; then
         awk -F= '/^sonar\.projectVersion=/{print $2; exit}' "${f}"
     fi
+    return
 }
 
 # sonar_set_version updates sonar.projectVersion in sonar-project.properties.
@@ -350,6 +374,7 @@ sonar_set_version() {
             echo "sonar-project.properties: Updated sonar.projectVersion ${old} to ${new}"
         fi
     fi
+    return
 }
 
 # ---- version extraction: e2e config ----
@@ -362,6 +387,7 @@ E2E_CONFIG_DIR="${REPO_ROOT}/test/e2e/config"
 # e2e config file (e.g. "v1.32.2").
 e2econfig_get_k8s() {
     yq '.variables.KUBERNETES_VERSION | match("v[0-9]+\.[0-9]+\.[0-9]+") | .string' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    return
 }
 
 # e2econfig_set_k8s updates the KUBERNETES_VERSION default in all e2e config
@@ -378,12 +404,14 @@ e2econfig_set_k8s() {
         fi
     done
     if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated KUBERNETES_VERSION ${old} to ${new}"; fi
+    return
 }
 
 # e2econfig_get_capi returns the cluster-api provider version from the first
 # e2e config file (e.g. "v1.10.4").
 e2econfig_get_capi() {
     yq '.providers[] | select(.type == "CoreProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    return
 }
 
 # e2econfig_get_capmox returns the capmox provider sentinel from the first
@@ -392,6 +420,7 @@ e2econfig_get_capi() {
 # version of this series".
 e2econfig_get_capmox() {
     yq '.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    return
 }
 
 # e2econfig_set_capmox updates the capmox provider sentinel in all e2e
@@ -408,6 +437,7 @@ e2econfig_set_capmox() {
         fi
     done
     if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated capmox ${old} to ${new}"; fi
+    return
 }
 
 # e2econfig_set_capi updates the cluster-api provider version in all e2e
@@ -428,6 +458,7 @@ e2econfig_set_capi() {
         fi
     done
     if [[ "${changed}" == true ]]; then echo "test/e2e/config: Updated cluster-api ${old} to ${new}"; fi
+    return
 }
 
 # ---- version extraction: docs kubernetes-version ----
@@ -437,6 +468,7 @@ e2econfig_set_capi() {
 docs_get_k8s() {
     grep -roh -- '--kubernetes-version v[0-9]\+\.[0-9]\+\.[0-9]\+' "${REPO_ROOT}/docs/" 2>/dev/null \
         | head -1 | awk '{print $2}'
+    return
 }
 
 # docs_set_k8s updates all --kubernetes-version references in docs and prints
@@ -452,6 +484,7 @@ docs_set_k8s() {
         fi
     done < <(find "${REPO_ROOT}/docs" -name '*.md' -type f)
     if [[ "${changed}" == true ]]; then echo "docs: Updated --kubernetes-version references to ${new}"; fi
+    return
 }
 
 # ---- version extraction: metadata.yaml ----
@@ -467,6 +500,7 @@ E2E_METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
 # "v1beta1"). This is the contract the project currently implements.
 metadata_latest_contract() {
     yq '[.releaseSeries[] | {"v": ((.major * 1000) + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
+    return
 }
 
 # metadata_has_release returns 0 when a releaseSeries entry with the
@@ -484,6 +518,7 @@ metadata_add_release() {
     local major="$1" minor="$2" contract="$3"
     yq -i '.releaseSeries += [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}]' "${METADATA_FILE}"
     echo "metadata.yaml: Added releaseSeries entry for v${major}.${minor} (${contract})"
+    return
 }
 
 # e2emetadata_has_release returns 0 when a releaseSeries entry with
@@ -501,4 +536,5 @@ e2emetadata_add_release() {
     local major="$1" minor="$2" contract="$3"
     yq -i '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}] + .releaseSeries' "${E2E_METADATA_FILE}"
     echo "test/e2e/data/shared/v1beta1/metadata.yaml: Added releaseSeries entry for v${major}.${minor} (${contract})"
+    return
 }

@@ -17,6 +17,7 @@ setup_fixture_repo() {
   METADATA_FILE="${REPO_ROOT}/metadata.yaml"
   E2E_METADATA_FILE="${REPO_ROOT}/test/e2e/data/shared/v1beta1/metadata.yaml"
   E2E_CONFIG_DIR="${REPO_ROOT}/test/e2e/config"
+  return
 }
 
 # cleanup_fixture_repo removes the temporary fixture copy.
@@ -24,6 +25,7 @@ cleanup_fixture_repo() {
   if [[ -n "${FIXTURE_TMPDIR:-}" && -d "${FIXTURE_TMPDIR}" ]]; then
     rm -rf "${FIXTURE_TMPDIR}"
   fi
+  return
 }
 
 # setup_go_mock creates a temporary directory with a mock `go` script that
@@ -51,6 +53,7 @@ MOCK
   chmod +x "${GO_MOCK_DIR}/go"
   ORIGINAL_PATH="${PATH}"
   export PATH="${GO_MOCK_DIR}:${PATH}"
+  return
 }
 
 # cleanup_go_mock removes the mock directory and restores PATH.
@@ -61,4 +64,5 @@ cleanup_go_mock() {
   if [[ -n "${ORIGINAL_PATH:-}" ]]; then
     export PATH="${ORIGINAL_PATH}"
   fi
+  return
 }

@@ -1,6 +1,6 @@
 Describe 'bump-go.sh'
-  setup() { setup_fixture_repo; setup_go_mock; }
-  cleanup() { cleanup_fixture_repo; cleanup_go_mock; }
+  setup() { setup_fixture_repo; setup_go_mock; return; }
+  cleanup() { cleanup_fixture_repo; cleanup_go_mock; return; }
   BeforeEach 'setup'
   AfterEach 'cleanup'
 

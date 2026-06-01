@@ -1,6 +1,6 @@
 Describe 'helpers.sh — metadata functions'
-  setup() { setup_fixture_repo; }
-  cleanup() { cleanup_fixture_repo; }
+  setup() { setup_fixture_repo; return; }
+  cleanup() { cleanup_fixture_repo; return; }
   BeforeEach 'setup'
   AfterEach 'cleanup'
 
