@@ -273,7 +273,7 @@ customgcl_get_version() {
 # makefile_get_envtest returns the ENVTEST_K8S_VERSION value from the
 # Makefile (e.g. "1.32").
 makefile_get_envtest() {
-    make -C "${REPO_ROOT}" --no-print-directory print-envtest-ver 2>/dev/null
+    env -u ENVTEST_K8S_VERSION make -C "${REPO_ROOT}" --no-print-directory print-envtest-ver
     return
 }
 
