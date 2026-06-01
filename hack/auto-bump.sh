@@ -43,10 +43,8 @@ GCL_CUSTOM=$(customgcl_get_version)
 
 GCL_NEWEST=""
 for v in "${GCL_REQ}" "${GCL_REP}" "${GCL_CUSTOM}"; do
-    if [[ -n "${v}" ]]; then
-        if [[ -z "${GCL_NEWEST}" ]] || version_gte "${v}" "${GCL_NEWEST}"; then
-            GCL_NEWEST="${v}"
-        fi
+    if [[ -n "${v}" ]] && { [[ -z "${GCL_NEWEST}" ]] || version_gte "${v}" "${GCL_NEWEST}"; }; then
+        GCL_NEWEST="${v}"
     fi
 done
 
@@ -94,10 +92,8 @@ fi
 K8S_LATEST=""
 for pkg in 'k8s.io/api' 'k8s.io/apimachinery' 'k8s.io/client-go'; do
     ver=$(gomod_get_require "${pkg}")
-    if [[ -n "${ver}" ]]; then
-        if [[ -z "${K8S_LATEST}" ]] || version_gte "${ver}" "${K8S_LATEST}"; then
-            K8S_LATEST="${ver}"
-        fi
+    if [[ -n "${ver}" ]] && { [[ -z "${K8S_LATEST}" ]] || version_gte "${ver}" "${K8S_LATEST}"; }; then
+        K8S_LATEST="${ver}"
     fi
 done
 

@@ -45,10 +45,9 @@ fi
 GOLANGCI_REQUIRE=$(gomod_get_require 'github.com/golangci/golangci-lint/v2')
 GOLANGCI_REPLACE=$(gomod_get_replace 'github.com/golangci/golangci-lint/v2')
 GOLANGCI_CUSTOM=$(customgcl_get_version)
-if [[ -n "${GOLANGCI_REQUIRE}" && -n "${GOLANGCI_REPLACE}" && -n "${GOLANGCI_CUSTOM}" ]]; then
-    if [[ "${GOLANGCI_REQUIRE}" != "${GOLANGCI_REPLACE}" || "${GOLANGCI_REPLACE}" != "${GOLANGCI_CUSTOM}" ]]; then
-        fail "golangci-lint version mismatch: require='${GOLANGCI_REQUIRE}', replace='${GOLANGCI_REPLACE}', .custom-gcl.yaml='${GOLANGCI_CUSTOM}'"
-    fi
+if [[ -n "${GOLANGCI_REQUIRE}" && -n "${GOLANGCI_REPLACE}" && -n "${GOLANGCI_CUSTOM}" ]] \
+        && [[ "${GOLANGCI_REQUIRE}" != "${GOLANGCI_REPLACE}" || "${GOLANGCI_REPLACE}" != "${GOLANGCI_CUSTOM}" ]]; then
+    fail "golangci-lint version mismatch: require='${GOLANGCI_REQUIRE}', replace='${GOLANGCI_REPLACE}', .custom-gcl.yaml='${GOLANGCI_CUSTOM}'"
 fi
 
 # ---- cluster-api: require and replace ----
@@ -134,20 +133,16 @@ if [[ -n "${K8S_VERSION}" ]]; then
     # ---- --kubernetes-version in docs ----
     # Docs should reference the same Kubernetes version as k8s.io packages.
     DOCS_K8S_VER=$(docs_get_k8s)
-    if [[ -n "${DOCS_K8S_VER}" ]]; then
-        if versions_differ "${DOCS_K8S_VER}" "${EXPECTED_K8S_VER}"; then
-            fail "docs --kubernetes-version mismatch: k8s.io/api is '${K8S_VERSION}', expected '${EXPECTED_K8S_VER}' but docs has '${DOCS_K8S_VER}'"
-        fi
+    if [[ -n "${DOCS_K8S_VER}" ]] && versions_differ "${DOCS_K8S_VER}" "${EXPECTED_K8S_VER}"; then
+        fail "docs --kubernetes-version mismatch: k8s.io/api is '${K8S_VERSION}', expected '${EXPECTED_K8S_VER}' but docs has '${DOCS_K8S_VER}'"
     fi
 fi
 
 # ---- cluster-api version in e2e config ----
 # The cluster-api provider version in e2e config files should match go.mod.
 E2E_CAPI_VER=$(e2econfig_get_capi)
-if [[ -n "${CAPI_REQUIRE}" && -n "${E2E_CAPI_VER}" ]]; then
-    if versions_differ "${E2E_CAPI_VER}" "${CAPI_REQUIRE}"; then
-        fail "cluster-api version mismatch: go.mod require is '${CAPI_REQUIRE}', but e2e config has '${E2E_CAPI_VER}'"
-    fi
+if [[ -n "${CAPI_REQUIRE}" && -n "${E2E_CAPI_VER}" ]] && versions_differ "${E2E_CAPI_VER}" "${CAPI_REQUIRE}"; then
+    fail "cluster-api version mismatch: go.mod require is '${CAPI_REQUIRE}', but e2e config has '${E2E_CAPI_VER}'"
 fi
 
 # ---- capmox release version consistency ----
@@ -160,11 +155,10 @@ CAPMOX_NEXT=$(clusterctl_get_version)
 CAPMOX_SONAR=$(sonar_get_version)
 CAPMOX_SENTINEL=$(e2econfig_get_capmox)
 
-if [[ -n "${CAPMOX_NEXT}" && -n "${CAPMOX_SONAR}" ]]; then
-    # clusterctl carries the v-prefix, sonar does not — strip before compare.
-    if [[ "$(strip_v_prefix "${CAPMOX_NEXT}")" != "${CAPMOX_SONAR}" ]]; then
-        fail "capmox version mismatch: clusterctl-settings.json has '${CAPMOX_NEXT}', sonar-project.properties has '${CAPMOX_SONAR}'"
-    fi
+# clusterctl carries the v-prefix, sonar does not — strip before compare.
+if [[ -n "${CAPMOX_NEXT}" && -n "${CAPMOX_SONAR}" ]] \
+        && [[ "$(strip_v_prefix "${CAPMOX_NEXT}")" != "${CAPMOX_SONAR}" ]]; then
+    fail "capmox version mismatch: clusterctl-settings.json has '${CAPMOX_NEXT}', sonar-project.properties has '${CAPMOX_SONAR}'"
 fi
 
 if [[ -n "${CAPMOX_NEXT}" ]]; then
