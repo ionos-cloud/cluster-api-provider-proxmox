@@ -27,7 +27,6 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
@@ -118,7 +117,7 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 				MacAddress: "aa:bb:cc:dd:ee:ff",
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-				Routes:     []types.RoutingData{{To: ptr.To("0.0.0.0/0")}},
+				Routes:     []types.RoutingData{{To: netip.MustParsePrefix("0.0.0.0/0")}},
 			},
 		}),
 	}
@@ -165,8 +164,8 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		}),
@@ -219,8 +218,8 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		},
@@ -274,8 +273,8 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.9/24")}},
 				DNSServers: []string{"10.1.1.1"},
 				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		},
@@ -333,8 +332,8 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		}),

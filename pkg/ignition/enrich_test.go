@@ -23,7 +23,6 @@ import (
 
 	ignition "github.com/flatcar/ignition/config/v2_3"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
@@ -86,11 +85,11 @@ func TestEnricher_Enrich(t *testing.T) {
 				},
 				DNSServers: []string{"10.1.1.1"},
 				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}, {
-					To:  ptr.To("::/0"),
-					Via: ptr.To("2001:db8::1"),
+					To:  netip.MustParsePrefix("::/0"),
+					Via: netip.MustParseAddr("2001:db8::1"),
 				}},
 			},
 		},
