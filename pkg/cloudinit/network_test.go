@@ -130,6 +130,36 @@ const (
           - '8.8.8.8'
           - '8.8.4.4'`
 
+	expectedValidNetworkConfigMultipleNetsOneGateway = `network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - '10.10.10.12/24'
+        - '2001:db8::1/64'
+      routes:
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+      nameservers:
+        addresses:
+          - '8.8.8.8'
+          - '8.8.4.4'
+    eth1:
+      match:
+        macaddress: 92:60:a0:5b:22:c3
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - '2001:db8::1/64'
+      nameservers:
+        addresses:
+          - '8.8.8.8'
+          - '8.8.4.4'`
+
 	expectedValidNetworkConfigIPv6 = `network:
   version: 2
   renderer: networkd
@@ -839,6 +869,42 @@ func TestNetworkConfig_Render(t *testing.T) {
 				err:     nil,
 			},
 		},
+		"ValidNetworkConfigMultipleNetsOneGateway": {
+			reason: "render valid network-config with one gateway",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
+						}, {
+							IPAddress: netip.MustParsePrefix("2001:db8::1/64"),
+						}},
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
+					},
+					{
+						Type:       "ethernet",
+						Name:       "eth1",
+						MacAddress: "92:60:a0:5b:22:c3",
+						IPConfigs: []types.IPConfig{{
+							IPAddress: netip.MustParsePrefix("2001:db8::1/64"),
+						}},
+						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					},
+				},
+			},
+			want: want{
+				network: expectedValidNetworkConfigMultipleNetsOneGateway,
+				err:     nil,
+			},
+		},
 		"ValidNetworkConfigIPv6": {
 			reason: "render valid ipv6 network-config",
 			args: args{
@@ -1110,6 +1176,112 @@ func TestNetworkConfig_Render(t *testing.T) {
 			want: want{
 				network: "",
 				err:     ErrMalformedRoute,
+			},
+		},
+		"InvalidNetworkConfigMalformedRouteOnEthernet": {
+			reason: "invalid config malformed route for ethernet",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true,
+						Routes: []types.RoutingData{{
+							Table: ptr.To(int32(100)),
+						}},
+					},
+				},
+			},
+			want: want{
+				network: "",
+				err:     ErrMalformedRoute,
+			},
+		},
+		"InvalidNetworkConfigDuplicateGateway": {
+			reason: "invalid config multiple routes",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true,
+						Routes: []types.RoutingData{{
+							Table: ptr.To(int32(100)),
+							To:    ptr.To("default"),
+						}, {
+							Table: ptr.To(int32(100)),
+							To:    ptr.To("default"),
+						}},
+					},
+				},
+			},
+			want: want{
+				network: "",
+				err:     ErrConflictingMetrics,
+			},
+		},
+		"InvalidNetworkConfigFIBRuleMissingTableOnEthernet": {
+			reason: "invalid config missing table for FIB rule on ethernet",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true,
+						FIBRules: []types.FIBRuleData{{
+							From: ptr.To("10.10.0.0/16"),
+						}},
+					},
+				},
+			},
+			want: want{
+				network: "",
+				err:     ErrMalformedFIBRule,
+			},
+		},
+		"InvalidNetworkConfigFIBRuleMissingFromAndToOnEthernet": {
+			reason: "invalid config FIB rule for ethernet requires match",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true,
+						FIBRules: []types.FIBRuleData{{
+							Priority: ptr.To(int64(100)),
+							Table:    ptr.To(int32(100)),
+						}},
+					},
+				},
+			},
+			want: want{
+				network: "",
+				err:     ErrMalformedFIBRule,
+			},
+		},
+		"InvalidNetworkConfigFIBRuleInvalidToOnEthernet": {
+			reason: "invalid config FIB rule To must be a valid IP address or prefix",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true,
+						FIBRules: []types.FIBRuleData{{
+							To:    ptr.To("not-an-ip"),
+							Table: ptr.To(int32(100)),
+						}},
+					},
+				},
+			},
+			want: want{
+				network: "",
+				err:     ErrMalformedFIBRule,
 			},
 		},
 		"YamlEdgeCases": {
