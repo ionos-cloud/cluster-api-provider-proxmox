@@ -47,10 +47,19 @@ type IPConfig struct {
 	Default   bool
 }
 
-// RoutingData stores routing configuration.
-// TODO: Convert *string fields to netip.Prefix in getCommonInterfaceConfig.
-type RoutingData = infrav1.RouteSpec
+// RoutingData stores a single route. Unset fields are zero values; use
+// netip's IsValid to test presence.
+type RoutingData struct {
+	To     netip.Prefix
+	Via    netip.Addr
+	Metric *int32
+	Table  *int32
+}
 
-// FIBRuleData stores forward information base rules (routing policies).
-// TODO: Convert *string fields to netip.Prefix in getCommonInterfaceConfig.
-type FIBRuleData = infrav1.RoutingPolicySpec
+// FIBRuleData stores a single Linux FIB (forwarding information base) rule.
+type FIBRuleData struct {
+	To       netip.Prefix
+	From     netip.Prefix
+	Table    *int32
+	Priority *int64
+}

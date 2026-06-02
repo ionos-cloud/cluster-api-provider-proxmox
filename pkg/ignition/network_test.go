@@ -138,7 +138,7 @@ Metric=200
 		"02-vrf2.network": `[Match]
 Name=vrf0
 [Route]
-Destination=3.4.5.6
+Destination=3.4.5.6/32
 Gateway=10.0.1.1
 Metric=100
 [RoutingPolicyRule]
@@ -180,12 +180,12 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("0.0.0.0/0"),
-							Via:    ptr.To("10.0.0.1"),
+							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To[int32](100),
 						}, {
-							To:     ptr.To("::/0"),
-							Via:    ptr.To("2001:db8:1::1"),
+							To:     netip.MustParsePrefix("::/0"),
+							Via:    netip.MustParseAddr("2001:db8:1::1"),
 							Metric: ptr.To[int32](100),
 						}},
 					},
@@ -199,14 +199,14 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
 						FIBRules: []types.FIBRuleData{{
-							To:       ptr.To("8.7.6.5/32"),
-							From:     ptr.To("1.1.1.1/32"),
+							To:       netip.MustParsePrefix("8.7.6.5/32"),
+							From:     netip.MustParsePrefix("1.1.1.1/32"),
 							Priority: ptr.To(int64(100)),
 							Table:    ptr.To(int32(500)),
 						}},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("0.0.0.0/0"),
-							Via:    ptr.To("10.0.1.1"),
+							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.0.1.1"),
 							Metric: ptr.To[int32](200),
 						}},
 					},
@@ -231,12 +231,12 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("0.0.0.0/0"),
-							Via:    ptr.To("10.0.0.1"),
+							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To(int32(100)),
 						}, {
-							To:     ptr.To("172.16.24.0/24"),
-							Via:    ptr.To("10.10.10.254"),
+							To:     netip.MustParsePrefix("172.16.24.0/24"),
+							Via:    netip.MustParseAddr("10.10.10.254"),
 							Metric: ptr.To(int32(50)),
 						}},
 					},
@@ -262,8 +262,8 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("0.0.0.0/0"),
-							Via:    ptr.To("10.0.0.1"),
+							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 					},
@@ -289,12 +289,12 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("0.0.0.0/0"),
-							Via:    ptr.To("10.0.0.1"),
+							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To[int32](100),
 						}, {
-							To:     ptr.To("::/0"),
-							Via:    ptr.To("2001:db8:1::1"),
+							To:     netip.MustParsePrefix("::/0"),
+							Via:    netip.MustParseAddr("2001:db8:1::1"),
 							Metric: ptr.To[int32](100),
 						}},
 					},
@@ -308,8 +308,8 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("0.0.0.0/0"),
-							Via:    ptr.To("10.0.1.1"),
+							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.0.1.1"),
 							Metric: ptr.To[int32](200),
 						}},
 					},
@@ -320,13 +320,13 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Table:      644,
 						Interfaces: []string{"eth1"},
 						Routes: []types.RoutingData{{
-							To:     ptr.To("3.4.5.6"),
-							Via:    ptr.To("10.0.1.1"),
+							To:     netip.PrefixFrom(netip.MustParseAddr("3.4.5.6"), 32),
+							Via:    netip.MustParseAddr("10.0.1.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
-							To:       ptr.To("8.7.6.5/32"),
-							From:     ptr.To("1.1.1.1/32"),
+							To:       netip.MustParsePrefix("8.7.6.5/32"),
+							From:     netip.MustParsePrefix("1.1.1.1/32"),
 							Priority: ptr.To(int64(100)),
 						}},
 					},
