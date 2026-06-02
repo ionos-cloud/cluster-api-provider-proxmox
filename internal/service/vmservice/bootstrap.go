@@ -230,13 +230,19 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 		return nil, errors.New("unable to extract mac address")
 	}
 
+	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers
+
+	cloudinitNetworkConfigData := &types.NetworkConfigData{
+		MacAddress: macAddress,
+		DNSServers: dns,
+	}
+
 	// Keys need to be sorted as golang doesn't guarantee stable map iteration
 	ipAddresses := slices.Concat(slices.Collect(maps.Values(ipPoolRefs))...)
 	slices.SortFunc(ipAddresses, func(a, b ipamv1.IPAddress) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 
-	ipConfigs := make([]types.IPConfig, 0, len(ipAddresses))
 	for _, ipAddr := range ipAddresses {
 		ipConfig := types.IPConfig{}
 		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ptr.Deref(ipAddr.Spec.Prefix, 0)))
@@ -244,29 +250,31 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 			return nil, errors.Wrapf(err, "error converting ip address spec to netip prefix: %+v", ipAddr.Spec)
 		}
 		ipConfig.IPAddress = ip
-		ipConfig.Gateway = ipAddr.Spec.Gateway
-
-		// TODO: IPConfigs is stupid. No need to gather metrics here.
-		metric, err := findIPAddressGatewayMetric(ctx, machineScope, &ipAddr)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
-		}
-		ipConfig.Metric = metric
 
 		isDefaultGateway := ipAddr.GetAnnotations()[infrav1.ProxmoxDefaultGatewayAnnotation]
 		if b, _ := strconv.ParseBool(isDefaultGateway); b {
 			ipConfig.Default = true
 		}
 
-		ipConfigs = append(ipConfigs, ipConfig)
-	}
+		cloudinitNetworkConfigData.IPConfigs = append(cloudinitNetworkConfigData.IPConfigs, ipConfig)
 
-	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers
+		if len(ipAddr.Spec.Gateway) == 0 {
+			continue
+		}
 
-	cloudinitNetworkConfigData := &types.NetworkConfigData{
-		IPConfigs:  ipConfigs,
-		MacAddress: macAddress,
-		DNSServers: dns,
+		routeSpec := infrav1.RouteSpec{}
+		routeSpec.Via = ptr.To(ipAddr.Spec.Gateway)
+		routeSpec.To = ptr.To("0.0.0.0/0")
+		if ip.Addr().Is6() {
+			routeSpec.To = ptr.To("::/0")
+		}
+
+		routeSpec.Metric, err = findIPAddressGatewayMetric(ctx, machineScope, &ipAddr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
+		}
+
+		cloudinitNetworkConfigData.Routes = append(cloudinitNetworkConfigData.Routes, routeSpec)
 	}
 
 	return cloudinitNetworkConfigData, nil
@@ -277,7 +285,7 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
-	ciconfig.Routes = ifconfig.Routing.Routes
+	ciconfig.Routes = append(ciconfig.Routes, ifconfig.Routing.Routes...)
 	ciconfig.FIBRules = ifconfig.Routing.RoutingPolicy
 	ciconfig.LinkMTU = ifconfig.LinkMTU
 }
@@ -294,8 +302,6 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 
 	// network devices.
 	for i, nic := range network.NetworkDevices {
-		var config = ptr.To(types.NetworkConfigData{})
-
 		ipPoolRefs := ipAddressMap[nic.Name]
 
 		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, nic.Name, ipPoolRefs)
@@ -303,22 +309,20 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
 		}
 		if len(nic.DNSServers) != 0 {
-			config.DNSServers = nic.DNSServers
+			conf.DNSServers = nic.DNSServers
 		}
-		config = conf
+		getCommonInterfaceConfig(ctx, machineScope, conf, nic.InterfaceConfig)
 
-		getCommonInterfaceConfig(ctx, machineScope, config, nic.InterfaceConfig)
-
-		config.Name = fmt.Sprintf("eth%d", i)
-		config.Type = "ethernet"
-		config.ProxName = nic.Name
+		conf.Name = fmt.Sprintf("eth%d", i)
+		conf.Type = "ethernet"
+		conf.ProxName = nic.Name
 
 		if i == 0 {
-			config.ProxName = infrav1.DefaultNetworkDevice
+			conf.ProxName = infrav1.DefaultNetworkDevice
 		}
 
-		if len(config.MacAddress) > 0 {
-			networkConfigData = append(networkConfigData, *config)
+		if len(conf.MacAddress) > 0 {
+			networkConfigData = append(networkConfigData, *conf)
 		}
 	}
 	return networkConfigData, nil

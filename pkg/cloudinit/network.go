@@ -17,7 +17,9 @@ limitations under the License.
 package cloudinit
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"net/netip"
 
 	"github.com/pkg/errors"
@@ -91,31 +93,14 @@ const (
 {{- end -}}
 
 {{- define "routes" }}
-    {{- if or .IPConfigs .Routes }}
+    {{- if .Routes }}
       routes:
-      {{- range $ipconfig := .IPConfigs }}
-      {{- if .Gateway }}
-       {{- if .Gateway }}
-        {{- if ((.IPAddress).Addr).Is6 }}
-        - to: '::/0'
-        {{- else }}
-        - to: '0.0.0.0/0'
-        {{- end -}}
-          {{- if .Metric }}
-          metric: {{ .Metric }}
-          {{- end }}
-          via: "{{ .Gateway }}"
-       {{- end }}
-      {{- end -}}
-      {{- end -}}
-      {{- if .Routes }}
         {{- range $index, $route := .Routes }}
         - {
-        {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
-        {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
-        {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
-        {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
-        {{- end -}}
+          {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
+          {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
+          {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
+          {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
         {{- end -}}
     {{- end -}}
 {{- end -}}
@@ -197,24 +182,26 @@ func (r *NetworkConfig) validate() error {
 	if len(r.data.NetworkConfigData) == 0 {
 		return ErrMissingNetworkConfigData
 	}
-	// TODO: Fix validation
-	metrics := make(map[int32]*struct {
-		ipv4 bool
-		ipv6 bool
-	})
 
-	// for i, d := range r.data.NetworkConfigData {
+	// Tracks if a route already exists. A collision will return
+	// confliction errConflictingMetrics.
+	routeCollision := make(map[[32]byte]struct{})
+	// Tracks whether any interface contributes a default gateway, either
+	// explicitly via IPConfigs or implicitly via DHCP.
+	// TODO: IPv6 slaac.
+	hasGateway := false
+
 	for _, d := range r.data.NetworkConfigData {
-		// TODO: refactor this when network configuration is unified
+		if err := validateRoutes(d.Routes, &hasGateway, routeCollision); err != nil {
+			return err
+		}
+		if err := validateFIBRules(d.FIBRules, d.Type == "vrf"); err != nil {
+			return err
+		}
+
+		// This condition will require refactoring once more types of links
+		// are added.
 		if d.Type != "ethernet" {
-			err := validRoutes(d.Routes)
-			if err != nil {
-				return err
-			}
-			err = validFIBRules(d.FIBRules, true)
-			if err != nil {
-				return err
-			}
 			continue
 		}
 
@@ -222,78 +209,94 @@ func (r *NetworkConfig) validate() error {
 			return ErrMissingIPAddress
 		}
 
-		if d.MacAddress == "" {
+		if len(d.MacAddress) == 0 {
 			return ErrMissingMacAddress
 		}
 
-		for _, c := range d.IPConfigs {
-			var is6 bool
+		// DHCP may produce a default gateway. Skip further checks.
+		if d.DHCP4 || d.DHCP6 {
+			hasGateway = true
+		}
 
+		for _, c := range d.IPConfigs {
+			// TODO: Probably useless
 			if !c.IPAddress.IsValid() {
 				return ErrMissingIPAddress
 			}
-
-			if !d.DHCP4 || !d.DHCP6 {
-				is6 = !c.IPAddress.Addr().Is4()
-				if c.Gateway == "" /*&& i == 0*/ {
-					return ErrMissingGateway
-				}
-			}
-
-			if c.Metric != nil {
-				if _, exists := metrics[*c.Metric]; !exists {
-					metrics[*c.Metric] = new(struct {
-						ipv4 bool
-						ipv6 bool
-					})
-				}
-				if !is6 && metrics[*c.Metric].ipv4 {
-					return ErrConflictingMetrics
-				}
-				if is6 && metrics[*c.Metric].ipv6 {
-					return ErrConflictingMetrics
-				}
-				if !is6 {
-					metrics[*c.Metric].ipv4 = true
-				} else {
-					metrics[*c.Metric].ipv6 = true
-				}
-			}
 		}
 	}
+
+	// If you end up here, please make an issue explaining how you need
+	// a cluster without a default gateway. This is a valid usecase and
+	// this check is merely an anti-footgun for regular users.
+	// As a work around, set an invalid gateway which netlink can not
+	// create.
+	if !hasGateway {
+		return ErrMissingGateway
+	}
+
 	return nil
 }
 
-func validRoutes(input []types.RoutingData) error {
-	if len(input) == 0 {
-		return nil
-	}
+func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollisionMap map[[32]byte]struct{}) error {
 	// No support for blackhole, etc.pp. Add iff you require this.
-	for _, route := range input {
-		if ptr.Deref(route.To, "") != "default" {
-			// An IP address is a valid route (implicit smallest subnet)
-			_, errPrefix := netip.ParsePrefix(ptr.Deref(route.To, ""))
-			_, errAddr := netip.ParseAddr(ptr.Deref(route.To, ""))
+	for _, route := range routes {
+		var prefix netip.Prefix
+		var errPrefix error
+
+		switch ptr.Deref(route.To, "") {
+		case "":
+			// Route without a target makes no sense.
+			return ErrMalformedRoute
+		case "default":
+			*hasGateway = true
+			// TODO: I can only guess address family here.
+			prefix, _ = netip.ParsePrefix("0.0.0.0/0")
+		default:
+			// An IP address is a valid route (implicit smallest subnet /32 or /128)
+			prefix, errPrefix = netip.ParsePrefix(*route.To)
+			addr, errAddr := netip.ParseAddr(*route.To)
 			if errPrefix != nil && errAddr != nil {
 				return ErrMalformedRoute
 			}
+			if errAddr == nil {
+				prefix, errPrefix = netip.ParsePrefix(
+					fmt.Sprintf("%s/%d", *route.To, addr.BitLen()),
+				)
+			}
+			// Default route check. Default routes are always prefixes.
+			if errPrefix == nil {
+				if prefix.Bits() == 0 && prefix.Addr().IsUnspecified() {
+					*hasGateway = true
+				}
+			}
 		}
-		if ptr.Deref(route.Via, "") != "" {
-			_, err := netip.ParseAddr(ptr.Deref(route.Via, ""))
+
+		// via is actually optional, because the link itself can be ptp.
+		if route.Via != nil {
+			_, err := netip.ParseAddr(*route.Via)
 			if err != nil {
 				return ErrMalformedRoute
 			}
 		}
+
+		// Todo: IPFamily might collide for default routes or routes without
+		// explicit ipfamily.
+		// A route is uniquely identified by its normalized subnet, metric and table.
+		serialized := fmt.Sprintf("%s %d %d", prefix.String(), ptr.Deref(route.Metric, 0), ptr.Deref(route.Table, 0))
+		routeID := sha256.Sum256([]byte(serialized))
+		if _, exists := routeCollisionMap[routeID]; !exists {
+			routeCollisionMap[routeID] = struct{}{}
+		} else {
+			// Route is valid, but this route already exists.
+			return ErrConflictingMetrics
+		}
 	}
 	return nil
 }
 
-func validFIBRules(input []types.FIBRuleData, isVrf bool) error {
-	if len(input) == 0 {
-		return nil
-	}
-
-	for _, rule := range input {
+func validateFIBRules(rules []types.FIBRuleData, isVrf bool) error {
+	for _, rule := range rules {
 		// We only support To/From and we require a table if we're not a vrf
 		if (ptr.Deref(rule.To, "") == "" && ptr.Deref(rule.From, "") == "") ||
 			(ptr.Deref(rule.Table, 0) == 0 && !isVrf) {

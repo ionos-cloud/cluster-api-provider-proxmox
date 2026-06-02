@@ -44,13 +44,13 @@ type NetworkConfigData struct {
 // IPConfig stores IP configuration.
 type IPConfig struct {
 	IPAddress netip.Prefix
-	Gateway   string
-	Metric    *int32
 	Default   bool
 }
 
 // RoutingData stores routing configuration.
+// TODO: Convert *string fields to netip.Prefix in getCommonInterfaceConfig.
 type RoutingData = infrav1.RouteSpec
 
 // FIBRuleData stores forward information base rules (routing policies).
+// TODO: Convert *string fields to netip.Prefix in getCommonInterfaceConfig.
 type FIBRuleData = infrav1.RoutingPolicySpec
