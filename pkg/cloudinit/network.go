@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"net/netip"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -84,8 +83,8 @@ const (
       routing-policy:
       {{- range $index, $rule := .FIBRules }}
         - {
-        {{- if $rule.To }} "to": "{{$rule.To}}", {{ end -}}
-        {{- if $rule.From }} "from": "{{$rule.From}}", {{ end -}}
+        {{- if $rule.To.IsValid }} "to": "{{$rule.To}}", {{ end -}}
+        {{- if $rule.From.IsValid }} "from": "{{$rule.From}}", {{ end -}}
         {{- if $rule.Priority }} "priority": {{$rule.Priority}}, {{ end -}}
         {{- if $rule.Table }} "table": {{$rule.Table}}, {{ end -}} }
       {{- end }}
@@ -97,8 +96,8 @@ const (
       routes:
         {{- range $index, $route := .Routes }}
         - {
-          {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
-          {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
+          {{- if $route.To.IsValid }} "to": "{{$route.To}}", {{ end -}}
+          {{- if $route.Via.IsValid }} "via": "{{$route.Via}}", {{ end -}}
           {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
           {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
         {{- end -}}
@@ -241,80 +240,33 @@ func (r *NetworkConfig) validate() error {
 func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollisionMap map[[32]byte]struct{}) error {
 	// No support for blackhole, etc.pp. Add iff you require this.
 	for _, route := range routes {
-		var prefix netip.Prefix
-		var errPrefix error
-
-		switch ptr.Deref(route.To, "") {
-		case "":
+		if !route.To.IsValid() {
 			// Route without a target makes no sense.
 			return ErrMalformedRoute
-		case "default":
+		}
+		if route.To.Bits() == 0 && route.To.Addr().IsUnspecified() {
 			*hasGateway = true
-			// TODO: I can only guess address family here.
-			prefix, _ = netip.ParsePrefix("0.0.0.0/0")
-		default:
-			// An IP address is a valid route (implicit smallest subnet /32 or /128)
-			prefix, errPrefix = netip.ParsePrefix(*route.To)
-			addr, errAddr := netip.ParseAddr(*route.To)
-			if errPrefix != nil && errAddr != nil {
-				return ErrMalformedRoute
-			}
-			if errAddr == nil {
-				prefix, errPrefix = netip.ParsePrefix(
-					fmt.Sprintf("%s/%d", *route.To, addr.BitLen()),
-				)
-			}
-			// Default route check. Default routes are always prefixes.
-			if errPrefix == nil {
-				if prefix.Bits() == 0 && prefix.Addr().IsUnspecified() {
-					*hasGateway = true
-				}
-			}
 		}
 
-		// via is actually optional, because the link itself can be ptp.
-		if route.Via != nil {
-			_, err := netip.ParseAddr(*route.Via)
-			if err != nil {
-				return ErrMalformedRoute
-			}
-		}
-
-		// Todo: IPFamily might collide for default routes or routes without
-		// explicit ipfamily.
-		// A route is uniquely identified by its normalized subnet, metric and table.
-		serialized := fmt.Sprintf("%s %d %d", prefix.String(), ptr.Deref(route.Metric, 0), ptr.Deref(route.Table, 0))
+		// A route is uniquely identified by its target subnet, metric and table.
+		serialized := fmt.Sprintf("%s %d %d", route.To.String(), ptr.Deref(route.Metric, 0), ptr.Deref(route.Table, 0))
 		routeID := sha256.Sum256([]byte(serialized))
-		if _, exists := routeCollisionMap[routeID]; !exists {
-			routeCollisionMap[routeID] = struct{}{}
-		} else {
-			// Route is valid, but this route already exists.
+		if _, exists := routeCollisionMap[routeID]; exists {
 			return ErrConflictingMetrics
 		}
+		routeCollisionMap[routeID] = struct{}{}
 	}
 	return nil
 }
 
 func validateFIBRules(rules []types.FIBRuleData, isVrf bool) error {
 	for _, rule := range rules {
-		// We only support To/From and we require a table if we're not a vrf
-		if (ptr.Deref(rule.To, "") == "" && ptr.Deref(rule.From, "") == "") ||
-			(ptr.Deref(rule.Table, 0) == 0 && !isVrf) {
+		// We only support To/From and we require a table if we're not a vrf.
+		if !rule.To.IsValid() && !rule.From.IsValid() {
 			return ErrMalformedFIBRule
 		}
-		if ptr.Deref(rule.To, "") != "" {
-			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.To, ""))
-			_, errAddr := netip.ParseAddr(ptr.Deref(rule.To, ""))
-			if errPrefix != nil && errAddr != nil {
-				return ErrMalformedFIBRule
-			}
-		}
-		if ptr.Deref(rule.From, "") != "" {
-			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.From, ""))
-			_, errAddr := netip.ParseAddr(ptr.Deref(rule.From, ""))
-			if errPrefix != nil && errAddr != nil {
-				return ErrMalformedFIBRule
-			}
+		if ptr.Deref(rule.Table, 0) == 0 && !isVrf {
+			return ErrMalformedFIBRule
 		}
 	}
 	return nil

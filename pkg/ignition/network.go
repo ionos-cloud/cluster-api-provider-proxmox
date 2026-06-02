@@ -82,8 +82,8 @@ DNS={{ $dnsServer }}
 {{- $table := .Table }}
 {{- range $index, $rule := .FIBRules -}}
 [RoutingPolicyRule]
-{{ if $rule.To }}To={{$rule.To}}{{- end }}
-{{ if $rule.From }}From={{$rule.From}}{{- end }}
+{{ if $rule.To.IsValid }}To={{$rule.To}}{{- end }}
+{{ if $rule.From.IsValid }}From={{$rule.From}}{{- end }}
 {{ if $rule.Priority }}Priority={{$rule.Priority}}{{- end }}
 {{ if and (eq $type "vrf") (not $rule.Table) }}Table={{ $table }}
 {{ else }}{{ if $rule.Table }}Table={{$rule.Table}}
@@ -96,8 +96,8 @@ DNS={{ $dnsServer }}
 {{- if .Routes }}
 {{- range $index, $route := .Routes -}}
 [Route]
-{{ if $route.To }}Destination={{$route.To}}{{- end }}
-{{ if $route.Via }}Gateway={{$route.Via}}{{- end }}
+{{ if $route.To.IsValid }}Destination={{$route.To}}{{- end }}
+{{ if $route.Via.IsValid }}Gateway={{$route.Via}}{{- end }}
 {{ if $route.Metric }}Metric={{$route.Metric}}{{- end }}
 {{ if $route.Table }}Table={{$route.Table}}{{- end }}
 {{- end -}}
