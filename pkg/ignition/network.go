@@ -59,18 +59,6 @@ DHCP=ipv6
 [Address]
 Address={{ (.IPAddress).String }}
 {{- end -}}
-{{- if .Gateway }}
-[Route]
-{{- if ((.IPAddress).Addr).Is6 }}
-Destination=::/0
-{{- else }}
-Destination=0.0.0.0/0
-{{- end }}
-Gateway={{ .Gateway }}
-{{- if .Metric }}
-Metric={{ .Metric }}
-{{- end }}
-{{- end }}
 {{- end }}
 {{ template "routes" . -}}
 {{ template "rules" . -}}

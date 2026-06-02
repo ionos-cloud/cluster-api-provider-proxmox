@@ -28,25 +28,25 @@ import (
 )
 
 var (
-	expectedValidNetworkConfig = map[string][]byte{
-		"00-eth0.network": []byte(`[Match]
+	expectedValidNetworkConfig = map[string]string{
+		"00-eth0.network": `[Match]
 MACAddress=E2:B8:FE:E7:50:75
 [Network]
 DNS=10.0.1.1
 [Address]
 Address=10.0.0.98/25
+[Address]
+Address=2001:db8:1::10/64
 [Route]
 Destination=0.0.0.0/0
 Gateway=10.0.0.1
 Metric=100
-[Address]
-Address=2001:db8:1::10/64
 [Route]
 Destination=::/0
 Gateway=2001:db8:1::1
 Metric=100
-`),
-		"01-eth1.network": []byte(`[Match]
+`,
+		"01-eth1.network": `[Match]
 MACAddress=E2:8E:95:1F:EB:36
 [Network]
 DNS=10.0.1.1
@@ -61,34 +61,34 @@ To=8.7.6.5/32
 From=1.1.1.1/32
 Priority=100
 Table=500
-`),
+`,
 	}
 
-	expectedValidNetworkConfigWithVRFPolicies = map[string][]byte{
-		"00-vrf0.netdev": []byte(`[NetDev]
+	expectedValidNetworkConfigWithVRFPolicies = map[string]string{
+		"00-vrf0.netdev": `[NetDev]
 Name=vrf0
 Kind=vrf
 [VRF]
 Table=644
-`),
-		"00-eth0.network": []byte(`[Match]
+`,
+		"00-eth0.network": `[Match]
 MACAddress=E2:B8:FE:E7:50:75
 [Network]
 DNS=10.0.1.1
 [Address]
 Address=10.0.0.98/25
+[Address]
+Address=2001:db8:1::10/64
 [Route]
 Destination=0.0.0.0/0
 Gateway=10.0.0.1
 Metric=100
-[Address]
-Address=2001:db8:1::10/64
 [Route]
 Destination=::/0
 Gateway=2001:db8:1::1
 Metric=100
-`),
-		"01-eth1.network": []byte(`[Match]
+`,
+		"01-eth1.network": `[Match]
 MACAddress=E2:8E:95:1F:EB:36
 [Network]
 VRF=vrf0
@@ -99,9 +99,9 @@ Address=10.0.1.84/25
 Destination=0.0.0.0/0
 Gateway=10.0.1.1
 Metric=200
-`),
+`,
 
-		"02-vrf2.network": []byte(`[Match]
+		"02-vrf2.network": `[Match]
 Name=vrf0
 [Route]
 Destination=3.4.5.6
@@ -112,7 +112,7 @@ To=8.7.6.5/32
 From=1.1.1.1/32
 Priority=100
 Table=644
-`),
+`,
 	}
 )
 
@@ -122,7 +122,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 	}
 
 	type want struct {
-		units map[string][]byte
+		units map[string]string
 		err   error
 	}
 
@@ -140,18 +140,27 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
-							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("10.0.0.98/25")},
+							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64")},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.0.0.1"),
+							Metric: ptr.To[int32](100),
+						}, {
+							To:     ptr.To("::/0"),
+							Via:    ptr.To("2001:db8:1::1"),
+							Metric: ptr.To[int32](100),
+						}},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
+							{IPAddress: netip.MustParsePrefix("10.0.1.84/25")},
 						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
@@ -160,6 +169,11 @@ func TestRenderNetworkConfigData(t *testing.T) {
 							From:     ptr.To("1.1.1.1/32"),
 							Priority: ptr.To(int64(100)),
 							Table:    ptr.To(int32(500)),
+						}},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.0.1.1"),
+							Metric: ptr.To[int32](200),
 						}},
 					},
 				},
@@ -178,21 +192,35 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.0.98/25"), Gateway: "10.0.0.1", Metric: ptr.To(int32(100))},
-							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64"), Gateway: "2001:db8:1::1", Metric: ptr.To(int32(100))},
+							{IPAddress: netip.MustParsePrefix("10.0.0.98/25")},
+							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64")},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.0.0.1"),
+							Metric: ptr.To[int32](100),
+						}, {
+							To:     ptr.To("::/0"),
+							Via:    ptr.To("2001:db8:1::1"),
+							Metric: ptr.To[int32](100),
+						}},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
 						IPConfigs: []types.IPConfig{
-							{IPAddress: netip.MustParsePrefix("10.0.1.84/25"), Gateway: "10.0.1.1", Metric: ptr.To(int32(200))},
+							{IPAddress: netip.MustParsePrefix("10.0.1.84/25")},
 						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.0.1.1"),
+							Metric: ptr.To[int32](200),
+						}},
 					},
 					{
 						Type:       "vrf",
@@ -225,7 +253,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 			units, err := RenderNetworkConfigData(tc.args.nics)
 			require.ErrorIs(t, err, tc.want.err)
 			for k := range units {
-				require.Equal(t, tc.want.units[k], units[k])
+				require.Equal(t, tc.want.units[k], string(units[k]))
 			}
 		})
 	}

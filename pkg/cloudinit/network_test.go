@@ -40,9 +40,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -60,9 +58,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -81,9 +77,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"`
+        - { "to": "default",  "via": "10.10.10.1",  "metric": 100, }`
 
 	expectedValidNetworkConfigMultipleNics = `network:
   version: 2
@@ -97,9 +91,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -110,11 +102,9 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '196.168.100.124/24'
+        - '192.168.100.124/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 200
-          via: "196.168.100.254"
+        - { "to": "0.0.0.0/0",  "via": "192.168.100.254",  "metric": 200, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -133,12 +123,8 @@ const (
         - '10.10.10.12/24'
         - '2001:db8::1/64'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
-        - to: '::/0'
-          metric: 100
-          via: "2001:db8::1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - { "to": "::/0",  "via": "2001:db8::1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -156,9 +142,7 @@ const (
       addresses:
         - '2001:db8::1/64'
       routes:
-        - to: '::/0'
-          metric: 100
-          via: "2001:db8::1"
+        - { "to": "::/0",  "via": "2001:db8::1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -218,9 +202,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -238,9 +220,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -258,9 +238,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -273,9 +251,7 @@ const (
       addresses:
         - '10.10.11.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 200
-          via: "10.10.11.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.11.1",  "metric": 200, }
         - { "to": "172.16.24.1/24",  "via": "10.10.10.254",  "metric": 50, }
         - { "to": "2002::/64",  "via": "2001:db8::1", }`
 
@@ -291,9 +267,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -306,9 +280,7 @@ const (
       addresses:
         - '10.10.11.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 200
-          via: "10.10.11.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.11.1",  "metric": 200, }
       routing-policy:
         - { "to": "0.0.0.0/0",  "from": "192.168.178.1/24",  "priority": 999,  "table": 100, }`
 
@@ -324,9 +296,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -337,11 +307,9 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '196.168.100.124/24'
+        - '192.168.100.124/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 200
-          via: "196.168.100.254"
+        - { "to": "0.0.0.0/0",  "via": "192.168.100.254",  "metric": 200, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -370,9 +338,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -383,11 +349,9 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '196.168.100.124/24'
+        - '192.168.100.124/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 200
-          via: "196.168.100.254"
+        - { "to": "0.0.0.0/0",  "via": "192.168.100.254",  "metric": 200, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -421,9 +385,7 @@ const (
       addresses:
         - '10.10.10.12/24'
       routes:
-        - to: '0.0.0.0/0'
-          metric: 100
-          via: "10.10.10.1"
+        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
       nameservers:
         addresses:
           - '8.8.8.8'
@@ -436,9 +398,7 @@ const (
       addresses:
         - '2001:db8::ffff:0/64'
       routes:
-        - to: '::/0'
-          metric: 200
-          via: "2001:db8::"
+        - { "to": "::/0",  "via": "2001:db8::",  "metric": 200, }
       nameservers:
         addresses:
           - '22:22'
@@ -456,6 +416,11 @@ const (
   version: 2
   renderer: networkd
   ethernets:
+    eth0:
+      match:
+        macaddress: 92:60:a0:5b:22:c2
+      dhcp4: true
+      dhcp6: false
   vrfs:
     vrf-blue:
       table: 500
@@ -488,10 +453,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -510,11 +478,14 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						LinkMTU:    ptr.To(int32(9001)),
+						Routes: []types.RoutingData{{
+							Via:    ptr.To("10.10.10.1"),
+							To:     ptr.To("0.0.0.0/0"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -534,10 +505,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP6:      true,
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -557,10 +531,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP4:      true,
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -580,28 +557,32 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP6:      true,
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							Via:    ptr.To("10.10.10.1"),
+							To:     ptr.To("0.0.0.0/0"),
+							Metric: ptr.To(int32(100)),
+						}},
 					}, {
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c3",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.11.12/24"),
-							Gateway:   "10.10.11.1",
-							Metric:    ptr.To(int32(200)),
 						}},
 						Routes: []types.RoutingData{{
+							Via:    ptr.To("10.10.11.1"),
+							To:     ptr.To("0.0.0.0/0"),
+							Metric: ptr.To(int32(200)),
+						}, {
 							To:     ptr.To("172.16.24.1/24"),
 							Metric: ptr.To(int32(50)),
 							Via:    ptr.To("10.10.10.254"),
 						}, {
 							To:  ptr.To("2002::/64"),
 							Via: ptr.To("2001:db8::1"),
-						},
-						},
+						}},
 					},
 				},
 			},
@@ -621,17 +602,18 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP6:      true,
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							Via:    ptr.To("10.10.10.1"),
+							To:     ptr.To("0.0.0.0/0"),
+							Metric: ptr.To(int32(100)),
+						}},
 					}, {
 						Type: "ethernet",
 						Name: "eth1",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.11.12/24"),
-							Gateway:   "10.10.11.1",
-							Metric:    ptr.To(int32(200)),
 						}},
 						MacAddress: "92:60:a0:5b:22:c3",
 						FIBRules: []types.FIBRuleData{{
@@ -639,8 +621,12 @@ func TestNetworkConfig_Render(t *testing.T) {
 							From:     ptr.To("192.168.178.1/24"),
 							Priority: ptr.To(int64(999)),
 							Table:    ptr.To(int32(100)),
-						},
-						},
+						}},
+						Routes: []types.RoutingData{{
+							Via:    ptr.To("10.10.11.1"),
+							To:     ptr.To("0.0.0.0/0"),
+							Metric: ptr.To(int32(200)),
+						}},
 					},
 				},
 			},
@@ -657,11 +643,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
-						IPConfigs: []types.IPConfig{{
-							Gateway: "10.10.10.1",
-							Metric:  ptr.To(int32(100)),
-						}},
+						IPConfigs:  []types.IPConfig{{}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -680,7 +668,6 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
@@ -700,8 +687,6 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Name: "eth0",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.11/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 					},
@@ -713,7 +698,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 			},
 		},
 		"InvalidNetworkConfigConflictingMetrics": {
-			reason: "metric already exists for default gateway",
+			reason: "metric already exists for default gateway multiple network cards",
 			args: args{
 				nics: []types.NetworkConfigData{
 					{
@@ -722,20 +707,26 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.11/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							Via:    ptr.To("10.10.10.1"),
+							To:     ptr.To("0.0.0.0/0"),
+							Metric: ptr.To(int32(100)),
+						}},
 					}, {
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c5",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.11.11/24"),
-							Gateway:   "10.10.11.254",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							Via:    ptr.To("10.10.11.1"),
+							To:     ptr.To("0.0.0.0/0"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -754,8 +745,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
+						}},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("default"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
 						}},
 					},
 				},
@@ -775,21 +769,27 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: netip.MustParsePrefix("196.168.100.124/24"),
-							Gateway:   "196.168.100.254",
-							Metric:    ptr.To(int32(200)),
+							IPAddress: netip.MustParsePrefix("192.168.100.124/24"),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("192.168.100.254"),
+							Metric: ptr.To(int32(200)),
+						}},
 					},
 				},
 			},
@@ -818,14 +818,19 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}, {
 							IPAddress: netip.MustParsePrefix("2001:db8::1/64"),
-							Gateway:   "2001:db8::1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}, {
+							To:     ptr.To("::/0"),
+							Via:    ptr.To("2001:db8::1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -844,10 +849,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("2001:db8::1/64"),
-							Gateway:   "2001:db8::1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("::/0"),
+							Via:    ptr.To("2001:db8::1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 				},
 			},
@@ -923,21 +931,27 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: netip.MustParsePrefix("196.168.100.124/24"),
-							Gateway:   "196.168.100.254",
-							Metric:    ptr.To(int32(200)),
+							IPAddress: netip.MustParsePrefix("192.168.100.124/24"),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("192.168.100.254"),
+							Metric: ptr.To(int32(200)),
+						}},
 					},
 					{
 						Type:       "vrf",
@@ -978,21 +992,27 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 					{
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []types.IPConfig{{
-							IPAddress: netip.MustParsePrefix("196.168.100.124/24"),
-							Gateway:   "196.168.100.254",
-							Metric:    ptr.To(int32(200)),
+							IPAddress: netip.MustParsePrefix("192.168.100.124/24"),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("192.168.100.254"),
+							Metric: ptr.To(int32(200)),
+						}},
 					},
 					{
 						Type:       "vrf",
@@ -1040,6 +1060,12 @@ func TestNetworkConfig_Render(t *testing.T) {
 			args: args{
 				nics: []types.NetworkConfigData{
 					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true, // satisfy gateway requirement.
+					},
+					{
 						Type:  "vrf",
 						Name:  "vrf-blue",
 						Table: int32(500),
@@ -1058,6 +1084,18 @@ func TestNetworkConfig_Render(t *testing.T) {
 			reason: "invalid config malformed routing policy",
 			args: args{
 				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "92:60:a0:5b:22:c2",
+						DHCP4:      true, // satisfy gateway requirement.
+					},
+					{
+						Type:       "ethernet",
+						Name:       "eth1",
+						MacAddress: "92:60:a0:5b:22:c3",
+						DHCP4:      true,
+					},
 					{
 						Type:       "vrf",
 						Name:       "vrf-blue",
@@ -1084,10 +1122,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
-							Gateway:   "10.10.10.1",
-							Metric:    ptr.To(int32(100)),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.10.10.1"),
+							Metric: ptr.To(int32(100)),
+						}},
 					},
 					{
 						Type:       "ethernet",
@@ -1095,10 +1136,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []types.IPConfig{{
 							IPAddress: netip.MustParsePrefix("2001:db8::ffff:0/64"),
-							Gateway:   "2001:db8::",
-							Metric:    ptr.To(int32(200)),
 						}},
 						DNSServers: []string{"22:22", "::", "[::]"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("::/0"),
+							Via:    ptr.To("2001:db8::"),
+							Metric: ptr.To(int32(200)),
+						}},
 					},
 					{
 						Type:       "vrf",
