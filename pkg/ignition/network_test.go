@@ -64,6 +64,40 @@ Table=500
 `,
 	}
 
+	expectedValidNetworkdConfigEthernetWithRoutes = map[string]string{
+		"00-eth0.network": `[Match]
+MACAddress=E2:B8:FE:E7:50:75
+[Network]
+DNS=10.0.1.1
+[Address]
+Address=10.0.0.98/25
+[Route]
+Destination=0.0.0.0/0
+Gateway=10.0.0.1
+Metric=100
+[Route]
+Destination=172.16.24.0/24
+Gateway=10.10.10.254
+Metric=50
+`,
+	}
+
+	expectedValidNetworkdConfigMultipleIPsSingleGateway = map[string]string{
+		"00-eth0.network": `[Match]
+MACAddress=E2:B8:FE:E7:50:75
+[Network]
+DNS=10.0.1.1
+[Address]
+Address=10.10.10.10/24
+[Address]
+Address=10.5.10.10/23
+[Route]
+Destination=0.0.0.0/0
+Gateway=10.0.0.1
+Metric=100
+`,
+	}
+
 	expectedValidNetworkConfigWithVRFPolicies = map[string]string{
 		"00-vrf0.netdev": `[NetDev]
 Name=vrf0
@@ -180,6 +214,63 @@ func TestRenderNetworkConfigData(t *testing.T) {
 			},
 			want: want{
 				units: expectedValidNetworkConfig,
+				err:   nil,
+			},
+		},
+		"ValidNetworkdConfigEthernetWithRoutes": {
+			reason: "render valid network config with ethernet and routes",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "E2:B8:FE:E7:50:75",
+						IPConfigs: []types.IPConfig{
+							{IPAddress: netip.MustParsePrefix("10.0.0.98/25")},
+						},
+						ProxName:   infrav1.DefaultNetworkDevice,
+						DNSServers: []string{"10.0.1.1"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.0.0.1"),
+							Metric: ptr.To(int32(100)),
+						}, {
+							To:     ptr.To("172.16.24.0/24"),
+							Via:    ptr.To("10.10.10.254"),
+							Metric: ptr.To(int32(50)),
+						}},
+					},
+				},
+			},
+			want: want{
+				units: expectedValidNetworkdConfigEthernetWithRoutes,
+				err:   nil,
+			},
+		},
+		"ValidNetworkdConfigMultipleIPsSingleGateway": {
+			reason: "renter valid network config with multiple gateways and single gateway",
+			args: args{
+				nics: []types.NetworkConfigData{
+					{
+						Type:       "ethernet",
+						Name:       "eth0",
+						MacAddress: "E2:B8:FE:E7:50:75",
+						IPConfigs: []types.IPConfig{
+							{IPAddress: netip.MustParsePrefix("10.10.10.10/24")},
+							{IPAddress: netip.MustParsePrefix("10.5.10.10/23")},
+						},
+						ProxName:   infrav1.DefaultNetworkDevice,
+						DNSServers: []string{"10.0.1.1"},
+						Routes: []types.RoutingData{{
+							To:     ptr.To("0.0.0.0/0"),
+							Via:    ptr.To("10.0.0.1"),
+							Metric: ptr.To(int32(100)),
+						}},
+					},
+				},
+			},
+			want: want{
+				units: expectedValidNetworkdConfigMultipleIPsSingleGateway,
 				err:   nil,
 			},
 		},
