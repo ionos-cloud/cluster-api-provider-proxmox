@@ -131,6 +131,13 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 
 			if dst.Network.NetworkDevices[i].Routing.Routes != nil {
 				for j := range dst.Network.NetworkDevices[i].Routing.Routes {
+					// Both Convert_string_To_Pointer_string and Is6 read from
+					// restored[j], so skip entirely if restored is shorter than
+					// dst. Routes added after the annotation was last written
+					// are left at their auto-converted values, which is correct.
+					if j >= len(restored.Network.NetworkDevices[i].Routing.Routes) {
+						continue
+					}
 					if device != nil {
 						Convert_string_To_Pointer_string(device.Routing.Routes[j].To, ok, restored.Network.NetworkDevices[i].Routing.Routes[j].To, &dst.Network.NetworkDevices[i].Routing.Routes[j].To)
 						Convert_string_To_Pointer_string(device.Routing.Routes[j].Via, ok, restored.Network.NetworkDevices[i].Routing.Routes[j].Via, &dst.Network.NetworkDevices[i].Routing.Routes[j].Via)
@@ -138,10 +145,16 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.Routes[j].To, &dst.Network.NetworkDevices[i].Routing.Routes[j].To)
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.Routes[j].Via, &dst.Network.NetworkDevices[i].Routing.Routes[j].Via)
 					}
+					// Is6 does not exist in v1alpha1; restore it from the annotation.
+					dst.Network.NetworkDevices[i].Routing.Routes[j].Is6 = restored.Network.NetworkDevices[i].Routing.Routes[j].Is6
 				}
 			}
 			if dst.Network.NetworkDevices[i].Routing.RoutingPolicy != nil {
 				for j := range dst.Network.NetworkDevices[i].Routing.RoutingPolicy {
+					// See comment above on Routes.
+					if j >= len(restored.Network.NetworkDevices[i].Routing.RoutingPolicy) {
+						continue
+					}
 					if device != nil {
 						Convert_string_To_Pointer_string(device.Routing.RoutingPolicy[j].To, ok, restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].To, &dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].To)
 						Convert_string_To_Pointer_string(device.Routing.RoutingPolicy[j].From, ok, restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].From, &dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].From)
@@ -149,9 +162,30 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].To, &dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].To)
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].From, &dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].From)
 					}
+					// Is6 does not exist in v1alpha1; restore it from the annotation.
+					dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].Is6 = restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].Is6
 				}
 			}
 
+		}
+
+		// Is6 is a v1alpha2-only field on VRF routes/policies and is dropped by
+		// auto-conversion; restore it from the annotation. VRFs convert
+		// index-for-index, so dst and restored stay aligned.
+		for i := range dst.Network.VRFs {
+			if i >= len(restored.Network.VRFs) {
+				break
+			}
+			for j := range dst.Network.VRFs[i].Routing.Routes {
+				if j < len(restored.Network.VRFs[i].Routing.Routes) {
+					dst.Network.VRFs[i].Routing.Routes[j].Is6 = restored.Network.VRFs[i].Routing.Routes[j].Is6
+				}
+			}
+			for j := range dst.Network.VRFs[i].Routing.RoutingPolicy {
+				if j < len(restored.Network.VRFs[i].Routing.RoutingPolicy) {
+					dst.Network.VRFs[i].Routing.RoutingPolicy[j].Is6 = restored.Network.VRFs[i].Routing.RoutingPolicy[j].Is6
+				}
+			}
 		}
 	}
 

@@ -164,6 +164,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 				Routes: []types.RoutingData{{
+
 					To:  netip.MustParsePrefix("0.0.0.0/0"),
 					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
@@ -218,6 +219,7 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 				Routes: []types.RoutingData{{
+
 					To:  netip.MustParsePrefix("0.0.0.0/0"),
 					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
@@ -273,6 +275,7 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.9/24")}},
 				DNSServers: []string{"10.1.1.1"},
 				Routes: []types.RoutingData{{
+
 					To:  netip.MustParsePrefix("0.0.0.0/0"),
 					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
@@ -332,6 +335,7 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 				Routes: []types.RoutingData{{
+
 					To:  netip.MustParsePrefix("0.0.0.0/0"),
 					Via: netip.MustParseAddr("10.1.1.1"),
 				}},

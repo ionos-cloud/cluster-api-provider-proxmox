@@ -486,6 +486,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -512,8 +513,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						LinkMTU:    ptr.To(int32(9001)),
 						Routes: []types.RoutingData{{
-							Via:    netip.MustParseAddr("10.10.10.1"),
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 					},
@@ -538,6 +540,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -564,6 +567,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -590,8 +594,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
-							Via:    netip.MustParseAddr("10.10.10.1"),
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 					}, {
@@ -602,14 +607,17 @@ func TestNetworkConfig_Render(t *testing.T) {
 							IPAddress: netip.MustParsePrefix("10.10.11.12/24"),
 						}},
 						Routes: []types.RoutingData{{
-							Via:    netip.MustParseAddr("10.10.11.1"),
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.10.11.1"),
 							Metric: ptr.To(int32(200)),
 						}, {
+
 							To:     netip.MustParsePrefix("172.16.24.1/24"),
 							Metric: ptr.To(int32(50)),
 							Via:    netip.MustParseAddr("10.10.10.254"),
 						}, {
+
 							To:  netip.MustParsePrefix("2002::/64"),
 							Via: netip.MustParseAddr("2001:db8::1"),
 						}},
@@ -635,8 +643,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
-							Via:    netip.MustParseAddr("10.10.10.1"),
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 					}, {
@@ -647,14 +656,15 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						MacAddress: "92:60:a0:5b:22:c3",
 						FIBRules: []types.FIBRuleData{{
-							To:       netip.MustParsePrefix("0.0.0.0/0"),
+
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
 							From:     netip.MustParsePrefix("192.168.178.1/24"),
 							Priority: ptr.To(int64(999)),
-							Table:    ptr.To(int32(100)),
 						}},
 						Routes: []types.RoutingData{{
-							Via:    netip.MustParseAddr("10.10.11.1"),
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.10.11.1"),
 							Metric: ptr.To(int32(200)),
 						}},
 					},
@@ -676,6 +686,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						IPConfigs:  []types.IPConfig{{}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -740,8 +751,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
-							Via:    netip.MustParseAddr("10.10.10.1"),
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 					}, {
@@ -753,8 +765,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
-							Via:    netip.MustParseAddr("10.10.11.1"),
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
+							Via:    netip.MustParseAddr("10.10.11.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 					},
@@ -777,6 +790,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 						}},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -802,6 +816,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -816,6 +831,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("192.168.100.254"),
 							Metric: ptr.To(int32(200)),
@@ -853,10 +869,12 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
 						}, {
+
 							To:     netip.MustParsePrefix("::/0"),
 							Via:    netip.MustParseAddr("2001:db8::1"),
 							Metric: ptr.To(int32(100)),
@@ -884,6 +902,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -918,6 +937,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("::/0"),
 							Via:    netip.MustParseAddr("2001:db8::1"),
 							Metric: ptr.To(int32(100)),
@@ -1000,6 +1020,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -1014,6 +1035,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("192.168.100.254"),
 							Metric: ptr.To(int32(200)),
@@ -1025,20 +1047,21 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Table:      500,
 						Interfaces: []string{"eth0", "eth1"},
 						Routes: []types.RoutingData{{
-							To:     netip.MustParsePrefix("0.0.0.0/0"),
+
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
 							Via:    netip.MustParseAddr("192.168.178.1"),
 							Metric: ptr.To(int32(100)),
-							Table:  ptr.To(int32(100)),
 						}, {
+
 							To:     netip.MustParsePrefix("10.10.10.0/24"),
 							Via:    netip.MustParseAddr("192.168.178.254"),
 							Metric: ptr.To(int32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
-							To:       netip.MustParsePrefix("0.0.0.0/0"),
+
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
 							From:     netip.MustParsePrefix("192.168.178.1/24"),
 							Priority: ptr.To(int64(999)),
-							Table:    ptr.To(int32(100)),
 						}},
 					},
 				},
@@ -1061,6 +1084,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -1075,6 +1099,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("192.168.100.254"),
 							Metric: ptr.To(int32(200)),
@@ -1086,20 +1111,21 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Table:      int32(500),
 						Interfaces: []string{"eth0"},
 						Routes: []types.RoutingData{{
-							To:     netip.MustParsePrefix("0.0.0.0/0"),
+
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
 							Via:    netip.MustParseAddr("192.168.178.1"),
 							Metric: ptr.To(int32(100)),
-							Table:  ptr.To(int32(100)),
 						}, {
+
 							To:     netip.MustParsePrefix("10.10.10.0/24"),
 							Via:    netip.MustParseAddr("192.168.178.254"),
 							Metric: ptr.To(int32(100)),
 						}},
 						FIBRules: []types.FIBRuleData{{
-							To:       netip.MustParsePrefix("0.0.0.0/0"),
+
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
 							From:     netip.MustParsePrefix("192.168.178.1/24"),
 							Priority: ptr.To(int64(999)),
-							Table:    ptr.To(int32(100)),
 						}},
 					},
 					{
@@ -1108,10 +1134,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Table:      int32(501),
 						Interfaces: []string{"eth1"},
 						FIBRules: []types.FIBRuleData{{
-							To:       netip.MustParsePrefix("0.0.0.0/0"),
+
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(101)),
 							From:     netip.MustParsePrefix("192.168.100.0/24"),
 							Priority: ptr.To(int64(999)),
-							Table:    ptr.To(int32(101)),
 						}},
 					},
 				},
@@ -1168,6 +1194,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Table:      int32(500),
 						Interfaces: []string{"eth0", "eth1"},
 						Routes: []types.RoutingData{{
+
 							Table: ptr.To(int32(100)),
 						}},
 					},
@@ -1188,6 +1215,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
 						Routes: []types.RoutingData{{
+
 							Table: ptr.To(int32(100)),
 						}},
 					},
@@ -1208,11 +1236,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
 						Routes: []types.RoutingData{{
-							Table: ptr.To(int32(100)),
-							To:    netip.MustParsePrefix("0.0.0.0/0"),
+
+							Table: ptr.To(int32(100)), To: netip.MustParsePrefix("0.0.0.0/0"),
 						}, {
-							Table: ptr.To(int32(100)),
-							To:    netip.MustParsePrefix("0.0.0.0/0"),
+
+							Table: ptr.To(int32(100)), To: netip.MustParsePrefix("0.0.0.0/0"),
 						}},
 					},
 				},
@@ -1252,8 +1280,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
 						FIBRules: []types.FIBRuleData{{
-							Priority: ptr.To(int64(100)),
+
 							Table:    ptr.To(int32(100)),
+							Priority: ptr.To(int64(100)),
 						}},
 					},
 				},
@@ -1276,6 +1305,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
 							Metric: ptr.To(int32(100)),
@@ -1290,6 +1320,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						DNSServers: []string{"22:22", "::", "[::]"},
 						Routes: []types.RoutingData{{
+
 							To:     netip.MustParsePrefix("::/0"),
 							Via:    netip.MustParseAddr("2001:db8::"),
 							Metric: ptr.To(int32(200)),
@@ -1301,6 +1332,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Table:      int32(500),
 						Interfaces: []string{"on: [NO, \"False\"]"},
 						Routes: []types.RoutingData{{
+
 							To:  netip.PrefixFrom(netip.MustParseAddr("::"), 128),
 							Via: netip.MustParseAddr("192.168.178.1"),
 						}},
