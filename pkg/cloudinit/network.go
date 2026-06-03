@@ -17,7 +17,6 @@ limitations under the License.
 package cloudinit
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 
@@ -184,7 +183,7 @@ func (r *NetworkConfig) validate() error {
 
 	// Tracks if a route already exists. A collision will return
 	// confliction errConflictingMetrics.
-	routeCollision := make(map[[32]byte]struct{})
+	routeCollision := make(map[string]struct{})
 	// Tracks whether any interface contributes a default gateway, either
 	// explicitly via IPConfigs or implicitly via DHCP.
 	// TODO: IPv6 slaac.
@@ -237,7 +236,7 @@ func (r *NetworkConfig) validate() error {
 	return nil
 }
 
-func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollisionMap map[[32]byte]struct{}) error {
+func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollisionMap map[string]struct{}) error {
 	// No support for blackhole, etc.pp. Add iff you require this.
 	for _, route := range routes {
 		if !route.To.IsValid() {
@@ -249,8 +248,7 @@ func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollision
 		}
 
 		// A route is uniquely identified by its target subnet, metric and table.
-		serialized := fmt.Sprintf("%s %d %d", route.To.String(), ptr.Deref(route.Metric, 0), ptr.Deref(route.Table, 0))
-		routeID := sha256.Sum256([]byte(serialized))
+		routeID := fmt.Sprintf("%s %d %d", route.To.String(), ptr.Deref(route.Metric, 0), ptr.Deref(route.Table, 0))
 		if _, exists := routeCollisionMap[routeID]; exists {
 			return ErrConflictingMetrics
 		}

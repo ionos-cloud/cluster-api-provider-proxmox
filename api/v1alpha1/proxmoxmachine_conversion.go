@@ -138,6 +138,8 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.Routes[j].To, &dst.Network.NetworkDevices[i].Routing.Routes[j].To)
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.Routes[j].Via, &dst.Network.NetworkDevices[i].Routing.Routes[j].Via)
 					}
+					// Is6 does not exist in v1alpha1; restore it from the annotation.
+					dst.Network.NetworkDevices[i].Routing.Routes[j].Is6 = restored.Network.NetworkDevices[i].Routing.Routes[j].Is6
 				}
 			}
 			if dst.Network.NetworkDevices[i].Routing.RoutingPolicy != nil {
@@ -149,9 +151,30 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].To, &dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].To)
 						Convert_string_To_Pointer_string("", ok, restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].From, &dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].From)
 					}
+					// Is6 does not exist in v1alpha1; restore it from the annotation.
+					dst.Network.NetworkDevices[i].Routing.RoutingPolicy[j].Is6 = restored.Network.NetworkDevices[i].Routing.RoutingPolicy[j].Is6
 				}
 			}
 
+		}
+
+		// Is6 is a v1alpha2-only field on VRF routes/policies and is dropped by
+		// auto-conversion; restore it from the annotation. VRFs convert
+		// index-for-index, so dst and restored stay aligned.
+		for i := range dst.Network.VRFs {
+			if i >= len(restored.Network.VRFs) {
+				break
+			}
+			for j := range dst.Network.VRFs[i].Routing.Routes {
+				if j < len(restored.Network.VRFs[i].Routing.Routes) {
+					dst.Network.VRFs[i].Routing.Routes[j].Is6 = restored.Network.VRFs[i].Routing.Routes[j].Is6
+				}
+			}
+			for j := range dst.Network.VRFs[i].Routing.RoutingPolicy {
+				if j < len(restored.Network.VRFs[i].Routing.RoutingPolicy) {
+					dst.Network.VRFs[i].Routing.RoutingPolicy[j].Is6 = restored.Network.VRFs[i].Routing.RoutingPolicy[j].Is6
+				}
+			}
 		}
 	}
 
