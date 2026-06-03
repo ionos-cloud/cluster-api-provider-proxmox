@@ -165,7 +165,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "mtu"),
+						field.NewPath("spec", "network", "networkDevices", fmt.Sprint(i), "mtu"),
 						networkDevice,
 						err.Error()),
 				})
@@ -178,7 +178,7 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "linkMtu"),
+						field.NewPath("spec", "network", "networkDevices", fmt.Sprint(i), "linkMtu"),
 						networkDevice,
 						err.Error()),
 				})
@@ -190,7 +190,20 @@ func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 				name,
 				field.ErrorList{
 					field.Invalid(
-						field.NewPath("spec", "network", "additionalDevices", fmt.Sprint(i), "routingPolicy"),
+						field.NewPath("spec", "network", "networkDevices", fmt.Sprint(i), "routingPolicy"),
+						networkDevice, err.Error(),
+					),
+				})
+		}
+
+		err = validateRoutes(networkDevice.InterfaceConfig.Routes)
+		if err != nil {
+			return apierrors.NewInvalid(
+				gk,
+				name,
+				field.ErrorList{
+					field.Invalid(
+						field.NewPath("spec", "network", "networkDevices", fmt.Sprint(i), "routes"),
 						networkDevice, err.Error(),
 					),
 				})
@@ -219,6 +232,9 @@ func validateRoutingPolicy(policies *[]infrav1.RoutingPolicySpec) error {
 		if policy.Table == nil {
 			return fmt.Errorf("routing policy [%d] requires a table", i)
 		}
+		if err := validateRoutingPolicyPlaceholder(policy); err != nil {
+			return fmt.Errorf("routing policy [%d]: %w", i, err)
+		}
 	}
 	return nil
 }
@@ -232,6 +248,58 @@ func validateVRFConfigRoutingPolicy(vrf *infrav1.VRFDevice) error {
 				return fmt.Errorf("VRF %s: device/rule routing table mismatch %d != %d", vrf.Name, vrf.Table, *policy.Table)
 			}
 		}
+		if err := validateRoutingPolicyPlaceholder(policy); err != nil {
+			return fmt.Errorf("VRF %s: %w", vrf.Name, err)
+		}
+	}
+	if err := validateRoutes(vrf.Routing.Routes); err != nil {
+		return fmt.Errorf("VRF %s: %w", vrf.Name, err)
+	}
+	return nil
+}
+
+// isRouteTargetPlaceholder reports whether a route/rule target
+// is the ip family ambiguous "default"|"all" placeholder.
+func isRouteTargetPlaceholder(s *string) bool {
+	return s != nil && (*s == "default" || *s == "all")
+}
+
+// isConcreteRouteTarget reports whether a route/rule target is set to a concrete
+// address (i.e. set and not the family ambiguous "default"|"all" placeholder),
+// from which the ip address family can be derived.
+func isConcreteRouteTarget(s *string) bool {
+	return s != nil && *s != "" && !isRouteTargetPlaceholder(s)
+}
+
+// validateRoutingPolicyPlaceholder requires is6 to be set when a policy's to or
+// from is the "default"|"all" placeholder and neither field carries a concrete
+// address, since otherwise the ip address family cannot be derived.
+// This needs to be done in the webhook because two fields exceed CELs budget.
+func validateRoutingPolicyPlaceholder(policy infrav1.RoutingPolicySpec) error {
+	hasPlaceholder := isRouteTargetPlaceholder(policy.To) || isRouteTargetPlaceholder(policy.From)
+	hasConcrete := isConcreteRouteTarget(policy.To) || isConcreteRouteTarget(policy.From)
+	if hasPlaceholder && !hasConcrete && policy.Is6 == nil {
+		return fmt.Errorf("is6 must be set when 'to'/'from' is a placeholder and neither provides an address family")
+	}
+	return nil
+}
+
+func validateRoutes(routes []infrav1.RouteSpec) error {
+	for i, route := range routes {
+		if err := validateRoutePlaceholder(route); err != nil {
+			return fmt.Errorf("route [%d]: %w", i, err)
+		}
+	}
+	return nil
+}
+
+// validateRoutePlaceholder requires is6 to be set when a route's to is the
+// "default"|"all" placeholder and via is unset, since otherwise the ip address
+// family cannot be derived (via, when set, provides it).
+// This needs to be done in the webhook because two fields exceed CELs budget.
+func validateRoutePlaceholder(route infrav1.RouteSpec) error {
+	if isRouteTargetPlaceholder(route.To) && !isConcreteRouteTarget(route.Via) && route.Is6 == nil {
+		return fmt.Errorf("is6 must be set when 'to' is a placeholder and 'via' is unset")
 	}
 	return nil
 }

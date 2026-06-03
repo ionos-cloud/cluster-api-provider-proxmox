@@ -47,19 +47,26 @@ type IPConfig struct {
 	Default   bool
 }
 
-// RoutingData stores a single route. Unset fields are zero values; use
-// netip's IsValid to test presence.
+// RoutingData stores a single route.
+//
+// The address family is encoded in To once it has been parsed (the
+// RouteSpec Is6 field only disambiguates placeholder targets such as
+// "default"/"all" at parse time and is not carried here). Use To.IsValid()
+// to check for a 'zero address'.
 type RoutingData struct {
 	To     netip.Prefix
+	Table  *int32
 	Via    netip.Addr
 	Metric *int32
-	Table  *int32
 }
 
 // FIBRuleData stores a single Linux FIB (forwarding information base) rule.
+//
+// As with RoutingData, the address family is encoded in To/From after parsing.
+// Use To.IsValid()/From.IsValid() to check for a 'zero address'.
 type FIBRuleData struct {
 	To       netip.Prefix
-	From     netip.Prefix
 	Table    *int32
+	From     netip.Prefix
 	Priority *int64
 }

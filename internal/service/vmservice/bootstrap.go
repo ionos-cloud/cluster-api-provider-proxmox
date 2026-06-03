@@ -293,11 +293,11 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
-	routes, err := toRoutingData(ifconfig.Routing.Routes)
+	routes, err := ToRoutingData(ifconfig.Routing.Routes)
 	if err != nil {
 		return err
 	}
-	rules, err := toFIBRuleData(ifconfig.Routing.RoutingPolicy)
+	rules, err := ToFIBRuleData(ifconfig.Routing.RoutingPolicy)
 	if err != nil {
 		return err
 	}
@@ -305,73 +305,6 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 	ciconfig.FIBRules = rules
 	ciconfig.LinkMTU = ifconfig.LinkMTU
 	return nil
-}
-
-// parseRouteTarget parses a route target. A bare IP address yields the
-// smallest enclosing prefix (/32 or /128); the magic value "default" yields
-// 0.0.0.0/0. The empty string is treated as no target and yields the zero
-// prefix.
-func parseRouteTarget(s string) (netip.Prefix, error) {
-	switch s {
-	case "":
-		return netip.Prefix{}, nil
-	case "default":
-		return netip.PrefixFrom(netip.IPv4Unspecified(), 0), nil
-	}
-	if p, err := netip.ParsePrefix(s); err == nil {
-		return p, nil
-	}
-	addr, err := netip.ParseAddr(s)
-	if err != nil {
-		return netip.Prefix{}, errors.Wrapf(err, "invalid route target %q", s)
-	}
-	return netip.PrefixFrom(addr, addr.BitLen()), nil
-}
-
-func toRoutingData(specs []infrav1.RouteSpec) ([]types.RoutingData, error) {
-	if len(specs) == 0 {
-		return nil, nil
-	}
-	out := make([]types.RoutingData, 0, len(specs))
-	for _, s := range specs {
-		r := types.RoutingData{Metric: s.Metric, Table: s.Table}
-		to, err := parseRouteTarget(ptr.Deref(s.To, ""))
-		if err != nil {
-			return nil, err
-		}
-		r.To = to
-		if via := ptr.Deref(s.Via, ""); via != "" {
-			addr, err := netip.ParseAddr(via)
-			if err != nil {
-				return nil, errors.Wrapf(err, "invalid route via %q", via)
-			}
-			r.Via = addr
-		}
-		out = append(out, r)
-	}
-	return out, nil
-}
-
-func toFIBRuleData(specs []infrav1.RoutingPolicySpec) ([]types.FIBRuleData, error) {
-	if len(specs) == 0 {
-		return nil, nil
-	}
-	out := make([]types.FIBRuleData, 0, len(specs))
-	for _, s := range specs {
-		r := types.FIBRuleData{Table: s.Table, Priority: s.Priority}
-		to, err := parseRouteTarget(ptr.Deref(s.To, ""))
-		if err != nil {
-			return nil, errors.Wrapf(err, "invalid FIB rule to")
-		}
-		r.To = to
-		from, err := parseRouteTarget(ptr.Deref(s.From, ""))
-		if err != nil {
-			return nil, errors.Wrapf(err, "invalid FIB rule from")
-		}
-		r.From = from
-		out = append(out, r)
-	}
-	return out, nil
 }
 
 func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1.NetworkSpec) ([]types.NetworkConfigData, error) {
@@ -434,16 +367,15 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network 
 			}
 		}
 
-		routes, err := toRoutingData(device.Routing.Routes)
+		var err error
+		config.Routes, err = ToRoutingData(device.Routing.Routes)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to convert routes for vrf=%s", config.Name)
 		}
-		rules, err := toFIBRuleData(device.Routing.RoutingPolicy)
+		config.FIBRules, err = ToFIBRuleData(device.Routing.RoutingPolicy)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to convert routing policy for vrf=%s", config.Name)
 		}
-		config.Routes = routes
-		config.FIBRules = rules
 		networkConfigData = append(networkConfigData, *config)
 	}
 	return networkConfigData, nil
