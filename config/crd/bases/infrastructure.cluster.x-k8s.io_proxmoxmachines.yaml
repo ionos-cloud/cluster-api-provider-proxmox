@@ -140,6 +140,12 @@ spec:
                   This is always done when you clone a normal VM.
                   Create a Full clone by default.
                 type: boolean
+              localStorage:
+                default: false
+                description: |-
+                  LocalStorage indicates that the VM template is stored on local (non-shared) storage.
+                  When true, each node in allowedNodes must have a local copy of the template.
+                type: boolean
               memoryMiB:
                 description: |-
                   MemoryMiB is the size of a virtual machine's memory, in MiB.
@@ -992,6 +998,14 @@ spec:
                   This is always done when you clone a normal VM.
                   Defaults to true when not specified, creating a full clone by default.
                 type: boolean
+              localStorage:
+                default: false
+                description: |-
+                  localStorage indicates that the VM template is stored on local (non-shared) storage.
+                  When true, each node in allowedNodes must have a local copy of the template, identified
+                  either by templateID+sourceNode (for a single node) or by templateSelector tags (per node).
+                  Mutually exclusive with the templateID+sourceNode combination for multi-node setups.
+                type: boolean
               memoryMiB:
                 description: |-
                   memoryMiB is the size of a virtual machine's memory, in MiB.
@@ -1362,6 +1376,7 @@ spec:
                 description: |-
                   templateSelector defines MatchTags for looking up VM templates.
                   If a templateID is defined, templateSelector will be ignored.
+                  When localStorage is true, templates are looked up per node in allowedNodes.
                 properties:
                   matchPolicy:
                     default: exact
@@ -1432,8 +1447,10 @@ spec:
               rule: self.full || !has(self.format)
             - message: Must set full=true when specifying storage
               rule: self.full || !has(self.storage)
-            - message: Must specify either templateID or templateSelector
+            - message: Must specify either templateID+sourceNode, templateSelector,
+                or localStorage
               rule: has(self.templateSelector) || (has(self.templateID) && has(self.sourceNode))
+                || has(self.localStorage)
           status:
             description: status is the status of the Proxmox machine.
             properties:

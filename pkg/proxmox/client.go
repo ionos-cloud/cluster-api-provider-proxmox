@@ -30,7 +30,12 @@ type Client interface {
 	ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine, options ...VirtualMachineOption) (*proxmox.Task, error)
 
 	FindVMResource(ctx context.Context, vmID uint64) (*proxmox.ClusterResource, error)
-	FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error)
+
+	// FindVMTemplatesByTags finds VM templates matching the given tags.
+	// When localStorage is false, returns a single-entry map (node→vmid) for a template visible from any node.
+	// When localStorage is true, returns one entry per node in allowedNodes (local storage mode).
+	// matchPolicy controls tag matching: "exact", "uniqueSubset", or "bestSubset".
+	FindVMTemplatesByTags(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool, matchPolicy string) (map[string]int32, error)
 
 	CheckID(ctx context.Context, vmID int64) (bool, error)
 

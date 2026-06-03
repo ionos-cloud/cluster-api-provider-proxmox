@@ -202,6 +202,12 @@ type TemplateSource struct {
 	// TemplateSelector defines MatchTags for looking up VM templates.
 	// +optional
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty"`
+
+	// LocalStorage indicates that the VM template is stored on local (non-shared) storage.
+	// When true, each node in allowedNodes must have a local copy of the template.
+	// +kubebuilder:default=false
+	// +optional
+	LocalStorage *bool `json:"localStorage,omitempty"`
 }
 
 // VirtualMachineCloneSpec is information used to clone a virtual machine.

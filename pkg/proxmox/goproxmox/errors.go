@@ -24,4 +24,7 @@ var (
 
 	// ErrTemplateNotFound is returned when a VM template is not found.
 	ErrTemplateNotFound = errors.New("VM template not found")
+
+	// ErrMultipleTemplatesFound is returned when multiple VM templates match on the same node.
+	ErrMultipleTemplatesFound = errors.New("multiple VM templates found")
 )

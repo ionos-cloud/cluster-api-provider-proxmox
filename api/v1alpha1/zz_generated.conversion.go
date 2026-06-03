@@ -1644,6 +1644,7 @@ func autoConvert_v1alpha1_TemplateSource_To_v1alpha2_TemplateSource(in *Template
 	}
 	out.TemplateID = (*int32)(unsafe.Pointer(in.TemplateID))
 	out.TemplateSelector = (*v1alpha2.TemplateSelector)(unsafe.Pointer(in.TemplateSelector))
+	out.LocalStorage = (*bool)(unsafe.Pointer(in.LocalStorage))
 	return nil
 }
 
@@ -1658,6 +1659,7 @@ func autoConvert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource(in *v1alpha2
 	}
 	out.TemplateID = (*int32)(unsafe.Pointer(in.TemplateID))
 	out.TemplateSelector = (*TemplateSelector)(unsafe.Pointer(in.TemplateSelector))
+	out.LocalStorage = (*bool)(unsafe.Pointer(in.LocalStorage))
 	return nil
 }
 

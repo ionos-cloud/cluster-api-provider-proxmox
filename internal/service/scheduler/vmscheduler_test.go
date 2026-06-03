@@ -75,7 +75,7 @@ func TestSelectNode(t *testing.T) {
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, nil)
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
@@ -95,7 +95,7 @@ func TestSelectNode(t *testing.T) {
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, nil)
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 
@@ -138,7 +138,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, nil)
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
@@ -158,7 +158,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		node, _, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{}, nil)
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 
@@ -245,7 +245,9 @@ func TestScheduleVM(t *testing.T) {
 	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve2", int64(100)).Return(miBytes(20), nil)
 	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", int64(100)).Return(miBytes(20), nil)
 
-	node, err := ScheduleVM(context.Background(), machineScope)
+	allowedNodes := proxmoxCluster.Spec.AllowedNodes
+	templateMap := map[string]int32{"pve1": 100, "pve2": 100, "pve3": 100}
+	node, _, err := ScheduleVM(context.Background(), machineScope, templateMap, allowedNodes)
 	require.NoError(t, err)
 	require.Equal(t, "pve2", node)
 }

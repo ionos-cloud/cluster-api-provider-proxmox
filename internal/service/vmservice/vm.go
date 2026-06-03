@@ -440,7 +440,6 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	options := proxmox.VMCloneRequest{
-		Node:  scope.ProxmoxMachine.GetSourceNode(),
 		NewID: int(vmid),
 		Name:  scope.ProxmoxMachine.GetName(),
 	}
@@ -470,41 +469,62 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		scope.InfraCluster.ProxmoxCluster.Status.NodeLocations = new(infrav1.NodeLocations)
 	}
 
-	if len(scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes) > 0 || len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
-		var err error
-		options.Target, err = selectNextNode(ctx, scope)
-		if err != nil {
-			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
-				conditions.Set(scope.ProxmoxMachine, metav1.Condition{
-					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-					Status:  metav1.ConditionFalse,
-					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-					Message: err.Error(),
-				})
-			}
-			return proxmox.VMCloneResponse{}, err
-		}
-	}
+	localStorage := scope.ProxmoxMachine.GetLocalStorage()
 
-	templateID := scope.ProxmoxMachine.GetTemplateID()
-	if templateID == -1 {
-		var err error
+	// Resolve the template map: either from explicit templateID+sourceNode, or via tag lookup.
+	templateMap := scope.ProxmoxMachine.GetTemplateMap()
+	if templateMap == nil {
 		templateSelectorTags := scope.ProxmoxMachine.GetTemplateSelectorTags()
 		templateMatchPolicy := string(scope.ProxmoxMachine.GetTemplateMatchPolicy())
-		options.Node, templateID, err = scope.InfraCluster.ProxmoxClient.FindVMTemplateByTags(ctx, templateSelectorTags, templateMatchPolicy)
+		allowedNodes := resolveAllowedNodes(scope)
+		var lookupErr error
+		templateMap, lookupErr = scope.InfraCluster.ProxmoxClient.FindVMTemplatesByTags(ctx, templateSelectorTags, allowedNodes, localStorage, templateMatchPolicy)
+		if lookupErr != nil {
+			reason := infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason
+			conditions.Set(scope.ProxmoxMachine, metav1.Condition{
+				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  reason,
+				Message: lookupErr.Error(),
+			})
+			return proxmox.VMCloneResponse{}, lookupErr
+		}
+	}
 
-		if err != nil {
-			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
+	// Resolve allowed nodes for scheduling (may differ from lookup nodes).
+	allowedNodes := resolveAllowedNodes(scope)
+
+	// Select target node and corresponding templateID.
+	var templateID int32
+	if len(allowedNodes) > 0 {
+		var schedErr error
+		options.Target, templateID, schedErr = selectNextNode(ctx, scope, templateMap, allowedNodes)
+		if schedErr != nil {
+			if errors.As(schedErr, &scheduler.InsufficientMemoryError{}) {
 				conditions.Set(scope.ProxmoxMachine, metav1.Condition{
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,
 					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-					Message: err.Error(),
+					Message: schedErr.Error(),
 				})
 			}
-			return proxmox.VMCloneResponse{}, err
+			return proxmox.VMCloneResponse{}, schedErr
 		}
 	}
+
+	// Set source node for the clone operation.
+	if localStorage {
+		// For local storage, clone from the same node as the target.
+		options.Node = options.Target
+	} else {
+		// For shared storage, use whichever node holds the (single) template.
+		for node, id := range templateMap {
+			options.Node = node
+			templateID = id
+			break
+		}
+	}
+
 	res, err := scope.InfraCluster.ProxmoxClient.CloneVM(ctx, int(templateID), options)
 	if err != nil {
 		return res, err
@@ -575,6 +595,15 @@ func getUsedVMIDs(ctx context.Context, scope *scope.MachineScope) ([]int64, erro
 }
 
 var selectNextNode = scheduler.ScheduleVM
+
+// resolveAllowedNodes returns the effective allowed node list for a machine,
+// preferring ProxmoxMachine.Spec.AllowedNodes over the cluster-level list.
+func resolveAllowedNodes(scope *scope.MachineScope) []string {
+	if len(scope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
+		return scope.ProxmoxMachine.Spec.AllowedNodes
+	}
+	return scope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
+}
 
 func unmountCloudInitISO(ctx context.Context, machineScope *scope.MachineScope) error {
 	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, machineScope.VirtualMachine, inject.CloudInitISODevice)

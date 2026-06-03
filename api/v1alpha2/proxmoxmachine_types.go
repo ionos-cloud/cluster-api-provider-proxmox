@@ -185,7 +185,7 @@ const (
 )
 
 // TemplateSource defines the source of the template VM.
-// +kubebuilder:validation:XValidation:rule="has(self.templateSelector) || (has(self.templateID) && has(self.sourceNode))",message="Must specify either templateID or templateSelector"
+// +kubebuilder:validation:XValidation:rule="has(self.templateSelector) || (has(self.templateID) && has(self.sourceNode)) || has(self.localStorage)",message="Must specify either templateID+sourceNode, templateSelector, or localStorage"
 type TemplateSource struct {
 	// sourceNode is the initially selected proxmox node.
 	// This node will be used to locate the template VM, which will
@@ -212,8 +212,17 @@ type TemplateSource struct {
 
 	// templateSelector defines MatchTags for looking up VM templates.
 	// If a templateID is defined, templateSelector will be ignored.
+	// When localStorage is true, templates are looked up per node in allowedNodes.
 	// +optional
 	TemplateSelector *TemplateSelector `json:"templateSelector,omitempty,omitzero"`
+
+	// localStorage indicates that the VM template is stored on local (non-shared) storage.
+	// When true, each node in allowedNodes must have a local copy of the template, identified
+	// either by templateID+sourceNode (for a single node) or by templateSelector tags (per node).
+	// Mutually exclusive with the templateID+sourceNode combination for multi-node setups.
+	// +kubebuilder:default=false
+	// +optional
+	LocalStorage *bool `json:"localStorage,omitempty"`
 }
 
 // VirtualMachineCloneSpec is information used to clone a virtual machine.
@@ -686,6 +695,23 @@ func (r *ProxmoxMachine) GetTemplateID() int32 {
 		return *r.Spec.TemplateID
 	}
 	return -1
+}
+
+// GetTemplateMap returns a map of sourceNode→templateID for this machine.
+// Returns nil when templateSelector should be used instead.
+func (r *ProxmoxMachine) GetTemplateMap() map[string]int32 {
+	if r.Spec.TemplateID != nil && r.Spec.SourceNode != nil {
+		return map[string]int32{*r.Spec.SourceNode: *r.Spec.TemplateID}
+	}
+	return nil
+}
+
+// GetLocalStorage returns whether the VM template is on local (non-shared) storage.
+func (r *ProxmoxMachine) GetLocalStorage() bool {
+	if r.Spec.LocalStorage != nil {
+		return *r.Spec.LocalStorage
+	}
+	return false
 }
 
 // GetTemplateSelectorTags get the tags, the desired vm template should have.
