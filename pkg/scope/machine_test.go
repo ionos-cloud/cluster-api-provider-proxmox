@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/require"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -126,7 +125,7 @@ func TestMachineScope_SkipQemuCheckEnabled(t *testing.T) {
 	p := infrav1.ProxmoxMachine{
 		Spec: infrav1.ProxmoxMachineSpec{
 			Checks: &infrav1.ProxmoxMachineChecks{
-				SkipCloudInitStatus: ptr.To(true),
+				SkipCloudInitStatus: new(true),
 			},
 		},
 	}
@@ -152,7 +151,7 @@ func TestMachineScope_SkipCloudInitCheckEnabled(t *testing.T) {
 	p := infrav1.ProxmoxMachine{
 		Spec: infrav1.ProxmoxMachineSpec{
 			Checks: &infrav1.ProxmoxMachineChecks{
-				SkipCloudInitStatus: ptr.To(true),
+				SkipCloudInitStatus: new(true),
 			},
 		},
 	}
@@ -178,7 +177,7 @@ func TestMachineScope_SkipQemuDisablesCloudInitCheck(t *testing.T) {
 	p := infrav1.ProxmoxMachine{
 		Spec: infrav1.ProxmoxMachineSpec{
 			Checks: &infrav1.ProxmoxMachineChecks{
-				SkipQemuGuestAgent: ptr.To(true),
+				SkipQemuGuestAgent: new(true),
 			},
 		},
 	}
@@ -199,7 +198,7 @@ func TestMachineScope_GetBootstrapSecret(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "test"},
 		Spec: clusterv1.MachineSpec{
 			Bootstrap: clusterv1.Bootstrap{
-				DataSecretName: ptr.To("bootstrap"),
+				DataSecretName: new("bootstrap"),
 			},
 		},
 		Status: clusterv1.MachineStatus{},

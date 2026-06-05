@@ -47,8 +47,8 @@ const (
 )
 
 var defaultNic = infrav1.NetworkDevice{
-	Bridge: ptr.To("vmbr0"),
-	Model:  ptr.To("virtio"),
+	Bridge: new("vmbr0"),
+	Model:  new("virtio"),
 	Name:   infrav1.DefaultNetworkDevice,
 }
 
@@ -94,7 +94,7 @@ func addDefaultIPPool(machineScope *scope.MachineScope, offset ...int) corev1.Ty
 	}
 	// call to add defaultNic
 	addIPPool(machineScope, defaultPool, infrav1.NetName(fmt.Sprintf("net%d", offset[0])))
-	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv4 = ptr.To(true)
+	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv4 = new(true)
 
 	setInClusterIPPoolStatus(machineScope, "test-v4-icip", infrav1.IPv4Type, nil)
 	return defaultPool
@@ -111,7 +111,7 @@ func addDefaultIPPoolV6(machineScope *scope.MachineScope, offset ...int) corev1.
 	}
 	// call to add defaultNic
 	addIPPool(machineScope, defaultPoolV6, infrav1.NetName(fmt.Sprintf("net%d", offset[0])))
-	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv6 = ptr.To(true)
+	machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[offset[0]].DefaultIPv6 = new(true)
 
 	setInClusterIPPoolStatus(machineScope, "test-v6-icip", infrav1.IPv6Type, nil)
 	return defaultPoolV6
@@ -148,8 +148,8 @@ func addIPPool(machineScope *scope.MachineScope, poolRef corev1.TypedLocalObject
 	if index = slices.IndexFunc(networkDevices, func(e infrav1.NetworkDevice) bool { return reflect.DeepEqual(e.Name, netName) }); index < 0 {
 		index = len(networkDevices)
 		nic := infrav1.NetworkDevice{
-			Bridge: ptr.To(fmt.Sprintf("vmbr%d", index)),
-			Model:  ptr.To("virtio"),
+			Bridge: new(fmt.Sprintf("vmbr%d", index)),
+			Model:  new("virtio"),
 			Name:   netName,
 			InterfaceConfig: infrav1.InterfaceConfig{
 				IPPoolRef:  []corev1.TypedLocalObjectReference{},
@@ -293,7 +293,7 @@ func TestGetBootstrapData_MissingSecretName(t *testing.T) {
 func TestGetBootstrapData_MissingSecretNotName(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
-	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To("foo")
+	machineScope.Machine.Spec.Bootstrap.DataSecretName = new("foo")
 	data, _, err := getBootstrapData(context.Background(), machineScope)
 
 	require.Error(t, err)
@@ -304,7 +304,7 @@ func TestGetBootstrapData_MissingSecretNotName(t *testing.T) {
 func TestGetBootstrapData_MissingSecretValue(t *testing.T) {
 	machineScope, _, client := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
 
-	machineScope.Machine.Spec.Bootstrap.DataSecretName = ptr.To(machineScope.Name())
+	machineScope.Machine.Spec.Bootstrap.DataSecretName = new(machineScope.Name())
 	// missing format
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -358,12 +358,12 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			defaultNic,
 			{
-				Bridge: ptr.To("vmbr1"),
-				Model:  ptr.To("virtio"),
+				Bridge: new("vmbr1"),
+				Model:  new("virtio"),
 				Name:   "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{
 					IPPoolRef: []corev1.TypedLocalObjectReference{{
-						APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+						APIGroup: new("ipam.cluster.x-k8s.io"),
 						Kind:     GlobalInClusterIPPool,
 						Name:     "net1-inet",
 					}},
@@ -385,20 +385,20 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Bridge: ptr.To("vmbr1"),
-				Model:  ptr.To("virtio"),
+				Bridge: new("vmbr1"),
+				Model:  new("virtio"),
 				Name:   "net1",
 				InterfaceConfig: infrav1.InterfaceConfig{
 					DNSServers: []string{"1.2.3.4"},
 					LinkMTU:    &MTU,
 					Routing: infrav1.Routing{
 						Routes: []infrav1.RouteSpec{
-							{To: ptr.To("default"), Via: ptr.To("192.168.178.1")},
-							{To: ptr.To("172.24.16.0/24"), Via: ptr.To("192.168.178.1"), Table: ptr.To(int32(100))},
+							{To: new("default"), Via: new("192.168.178.1")},
+							{To: new("172.24.16.0/24"), Via: new("192.168.178.1"), Table: new(int32(100))},
 						},
 						RoutingPolicy: []infrav1.RoutingPolicySpec{
-							{To: ptr.To("10.10.10.0/24"), Table: ptr.To(int32(100))},
-							{From: ptr.To("172.24.16.0/24"), Table: ptr.To(int32(100))},
+							{To: new("10.10.10.0/24"), Table: new(int32(100))},
+							{From: new("172.24.16.0/24"), Table: new(int32(100))},
 						},
 					},
 				},
@@ -455,9 +455,9 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 		{Name: "test-v6-icip"},
 	}
 	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
-		Zone:                 ptr.To("default"),
-		InClusterIPPoolRefV4: ptr.To(corev1.LocalObjectReference{Name: "test-v4-icip"}),
-		InClusterIPPoolRefV6: ptr.To(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: new(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: new(corev1.LocalObjectReference{Name: "test-v6-icip"}),
 	}}
 	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
@@ -506,9 +506,9 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 		{Name: "test-v6-icip"},
 	}
 	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
-		Zone:                 ptr.To("default"),
-		InClusterIPPoolRefV4: ptr.To(corev1.LocalObjectReference{Name: "test-v4-icip"}),
-		InClusterIPPoolRefV6: ptr.To(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: new(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: new(corev1.LocalObjectReference{Name: "test-v6-icip"}),
 	}}
 	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 
@@ -568,9 +568,9 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 		{Name: "test-v6-icip"},
 	}
 	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
-		Zone:                 ptr.To("default"),
-		InClusterIPPoolRefV4: ptr.To(corev1.LocalObjectReference{Name: "test-v4-icip"}),
-		InClusterIPPoolRefV6: ptr.To(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: new(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: new(corev1.LocalObjectReference{Name: "test-v6-icip"}),
 	}}
 	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
 

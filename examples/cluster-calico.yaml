@@ -9,7 +9,7 @@ spec:
   topology:
     classRef:
       name: proxmox-clusterclass-calico-v0.2.1
-    version: 1.33.3
+    version: 1.34.8
     controlPlane:
       replicas: 1
     workers:

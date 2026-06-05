@@ -93,7 +93,7 @@ func isIPv4(ip string) (bool, error) {
 // poolFromObjectRef is a local helper to turn any objectRef into a pool,
 // The awkward calling convention is due to limitations of golang (no generics on methods,
 // no type conversion of constrained types).
-func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace *string) (client.Object, error) {
+func (h *Helper) poolFromObjectRef(ctx context.Context, o any, namespace *string) (client.Object, error) {
 	ref := corev1.TypedObjectReference{}
 
 	// Todo: type constrained conversion without panic
@@ -105,7 +105,7 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o interface{}, namespace
 		ref.Kind = GetInClusterIPPoolKind()
 		ref.Name = value.Name
 
-		ref.Namespace = ptr.To(h.cluster.GetNamespace())
+		ref.Namespace = new(h.cluster.GetNamespace())
 	case *corev1.TypedLocalObjectReference:
 		value, _ := o.(*corev1.TypedLocalObjectReference)
 		ref.APIGroup = GetIPAMInClusterAPIGroup()
@@ -178,7 +178,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 
 	namespace := moxm.ObjectMeta.Namespace
 
-	zone := ptr.To(ptr.Deref(moxm.Spec.Network.Zone, "default"))
+	zone := new(ptr.Deref(moxm.Spec.Network.Zone, "default"))
 	zoneIndex := slices.IndexFunc(h.cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
 		return ptr.Equal(zone, z.Zone)
 	})
@@ -206,9 +206,9 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		}
 		poolSpec.Pool = pool
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
-			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+			APIGroup: new(ipamicv1.GroupVersion.String()),
 			Name:     pool.Name,
-			Kind:     pool.TypeMeta.Kind,
+			Kind:     GetInClusterIPPoolKind(),
 		}
 		pools.IPv4 = &poolSpec
 	}
@@ -229,9 +229,9 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		}
 		poolSpec.Pool = pool
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
-			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+			APIGroup: new(ipamicv1.GroupVersion.String()),
 			Name:     pool.Name,
-			Kind:     pool.TypeMeta.Kind,
+			Kind:     GetInClusterIPPoolKind(),
 		}
 		pools.IPv6 = &poolSpec
 	}
@@ -312,6 +312,9 @@ func (h *Helper) CreateOrUpdateInClusterIPPool(ctx context.Context) error {
 					Addresses: poolSpec.Addresses,
 					Prefix:    int(poolSpec.Prefix),
 					Gateway:   poolSpec.Gateway,
+					// TODO(v0.9): decide whether to expose this as a knob or change the default.
+					// 60s covers typical ARP cache expiry on switches during node replacement.
+					AddressReuseGracePeriodSeconds: new(int32(60)),
 				},
 			}
 
@@ -588,9 +591,11 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 	}
 
 	addresses.Items = slices.DeleteFunc(addresses.Items, func(n ipamv1.IPAddress) bool {
-		// Check if we are actually dealing with the right resource kind.
-		groupVersion, _ := schema.ParseGroupVersion(n.APIVersion)
-		return groupVersion.Group != GetIPAMInClusterAPIVersion()
+		// PoolRef.APIGroup may be "group" or "group/version"; extract only the group.
+		// schema.ParseGroupVersion treats a bare string (no "/") as a version rather than
+		// a group, which produces unexpected results here, so we use strings.Cut instead.
+		apiGroup, _, _ := strings.Cut(n.Spec.PoolRef.APIGroup, "/")
+		return apiGroup != GetIPAMInClusterAPIVersion()
 	})
 
 	// Sort result by IPAddress.Name to provide stability to testing.
@@ -612,7 +617,7 @@ func gvkForObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersi
 // toTypedLocalObjectReference converts an ipamv1.IPPoolReference to a corev1.TypedLocalObjectReference.
 func toTypedLocalObjectReference(ref ipamv1.IPPoolReference) corev1.TypedLocalObjectReference {
 	return corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To(ref.APIGroup),
+		APIGroup: new(ref.APIGroup),
 		Kind:     ref.Kind,
 		Name:     ref.Name,
 	}

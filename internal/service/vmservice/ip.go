@@ -113,7 +113,7 @@ func setVMIPAddressTag(ctx context.Context, machineScope *scope.MachineScope, ip
 		if err != nil {
 			return false, errors.Wrapf(err, "unable to add IP tag to VirtualMachine %s", machineScope.Name())
 		}
-		machineScope.ProxmoxMachine.Status.TaskRef = ptr.To(string(t.UPID))
+		machineScope.ProxmoxMachine.Status.TaskRef = new(string(t.UPID))
 		requeue = true
 	}
 
@@ -138,7 +138,7 @@ func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.Machine
 		if err != nil {
 			return nil, err
 		}
-		rv = ptr.To(int32(metric))
+		rv = new(int32(metric))
 	}
 
 	if s, exists := annotations[infrav1.ProxmoxGatewayMetricAnnotation]; exists && len(s) > 0 {
@@ -146,7 +146,7 @@ func findIPAddressGatewayMetric(ctx context.Context, machineScope *scope.Machine
 		if err != nil {
 			return nil, err
 		}
-		rv = ptr.To(int32(metric))
+		rv = new(int32(metric))
 	}
 
 	return rv, nil
