@@ -114,7 +114,7 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 
 			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&cluster), &cluster)).To(Succeed())
-			cluster.Spec.ControlPlaneEndpoint.Host = "10.10.10.2"
+			cluster.Spec.ControlPlaneEndpoint.Host = "192.0.2.2"
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("addresses may not contain the endpoint IP")))
 
@@ -135,17 +135,17 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 		},
 		Spec: infrav1.ProxmoxClusterSpec{
 			ControlPlaneEndpoint: infrav1.APIEndpoint{
-				Host: "10.10.10.1",
+				Host: "192.0.2.1",
 				Port: 6443,
 			},
 			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{
-					"10.10.10.2-10.10.10.10",
+					"192.0.2.2-192.0.2.10",
 				},
-				Gateway: "10.10.10.1",
+				Gateway: "192.0.2.1",
 				Prefix:  24,
 			},
-			DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+			DNSServers: []string{"192.0.2.53", "192.0.2.54"},
 		},
 	}
 }
@@ -153,7 +153,7 @@ func validProxmoxCluster(name string) infrav1.ProxmoxCluster {
 func invalidProxmoxCluster(name string) infrav1.ProxmoxCluster {
 	cl := validProxmoxCluster(name)
 	cl.Spec.ControlPlaneEndpoint = infrav1.APIEndpoint{
-		Host: "10.10.10.2",
+		Host: "192.0.2.2",
 		Port: 6443,
 	}
 

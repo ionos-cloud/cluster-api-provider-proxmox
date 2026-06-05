@@ -25,11 +25,11 @@ To do that you will need to set extra environment variables along with the requi
 
 ```bash
 # The secondary IP ranges for Cluster nodes
-export SECONDARY_IP_RANGES="[10.10.10.100-10.10.10.150]"
+export SECONDARY_IP_RANGES="[192.0.2.100-192.0.2.150]"
 # The Subnet Mask in CIDR notation for your node secondary IP ranges
 export SECONDARY_IP_PREFIX=24
 # The secondary gateway for the machines network-config
-export SECONDARY_GATEWAY="10.10.10.254"
+export SECONDARY_GATEWAY="192.0.2.254"
 # The secondary dns nameservers for the machines network-config
 export SECONDARY_DNS_SERVERS="[8.8.8.8, 8.8.4.4]"
 # The Proxmox secondary network bridge for VMs
@@ -60,8 +60,8 @@ The metric of the default gateway can be controlled with the proxmoxcluster defi
 [...]
     ipv4Config:
       addresses:
-      - 10.10.0.70-10.10.0.79
-      gateway: 10.10.0.1
+      - 198.51.100.70-198.51.100.79
+      gateway: 198.51.100.1
       metric: 100
       prefix: 24
 ```
@@ -137,14 +137,14 @@ LoadBalancer nodes are tainted and only run pods required for load balancing.
 ## -- loadbalancer nodes -- #
 LOAD_BALANCER_MACHINE_COUNT: 2                                # Number of load balancer nodes
 EXT_SERVICE_BRIDGE: "vmbr2"                                   # The network bridge device used for load balancing and bgp.
-LB_BGP_IPV4_RANGES: "[172.16.4.10-172.16.4.20]"               # The IP ranges used by the cluster for establishing the bgp session.
+LB_BGP_IPV4_RANGES: "[203.0.113.10-203.0.113.20]"               # The IP ranges used by the cluster for establishing the bgp session.
 LB_BGP_IPV6_RANGES:
 LB_BGP_IPV4_PREFIX: "24"                                      # Subnet Mask in CIDR notation for your bgp IP ranges.
 LB_BGP_IPV6_PREFIX:
 METALLB_IPV4_ASN: "65400"                                     # The nodes bgp asn.
 METALLB_IPV6_ASN:
-METALLB_IPV4_BGP_PEER: "172.16.4.1"                           # The nodes bgp peer IP address.
-METALLB_IPV4_BGP_PEER2: "172.16.4.2"                          # Backup bgp peer for H/A
+METALLB_IPV4_BGP_PEER: "203.0.113.1"                           # The nodes bgp peer IP address.
+METALLB_IPV4_BGP_PEER2: "203.0.113.2"                          # Backup bgp peer for H/A
 METALLB_IPV6_BGP_PEER:
 METALLB_IPV6_BGP_PEER2:
 METALLB_IPV4_BGP_SECRET: "REDACTED"                           # The secret required to establish a bgp session (if any).

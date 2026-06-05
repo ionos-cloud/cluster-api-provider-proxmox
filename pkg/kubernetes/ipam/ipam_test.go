@@ -236,9 +236,9 @@ func (s *IPAMTestSuite) Test_GetGlobalInClusterIPPool() {
 			Name: "test-global-cluster-icip",
 		},
 		Spec: ipamicv1.InClusterIPPoolSpec{
-			Addresses: []string{"10.10.10.1-10.10.10.100"},
+			Addresses: []string{"192.0.2.1-192.0.2.100"},
 			Prefix:    24,
-			Gateway:   "10.10.10.254",
+			Gateway:   "192.0.2.254",
 		},
 	}))
 
@@ -289,7 +289,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 	s.NoError(err)
 	s.NotNil(ip)
 	s.NotEmpty(ip.Spec.Address)
-	s.Equal(ip.Spec.Address, "10.10.10.11")
+	s.Equal(ip.Spec.Address, "192.0.2.11")
 
 	annotations, err := s.helper.GetIPPoolAnnotations(s.ctx, ip)
 	s.NotNil(annotations)
@@ -404,9 +404,9 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 			Name:      "test-additional-cluster-icip",
 		},
 		Spec: ipamicv1.InClusterIPPoolSpec{
-			Addresses: []string{"10.10.10.1-10.10.10.100"},
+			Addresses: []string{"192.0.2.1-192.0.2.100"},
 			Prefix:    24,
-			Gateway:   "10.10.10.254",
+			Gateway:   "192.0.2.254",
 		},
 	}))
 
@@ -437,9 +437,9 @@ func (s *IPAMTestSuite) Test_CreateIPAddressClaimv2() {
 			Name: "test-global-cluster-icip",
 		},
 		Spec: ipamicv1.InClusterIPPoolSpec{
-			Addresses: []string{"10.10.10.1-10.10.10.100"},
+			Addresses: []string{"192.0.2.1-192.0.2.100"},
 			Prefix:    24,
-			Gateway:   "10.10.10.254",
+			Gateway:   "192.0.2.254",
 		},
 	}))
 
@@ -525,7 +525,7 @@ func (s *IPAMTestSuite) Test_GetIPAddress() {
 	s.NoError(err)
 	s.NotNil(ip)
 	s.NotEmpty(ip.Spec.Address)
-	s.Equal(ip.Spec.Address, "10.10.10.11")
+	s.Equal(ip.Spec.Address, "192.0.2.11")
 }
 
 func getCluster() *infrav1.ProxmoxCluster {
@@ -546,7 +546,7 @@ func getCluster() *infrav1.ProxmoxCluster {
 		Spec: infrav1.ProxmoxClusterSpec{
 			IPv4Config: &infrav1.IPConfigSpec{
 				Addresses: []string{"10.10.0.1/24"},
-				Gateway:   "10.0.0.0",
+				Gateway:   "203.0.113.0",
 				Prefix:    24,
 			},
 		},
@@ -576,9 +576,9 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 				Kind:     gvk.Kind,
 				Name:     poolName,
 			},
-			Address: "10.10.10.11",
+			Address: "192.0.2.11",
 			Prefix:  ptr.To[int32](24),
-			Gateway: "10.10.10.1",
+			Gateway: "192.0.2.1",
 		},
 	}
 }
