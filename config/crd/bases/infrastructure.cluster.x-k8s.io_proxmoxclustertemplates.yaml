@@ -173,12 +173,6 @@ spec:
                                     This is always done when you clone a normal VM.
                                     Create a Full clone by default.
                                   type: boolean
-                                localStorage:
-                                  default: false
-                                  description: |-
-                                    LocalStorage indicates that the VM template is stored on local (non-shared) storage.
-                                    When true, each node in allowedNodes must have a local copy of the template.
-                                  type: boolean
                                 memoryMiB:
                                   description: |-
                                     MemoryMiB is the size of a virtual machine's memory, in MiB.

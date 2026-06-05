@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	apiconversion "k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
@@ -109,6 +110,11 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 
 	Convert_string_To_Pointer_string(src.TemplateSource.SourceNode, ok, restored.TemplateSource.SourceNode, &dst.TemplateSource.SourceNode)
 
+	// localStorage does not exist in v1alpha1; restore it from the annotation.
+	if ok {
+		dst.TemplateSource.LocalStorage = restored.TemplateSource.LocalStorage
+	}
+
 	if dst.Network != nil && restored.Network != nil {
 		for i := range restored.Network.NetworkDevices {
 			device := getNetDeviceByName(src.Network.AdditionalDevices, string(dst.Network.NetworkDevices[i].Name))
@@ -167,4 +173,11 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 			}},
 		}
 	}
+}
+
+// Convert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource converts v1alpha2 TemplateSource
+// to v1alpha1. The localStorage field does not exist in v1alpha1 and is intentionally dropped;
+// it is preserved via MarshalData annotation for round-trip fidelity.
+func Convert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource(in *v1alpha2.TemplateSource, out *TemplateSource, s apiconversion.Scope) error {
+	return autoConvert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource(in, out, s)
 }
