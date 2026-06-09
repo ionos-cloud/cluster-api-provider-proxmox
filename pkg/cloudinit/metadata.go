@@ -34,6 +34,13 @@ kubernetes-version: {{ .KubernetesVersion }}
 )
 
 // Metadata provides functionality to render machine metadata.
+//
+// TODO: Metadata does not belong in the cloudinit package. Instance ID,
+// hostname, provider ID and Kubernetes version are machine identity, a concern
+// separate from cloud-init network-config rendering, and they are not specific
+// to the cloud-init format. This type — together with its ErrMissingHostname /
+// ErrMissingInstanceID sentinels in errors.go — should move into its own
+// package.
 type Metadata struct {
 	data BaseCloudInitData
 }
@@ -52,7 +59,7 @@ func NewMetadata(instanceID, hostname string, kubernetesVersion string, injectPr
 
 // Render returns rendered metadata.
 func (r *Metadata) Render() (metadata []byte, err error) {
-	if err = r.validate(); err != nil {
+	if err = r.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -64,7 +71,8 @@ func (r *Metadata) Inspect() ([]byte, error) {
 	return json.Marshal(r.data)
 }
 
-func (r *Metadata) validate() error {
+// Validate reports whether the metadata is complete enough to render.
+func (r *Metadata) Validate() error {
 	if r.data.Hostname == "" {
 		return ErrMissingHostname
 	}

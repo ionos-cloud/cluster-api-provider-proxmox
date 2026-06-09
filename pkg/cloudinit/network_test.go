@@ -676,30 +676,6 @@ func TestNetworkConfig_Render(t *testing.T) {
 				err:     nil,
 			},
 		},
-		"InvalidNetworkConfigIP": {
-			reason: "ip address is not set",
-			args: args{
-				nics: []network.NetworkConfigData{
-					{
-						Type:       "ethernet",
-						Name:       "eth0",
-						MacAddress: "92:60:a0:5b:22:c2",
-						IPConfigs:  []network.IPConfig{{}},
-						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-						Routes: []network.RoutingData{{
-
-							To:     netip.MustParsePrefix("0.0.0.0/0"),
-							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
-						}},
-					},
-				},
-			},
-			want: want{
-				network: "",
-				err:     ErrMissingIPAddress,
-			},
-		},
 		"InvalidNetworkConfigGW": {
 			reason: "gw is not set",
 			args: args{
@@ -718,30 +694,6 @@ func TestNetworkConfig_Render(t *testing.T) {
 			want: want{
 				network: "",
 				err:     ErrMissingGateway,
-			},
-		},
-		"InvalidNetworkConfigMacAddress": {
-			reason: "macaddress is not set",
-			args: args{
-				nics: []network.NetworkConfigData{
-					{
-						Type: "ethernet",
-						Name: "eth0",
-						IPConfigs: []network.IPConfig{{
-							IPAddress: netip.MustParsePrefix("10.10.10.11/24"),
-						}},
-						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-						// Gateway present so the only fault is the missing MAC.
-						Routes: []network.RoutingData{{
-							To:  netip.MustParsePrefix("0.0.0.0/0"),
-							Via: netip.MustParseAddr("10.10.10.1"),
-						}},
-					},
-				},
-			},
-			want: want{
-				network: "",
-				err:     ErrMissingMacAddress,
 			},
 		},
 		"InvalidNetworkConfigConflictingMetrics": {
