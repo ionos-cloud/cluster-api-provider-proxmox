@@ -18,11 +18,9 @@ package cloudinit
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
-	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
@@ -134,33 +132,32 @@ config: []`
 )
 
 // NetworkConfig provides functionality to render machine network-config.
+//
+// It embeds network.Network to inherit the shared, renderer-agnostic validation
+// and layers its own cloud-init-specific checks on top via Validate.
 type NetworkConfig struct {
-	data BaseCloudInitData
+	network.Network
 }
 
 // NewNetworkConfig returns a new NetworkConfig object.
 func NewNetworkConfig(configs []network.NetworkConfigData) *NetworkConfig {
-	nc := new(NetworkConfig)
-	nc.data = BaseCloudInitData{
-		NetworkConfigData: configs,
-	}
-	return nc
+	return &NetworkConfig{network.Network{Devices: configs}}
 }
 
 // Inspect returns a serialized copy of the NetworkData. This is useful when
 // wanting to immutably inspect what goes into the renderer.
 func (r *NetworkConfig) Inspect() ([]byte, error) {
-	return json.Marshal(r.data.NetworkConfigData)
+	return json.Marshal(r.Devices)
 }
 
 // Render returns rendered network-config.
 func (r *NetworkConfig) Render() ([]byte, error) {
 	// Validate inputs to template
-	if err := r.validate(); err != nil {
+	if err := r.Validate(); err != nil {
 		return nil, err
 	}
 
-	nc, err := render("network-config", networkConfigTpl, r.data)
+	nc, err := render("network-config", networkConfigTpl, BaseCloudInitData{NetworkConfigData: r.Devices})
 	if err != nil {
 		return nil, err
 	}
@@ -177,96 +174,9 @@ func (r *NetworkConfig) Render() ([]byte, error) {
 	return nc, nil
 }
 
-func (r *NetworkConfig) validate() error {
-	if len(r.data.NetworkConfigData) == 0 {
-		return ErrMissingNetworkConfigData
-	}
-
-	// Tracks if a route already exists. A collision will return
-	// confliction errConflictingMetrics.
-	routeCollision := make(map[string]struct{})
-	// Tracks whether any interface contributes a default gateway, either
-	// explicitly via IPConfigs or implicitly via DHCP.
-	// TODO: IPv6 slaac.
-	hasGateway := false
-
-	for _, d := range r.data.NetworkConfigData {
-		if err := validateRoutes(d.Routes, &hasGateway, routeCollision); err != nil {
-			return err
-		}
-		if err := validateFIBRules(d.FIBRules, d.Type == "vrf"); err != nil {
-			return err
-		}
-
-		// This condition will require refactoring once more types of links
-		// are added.
-		if d.Type != "ethernet" {
-			continue
-		}
-
-		if !d.DHCP4 && !d.DHCP6 && len(d.IPConfigs) == 0 {
-			return ErrMissingIPAddress
-		}
-
-		if len(d.MacAddress) == 0 {
-			return ErrMissingMacAddress
-		}
-
-		// DHCP may produce a default gateway. Skip further checks.
-		if d.DHCP4 || d.DHCP6 {
-			hasGateway = true
-		}
-
-		for _, c := range d.IPConfigs {
-			// TODO: Probably useless
-			if !c.IPAddress.IsValid() {
-				return ErrMissingIPAddress
-			}
-		}
-	}
-
-	// If you end up here, please make an issue explaining how you need
-	// a cluster without a default gateway. This is a valid usecase and
-	// this check is merely an anti-footgun for regular users.
-	// As a work around, set an invalid gateway which netlink can not
-	// create.
-	if !hasGateway {
-		return ErrMissingGateway
-	}
-
-	return nil
-}
-
-func validateRoutes(routes []network.RoutingData, hasGateway *bool, routeCollisionMap map[string]struct{}) error {
-	// No support for blackhole, etc.pp. Add iff you require this.
-	for _, route := range routes {
-		if !route.To.IsValid() {
-			// Route without a target makes no sense.
-			return ErrMalformedRoute
-		}
-		if route.To.Bits() == 0 && route.To.Addr().IsUnspecified() {
-			*hasGateway = true
-		}
-
-		// A route is uniquely identified by its target subnet, metric and table.
-		routeID := fmt.Sprintf("%s %d %d", route.To.String(), ptr.Deref(route.Metric, 0), ptr.Deref(route.Table, 0))
-		if _, exists := routeCollisionMap[routeID]; exists {
-			return ErrConflictingMetrics
-		}
-		routeCollisionMap[routeID] = struct{}{}
-	}
-	return nil
-}
-
-func validateFIBRules(rules []network.FIBRuleData, isVrf bool) error {
-	for _, rule := range rules {
-		// We only support To/From and we require a table if we're not a vrf.
-		if !rule.To.IsValid() && !rule.From.IsValid() {
-			return ErrMalformedFIBRule
-		}
-		if ptr.Deref(rule.Table, 0) == 0 && !isVrf {
-			return ErrMalformedFIBRule
-		}
-	}
-	return nil
+// Validate runs the shared, renderer-agnostic validation (embedded
+// network.Network). No further renderer specific validation is required
+// (netplan implements every feature in networkConfigData).
+func (r *NetworkConfig) Validate() error {
+	return r.Network.Validate()
 }
