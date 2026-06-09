@@ -17,7 +17,9 @@ limitations under the License.
 package ignition
 
 import (
+	"maps"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -141,6 +143,7 @@ Name=vrf0
 Destination=3.4.5.6/32
 Gateway=10.0.1.1
 Metric=100
+Table=644
 [RoutingPolicyRule]
 To=8.7.6.5/32
 From=1.1.1.1/32
@@ -354,8 +357,9 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		t.Run(n, func(t *testing.T) {
 			units, err := RenderNetworkConfigData(tc.args.nics)
 			require.ErrorIs(t, err, tc.want.err)
-			for k := range units {
-				require.Equal(t, tc.want.units[k], string(units[k]))
+			require.ElementsMatch(t, slices.Collect(maps.Keys(tc.want.units)), slices.Collect(maps.Keys(units)))
+			for k, want := range tc.want.units {
+				require.Equal(t, want, string(units[k]))
 			}
 		})
 	}
