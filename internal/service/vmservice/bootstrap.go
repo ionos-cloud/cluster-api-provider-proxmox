@@ -354,15 +354,15 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, networkS
 		var config = ptr.To(network.NetworkConfigData{})
 		config.Type = "vrf"
 		config.Name = device.Name
-		config.Table = device.Table
+		config.Table = ptr.To(device.Table)
 
 		for i, child := range device.Interfaces {
 			for _, net := range data {
 				if net.Name == string(child) || net.ProxName == child {
-					config.Interfaces = append(config.Interfaces, net.Name)
+					config.Children = append(config.Children, net.Name)
 				}
 			}
-			if len(config.Interfaces)-1 < i {
+			if len(config.Children) < i-1 {
 				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
 			}
 		}

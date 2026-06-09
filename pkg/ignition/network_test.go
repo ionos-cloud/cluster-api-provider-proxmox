@@ -323,11 +323,11 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "vrf",
-						Name:       "vrf0",
-						ProxName:   "net1",
-						Table:      644,
-						Interfaces: []string{"eth1"},
+						Type:     "vrf",
+						Name:     "vrf0",
+						ProxName: "net1",
+						Table:    ptr.To(int32(644)),
+						Children: []string{"eth1"},
 						Routes: []network.RoutingData{{
 
 							To:     netip.PrefixFrom(netip.MustParseAddr("3.4.5.6"), 32),
