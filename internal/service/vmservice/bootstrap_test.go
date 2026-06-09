@@ -651,7 +651,7 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	require.Equal(t, 1, len(networkConfigData[1].IPConfigs))
 	require.Equal(t, 0, len(networkConfigData[2].IPConfigs))
-	require.Equal(t, 1, len(networkConfigData[2].Interfaces))
+	require.Equal(t, 1, len(networkConfigData[2].Children))
 	ipConfigs := networkConfigData[0].IPConfigs
 	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "10.20.10.10/23", ipConfigs[1].IPAddress.String())
@@ -662,8 +662,9 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	// VRF Data
 	require.Equal(t, "vrf", networkConfigData[2].Type)
 	require.Equal(t, "vrf-blue", networkConfigData[2].Name)
-	require.Equal(t, "eth1", networkConfigData[2].Interfaces[0])
-	require.Equal(t, int32(500), networkConfigData[2].Table)
+	// Children stores the names of the controlled devices.
+	require.Equal(t, "eth1", networkConfigData[2].Children[0])
+	require.Equal(t, int32(500), *networkConfigData[2].Table)
 }
 
 func TestVMHasMacAddress(t *testing.T) {

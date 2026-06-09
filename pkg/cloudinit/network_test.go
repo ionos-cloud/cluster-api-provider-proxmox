@@ -440,7 +440,8 @@ const (
       routes:
         - { "to": "::/128",  "via": "192.168.178.1", }
       interfaces:
-        - 'on: [NO, "False"]'`
+        - 'NO &anchor'
+        - 'asdf !.tag'`
 
 	expectedValidNetworkConfigValidFIBRule = `network:
   version: 2
@@ -730,6 +731,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 							IPAddress: netip.MustParsePrefix("10.10.10.11/24"),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+						// Gateway present so the only fault is the missing MAC.
+						Routes: []network.RoutingData{{
+							To:  netip.MustParsePrefix("0.0.0.0/0"),
+							Via: netip.MustParseAddr("10.10.10.1"),
+						}},
 					},
 				},
 			},
@@ -1008,7 +1014,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 			},
 		},
 		"ValidNetworkConfigMultipleNicsVRF": {
-			reason: "valid config multiple nics enslaved to VRF",
+			reason: "valid config multiple nics attached to VRF",
 			args: args{
 				nics: []network.NetworkConfigData{
 					{
@@ -1042,10 +1048,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "vrf",
-						Name:       "vrf-blue",
-						Table:      500,
-						Interfaces: []string{"eth0", "eth1"},
+						Type:     "vrf",
+						Name:     "vrf-blue",
+						Table:    ptr.To(int32(500)),
+						Children: []string{"eth0", "eth1"},
 						Routes: []network.RoutingData{{
 
 							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
@@ -1072,7 +1078,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 			},
 		},
 		"ValidNetworkConfigMultipleNicsMultipleVRF": {
-			reason: "valid config multiple nics enslaved to multiple VRFs",
+			reason: "valid config multiple nics attached to multiple VRFs",
 			args: args{
 				nics: []network.NetworkConfigData{
 					{
@@ -1106,10 +1112,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "vrf",
-						Name:       "vrf-blue",
-						Table:      int32(500),
-						Interfaces: []string{"eth0"},
+						Type:     "vrf",
+						Name:     "vrf-blue",
+						Table:    ptr.To(int32(500)),
+						Children: []string{"eth0"},
 						Routes: []network.RoutingData{{
 
 							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
@@ -1129,10 +1135,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "vrf",
-						Name:       "vrf-red",
-						Table:      int32(501),
-						Interfaces: []string{"eth1"},
+						Type:     "vrf",
+						Name:     "vrf-red",
+						Table:    ptr.To(int32(501)),
+						Children: []string{"eth1"},
 						FIBRules: []network.FIBRuleData{{
 
 							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(101)),
@@ -1160,7 +1166,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 					{
 						Type:  "vrf",
 						Name:  "vrf-blue",
-						Table: int32(500),
+						Table: ptr.To(int32(500)),
 						FIBRules: []network.FIBRuleData{{
 							From: netip.MustParsePrefix("10.10.0.0/16"),
 						}},
@@ -1189,10 +1195,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						DHCP4:      true,
 					},
 					{
-						Type:       "vrf",
-						Name:       "vrf-blue",
-						Table:      int32(500),
-						Interfaces: []string{"eth0", "eth1"},
+						Type:     "vrf",
+						Name:     "vrf-blue",
+						Table:    ptr.To(int32(500)),
+						Children: []string{"eth0", "eth1"},
 						Routes: []network.RoutingData{{
 
 							Table: ptr.To(int32(100)),
@@ -1293,7 +1299,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 			},
 		},
 		"YamlEdgeCases": {
-			reason: "valid config multiple nics enslaved to multiple VRFs",
+			reason: "valid config multiple nics attached to multiple VRFs",
 			args: args{
 				nics: []network.NetworkConfigData{
 					{
@@ -1327,10 +1333,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "vrf",
-						Name:       "vrf-blue",
-						Table:      int32(500),
-						Interfaces: []string{"on: [NO, \"False\"]"},
+						Type:     "vrf",
+						Name:     "vrf-blue",
+						Table:    ptr.To(int32(500)),
+						Children: []string{"NO &anchor", "asdf !.tag"},
 						Routes: []network.RoutingData{{
 
 							To:  netip.PrefixFrom(netip.MustParseAddr("::"), 128),
