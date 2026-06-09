@@ -53,9 +53,10 @@ const (
       table: {{ $element.Table }}
     {{- template "routes" . }}
     {{- template "rules" . }}
-    {{- if $element.Interfaces }}
+    {{- $interfaces := $element.Children }}
+    {{- if $interfaces }}
       interfaces:
-      {{- range $element.Interfaces }}
+      {{- range $interfaces }}
         - '{{ . }}'
       {{- end -}}
     {{- end -}}

@@ -180,16 +180,16 @@ func render(name string, tpl string, data network.NetworkConfigData) ([]byte, er
 }
 
 func adjustVrfs(data []network.NetworkConfigData) {
-	// adjust VRFs, by adding the VRF name to the ethernet interface.
-	for i, networkConfig := range data {
-		if networkConfig.Type == "ethernet" {
-			for _, vrf := range data {
-				if vrf.Type == "vrf" {
-					for _, iface := range vrf.Interfaces {
-						if iface == networkConfig.Name {
-							data[i].VRF = vrf.Name
-						}
-					}
+	// adjust VRFs, by adding the VRF name to each member ethernet interface.
+	for i := range data {
+		if data[i].Type != "vrf" {
+			continue
+		}
+		for _, child := range data[i].Children {
+			for j := range data {
+				if data[j].Name == child {
+					data[j].VRF = data[i].Name
+					break
 				}
 			}
 		}

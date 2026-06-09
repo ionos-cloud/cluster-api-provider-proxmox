@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package network provides common types used in cloudinit & ignition.
+// Package network provides the renderer-agnostic network model and its
+// structural validation, shared by the cloudinit & ignition renderers.
 package network
 
 import (
@@ -33,12 +34,20 @@ type NetworkConfigData struct {
 	DNSServers []string
 	Type       string
 	Name       string
-	Interfaces []string // Interfaces controlled by this one.
-	Table      int32    // linux routing table number for VRF.
-	Routes     []RoutingData
-	FIBRules   []FIBRuleData // Forwarding information block for routing.
-	LinkMTU    infrav1.MTU   // linux network device MTU
-	VRF        string        // linux VRF name // only used in networkd config.
+	// Children holds the names of the devices controlled by this one (e.g. the
+	// NICs attached to a VRF).
+	//
+	// Relationships are referenced by name rather than by *NetworkConfigData
+	// on purpose: NetworkConfigData is a flat value type that the renderers
+	// serialize with json.Marshal (see each renderer's Inspect). Interdevice
+	// pointers would introduce reference cycles that do not roundtrip through
+	// JSON, and would make the type awkward to construct in tests.
+	Children []string
+	Table    *int32 // linux routing table number for VRF.
+	Routes   []RoutingData
+	FIBRules []FIBRuleData // Forwarding information block for routing.
+	LinkMTU  infrav1.MTU   // linux network device MTU.
+	VRF      string        // linux VRF name // only used in networkd config.
 }
 
 // IPConfig stores IP configuration.
@@ -51,7 +60,7 @@ type IPConfig struct {
 //
 // The address family is encoded in To once it has been parsed (the
 // RouteSpec Is6 field only disambiguates placeholder targets such as
-// "default"/"all" at parse time and is not carried here). Use To.IsValid()
+// "default"|"all" at parse time and is not carried here). Use To.IsValid()
 // to check for a 'zero address'.
 type RoutingData struct {
 	To     netip.Prefix
