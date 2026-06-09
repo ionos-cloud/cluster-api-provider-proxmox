@@ -27,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
 // Enricher is responsible for enriching the Ignition config with additional data.
@@ -36,7 +36,7 @@ type Enricher struct {
 	Hostname          string
 	InstanceID        string
 	ProviderID        string
-	Network           []types.NetworkConfigData
+	Network           []network.NetworkConfigData
 	KubernetesVersion string
 }
 

@@ -24,7 +24,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
 func TestExtractUUID(t *testing.T) {
@@ -440,20 +440,20 @@ func TestToRoutingData(t *testing.T) {
 	cases := []struct {
 		name   string
 		specs  []infrav1.RouteSpec
-		expect []types.RoutingData
+		expect []network.RoutingData
 		err    bool
 	}{
 		{
 			name:   "nil input maps to empty slice",
 			specs:  nil,
-			expect: []types.RoutingData{},
+			expect: []network.RoutingData{},
 		},
 		{
 			name: "default gateway ipv4",
 			specs: []infrav1.RouteSpec{
 				{To: ptr.To("default"), Via: ptr.To("10.0.0.1"), Metric: metric50},
 			},
-			expect: []types.RoutingData{{
+			expect: []network.RoutingData{{
 				To:     netip.MustParsePrefix("0.0.0.0/0"),
 				Via:    netip.MustParseAddr("10.0.0.1"),
 				Metric: metric50,
@@ -464,7 +464,7 @@ func TestToRoutingData(t *testing.T) {
 			specs: []infrav1.RouteSpec{
 				{To: ptr.To("default"), Is6: ptr.To(true), Via: ptr.To("2001:db8::1")},
 			},
-			expect: []types.RoutingData{{
+			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("::/0"),
 				Via: netip.MustParseAddr("2001:db8::1"),
 			}},
@@ -474,7 +474,7 @@ func TestToRoutingData(t *testing.T) {
 			specs: []infrav1.RouteSpec{
 				{To: ptr.To("default"), Via: ptr.To("2001:db8::1")},
 			},
-			expect: []types.RoutingData{{
+			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("::/0"),
 				Via: netip.MustParseAddr("2001:db8::1"),
 			}},
@@ -484,7 +484,7 @@ func TestToRoutingData(t *testing.T) {
 			specs: []infrav1.RouteSpec{
 				{To: ptr.To("all"), Via: ptr.To("10.0.0.1")},
 			},
-			expect: []types.RoutingData{{
+			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("0.0.0.0/0"),
 				Via: netip.MustParseAddr("10.0.0.1"),
 			}},
@@ -494,7 +494,7 @@ func TestToRoutingData(t *testing.T) {
 			specs: []infrav1.RouteSpec{
 				{To: ptr.To("default"), Is6: ptr.To(false), Via: ptr.To("10.0.0.1")},
 			},
-			expect: []types.RoutingData{{
+			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("0.0.0.0/0"),
 				Via: netip.MustParseAddr("10.0.0.1"),
 			}},
@@ -504,7 +504,7 @@ func TestToRoutingData(t *testing.T) {
 			specs: []infrav1.RouteSpec{
 				{To: ptr.To("172.16.0.0/12"), Via: ptr.To("10.0.0.254"), Table: table100},
 			},
-			expect: []types.RoutingData{{
+			expect: []network.RoutingData{{
 				To: netip.MustParsePrefix("172.16.0.0/12"), Table: table100,
 				Via: netip.MustParseAddr("10.0.0.254"),
 			}},
@@ -514,7 +514,7 @@ func TestToRoutingData(t *testing.T) {
 			specs: []infrav1.RouteSpec{
 				{To: ptr.To("0.0.0.0/0")},
 			},
-			expect: []types.RoutingData{{
+			expect: []network.RoutingData{{
 				To: netip.MustParsePrefix("0.0.0.0/0"),
 			}},
 		},
@@ -524,7 +524,7 @@ func TestToRoutingData(t *testing.T) {
 				{To: ptr.To("0.0.0.0/0"), Via: ptr.To("10.0.0.1")},
 				{To: ptr.To("::/0"), Via: ptr.To("2001:db8::1")},
 			},
-			expect: []types.RoutingData{
+			expect: []network.RoutingData{
 				{To: netip.MustParsePrefix("0.0.0.0/0"), Via: netip.MustParseAddr("10.0.0.1")},
 				{To: netip.MustParsePrefix("::/0"), Via: netip.MustParseAddr("2001:db8::1")},
 			},
@@ -561,20 +561,20 @@ func TestToFIBRuleData(t *testing.T) {
 	cases := []struct {
 		name   string
 		specs  []infrav1.RoutingPolicySpec
-		expect []types.FIBRuleData
+		expect []network.FIBRuleData
 		err    bool
 	}{
 		{
 			name:   "nil input mapped to empty slice",
 			specs:  nil,
-			expect: []types.FIBRuleData{},
+			expect: []network.FIBRuleData{},
 		},
 		{
 			name: "to + table",
 			specs: []infrav1.RoutingPolicySpec{
 				{To: ptr.To("10.0.0.0/8"), Table: table500, Priority: prio100},
 			},
-			expect: []types.FIBRuleData{{
+			expect: []network.FIBRuleData{{
 				To: netip.MustParsePrefix("10.0.0.0/8"), Table: table500,
 				Priority: prio100,
 			}},
@@ -584,7 +584,7 @@ func TestToFIBRuleData(t *testing.T) {
 			specs: []infrav1.RoutingPolicySpec{
 				{From: ptr.To("192.168.1.0/24"), Table: table500},
 			},
-			expect: []types.FIBRuleData{{
+			expect: []network.FIBRuleData{{
 				Table: table500,
 				From:  netip.MustParsePrefix("192.168.1.0/24"),
 			}},
@@ -594,7 +594,7 @@ func TestToFIBRuleData(t *testing.T) {
 			specs: []infrav1.RoutingPolicySpec{
 				{From: ptr.To("10.1.2.3"), Table: table500},
 			},
-			expect: []types.FIBRuleData{{
+			expect: []network.FIBRuleData{{
 				Table: table500,
 				From:  netip.PrefixFrom(netip.MustParseAddr("10.1.2.3"), 32),
 			}},
@@ -604,7 +604,7 @@ func TestToFIBRuleData(t *testing.T) {
 			specs: []infrav1.RoutingPolicySpec{
 				{To: ptr.To("0.0.0.0/0"), From: ptr.To("172.16.0.0/12"), Table: table500, Priority: prio100},
 			},
-			expect: []types.FIBRuleData{{
+			expect: []network.FIBRuleData{{
 				To: netip.MustParsePrefix("0.0.0.0/0"), Table: table500,
 				From:     netip.MustParsePrefix("172.16.0.0/12"),
 				Priority: prio100,
@@ -615,7 +615,7 @@ func TestToFIBRuleData(t *testing.T) {
 			specs: []infrav1.RoutingPolicySpec{
 				{From: ptr.To("all"), Is6: ptr.To(true), Table: table500},
 			},
-			expect: []types.FIBRuleData{{
+			expect: []network.FIBRuleData{{
 				Table: table500,
 				From:  netip.PrefixFrom(netip.IPv6Unspecified(), 0),
 			}},
@@ -625,7 +625,7 @@ func TestToFIBRuleData(t *testing.T) {
 			specs: []infrav1.RoutingPolicySpec{
 				{To: ptr.To("all"), From: ptr.To("2001:db8::/64"), Table: table500},
 			},
-			expect: []types.FIBRuleData{{
+			expect: []network.FIBRuleData{{
 				To:    netip.PrefixFrom(netip.IPv6Unspecified(), 0),
 				Table: table500,
 				From:  netip.MustParsePrefix("2001:db8::/64"),
@@ -636,7 +636,7 @@ func TestToFIBRuleData(t *testing.T) {
 			specs: []infrav1.RoutingPolicySpec{
 				{To: ptr.To("192.168.1.0/24"), From: ptr.To("default"), Table: table500},
 			},
-			expect: []types.FIBRuleData{{
+			expect: []network.FIBRuleData{{
 				To:    netip.MustParsePrefix("192.168.1.0/24"),
 				Table: table500,
 				From:  netip.MustParsePrefix("0.0.0.0/0"),
