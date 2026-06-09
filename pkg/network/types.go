@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package types provides common types used in cloudinit & ignition.
-package types
+// Package network provides common types used in cloudinit & ignition.
+package network
 
 import (
 	"net/netip"
