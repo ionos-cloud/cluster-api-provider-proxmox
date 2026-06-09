@@ -18,6 +18,9 @@ package cloudinit
 
 // Renderer renders cloud-init data.
 type Renderer interface {
+	// Validate reports whether the data is structurally valid and renderable.
+	// Render calls it, so callers need not invoke it separately.
+	Validate() error
 	Render() ([]byte, error)
 	Inspect() ([]byte, error)
 }
