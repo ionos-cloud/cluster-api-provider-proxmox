@@ -24,7 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
 const (
@@ -117,7 +117,7 @@ Table={{ $element.Table }}
 )
 
 // RenderNetworkConfigData renders network-config data into systemd-networkd unit files.
-func RenderNetworkConfigData(data []types.NetworkConfigData) (map[string][]byte, error) {
+func RenderNetworkConfigData(data []network.NetworkConfigData) (map[string][]byte, error) {
 	configs := make(map[string][]byte)
 
 	// adjust VRFs
@@ -166,7 +166,7 @@ func is6(addr string) bool {
 	return netip.MustParsePrefix(addr).Addr().Is6()
 }
 
-func render(name string, tpl string, data types.NetworkConfigData) ([]byte, error) {
+func render(name string, tpl string, data network.NetworkConfigData) ([]byte, error) {
 	mt, err := template.New(name).Funcs(map[string]any{"is6": is6}).Parse(tpl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s template", name)
@@ -179,7 +179,7 @@ func render(name string, tpl string, data types.NetworkConfigData) ([]byte, erro
 	return buffer.Bytes(), nil
 }
 
-func adjustVrfs(data []types.NetworkConfigData) {
+func adjustVrfs(data []network.NetworkConfigData) {
 	// adjust VRFs, by adding the VRF name to the ethernet interface.
 	for i, networkConfig := range data {
 		if networkConfig.Type == "ethernet" {

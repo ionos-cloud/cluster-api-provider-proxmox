@@ -24,7 +24,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"k8s.io/utils/ptr"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
 const (
@@ -138,7 +138,7 @@ type NetworkConfig struct {
 }
 
 // NewNetworkConfig returns a new NetworkConfig object.
-func NewNetworkConfig(configs []types.NetworkConfigData) *NetworkConfig {
+func NewNetworkConfig(configs []network.NetworkConfigData) *NetworkConfig {
 	nc := new(NetworkConfig)
 	nc.data = BaseCloudInitData{
 		NetworkConfigData: configs,
@@ -236,7 +236,7 @@ func (r *NetworkConfig) validate() error {
 	return nil
 }
 
-func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollisionMap map[string]struct{}) error {
+func validateRoutes(routes []network.RoutingData, hasGateway *bool, routeCollisionMap map[string]struct{}) error {
 	// No support for blackhole, etc.pp. Add iff you require this.
 	for _, route := range routes {
 		if !route.To.IsValid() {
@@ -257,7 +257,7 @@ func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollision
 	return nil
 }
 
-func validateFIBRules(rules []types.FIBRuleData, isVrf bool) error {
+func validateFIBRules(rules []network.FIBRuleData, isVrf bool) error {
 	for _, rule := range rules {
 		// We only support To/From and we require a table if we're not a vrf.
 		if !rule.To.IsValid() && !rule.From.IsValid() {

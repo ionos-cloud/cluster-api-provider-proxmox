@@ -38,8 +38,8 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -373,7 +373,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 		},
 	}
 
-	cfg := &types.NetworkConfigData{Name: "net1"}
+	cfg := &network.NetworkConfigData{Name: "net1"}
 	require.NoError(t, getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig))
 	// Check that no IP config has been assigned even in the presence of an IPPoolRef.
 	require.Len(t, cfg.IPConfigs, 0)
@@ -407,7 +407,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 		},
 	}
 
-	cfg := &types.NetworkConfigData{Name: "net1"}
+	cfg := &network.NetworkConfigData{Name: "net1"}
 	require.NoError(t, getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig))
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
 	require.Equal(t, "0.0.0.0/0", cfg.Routes[0].To.String())
@@ -429,7 +429,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 			}},
 		},
 	}
-	networkConfigData := []types.NetworkConfigData{{}}
+	networkConfigData := []network.NetworkConfigData{{}}
 
 	cfg, err := getVirtualNetworkDevices(context.Background(), machineScope, networkSpec, networkConfigData)
 	require.Error(t, err)

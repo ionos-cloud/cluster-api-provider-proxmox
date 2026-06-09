@@ -38,8 +38,8 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/inject"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
@@ -115,7 +115,7 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	return false, nil
 }
 
-func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []types.NetworkConfigData, kubernetesVersion string) error {
+func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []network.NetworkConfigData, kubernetesVersion string) error {
 	// create network renderer
 	network := cloudinit.NewNetworkConfig(nicData)
 
@@ -126,7 +126,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	return injector.Inject(ctx, inject.CloudConfigFormat)
 }
 
-func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []types.NetworkConfigData, kubernetesVersion string) error {
+func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []network.NetworkConfigData, kubernetesVersion string) error {
 	// create metadata renderer
 	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: ptr.To(false)}).ProviderIDInjection)
 
@@ -196,18 +196,18 @@ func getBootstrapData(ctx context.Context, scope *scope.MachineScope) ([]byte, *
 	return value, &format, nil
 }
 
-func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]types.NetworkConfigData, error) {
+func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope) ([]network.NetworkConfigData, error) {
 	// provide a default in case network is not defined
-	network := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{})
-	networkConfigData := make([]types.NetworkConfigData, 0, len(network.NetworkDevices)+len(network.VRFs))
+	networkSpec := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{})
+	networkConfigData := make([]network.NetworkConfigData, 0, len(networkSpec.NetworkDevices)+len(networkSpec.VRFs))
 
-	networkConfig, err := getNetworkDevices(ctx, machineScope, network)
+	networkConfig, err := getNetworkDevices(ctx, machineScope, networkSpec)
 	if err != nil {
 		return nil, err
 	}
 	networkConfigData = append(networkConfigData, networkConfig...)
 
-	virtualConfig, err := getVirtualNetworkDevices(ctx, machineScope, network, networkConfigData)
+	virtualConfig, err := getVirtualNetworkDevices(ctx, machineScope, networkSpec, networkConfigData)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func getNetworkConfigData(ctx context.Context, machineScope *scope.MachineScope)
 	return networkConfigData, nil
 }
 
-func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device infrav1.NetName, ipPoolRefs map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (*types.NetworkConfigData, error) {
+func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.MachineScope, device infrav1.NetName, ipPoolRefs map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (*network.NetworkConfigData, error) {
 	if device == "" {
 		// this should never happen outwith tests
 		return nil, errors.New("empty device name")
@@ -232,7 +232,7 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 
 	dns := machineScope.InfraCluster.ProxmoxCluster.Spec.DNSServers
 
-	cloudinitNetworkConfigData := &types.NetworkConfigData{
+	cloudinitNetworkConfigData := &network.NetworkConfigData{
 		MacAddress: macAddress,
 		DNSServers: dns,
 	}
@@ -244,7 +244,7 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 	})
 
 	for _, ipAddr := range ipAddresses {
-		ipConfig := types.IPConfig{}
+		ipConfig := network.IPConfig{}
 		ip, err := netip.ParsePrefix(fmt.Sprintf("%s/%d", ipAddr.Spec.Address, ptr.Deref(ipAddr.Spec.Prefix, 0)))
 		if err != nil {
 			return nil, errors.Wrapf(err, "error converting ip address spec to netip prefix: %+v", ipAddr.Spec)
@@ -278,7 +278,7 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 			return nil, errors.Wrapf(err, "error converting metric annotation, kind=%s, name=%s", ipAddr.Spec.PoolRef.Kind, ipAddr.Spec.PoolRef.Name)
 		}
 
-		cloudinitNetworkConfigData.Routes = append(cloudinitNetworkConfigData.Routes, types.RoutingData{
+		cloudinitNetworkConfigData.Routes = append(cloudinitNetworkConfigData.Routes, network.RoutingData{
 			To:     defaultPrefix,
 			Via:    via,
 			Metric: metric,
@@ -289,7 +289,7 @@ func getNetworkConfigDataForDevice(ctx context.Context, machineScope *scope.Mach
 }
 
 // getCommonInterfaceConfig sets data which is common to all types of network interfaces.
-func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *types.NetworkConfigData, ifconfig infrav1.InterfaceConfig) error {
+func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig *network.NetworkConfigData, ifconfig infrav1.InterfaceConfig) error {
 	if len(ifconfig.DNSServers) != 0 {
 		ciconfig.DNSServers = ifconfig.DNSServers
 	}
@@ -307,8 +307,8 @@ func getCommonInterfaceConfig(_ context.Context, _ *scope.MachineScope, ciconfig
 	return nil
 }
 
-func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, network infrav1.NetworkSpec) ([]types.NetworkConfigData, error) {
-	networkConfigData := make([]types.NetworkConfigData, 0, len(network.NetworkDevices))
+func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, networkSpec infrav1.NetworkSpec) ([]network.NetworkConfigData, error) {
+	networkConfigData := make([]network.NetworkConfigData, 0, len(networkSpec.NetworkDevices))
 	ipAddressMap := make(map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 
 	requeue, err := handleDevices(ctx, machineScope, ipAddressMap)
@@ -318,7 +318,7 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 	}
 
 	// network devices.
-	for i, nic := range network.NetworkDevices {
+	for i, nic := range networkSpec.NetworkDevices {
 		ipPoolRefs := ipAddressMap[nic.Name]
 
 		conf, err := getNetworkConfigDataForDevice(ctx, machineScope, nic.Name, ipPoolRefs)
@@ -347,11 +347,11 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 	return networkConfigData, nil
 }
 
-func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, network infrav1.NetworkSpec, data []types.NetworkConfigData) ([]types.NetworkConfigData, error) {
-	networkConfigData := make([]types.NetworkConfigData, 0, len(network.VRFs))
+func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, networkSpec infrav1.NetworkSpec, data []network.NetworkConfigData) ([]network.NetworkConfigData, error) {
+	networkConfigData := make([]network.NetworkConfigData, 0, len(networkSpec.VRFs))
 
-	for _, device := range network.VRFs {
-		var config = ptr.To(types.NetworkConfigData{})
+	for _, device := range networkSpec.VRFs {
+		var config = ptr.To(network.NetworkConfigData{})
 		config.Type = "vrf"
 		config.Name = device.Name
 		config.Table = device.Table

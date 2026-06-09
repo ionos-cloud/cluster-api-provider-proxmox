@@ -24,7 +24,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
 var (
@@ -152,7 +152,7 @@ Table=644
 
 func TestRenderNetworkConfigData(t *testing.T) {
 	type args struct {
-		nics []types.NetworkConfigData
+		nics []network.NetworkConfigData
 	}
 
 	type want struct {
@@ -168,18 +168,18 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfig": {
 			reason: "render valid networkd with static ip",
 			args: args{
-				nics: []types.NetworkConfigData{
+				nics: []network.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
-						IPConfigs: []types.IPConfig{
+						IPConfigs: []network.IPConfig{
 							{IPAddress: netip.MustParsePrefix("10.0.0.98/25")},
 							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64")},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
-						Routes: []types.RoutingData{{
+						Routes: []network.RoutingData{{
 
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
@@ -195,18 +195,18 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
-						IPConfigs: []types.IPConfig{
+						IPConfigs: []network.IPConfig{
 							{IPAddress: netip.MustParsePrefix("10.0.1.84/25")},
 						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
-						FIBRules: []types.FIBRuleData{{
+						FIBRules: []network.FIBRuleData{{
 
 							To: netip.MustParsePrefix("8.7.6.5/32"), Table: ptr.To(int32(500)),
 							From:     netip.MustParsePrefix("1.1.1.1/32"),
 							Priority: ptr.To(int64(100)),
 						}},
-						Routes: []types.RoutingData{{
+						Routes: []network.RoutingData{{
 
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.1.1"),
@@ -223,17 +223,17 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfigEthernetWithRoutes": {
 			reason: "render valid network config with ethernet and routes",
 			args: args{
-				nics: []types.NetworkConfigData{
+				nics: []network.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
-						IPConfigs: []types.IPConfig{
+						IPConfigs: []network.IPConfig{
 							{IPAddress: netip.MustParsePrefix("10.0.0.98/25")},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
-						Routes: []types.RoutingData{{
+						Routes: []network.RoutingData{{
 
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
@@ -255,18 +255,18 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfigMultipleIPsSingleGateway": {
 			reason: "renter valid network config with multiple gateways and single gateway",
 			args: args{
-				nics: []types.NetworkConfigData{
+				nics: []network.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
-						IPConfigs: []types.IPConfig{
+						IPConfigs: []network.IPConfig{
 							{IPAddress: netip.MustParsePrefix("10.10.10.10/24")},
 							{IPAddress: netip.MustParsePrefix("10.5.10.10/23")},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
-						Routes: []types.RoutingData{{
+						Routes: []network.RoutingData{{
 
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
@@ -283,18 +283,18 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfigWithVRFPolicies": {
 			reason: "render valid networkd with static ip and VRF and policies",
 			args: args{
-				nics: []types.NetworkConfigData{
+				nics: []network.NetworkConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
 						MacAddress: "E2:B8:FE:E7:50:75",
-						IPConfigs: []types.IPConfig{
+						IPConfigs: []network.IPConfig{
 							{IPAddress: netip.MustParsePrefix("10.0.0.98/25")},
 							{IPAddress: netip.MustParsePrefix("2001:db8:1::10/64")},
 						},
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
-						Routes: []types.RoutingData{{
+						Routes: []network.RoutingData{{
 
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
@@ -310,12 +310,12 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Type:       "ethernet",
 						Name:       "eth1",
 						MacAddress: "E2:8E:95:1F:EB:36",
-						IPConfigs: []types.IPConfig{
+						IPConfigs: []network.IPConfig{
 							{IPAddress: netip.MustParsePrefix("10.0.1.84/25")},
 						},
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
-						Routes: []types.RoutingData{{
+						Routes: []network.RoutingData{{
 
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.1.1"),
@@ -328,13 +328,13 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						Table:      644,
 						Interfaces: []string{"eth1"},
-						Routes: []types.RoutingData{{
+						Routes: []network.RoutingData{{
 
 							To:     netip.PrefixFrom(netip.MustParseAddr("3.4.5.6"), 32),
 							Via:    netip.MustParseAddr("10.0.1.1"),
 							Metric: ptr.To(int32(100)),
 						}},
-						FIBRules: []types.FIBRuleData{{
+						FIBRules: []network.FIBRuleData{{
 
 							To:       netip.MustParsePrefix("8.7.6.5/32"),
 							From:     netip.MustParsePrefix("1.1.1.1/32"),
