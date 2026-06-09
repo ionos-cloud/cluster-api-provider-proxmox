@@ -325,9 +325,9 @@ func getNetworkDevices(ctx context.Context, machineScope *scope.MachineScope, ne
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get network config data for device=%s", nic.Name)
 		}
-		if len(nic.DNSServers) != 0 {
-			conf.DNSServers = nic.DNSServers
-		}
+		// Per-interface DNS override (nic.DNSServers) is applied by
+		// getCommonInterfaceConfig below; conf.DNSServers is already seeded with
+		// the cluster default in getNetworkConfigDataForDevice.
 		if err := getCommonInterfaceConfig(ctx, machineScope, conf, nic.InterfaceConfig); err != nil {
 			return nil, errors.Wrapf(err, "unable to convert routing config for device=%s", nic.Name)
 		}
@@ -362,7 +362,7 @@ func getVirtualNetworkDevices(_ context.Context, _ *scope.MachineScope, networkS
 					config.Children = append(config.Children, net.Name)
 				}
 			}
-			if len(config.Children) < i-1 {
+			if len(config.Children) < i+1 {
 				return nil, errors.Errorf("unable to find vrf interface=%s child interface %s", config.Name, child)
 			}
 		}
