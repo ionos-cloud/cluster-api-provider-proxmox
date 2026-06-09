@@ -96,7 +96,7 @@ func (e *Enricher) getEnrichConfig() (*ignitionTypes.Config, error) {
 	}
 
 	// populate networkd units
-	nets, err := RenderNetworkConfigData(e.Network)
+	nets, err := NewNetworkConfig(e.Network).Render()
 	if err != nil {
 		return nil, errors.Wrap(err, "rendering networkd units")
 	}

@@ -18,6 +18,7 @@ package ignition
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"text/template"
@@ -33,76 +34,91 @@ const (
 
 	// networkConfigTplNetworkd is a Go template to generate systemd-networkd unit files
 	// based on the data schema provided for network-config v2.
-	networkConfigTplNetworkd = `{{- $element := . -}}
+	networkConfigTplNetworkd = `
+{{- define "dns" }}
+  {{- if .DNSServers }}
+    {{- range $dnsServer := .DNSServers }}
+DNS={{ $dnsServer }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- define "rules" }}
+  {{- $type := .Type }}
+  {{- $table := .Table }}
+  {{- range $rule := .FIBRules }}
+[RoutingPolicyRule]
+    {{- if $rule.To.IsValid }}
+To={{ $rule.To }}
+    {{- end }}
+    {{- if $rule.From.IsValid }}
+From={{ $rule.From }}
+    {{- end }}
+    {{- if $rule.Priority }}
+Priority={{ $rule.Priority }}
+    {{- end }}
+    {{- if and (eq $type "vrf") (not $rule.Table) }}
+Table={{ $table }}
+    {{- else if $rule.Table }}
+Table={{ $rule.Table }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- define "routes" }}
+  {{- range $route := .Routes }}
+[Route]
+    {{- if $route.To.IsValid }}
+Destination={{ $route.To }}
+    {{- end }}
+    {{- if $route.Via.IsValid }}
+Gateway={{ $route.Via }}
+    {{- end }}
+    {{- if $route.Metric }}
+Metric={{ $route.Metric }}
+    {{- end }}
+    {{- if $route.Table }}
+Table={{ $route.Table }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- $element := . -}}
 {{- $type := $element.Type -}}
-{{ if eq $type "ethernet" -}}
+{{- if eq $type "ethernet" -}}
 [Match]
 MACAddress={{ $element.MacAddress }}
-{{- if .LinkMTU }}
+  {{- if .LinkMTU }}
 [Link]
 MTUBytes={{ .LinkMTU }}
-{{- end }}
+  {{- end }}
 [Network]
-{{- if .VRF }}
+  {{- if .VRF }}
 VRF={{ .VRF }}
-{{- end }}
-{{- if and $element.DHCP4 $element.DHCP6 }}
+  {{- end }}
+  {{- if and $element.DHCP4 $element.DHCP6 }}
 DHCP=yes
-{{- else if $element.DHCP4 }}
+  {{- else if $element.DHCP4 }}
 DHCP=ipv4
-{{- else if $element.DHCP6 }}
+  {{- else if $element.DHCP6 }}
 DHCP=ipv6
-{{- end }}
-{{- template "dns" . }}
-{{- range $ipconfig := $element.IPConfigs -}}
-{{ if .IPAddress }}
+  {{- end }}
+  {{- template "dns" . }}
+  {{- range $ipconfig := $element.IPConfigs }}
+    {{- if .IPAddress }}
 [Address]
 Address={{ (.IPAddress).String }}
-{{- end -}}
-{{- end }}
-{{ template "routes" . -}}
-{{ template "rules" . -}}
+    {{- end }}
+  {{- end }}
+  {{- template "routes" . }}
+  {{- template "rules" . }}
 {{- end -}}
 {{- if eq $type "vrf" -}}
 [Match]
 Name={{ $element.Name }}
-{{ template "routes" . -}}
-{{- template "rules" . -}}
-{{- end -}}
-{{- define "dns" }}
-{{- if .DNSServers }}
-{{- range $dnsServer := .DNSServers }}
-DNS={{ $dnsServer }}
+  {{- template "routes" . }}
+  {{- template "rules" . }}
 {{- end }}
-{{- end }}
-{{- end }}
-{{- define "rules" }}
-{{- if .FIBRules -}}
-{{- $type := .Type }}
-{{- $table := .Table }}
-{{- range $index, $rule := .FIBRules -}}
-[RoutingPolicyRule]
-{{ if $rule.To.IsValid }}To={{$rule.To}}{{- end }}
-{{ if $rule.From.IsValid }}From={{$rule.From}}{{- end }}
-{{ if $rule.Priority }}Priority={{$rule.Priority}}{{- end }}
-{{ if and (eq $type "vrf") (not $rule.Table) }}Table={{ $table }}
-{{ else }}{{ if $rule.Table }}Table={{$rule.Table}}
-{{ end -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{- define "routes" }}
-{{- if .Routes }}
-{{- range $index, $route := .Routes -}}
-[Route]
-{{ if $route.To.IsValid }}Destination={{$route.To}}{{- end }}
-{{ if $route.Via.IsValid }}Gateway={{$route.Via}}{{- end }}
-{{ if $route.Metric }}Metric={{$route.Metric}}{{- end }}
-{{ if $route.Table }}Table={{$route.Table}}{{- end }}
-{{- end -}}
-{{- end -}}
-{{- end -}}
 `
 
 	netDevConfigTpl = `{{- $element := . -}}
@@ -115,6 +131,45 @@ Table={{ $element.Table }}
 {{- end }}
 `
 )
+
+// NetworkConfig provides functionality to render machine network-config into
+// systemd-networkd unit files for Ignition.
+//
+// It embeds network.Network to inherit the shared, renderer-agnostic validation
+// and layers its own ignition-specific checks on top via Validate.
+type NetworkConfig struct {
+	network.Network
+}
+
+var _ Renderer = (*NetworkConfig)(nil)
+
+// NewNetworkConfig returns a new NetworkConfig object.
+func NewNetworkConfig(configs []network.NetworkConfigData) *NetworkConfig {
+	return &NetworkConfig{network.Network{Devices: configs}}
+}
+
+// Inspect returns a serialized copy of the NetworkData. This is useful when
+// wanting to immutably inspect what goes into the renderer.
+func (r *NetworkConfig) Inspect() ([]byte, error) {
+	return json.Marshal(r.Devices)
+}
+
+// Render returns the rendered systemd-networkd unit files keyed by filename.
+func (r *NetworkConfig) Render() (map[string][]byte, error) {
+	// Validate inputs to template.
+	if err := r.Validate(); err != nil {
+		return nil, err
+	}
+
+	return RenderNetworkConfigData(r.Devices)
+}
+
+// Validate runs the shared, renderer-agnostic validation (embedded
+// network.Network). No further check is required because ignition
+// implements the full stack exposed by networkConfigData.
+func (r *NetworkConfig) Validate() error {
+	return r.Network.Validate()
+}
 
 // RenderNetworkConfigData renders network-config data into systemd-networkd unit files.
 func RenderNetworkConfigData(data []network.NetworkConfigData) (map[string][]byte, error) {
@@ -180,11 +235,11 @@ func render(name string, tpl string, data network.NetworkConfigData) ([]byte, er
 }
 
 func adjustVrfs(data []network.NetworkConfigData) {
-	// adjust VRFs, by adding the VRF name to each member ethernet interface.
 	for i := range data {
 		if data[i].Type != "vrf" {
 			continue
 		}
+		// adjust VRFs, by adding the VRF name to each member ethernet interface.
 		for _, child := range data[i].Children {
 			for j := range data {
 				if data[j].Name == child {
@@ -192,6 +247,12 @@ func adjustVrfs(data []network.NetworkConfigData) {
 					break
 				}
 			}
+		}
+		// adjust VRF routes by adding the routing table to each member route.
+		// This is to keep approximate expected behaviour with netplan v2, but
+		// could use its own validation pass in the future.
+		for j := range data[i].Routes {
+			data[i].Routes[j].Table = data[i].Table
 		}
 	}
 }
