@@ -178,6 +178,6 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 // Convert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource converts v1alpha2 TemplateSource
 // to v1alpha1. The localStorage field does not exist in v1alpha1 and is intentionally dropped;
 // it is preserved via MarshalData annotation for round-trip fidelity.
-func Convert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource(in *v1alpha2.TemplateSource, out *TemplateSource, s apiconversion.Scope) error {
+func Convert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource(in *v1alpha2.TemplateSource, out *TemplateSource, s apiconversion.Scope) error { //NOSONAR name with underscores is required by conversion-gen
 	return autoConvert_v1alpha2_TemplateSource_To_v1alpha1_TemplateSource(in, out, s)
 }

@@ -35,6 +35,9 @@ import (
 
 var _ capmox.Client = &APIClient{}
 
+// errFmtCannotGetClusterStatus is the error format used when fetching the Proxmox cluster status fails.
+const errFmtCannotGetClusterStatus = "cannot get cluster status: %w"
+
 // ErrVMIDFree is returned if the VMID is free.
 var ErrVMIDFree = errors.New("VMID is free")
 
@@ -127,7 +130,7 @@ func (c *APIClient) GetVM(ctx context.Context, nodeName string, vmID int64) (*pr
 func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.ClusterResource, error) {
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get cluster status: %w", err)
+		return nil, fmt.Errorf(errFmtCannotGetClusterStatus, err)
 	}
 
 	vmResources, err := cluster.Resources(ctx, "vm")
@@ -163,6 +166,38 @@ func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []st
 	return map[string]int32{node: vmid}, nil
 }
 
+// normalizeTags lowercases, sorts and deduplicates the given tags in place.
+func normalizeTags(tags []string) []string {
+	for i, tag := range tags {
+		tags[i] = strings.ToLower(tag)
+	}
+	slices.Sort(tags)
+	return slices.Compact(tags)
+}
+
+// templateTagDistance reports whether vm is a template carrying all requiredTags
+// and how many extra tags it has beyond the required ones.
+func templateTagDistance(logger logr.Logger, vm *proxmox.ClusterResource, requiredTags []string) (int, bool) {
+	if vm.Template == 0 || len(vm.Tags) == 0 {
+		return 0, false
+	}
+
+	vmTagMap := make(map[string]struct{})
+	for _, tag := range strings.Split(vm.Tags, ";") {
+		vmTagMap[strings.ToLower(strings.TrimSpace(tag))] = struct{}{}
+	}
+
+	logger.V(4).Info("VM Template Tags", "Name", vm.Name, "Tags", vm.Tags)
+
+	for _, tag := range requiredTags {
+		if _, exists := vmTagMap[tag]; !exists {
+			return 0, false
+		}
+	}
+
+	return len(vmTagMap) - len(requiredTags), true
+}
+
 // findSingleVMTemplateByTags finds exactly one VM template across the cluster (shared storage path).
 // Preserves the original FindVMTemplateByTags behavior.
 func (c *APIClient) findSingleVMTemplateByTags(ctx context.Context, templateTags []string, matchPolicy string) (string, int32, error) {
@@ -170,49 +205,31 @@ func (c *APIClient) findSingleVMTemplateByTags(ctx context.Context, templateTags
 
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
-		return "", -1, fmt.Errorf("cannot get cluster status: %w", err)
+		return "", -1, fmt.Errorf(errFmtCannotGetClusterStatus, err)
 	}
 	vmResources, err := cluster.Resources(ctx, "vm")
 	if err != nil {
 		return "", -1, fmt.Errorf("could not list vm resources: %w", err)
 	}
 
-	for i, tag := range templateTags {
-		templateTags[i] = strings.ToLower(tag)
-	}
-	slices.Sort(templateTags)
-	templateTags = slices.Compact(templateTags)
+	templateTags = normalizeTags(templateTags)
 
 	var vmTemplate *proxmox.ClusterResource
 	matches, bestDistance := 0, int(^uint(0)>>1)
-NEXT_VM:
 	for _, vm := range vmResources {
-		if vm.Template == 0 || len(vm.Tags) == 0 {
-			continue NEXT_VM
+		distance, ok := templateTagDistance(logger, vm, templateTags)
+		if !ok {
+			continue
 		}
 
-		vmTagMap := make(map[string]string)
-		for _, tag := range strings.Split(vm.Tags, ";") {
-			vmTagMap[strings.ToLower(strings.TrimSpace(tag))] = ""
-		}
-
-		logger.V(4).Info("VM Template Tags", "Name", vm.Name, "Tags", vm.Tags)
-
-		for _, tag := range templateTags {
-			if _, exists := vmTagMap[tag]; !exists {
-				continue NEXT_VM
-			}
-		}
-
-		distance := len(vmTagMap) - len(templateTags)
 		switch infrav1.TemplateMatchPolicy(matchPolicy) {
 		case infrav1.TemplateMatchPolicyExact:
 			if distance != 0 {
-				continue NEXT_VM
+				continue
 			}
 		case infrav1.TemplateMatchPolicyBest:
 			if distance > bestDistance {
-				continue NEXT_VM
+				continue
 			}
 			bestDistance = distance
 		}
@@ -228,6 +245,32 @@ NEXT_VM:
 	return vmTemplate.Node, int32(vmTemplate.VMID), nil
 }
 
+// templateCandidate is a VM template considered for a node in the local storage path.
+type templateCandidate struct {
+	vmid     int32
+	distance int
+}
+
+// upsertTemplateCandidate records vm as the template candidate for its node, honoring
+// matchPolicy. It returns an error if more than one template matches on the same node.
+func upsertTemplateCandidate(perNode map[string]templateCandidate, vm *proxmox.ClusterResource, distance int, matchPolicy string, templateTags []string) error {
+	policy := infrav1.TemplateMatchPolicy(matchPolicy)
+	if policy == infrav1.TemplateMatchPolicyExact && distance != 0 {
+		return nil
+	}
+
+	existing, exists := perNode[vm.Node]
+	if exists && policy == infrav1.TemplateMatchPolicyBest && distance >= existing.distance {
+		return nil
+	}
+	if exists && (policy != infrav1.TemplateMatchPolicyBest || distance == existing.distance) {
+		return fmt.Errorf("%w: multiple VM templates found on node %q with tags %q", ErrMultipleTemplatesFound, vm.Node, strings.Join(templateTags, ";"))
+	}
+
+	perNode[vm.Node] = templateCandidate{vmid: int32(vm.VMID), distance: distance}
+	return nil
+}
+
 // findVMTemplatesLocalStorage finds one template per node in allowedNodes (local storage path).
 func (c *APIClient) findVMTemplatesLocalStorage(ctx context.Context, templateTags []string, allowedNodes []string, matchPolicy string) (map[string]int32, error) {
 	logger := log.FromContext(ctx)
@@ -238,70 +281,32 @@ func (c *APIClient) findVMTemplatesLocalStorage(ctx context.Context, templateTag
 
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get cluster status: %w", err)
+		return nil, fmt.Errorf(errFmtCannotGetClusterStatus, err)
 	}
 	vmResources, err := cluster.Resources(ctx, "vm")
 	if err != nil {
 		return nil, fmt.Errorf("could not list VM resources: %w", err)
 	}
 
-	for i, tag := range templateTags {
-		templateTags[i] = strings.ToLower(tag)
-	}
-	slices.Sort(templateTags)
-	templateTags = slices.Compact(templateTags)
+	templateTags = normalizeTags(templateTags)
 
 	allowedNodeSet := make(map[string]struct{}, len(allowedNodes))
 	for _, n := range allowedNodes {
 		allowedNodeSet[n] = struct{}{}
 	}
 
-	type candidate struct {
-		vmid     int32
-		distance int
-	}
-	perNode := make(map[string]candidate)
-
-NEXT_VM_LOCAL:
+	perNode := make(map[string]templateCandidate)
 	for _, vm := range vmResources {
-		if vm.Template == 0 || len(vm.Tags) == 0 {
-			continue NEXT_VM_LOCAL
-		}
 		if _, ok := allowedNodeSet[vm.Node]; !ok {
-			continue NEXT_VM_LOCAL
+			continue
 		}
-
-		vmTagMap := make(map[string]struct{})
-		for _, tag := range strings.Split(vm.Tags, ";") {
-			vmTagMap[strings.ToLower(strings.TrimSpace(tag))] = struct{}{}
+		distance, ok := templateTagDistance(logger, vm, templateTags)
+		if !ok {
+			continue
 		}
-
-		logger.V(4).Info("VM Template Tags", "Name", vm.Name, "Tags", vm.Tags)
-
-		for _, tag := range templateTags {
-			if _, exists := vmTagMap[tag]; !exists {
-				continue NEXT_VM_LOCAL
-			}
+		if err := upsertTemplateCandidate(perNode, vm, distance, matchPolicy, templateTags); err != nil {
+			return nil, err
 		}
-
-		distance := len(vmTagMap) - len(templateTags)
-		switch infrav1.TemplateMatchPolicy(matchPolicy) {
-		case infrav1.TemplateMatchPolicyExact:
-			if distance != 0 {
-				continue NEXT_VM_LOCAL
-			}
-		case infrav1.TemplateMatchPolicyBest:
-			if existing, ok := perNode[vm.Node]; ok && distance >= existing.distance {
-				continue NEXT_VM_LOCAL
-			}
-		}
-
-		if existing, ok := perNode[vm.Node]; ok {
-			if infrav1.TemplateMatchPolicy(matchPolicy) != infrav1.TemplateMatchPolicyBest || distance == existing.distance {
-				return nil, fmt.Errorf("%w: multiple VM templates found on node %q with tags %q", ErrMultipleTemplatesFound, vm.Node, strings.Join(templateTags, ";"))
-			}
-		}
-		perNode[vm.Node] = candidate{vmid: int32(vm.VMID), distance: distance}
 	}
 
 	result := make(map[string]int32, len(allowedNodes))
