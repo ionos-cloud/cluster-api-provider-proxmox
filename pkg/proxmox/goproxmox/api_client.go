@@ -35,9 +35,6 @@ import (
 
 var _ capmox.Client = &APIClient{}
 
-// errFmtCannotGetClusterStatus is the error format used when fetching the Proxmox cluster status fails.
-const errFmtCannotGetClusterStatus = "cannot get cluster status: %w"
-
 // ErrVMIDFree is returned if the VMID is free.
 var ErrVMIDFree = errors.New("VMID is free")
 
@@ -130,7 +127,7 @@ func (c *APIClient) GetVM(ctx context.Context, nodeName string, vmID int64) (*pr
 func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.ClusterResource, error) {
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
-		return nil, fmt.Errorf(errFmtCannotGetClusterStatus, err)
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
 	}
 
 	vmResources, err := cluster.Resources(ctx, "vm")
@@ -205,7 +202,7 @@ func (c *APIClient) findSingleVMTemplateByTags(ctx context.Context, templateTags
 
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
-		return "", -1, fmt.Errorf(errFmtCannotGetClusterStatus, err)
+		return "", -1, fmt.Errorf("cannot get cluster status: %w", err)
 	}
 	vmResources, err := cluster.Resources(ctx, "vm")
 	if err != nil {
@@ -281,7 +278,7 @@ func (c *APIClient) findVMTemplatesLocalStorage(ctx context.Context, templateTag
 
 	cluster, err := c.Cluster(ctx)
 	if err != nil {
-		return nil, fmt.Errorf(errFmtCannotGetClusterStatus, err)
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
 	}
 	vmResources, err := cluster.Resources(ctx, "vm")
 	if err != nil {
