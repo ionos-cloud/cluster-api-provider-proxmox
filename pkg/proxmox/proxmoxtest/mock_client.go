@@ -389,67 +389,64 @@ func (_c *MockClient_FindVMResource_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
-// FindVMTemplateByTags provides a mock function with given fields: ctx, templateTags, resolutionPolicy
-func (_m *MockClient) FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error) {
-	ret := _m.Called(ctx, templateTags, resolutionPolicy)
+// FindVMTemplatesByTags provides a mock function with given fields: ctx, templateTags, allowedNodes, localStorage, matchPolicy
+func (_m *MockClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool, matchPolicy string) (map[string]int32, error) {
+	ret := _m.Called(ctx, templateTags, allowedNodes, localStorage, matchPolicy)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FindVMTemplateByTags")
+		panic("no return value specified for FindVMTemplatesByTags")
 	}
 
-	var r0 string
-	var r1 int32
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string, string) (string, int32, error)); ok {
-		return rf(ctx, templateTags, resolutionPolicy)
+	var r0 map[string]int32
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, []string, bool, string) (map[string]int32, error)); ok {
+		return rf(ctx, templateTags, allowedNodes, localStorage, matchPolicy)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []string, string) string); ok {
-		r0 = rf(ctx, templateTags, resolutionPolicy)
+	if rf, ok := ret.Get(0).(func(context.Context, []string, []string, bool, string) map[string]int32); ok {
+		r0 = rf(ctx, templateTags, allowedNodes, localStorage, matchPolicy)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]int32)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []string, string) int32); ok {
-		r1 = rf(ctx, templateTags, resolutionPolicy)
+	if rf, ok := ret.Get(1).(func(context.Context, []string, []string, bool, string) error); ok {
+		r1 = rf(ctx, templateTags, allowedNodes, localStorage, matchPolicy)
 	} else {
-		r1 = ret.Get(1).(int32)
+		r1 = ret.Error(1)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, []string, string) error); ok {
-		r2 = rf(ctx, templateTags, resolutionPolicy)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
+	return r0, r1
 }
 
-// MockClient_FindVMTemplateByTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindVMTemplateByTags'
-type MockClient_FindVMTemplateByTags_Call struct {
+// MockClient_FindVMTemplatesByTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindVMTemplatesByTags'
+type MockClient_FindVMTemplatesByTags_Call struct {
 	*mock.Call
 }
 
-// FindVMTemplateByTags is a helper method to define mock.On call
+// FindVMTemplatesByTags is a helper method to define mock.On call
 //   - ctx context.Context
 //   - templateTags []string
-//   - resolutionPolicy string
-func (_e *MockClient_Expecter) FindVMTemplateByTags(ctx interface{}, templateTags interface{}, resolutionPolicy interface{}) *MockClient_FindVMTemplateByTags_Call {
-	return &MockClient_FindVMTemplateByTags_Call{Call: _e.mock.On("FindVMTemplateByTags", ctx, templateTags, resolutionPolicy)}
+//   - allowedNodes []string
+//   - localStorage bool
+//   - matchPolicy string
+func (_e *MockClient_Expecter) FindVMTemplatesByTags(ctx interface{}, templateTags interface{}, allowedNodes interface{}, localStorage interface{}, matchPolicy interface{}) *MockClient_FindVMTemplatesByTags_Call {
+	return &MockClient_FindVMTemplatesByTags_Call{Call: _e.mock.On("FindVMTemplatesByTags", ctx, templateTags, allowedNodes, localStorage, matchPolicy)}
 }
 
-func (_c *MockClient_FindVMTemplateByTags_Call) Run(run func(ctx context.Context, templateTags []string, resolutionPolicy string)) *MockClient_FindVMTemplateByTags_Call {
+func (_c *MockClient_FindVMTemplatesByTags_Call) Run(run func(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool, matchPolicy string)) *MockClient_FindVMTemplatesByTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([]string), args[2].(string))
+		run(args[0].(context.Context), args[1].([]string), args[2].([]string), args[3].(bool), args[4].(string))
 	})
 	return _c
 }
 
-func (_c *MockClient_FindVMTemplateByTags_Call) Return(_a0 string, _a1 int32, _a2 error) *MockClient_FindVMTemplateByTags_Call {
-	_c.Call.Return(_a0, _a1, _a2)
+func (_c *MockClient_FindVMTemplatesByTags_Call) Return(_a0 map[string]int32, _a1 error) *MockClient_FindVMTemplatesByTags_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockClient_FindVMTemplateByTags_Call) RunAndReturn(run func(context.Context, []string, string) (string, int32, error)) *MockClient_FindVMTemplateByTags_Call {
+func (_c *MockClient_FindVMTemplatesByTags_Call) RunAndReturn(run func(context.Context, []string, []string, bool, string) (map[string]int32, error)) *MockClient_FindVMTemplatesByTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
