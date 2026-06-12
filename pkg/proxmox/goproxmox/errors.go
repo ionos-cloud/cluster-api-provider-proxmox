@@ -27,4 +27,10 @@ var (
 
 	// ErrMultipleTemplatesFound is returned when multiple VM templates match on the same node.
 	ErrMultipleTemplatesFound = errors.New("multiple VM templates found")
+
+	// ErrInvalidTag is returned when a tag contains characters not permitted by Proxmox.
+	ErrInvalidTag = errors.New("invalid tag")
+
+	// ErrInvalidMatchPolicy is returned when a template match policy is not one of the supported values.
+	ErrInvalidMatchPolicy = errors.New("invalid match policy")
 )

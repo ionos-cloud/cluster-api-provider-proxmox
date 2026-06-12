@@ -19,6 +19,7 @@ package vmservice
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -513,11 +514,25 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	// Set source node for the clone operation.
-	if localStorage {
-		// For local storage, clone from the same node as the target.
+	if localStorage && options.Target != "" {
+		// For local storage, clone from the same node as the target. The scheduler may
+		// pick any allowed node, so make sure a local template actually exists there.
+		id, ok := templateMap[options.Target]
+		if !ok {
+			err := fmt.Errorf("%w: no local template on selected node %q", goproxmox.ErrTemplateNotFound, options.Target)
+			conditions.Set(scope.ProxmoxMachine, metav1.Condition{
+				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+				Message: err.Error(),
+			})
+			return proxmox.VMCloneResponse{}, err
+		}
 		options.Node = options.Target
+		templateID = id
 	} else {
-		// For shared storage, use whichever node holds the (single) template.
+		// Shared storage, or single-node local storage without scheduling:
+		// use whichever node holds the (single) template.
 		for node, id := range templateMap {
 			options.Node = node
 			templateID = id

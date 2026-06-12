@@ -274,6 +274,46 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
+func TestEnsureVirtualMachine_CreateVM_SelectNode_LocalStorage(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1", "node2"}
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(true)
+
+	selectNextNode = func(_ context.Context, _ *scope.MachineScope, templateMap map[string]int32, _ []string) (string, int32, error) {
+		return "node1", templateMap["node1"], nil
+	}
+	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
+
+	// With local storage the clone must run on the target node itself.
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node1", Full: 1}
+	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.Equal(t, "node1", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
+}
+
+func TestEnsureVirtualMachine_CreateVM_SelectNode_LocalStorage_NoTemplateOnNode(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1", "node2"}
+	machineScope.ProxmoxMachine.Spec.LocalStorage = ptr.To(true)
+
+	// The template map only covers node1 (explicit templateID+sourceNode), but the
+	// scheduler picks node2, which has no local copy of the template.
+	selectNextNode = func(_ context.Context, _ *scope.MachineScope, _ map[string]int32, _ []string) (string, int32, error) {
+		return "node2", 0, nil
+	}
+	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
+
+	_, err := createVM(context.Background(), machineScope)
+	require.ErrorIs(t, err, goproxmox.ErrTemplateNotFound)
+	require.Contains(t, err.Error(), `no local template on selected node "node2"`)
+	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+}
+
 func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1"}

@@ -486,6 +486,30 @@ func TestProxmoxAPIClient_FindVMTemplatesByTags(t *testing.T) {
 			fails:       true,
 			err:         "VM template not found: found 2 VM templates with tags \"devel;flatcar\"",
 		},
+		{
+			name:        "find-template-invalid-tag",
+			http:        []int{200, 200},
+			vmTags:      []string{"template", "cap mox"},
+			matchPolicy: infrav1.TemplateMatchPolicyExact,
+			fails:       true,
+			err:         `invalid tag: tag "cap mox" does not match "^[a-z0-9_][a-z0-9_\\-+.]*$"`,
+		},
+		{
+			name:        "invalid-match-policy",
+			http:        []int{200, 200},
+			vmTags:      []string{"template", "capmox", "v1.28.3"},
+			matchPolicy: infrav1.TemplateMatchPolicy("bogus"),
+			fails:       true,
+			err:         `invalid match policy: "bogus"`,
+		},
+		{
+			// an empty matchPolicy falls back to the CRD default ("exact")
+			name:        "empty-match-policy-defaults-to-exact",
+			http:        []int{200, 200},
+			vmTags:      []string{"template", "capmox", "v1.28.3"},
+			matchPolicy: "",
+			want:        map[string]int32{"capmox01": 201},
+		},
 		// localStorage=true cases
 		{
 			name:         "localstorage-all-nodes-have-template",
@@ -515,6 +539,26 @@ func TestProxmoxAPIClient_FindVMTemplatesByTags(t *testing.T) {
 			localStorage: true,
 			fails:        true,
 			err:          "multiple VM templates found: multiple VM templates found on node \"capmox02\" with tags \"capmox;template;v1.29.2\"",
+		},
+		{
+			name:         "localstorage-invalid-tag",
+			http:         []int{200, 200},
+			vmTags:       []string{"-leading-dash"},
+			matchPolicy:  infrav1.TemplateMatchPolicyExact,
+			allowedNodes: []string{"capmox01"},
+			localStorage: true,
+			fails:        true,
+			err:          `invalid tag: tag "-leading-dash" does not match "^[a-z0-9_][a-z0-9_\\-+.]*$"`,
+		},
+		{
+			name:         "localstorage-no-allowed-nodes",
+			http:         []int{200, 200},
+			vmTags:       []string{"template", "capmox", "v1.28.3"},
+			matchPolicy:  infrav1.TemplateMatchPolicyExact,
+			allowedNodes: nil,
+			localStorage: true,
+			fails:        true,
+			err:          "VM template not found: no allowed nodes defined for local storage template lookup",
 		},
 		{
 			name:         "localstorage-no-tags",
