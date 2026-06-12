@@ -181,13 +181,12 @@ func validateMatchPolicy(matchPolicy string) (string, error) {
 	}
 }
 
-// permittedTagRegex matches the character set Proxmox allows for tags. It is the
-// lowercase equivalent of the CRD validation pattern on tag fields.
-var permittedTagRegex = regexp.MustCompile(`^[a-z0-9_][a-z0-9_\-+.]*$`)
-
 // normalizeTags lowercases, sorts and deduplicates the given tags in place.
 // It returns an error if a tag does not conform to the permitted character set.
 func normalizeTags(tags []string) ([]string, error) {
+	// permittedTagRegex matches the character set Proxmox allows for tags. It is the
+	// lowercase equivalent of the CRD validation pattern on tag fields.
+	permittedTagRegex := regexp.MustCompile(`^[a-z0-9_][a-z0-9_\-+.]*$`)
 	for i, tag := range tags {
 		tags[i] = strings.ToLower(tag)
 		if !permittedTagRegex.MatchString(tags[i]) {
