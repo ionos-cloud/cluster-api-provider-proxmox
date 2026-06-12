@@ -61,6 +61,14 @@ type MachineScope struct {
 	ProxmoxMachine *infrav1.ProxmoxMachine
 	IPAMHelper     *ipam.Helper
 	VirtualMachine *proxmox.VirtualMachine
+
+	// effectiveAllowedNodes overrides AllowedNodes when a failure domain
+	// is active. nil means "use the spec value".
+	effectiveAllowedNodes []string
+
+	// effectiveZone overrides Network.Zone when a failure domain is active.
+	// nil means "use the spec value".
+	effectiveZone *string
 }
 
 // NewMachineScope creates a new MachineScope from the supplied parameters.
@@ -251,4 +259,64 @@ func (m *MachineScope) SkipCloudInitCheck() bool {
 	}
 
 	return false
+}
+
+// SetEffectiveAllowedNodes sets an in-memory override for AllowedNodes,
+// used when a failure domain restricts placement to specific Proxmox nodes.
+func (m *MachineScope) SetEffectiveAllowedNodes(nodes []string) {
+	m.effectiveAllowedNodes = nodes
+}
+
+// GetEffectiveAllowedNodes returns the effective AllowedNodes, preferring
+// the failure-domain override, then ProxmoxMachine spec, then nil.
+func (m *MachineScope) GetEffectiveAllowedNodes() []string {
+	if m.effectiveAllowedNodes != nil {
+		return m.effectiveAllowedNodes
+	}
+
+	return m.ProxmoxMachine.Spec.AllowedNodes
+}
+
+// ApplyFailureDomainNodes scopes the machine's effective AllowedNodes to
+// the nodes declared in the given failure domain (zone). If the zone has
+// no explicit nodes configured, it is a no-op.
+// Returns an error if no matching zone is found in the ProxmoxCluster spec.
+func (m *MachineScope) ApplyFailureDomainNodes(failureDomain string) error {
+	// Set the effective zone for IPAM pool selection (does not mutate spec).
+	m.SetEffectiveZone(ptr.To(failureDomain))
+
+	nodes := m.InfraCluster.ProxmoxCluster.GetZoneNodes(failureDomain)
+	if nodes != nil {
+		m.SetEffectiveAllowedNodes(nodes)
+		return nil
+	}
+
+	// Check if the zone exists at all (may have no explicit node list).
+	for _, zc := range m.InfraCluster.ProxmoxCluster.Spec.ZoneConfigs {
+		if ptr.Deref(zc.Zone, "") == failureDomain {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("zone %q not configured in ProxmoxCluster", failureDomain)
+}
+
+// SetEffectiveZone sets an in-memory zone override for IPAM pool selection,
+// used when a failure domain is active. Does not mutate ProxmoxMachine spec.
+func (m *MachineScope) SetEffectiveZone(zone *string) {
+	m.effectiveZone = zone
+}
+
+// GetEffectiveZone returns the effective zone, preferring the failure-domain
+// override, then Spec.Network.Zone, then "default".
+func (m *MachineScope) GetEffectiveZone() *string {
+	if m.effectiveZone != nil {
+		return m.effectiveZone
+	}
+
+	if m.ProxmoxMachine.Spec.Network != nil {
+		return m.ProxmoxMachine.Spec.Network.Zone
+	}
+
+	return nil
 }
