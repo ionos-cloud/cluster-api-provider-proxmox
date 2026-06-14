@@ -461,7 +461,7 @@ const (
 
 func TestNetworkConfig_Render(t *testing.T) {
 	type args struct {
-		nics []network.NetworkConfigData
+		nics []network.ConfigData
 	}
 
 	type want struct {
@@ -477,9 +477,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfig": {
 			reason: "render valid network-config with static ip",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -503,9 +503,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithLinkMTU": {
 			reason: "render valid network-config with static ip and mtu",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -530,9 +530,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithDHCP": {
 			reason: "render valid network-config with ipv6 static ip and dhcp",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
@@ -557,9 +557,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigIPWithDHCP": {
 			reason: "render valid network-config with ipv6 static ip and dhcp",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
@@ -584,9 +584,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithRoutes": {
 			reason: "render valid network-config with ipv6 static ip and dhcp and routes",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
@@ -601,7 +601,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Metric: ptr.To(int32(100)),
 						}},
 					}, {
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c3",
 						IPConfigs: []network.IPConfig{{
@@ -633,9 +633,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidStaticNetworkConfigWithFIBRules": {
 			reason: "render valid network-config with FIB rules/routing policy",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP6:      true,
@@ -650,7 +650,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Metric: ptr.To(int32(100)),
 						}},
 					}, {
-						Type: "ethernet",
+						Type: network.TypeEthernet,
 						Name: "eth1",
 						IPConfigs: []network.IPConfig{{
 							IPAddress: netip.MustParsePrefix("10.10.11.12/24"),
@@ -679,9 +679,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigGW": {
 			reason: "gw is not set",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -699,9 +699,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigConflictingMetrics": {
 			reason: "metric already exists for default gateway multiple network cards",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -715,7 +715,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 							Metric: ptr.To(int32(100)),
 						}},
 					}, {
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c5",
 						IPConfigs: []network.IPConfig{{
@@ -739,9 +739,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigWithoutDNS": {
 			reason: "valid config without dns",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -764,9 +764,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigMultipleNics": {
 			reason: "valid config multiple nics",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -781,7 +781,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []network.IPConfig{{
@@ -805,7 +805,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigData": {
 			reason: "invalid config missing network config data",
 			args: args{
-				nics: []network.NetworkConfigData{},
+				nics: []network.ConfigData{},
 			},
 			want: want{
 				network: "",
@@ -815,9 +815,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDualStack": {
 			reason: "render valid network-config",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -848,9 +848,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigMultipleNetsOneGateway": {
 			reason: "render valid network-config with one gateway",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -867,7 +867,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c3",
 						IPConfigs: []network.IPConfig{{
@@ -885,9 +885,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigIPv6": {
 			reason: "render valid ipv6 network-config",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -911,9 +911,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDHCP": {
 			reason: "render valid network-config with dhcp",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
@@ -930,9 +930,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDHCP4": {
 			reason: "render valid network-config with dhcp",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
@@ -949,9 +949,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigDHCP6": {
 			reason: "render valid network-config with dhcp",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      false,
@@ -968,9 +968,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigMultipleNicsVRF": {
 			reason: "valid config multiple nics attached to VRF",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -985,7 +985,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []network.IPConfig{{
@@ -1000,7 +1000,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:     "vrf",
+						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
 						Table:    ptr.To(int32(500)),
 						Children: []string{"eth0", "eth1"},
@@ -1032,9 +1032,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigMultipleNicsMultipleVRF": {
 			reason: "valid config multiple nics attached to multiple VRFs",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -1049,7 +1049,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth1",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []network.IPConfig{{
@@ -1064,7 +1064,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:     "vrf",
+						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
 						Table:    ptr.To(int32(500)),
 						Children: []string{"eth0"},
@@ -1087,7 +1087,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:     "vrf",
+						Type:     network.TypeVRF,
 						Name:     "vrf-red",
 						Table:    ptr.To(int32(501)),
 						Children: []string{"eth1"},
@@ -1108,15 +1108,15 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"ValidNetworkConfigValidFIBRule": {
 			reason: "valid config valid routing policy",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true, // satisfy gateway requirement.
 					},
 					{
-						Type:  "vrf",
+						Type:  network.TypeVRF,
 						Name:  "vrf-blue",
 						Table: ptr.To(int32(500)),
 						FIBRules: []network.FIBRuleData{{
@@ -1133,21 +1133,21 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigMalformedFIBRule": {
 			reason: "invalid config malformed routing policy",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true, // satisfy gateway requirement.
 					},
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth1",
 						MacAddress: "92:60:a0:5b:22:c3",
 						DHCP4:      true,
 					},
 					{
-						Type:     "vrf",
+						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
 						Table:    ptr.To(int32(500)),
 						Children: []string{"eth0", "eth1"},
@@ -1166,9 +1166,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigMalformedRouteOnEthernet": {
 			reason: "invalid config malformed route for ethernet",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
@@ -1187,9 +1187,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigDuplicateGateway": {
 			reason: "invalid config multiple routes",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
@@ -1211,9 +1211,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigFIBRuleMissingTableOnEthernet": {
 			reason: "invalid config missing table for FIB rule on ethernet",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
@@ -1231,9 +1231,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"InvalidNetworkConfigFIBRuleMissingFromAndToOnEthernet": {
 			reason: "invalid config FIB rule for ethernet requires match",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "eth0",
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
@@ -1253,9 +1253,9 @@ func TestNetworkConfig_Render(t *testing.T) {
 		"YamlEdgeCases": {
 			reason: "valid config multiple nics attached to multiple VRFs",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "NO &anchor",
 						MacAddress: "92:60:a0:5b:22:c2",
 						IPConfigs: []network.IPConfig{{
@@ -1270,7 +1270,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:       "ethernet",
+						Type:       network.TypeEthernet,
 						Name:       "asdf !.tag",
 						MacAddress: "b4:87:18:bf:a3:60",
 						IPConfigs: []network.IPConfig{{
@@ -1285,7 +1285,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 					},
 					{
-						Type:     "vrf",
+						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
 						Table:    ptr.To(int32(500)),
 						Children: []string{"NO &anchor", "asdf !.tag"},

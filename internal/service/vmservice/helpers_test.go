@@ -480,8 +480,8 @@ func getIPAddressClaimsPerPool(t *testing.T, c client.Client, machineScope *scop
 	return ipAddressClaims[pool]
 }
 
-func getNetworkConfigDataFromVM(t *testing.T, jsonData []byte) []network.NetworkConfigData {
-	var networkConfigData []network.NetworkConfigData
+func getNetworkConfigDataFromVM(t *testing.T, jsonData []byte) []network.ConfigData {
+	var networkConfigData []network.ConfigData
 
 	err := json.Unmarshal(jsonData, &networkConfigData)
 

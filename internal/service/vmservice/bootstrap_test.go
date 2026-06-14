@@ -373,7 +373,7 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 		},
 	}
 
-	cfg := &network.NetworkConfigData{Name: "net1"}
+	cfg := &network.ConfigData{Name: "net1"}
 	require.NoError(t, getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig))
 	// Check that no IP config has been assigned even in the presence of an IPPoolRef.
 	require.Len(t, cfg.IPConfigs, 0)
@@ -407,7 +407,7 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 		},
 	}
 
-	cfg := &network.NetworkConfigData{Name: "net1"}
+	cfg := &network.ConfigData{Name: "net1"}
 	require.NoError(t, getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig))
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
 	require.Equal(t, "0.0.0.0/0", cfg.Routes[0].To.String())
@@ -429,7 +429,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 			}},
 		},
 	}
-	networkConfigData := []network.NetworkConfigData{{}}
+	networkConfigData := []network.ConfigData{{}}
 
 	cfg, err := getVirtualNetworkDevices(context.Background(), machineScope, networkSpec, networkConfigData)
 	require.Error(t, err)
