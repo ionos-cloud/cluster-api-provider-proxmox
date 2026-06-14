@@ -34,7 +34,7 @@ func defaultRoute(metric int32) RoutingData {
 
 func TestNetwork_Validate(t *testing.T) {
 	cases := map[string]struct {
-		devices []NetworkConfigData
+		devices []ConfigData
 		err     error
 	}{
 		"no devices": {
@@ -42,36 +42,36 @@ func TestNetwork_Validate(t *testing.T) {
 			err:     ErrMissingNetworkConfigData,
 		},
 		"no gateway anywhere": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", MacAddress: "x", IPConfigs: []IPConfig{{IPAddress: netip.MustParsePrefix("10.0.0.2/24")}}},
 			},
 			err: ErrMissingGateway,
 		},
 		"dhcp satisfies gateway": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", DHCP4: true},
 			},
 		},
 		"single default route is valid": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{defaultRoute(100)}},
 			},
 		},
 		"route without target is malformed": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{{Metric: ptr.To[int32](100)}}},
 			},
 			err: ErrMalformedRoute,
 		},
 		"duplicate route in main table collides": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{defaultRoute(100)}},
 				{Type: "ethernet", Name: "eth1", Routes: []RoutingData{defaultRoute(100)}},
 			},
 			err: ErrConflictingMetrics,
 		},
 		"identical routes in different VRFs do not collide": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				// Each NIC carries an identical default route, but each is
 				// attached to a different VRF, so the routes land in different
 				// tables and must not be flagged as conflicting.
@@ -82,7 +82,7 @@ func TestNetwork_Validate(t *testing.T) {
 			},
 		},
 		"identical routes in the same VRF collide": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{defaultRoute(100)}},
 				{Type: "ethernet", Name: "eth1", Routes: []RoutingData{defaultRoute(100)}},
 				{Type: "vrf", Name: "vrf-a", Table: ptr.To[int32](100), Children: []string{"eth0", "eth1"}},
@@ -90,7 +90,7 @@ func TestNetwork_Validate(t *testing.T) {
 			err: ErrConflictingMetrics,
 		},
 		"explicit per-route table overrides device table": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				// Two NICs in the same VRF (table 100), but one route is pinned
 				// to table 200 explicitly, so they no longer collide.
 				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{defaultRoute(100)}},
@@ -104,7 +104,7 @@ func TestNetwork_Validate(t *testing.T) {
 			},
 		},
 		"ethernet FIB rule requires a table": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", DHCP4: true, FIBRules: []FIBRuleData{{
 					From: netip.MustParsePrefix("10.0.0.0/8"),
 				}}},
@@ -112,7 +112,7 @@ func TestNetwork_Validate(t *testing.T) {
 			err: ErrMalformedFIBRule,
 		},
 		"FIB rule mixing address families is malformed": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				// A rule's source and destination must share one family; the
 				// kernel rejects a mixed-family rule (net/core/fib_rules.c).
 				{Type: "ethernet", Name: "eth0", DHCP4: true, FIBRules: []FIBRuleData{{
@@ -124,7 +124,7 @@ func TestNetwork_Validate(t *testing.T) {
 			err: ErrMalformedFIBRule,
 		},
 		"FIB rule with matching families is valid": {
-			devices: []NetworkConfigData{
+			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", DHCP4: true, FIBRules: []FIBRuleData{{
 					To:    netip.MustParsePrefix("2001:db8::/64"),
 					From:  netip.MustParsePrefix("2001:db8:1::/64"),

@@ -30,5 +30,5 @@ type BaseCloudInitData struct {
 	InstanceID          string
 	KubernetesVersion   string
 	ProviderIDInjection bool
-	NetworkConfigData   []network.NetworkConfigData
+	NetworkConfigData   []network.ConfigData
 }

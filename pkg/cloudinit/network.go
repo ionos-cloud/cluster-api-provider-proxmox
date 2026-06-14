@@ -140,7 +140,7 @@ type NetworkConfig struct {
 }
 
 // NewNetworkConfig returns a new NetworkConfig object.
-func NewNetworkConfig(configs []network.NetworkConfigData) *NetworkConfig {
+func NewNetworkConfig(configs []network.ConfigData) *NetworkConfig {
 	return &NetworkConfig{network.Network{Devices: configs}}
 }
 

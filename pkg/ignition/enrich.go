@@ -36,7 +36,7 @@ type Enricher struct {
 	Hostname          string
 	InstanceID        string
 	ProviderID        string
-	Network           []network.NetworkConfigData
+	Network           []network.ConfigData
 	KubernetesVersion string
 }
 

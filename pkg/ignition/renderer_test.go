@@ -29,9 +29,9 @@ import (
 
 // validEthernet returns a single, renderable ethernet device with a default
 // route so that the shared gateway check in network.Network passes.
-func validEthernet() network.NetworkConfigData {
-	return network.NetworkConfigData{
-		Type:       networkTypeEthernet,
+func validEthernet() network.ConfigData {
+	return network.ConfigData{
+		Type:       network.TypeEthernet,
 		Name:       "eth0",
 		MacAddress: "E2:B8:FE:E7:50:75",
 		IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.0.0.98/25")}},
@@ -47,12 +47,12 @@ func validEthernet() network.NetworkConfigData {
 func TestNetworkConfig_Validate(t *testing.T) {
 	cases := map[string]struct {
 		reason string
-		nics   []network.NetworkConfigData
+		nics   []network.ConfigData
 		err    error
 	}{
 		"Valid": {
 			reason: "a complete ethernet device with a default gateway is valid",
-			nics:   []network.NetworkConfigData{validEthernet()},
+			nics:   []network.ConfigData{validEthernet()},
 			err:    nil,
 		},
 		"NoDevices": {
@@ -62,10 +62,10 @@ func TestNetworkConfig_Validate(t *testing.T) {
 		},
 		"NoGateway": {
 			reason: "a device set without a default gateway fails the shared check",
-			nics: func() []network.NetworkConfigData {
+			nics: func() []network.ConfigData {
 				d := validEthernet()
 				d.Routes = nil
-				return []network.NetworkConfigData{d}
+				return []network.ConfigData{d}
 			}(),
 			err: ErrMissingGateway,
 		},
@@ -81,12 +81,12 @@ func TestNetworkConfig_Validate(t *testing.T) {
 
 func TestNetworkConfig_Render(t *testing.T) {
 	t.Run("RendersUnitFiles", func(t *testing.T) {
-		units, err := NewNetworkConfig([]network.NetworkConfigData{validEthernet()}).Render()
+		units, err := NewNetworkConfig([]network.ConfigData{validEthernet()}).Render()
 		require.NoError(t, err)
 
 		// Render delegates to RenderNetworkConfigData; assert the produced unit
 		// matches that contract.
-		want, err := RenderNetworkConfigData([]network.NetworkConfigData{validEthernet()})
+		want, err := RenderNetworkConfigData([]network.ConfigData{validEthernet()})
 		require.NoError(t, err)
 		require.Equal(t, want, units)
 	})
@@ -100,11 +100,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 }
 
 func TestNetworkConfig_Inspect(t *testing.T) {
-	nics := []network.NetworkConfigData{validEthernet()}
+	nics := []network.ConfigData{validEthernet()}
 	got, err := NewNetworkConfig(nics).Inspect()
 	require.NoError(t, err)
 
-	var roundTrip []network.NetworkConfigData
+	var roundTrip []network.ConfigData
 	require.NoError(t, json.Unmarshal(got, &roundTrip))
 	require.Equal(t, nics, roundTrip)
 }
