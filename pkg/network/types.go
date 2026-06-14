@@ -24,8 +24,16 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
-// NetworkConfigData is used to render network-config.
-type NetworkConfigData struct {
+// Device type values for ConfigData.Type.
+const (
+	// TypeEthernet identifies a physical/virtual ethernet device.
+	TypeEthernet = "ethernet"
+	// TypeVRF identifies a VRF device.
+	TypeVRF = "vrf"
+)
+
+// ConfigData is used to render network-config.
+type ConfigData struct {
 	ProxName   infrav1.NetName // Device name in Proxmox
 	MacAddress string
 	DHCP4      bool
@@ -37,8 +45,8 @@ type NetworkConfigData struct {
 	// Children holds the names of the devices controlled by this one (e.g. the
 	// NICs attached to a VRF).
 	//
-	// Relationships are referenced by name rather than by *NetworkConfigData
-	// on purpose: NetworkConfigData is a flat value type that the renderers
+	// Relationships are referenced by name rather than by *ConfigData
+	// on purpose: ConfigData is a flat value type that the renderers
 	// serialize with json.Marshal (see each renderer's Inspect). Interdevice
 	// pointers would introduce reference cycles that do not roundtrip through
 	// JSON, and would make the type awkward to construct in tests.

@@ -153,7 +153,7 @@ Table=644
 
 func TestRenderNetworkConfigData(t *testing.T) {
 	type args struct {
-		nics []network.NetworkConfigData
+		nics []network.ConfigData
 	}
 
 	type want struct {
@@ -169,7 +169,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfig": {
 			reason: "render valid networkd with static ip",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -224,7 +224,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfigEthernetWithRoutes": {
 			reason: "render valid network config with ethernet and routes",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -256,7 +256,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfigMultipleIPsSingleGateway": {
 			reason: "renter valid network config with multiple gateways and single gateway",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",
@@ -284,7 +284,7 @@ func TestRenderNetworkConfigData(t *testing.T) {
 		"ValidNetworkdConfigWithVRFPolicies": {
 			reason: "render valid networkd with static ip and VRF and policies",
 			args: args{
-				nics: []network.NetworkConfigData{
+				nics: []network.ConfigData{
 					{
 						Type:       "ethernet",
 						Name:       "eth0",

@@ -25,7 +25,7 @@ import (
 // Network implements an interface that is used to centrally validate and
 // normalize network configuration before the renderers use it.
 type Network struct {
-	Devices []NetworkConfigData
+	Devices []ConfigData
 }
 
 // Validate checks structural invariants that hold for any renderer. A renderer
@@ -46,10 +46,10 @@ func (n *Network) Validate() error {
 	hasGateway := false
 
 	// Resolve each member interface to its controlling VRF (O(1) lookup)
-	vrfByMember := make(map[string]*NetworkConfigData)
+	vrfByMember := make(map[string]*ConfigData)
 	for i := range n.Devices {
 		d := &n.Devices[i]
-		if d.Type != "vrf" {
+		if d.Type != TypeVRF {
 			continue
 		}
 		for _, child := range d.Children {
@@ -83,7 +83,7 @@ func (n *Network) Validate() error {
 		*/
 		var deviceTable *int32
 		switch {
-		case d.Type == "vrf":
+		case d.Type == TypeVRF:
 			deviceTable = d.Table
 		default:
 			if vrf := vrfByMember[d.Name]; vrf != nil {
@@ -94,7 +94,7 @@ func (n *Network) Validate() error {
 		if err := validateRoutes(d.Routes, deviceTable, &hasGateway, routeCollision); err != nil {
 			return err
 		}
-		if err := validateFIBRules(d.FIBRules, d.Type == "vrf"); err != nil {
+		if err := validateFIBRules(d.FIBRules, d.Type == TypeVRF); err != nil {
 			return err
 		}
 

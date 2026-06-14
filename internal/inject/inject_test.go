@@ -110,7 +110,7 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]network.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
 				Name:       "eth0",
@@ -156,7 +156,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]network.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
 				Name:       "eth0",
@@ -213,7 +213,7 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []network.NetworkConfigData{
+		Network: []network.ConfigData{
 			{
 				Name:       "eth0",
 				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
@@ -269,7 +269,7 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []network.NetworkConfigData{
+		Network: []network.ConfigData{
 			{
 				Name:       "eth0",
 				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.9/24")}},
@@ -327,7 +327,7 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "1.2.3", false),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]network.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
 				Name:       "eth0",

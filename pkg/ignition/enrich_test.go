@@ -76,7 +76,7 @@ func TestEnricher_Enrich(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []network.NetworkConfigData{
+		Network: []network.ConfigData{
 			{
 				Name: "eth0",
 				IPConfigs: []network.IPConfig{
