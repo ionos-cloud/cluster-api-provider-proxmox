@@ -29,9 +29,6 @@ import (
 )
 
 const (
-	networkTypeEthernet = "ethernet"
-	networkTypeVRF      = "vrf"
-
 	// networkConfigTplNetworkd is a Go template to generate systemd-networkd unit files
 	// based on the data schema provided for network-config v2.
 	networkConfigTplNetworkd = `
@@ -144,7 +141,7 @@ type NetworkConfig struct {
 var _ Renderer = (*NetworkConfig)(nil)
 
 // NewNetworkConfig returns a new NetworkConfig object.
-func NewNetworkConfig(configs []network.NetworkConfigData) *NetworkConfig {
+func NewNetworkConfig(configs []network.ConfigData) *NetworkConfig {
 	return &NetworkConfig{network.Network{Devices: configs}}
 }
 
@@ -172,7 +169,7 @@ func (r *NetworkConfig) Validate() error {
 }
 
 // RenderNetworkConfigData renders network-config data into systemd-networkd unit files.
-func RenderNetworkConfigData(data []network.NetworkConfigData) (map[string][]byte, error) {
+func RenderNetworkConfigData(data []network.ConfigData) (map[string][]byte, error) {
 	configs := make(map[string][]byte)
 
 	// adjust VRFs
@@ -184,7 +181,7 @@ func RenderNetworkConfigData(data []network.NetworkConfigData) (map[string][]byt
 		// the []data.NetworkConfigData have types ethernet and vrf
 		// we need to make sure to add vrf netdev first.
 		// and that's why we use n to keep track of the vrf index.
-		if networkConfig.Type == networkTypeVRF {
+		if networkConfig.Type == network.TypeVRF {
 			config, err := render(fmt.Sprintf("%d-%s", i, networkConfig.Type), netDevConfigTpl, networkConfig)
 			if err != nil {
 				return nil, err
@@ -205,9 +202,9 @@ func RenderNetworkConfigData(data []network.NetworkConfigData) (map[string][]byt
 
 		name := "00-eth0.network"
 		switch {
-		case networkConfig.Type == networkTypeEthernet:
+		case networkConfig.Type == network.TypeEthernet:
 			name = fmt.Sprintf("%02d-eth%d.network", i, i)
-		case networkConfig.Type == networkTypeVRF:
+		case networkConfig.Type == network.TypeVRF:
 			name = fmt.Sprintf("%02d-vrf%d.network", i, i)
 		}
 
@@ -221,7 +218,7 @@ func is6(addr string) bool {
 	return netip.MustParsePrefix(addr).Addr().Is6()
 }
 
-func render(name string, tpl string, data network.NetworkConfigData) ([]byte, error) {
+func render(name string, tpl string, data network.ConfigData) ([]byte, error) {
 	mt, err := template.New(name).Funcs(map[string]any{"is6": is6}).Parse(tpl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s template", name)
@@ -234,9 +231,9 @@ func render(name string, tpl string, data network.NetworkConfigData) ([]byte, er
 	return buffer.Bytes(), nil
 }
 
-func adjustVrfs(data []network.NetworkConfigData) {
+func adjustVrfs(data []network.ConfigData) {
 	for i := range data {
-		if data[i].Type != "vrf" {
+		if data[i].Type != network.TypeVRF {
 			continue
 		}
 		// adjust VRFs, by adding the VRF name to each member ethernet interface.
