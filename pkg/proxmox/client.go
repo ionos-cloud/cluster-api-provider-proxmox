@@ -38,6 +38,8 @@ type Client interface {
 
 	DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error)
 
+	EnsureHAResource(ctx context.Context, vmID int64, state string) error
+
 	GetTask(ctx context.Context, upID string) (*proxmox.Task, error)
 
 	GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, error)

@@ -235,6 +235,18 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		return reconcile.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
 	}
 
+	// If the machine opted into Proxmox HA, register the VM as an HA resource
+	// now that it is provisioned. This is idempotent and re-asserted on every
+	// reconcile, so it also recovers HA membership if it is removed out-of-band.
+	if ha := machineScope.ProxmoxMachine.Spec.HighAvailability; ha != nil && ha.Enabled {
+		if err := machineScope.InfraCluster.ProxmoxClient.EnsureHAResource(
+			ctx, machineScope.ProxmoxMachine.GetVirtualMachineID(), ha.State,
+		); err != nil {
+			machineScope.Logger.Error(err, "unable to ensure Proxmox HA resource")
+			return reconcile.Result{}, errors.Wrapf(err, "failed to ensure Proxmox HA resource")
+		}
+	}
+
 	// Set proxmox deployment zone for label selectors.
 	labels := machineScope.ProxmoxMachine.GetLabels()
 	labels[infrav1.ProxmoxZoneLabel] =

@@ -296,6 +296,47 @@ func isUsedInHAError(err error) bool {
 	return err != nil && strings.Contains(strings.ToLower(err.Error()), "used in ha resources")
 }
 
+// EnsureHAResource registers the VM as a Proxmox HA resource with the requested
+// state. It is idempotent: a missing resource is created, an existing one whose
+// state differs is updated, and a resource already in the desired state is left
+// untouched. state defaults to "started" when empty.
+//
+// Proxmox HA is managed through /cluster/ha/resources on every supported PVE
+// version (the migration from HA groups to HA rules in PVE 9 did not change
+// this endpoint), so no version-specific handling is required here.
+func (c *APIClient) EnsureHAResource(ctx context.Context, vmID int64, state string) error {
+	if state == "" {
+		state = "started"
+	}
+	sid := fmt.Sprintf("vm:%d", vmID)
+
+	var resources []struct {
+		SID   string `json:"sid"`
+		State string `json:"state"`
+	}
+	if err := c.Get(ctx, "/cluster/ha/resources", &resources); err != nil {
+		return fmt.Errorf("cannot list HA resources: %w", err)
+	}
+
+	for _, r := range resources {
+		if r.SID != sid {
+			continue
+		}
+		if r.State == state {
+			return nil
+		}
+		if err := c.Put(ctx, "/cluster/ha/resources/"+sid, map[string]string{"state": state}, nil); err != nil {
+			return fmt.Errorf("cannot update HA resource %s: %w", sid, err)
+		}
+		return nil
+	}
+
+	if err := c.Post(ctx, "/cluster/ha/resources", map[string]string{"sid": sid, "state": state}, nil); err != nil {
+		return fmt.Errorf("cannot create HA resource %s: %w", sid, err)
+	}
+	return nil
+}
+
 // CheckID checks if the vmid is available on the cluster.
 // Returns true if the vmid is available, false if it is taken.
 func (c *APIClient) CheckID(ctx context.Context, vmid int64) (bool, error) {
