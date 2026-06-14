@@ -27,12 +27,11 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -111,14 +110,14 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
 				Name:       "eth0",
 				MacAddress: "aa:bb:cc:dd:ee:ff",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-				Routes:     []types.RoutingData{{To: ptr.To("0.0.0.0/0")}},
+				Routes:     []network.RoutingData{{To: netip.MustParsePrefix("0.0.0.0/0")}},
 			},
 		}),
 	}
@@ -157,16 +156,17 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "", true),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
 				Name:       "eth0",
 				MacAddress: "aa:bb:cc:dd:ee:ff",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+				Routes: []network.RoutingData{{
+
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		}),
@@ -213,14 +213,15 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []types.NetworkConfigData{
+		Network: []network.ConfigData{
 			{
 				Name:       "eth0",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+				Routes: []network.RoutingData{{
+
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		},
@@ -268,14 +269,15 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 		Hostname:      "my-custom-vm",
 		InstanceID:    "xxxx-xxx",
 		ProviderID:    "proxmox://xxxx-xxx",
-		Network: []types.NetworkConfigData{
+		Network: []network.ConfigData{
 			{
 				Name:       "eth0",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.9/24")}},
+				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.9/24")}},
 				DNSServers: []string{"10.1.1.1"},
-				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+				Routes: []network.RoutingData{{
+
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		},
@@ -325,16 +327,17 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
 		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "1.2.3", false),
-		NetworkRenderer: cloudinit.NewNetworkConfig([]types.NetworkConfigData{
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
 				Name:       "eth0",
 				MacAddress: "aa:bb:cc:dd:ee:ff",
-				IPConfigs:  []types.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
 				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-				Routes: []types.RoutingData{{
-					To:  ptr.To("0.0.0.0/0"),
-					Via: ptr.To("10.1.1.1"),
+				Routes: []network.RoutingData{{
+
+					To:  netip.MustParsePrefix("0.0.0.0/0"),
+					Via: netip.MustParseAddr("10.1.1.1"),
 				}},
 			},
 		}),

@@ -17,16 +17,12 @@ limitations under the License.
 package cloudinit
 
 import (
-	"crypto/sha256"
 	"encoding/json"
-	"fmt"
-	"net/netip"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
-	"k8s.io/utils/ptr"
 
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
 const (
@@ -55,9 +51,10 @@ const (
       table: {{ $element.Table }}
     {{- template "routes" . }}
     {{- template "rules" . }}
-    {{- if $element.Interfaces }}
+    {{- $interfaces := $element.Children }}
+    {{- if $interfaces }}
       interfaces:
-      {{- range $element.Interfaces }}
+      {{- range $interfaces }}
         - '{{ . }}'
       {{- end -}}
     {{- end -}}
@@ -84,8 +81,8 @@ const (
       routing-policy:
       {{- range $index, $rule := .FIBRules }}
         - {
-        {{- if $rule.To }} "to": "{{$rule.To}}", {{ end -}}
-        {{- if $rule.From }} "from": "{{$rule.From}}", {{ end -}}
+        {{- if $rule.To.IsValid }} "to": "{{$rule.To}}", {{ end -}}
+        {{- if $rule.From.IsValid }} "from": "{{$rule.From}}", {{ end -}}
         {{- if $rule.Priority }} "priority": {{$rule.Priority}}, {{ end -}}
         {{- if $rule.Table }} "table": {{$rule.Table}}, {{ end -}} }
       {{- end }}
@@ -97,8 +94,8 @@ const (
       routes:
         {{- range $index, $route := .Routes }}
         - {
-          {{- if $route.To }} "to": "{{$route.To}}", {{ end -}}
-          {{- if $route.Via }} "via": "{{$route.Via}}", {{ end -}}
+          {{- if $route.To.IsValid }} "to": "{{$route.To}}", {{ end -}}
+          {{- if $route.Via.IsValid }} "via": "{{$route.Via}}", {{ end -}}
           {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
           {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
         {{- end -}}
@@ -135,33 +132,32 @@ config: []`
 )
 
 // NetworkConfig provides functionality to render machine network-config.
+//
+// It embeds network.Network to inherit the shared, renderer-agnostic validation
+// and layers its own cloud-init-specific checks on top via Validate.
 type NetworkConfig struct {
-	data BaseCloudInitData
+	network.Network
 }
 
 // NewNetworkConfig returns a new NetworkConfig object.
-func NewNetworkConfig(configs []types.NetworkConfigData) *NetworkConfig {
-	nc := new(NetworkConfig)
-	nc.data = BaseCloudInitData{
-		NetworkConfigData: configs,
-	}
-	return nc
+func NewNetworkConfig(configs []network.ConfigData) *NetworkConfig {
+	return &NetworkConfig{network.Network{Devices: configs}}
 }
 
 // Inspect returns a serialized copy of the NetworkData. This is useful when
 // wanting to immutably inspect what goes into the renderer.
 func (r *NetworkConfig) Inspect() ([]byte, error) {
-	return json.Marshal(r.data.NetworkConfigData)
+	return json.Marshal(r.Devices)
 }
 
 // Render returns rendered network-config.
 func (r *NetworkConfig) Render() ([]byte, error) {
 	// Validate inputs to template
-	if err := r.validate(); err != nil {
+	if err := r.Validate(); err != nil {
 		return nil, err
 	}
 
-	nc, err := render("network-config", networkConfigTpl, r.data)
+	nc, err := render("network-config", networkConfigTpl, BaseCloudInitData{NetworkConfigData: r.Devices})
 	if err != nil {
 		return nil, err
 	}
@@ -178,144 +174,9 @@ func (r *NetworkConfig) Render() ([]byte, error) {
 	return nc, nil
 }
 
-func (r *NetworkConfig) validate() error {
-	if len(r.data.NetworkConfigData) == 0 {
-		return ErrMissingNetworkConfigData
-	}
-
-	// Tracks if a route already exists. A collision will return
-	// confliction errConflictingMetrics.
-	routeCollision := make(map[[32]byte]struct{})
-	// Tracks whether any interface contributes a default gateway, either
-	// explicitly via IPConfigs or implicitly via DHCP.
-	// TODO: IPv6 slaac.
-	hasGateway := false
-
-	for _, d := range r.data.NetworkConfigData {
-		if err := validateRoutes(d.Routes, &hasGateway, routeCollision); err != nil {
-			return err
-		}
-		if err := validateFIBRules(d.FIBRules, d.Type == "vrf"); err != nil {
-			return err
-		}
-
-		// This condition will require refactoring once more types of links
-		// are added.
-		if d.Type != "ethernet" {
-			continue
-		}
-
-		if !d.DHCP4 && !d.DHCP6 && len(d.IPConfigs) == 0 {
-			return ErrMissingIPAddress
-		}
-
-		if len(d.MacAddress) == 0 {
-			return ErrMissingMacAddress
-		}
-
-		// DHCP may produce a default gateway. Skip further checks.
-		if d.DHCP4 || d.DHCP6 {
-			hasGateway = true
-		}
-
-		for _, c := range d.IPConfigs {
-			// TODO: Probably useless
-			if !c.IPAddress.IsValid() {
-				return ErrMissingIPAddress
-			}
-		}
-	}
-
-	// If you end up here, please make an issue explaining how you need
-	// a cluster without a default gateway. This is a valid usecase and
-	// this check is merely an anti-footgun for regular users.
-	// As a work around, set an invalid gateway which netlink can not
-	// create.
-	if !hasGateway {
-		return ErrMissingGateway
-	}
-
-	return nil
-}
-
-func validateRoutes(routes []types.RoutingData, hasGateway *bool, routeCollisionMap map[[32]byte]struct{}) error {
-	// No support for blackhole, etc.pp. Add iff you require this.
-	for _, route := range routes {
-		var prefix netip.Prefix
-		var errPrefix error
-
-		switch ptr.Deref(route.To, "") {
-		case "":
-			// Route without a target makes no sense.
-			return ErrMalformedRoute
-		case "default":
-			*hasGateway = true
-			// TODO: I can only guess address family here.
-			prefix, _ = netip.ParsePrefix("0.0.0.0/0")
-		default:
-			// An IP address is a valid route (implicit smallest subnet /32 or /128)
-			prefix, errPrefix = netip.ParsePrefix(*route.To)
-			addr, errAddr := netip.ParseAddr(*route.To)
-			if errPrefix != nil && errAddr != nil {
-				return ErrMalformedRoute
-			}
-			if errAddr == nil {
-				prefix, errPrefix = netip.ParsePrefix(
-					fmt.Sprintf("%s/%d", *route.To, addr.BitLen()),
-				)
-			}
-			// Default route check. Default routes are always prefixes.
-			if errPrefix == nil {
-				if prefix.Bits() == 0 && prefix.Addr().IsUnspecified() {
-					*hasGateway = true
-				}
-			}
-		}
-
-		// via is actually optional, because the link itself can be ptp.
-		if route.Via != nil {
-			_, err := netip.ParseAddr(*route.Via)
-			if err != nil {
-				return ErrMalformedRoute
-			}
-		}
-
-		// Todo: IPFamily might collide for default routes or routes without
-		// explicit ipfamily.
-		// A route is uniquely identified by its normalized subnet, metric and table.
-		serialized := fmt.Sprintf("%s %d %d", prefix.String(), ptr.Deref(route.Metric, 0), ptr.Deref(route.Table, 0))
-		routeID := sha256.Sum256([]byte(serialized))
-		if _, exists := routeCollisionMap[routeID]; !exists {
-			routeCollisionMap[routeID] = struct{}{}
-		} else {
-			// Route is valid, but this route already exists.
-			return ErrConflictingMetrics
-		}
-	}
-	return nil
-}
-
-func validateFIBRules(rules []types.FIBRuleData, isVrf bool) error {
-	for _, rule := range rules {
-		// We only support To/From and we require a table if we're not a vrf
-		if (ptr.Deref(rule.To, "") == "" && ptr.Deref(rule.From, "") == "") ||
-			(ptr.Deref(rule.Table, 0) == 0 && !isVrf) {
-			return ErrMalformedFIBRule
-		}
-		if ptr.Deref(rule.To, "") != "" {
-			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.To, ""))
-			_, errAddr := netip.ParseAddr(ptr.Deref(rule.To, ""))
-			if errPrefix != nil && errAddr != nil {
-				return ErrMalformedFIBRule
-			}
-		}
-		if ptr.Deref(rule.From, "") != "" {
-			_, errPrefix := netip.ParsePrefix(ptr.Deref(rule.From, ""))
-			_, errAddr := netip.ParseAddr(ptr.Deref(rule.From, ""))
-			if errPrefix != nil && errAddr != nil {
-				return ErrMalformedFIBRule
-			}
-		}
-	}
-	return nil
+// Validate runs the shared, renderer-agnostic validation (embedded
+// network.Network). No further renderer specific validation is required
+// (netplan implements every feature in networkConfigData).
+func (r *NetworkConfig) Validate() error {
+	return r.Network.Validate()
 }

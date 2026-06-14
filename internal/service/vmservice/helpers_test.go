@@ -46,9 +46,9 @@ import (
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 type FakeISOInjector struct {
@@ -480,8 +480,8 @@ func getIPAddressClaimsPerPool(t *testing.T, c client.Client, machineScope *scop
 	return ipAddressClaims[pool]
 }
 
-func getNetworkConfigDataFromVM(t *testing.T, jsonData []byte) []types.NetworkConfigData {
-	var networkConfigData []types.NetworkConfigData
+func getNetworkConfigDataFromVM(t *testing.T, jsonData []byte) []network.ConfigData {
+	var networkConfigData []network.ConfigData
 
 	err := json.Unmarshal(jsonData, &networkConfigData)
 

@@ -1463,6 +1463,7 @@ func autoConvert_v1alpha2_RouteSpec_To_v1alpha1_RouteSpec(in *v1alpha2.RouteSpec
 	}
 	// WARNING: in.Metric requires manual conversion: inconvertible types (*int32 vs uint32)
 	// WARNING: in.Table requires manual conversion: inconvertible types (*int32 vs uint32)
+	// WARNING: in.Is6 requires manual conversion: does not exist in peer-type
 	return nil
 }
 
@@ -1561,6 +1562,7 @@ func autoConvert_v1alpha2_RoutingPolicySpec_To_v1alpha1_RoutingPolicySpec(in *v1
 		out.Table = nil
 	}
 	// WARNING: in.Priority requires manual conversion: inconvertible types (*int64 vs uint32)
+	// WARNING: in.Is6 requires manual conversion: does not exist in peer-type
 	return nil
 }
 
