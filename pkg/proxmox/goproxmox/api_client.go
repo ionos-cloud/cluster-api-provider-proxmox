@@ -249,10 +249,92 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 
 	task, err := vm.Delete(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
+		// A VM that is part of a Proxmox HA group cannot be removed while it is
+		// still referenced by an HA resource: PVE rejects the plain delete with
+		// "unable to remove VM <id> - used in HA resources and purge parameter
+		// not set." Retrying with purge=1 lets PVE drop the HA reference (along
+		// with any replication/backup-job references) as part of the delete.
+		//
+		// The cloud-init ISO cleanup that vm.Delete performs already ran during
+		// the attempt above (it happens before the failing DELETE call), so the
+		// purge retry only needs to issue the delete itself.
+		//
+		// See https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/216
+		if !isUsedInHAError(err) && vm.HA.Managed != 1 {
+			return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
+		}
+
+		task, err = c.deleteVMWithPurge(ctx, vm)
+		if err != nil {
+			return nil, fmt.Errorf("cannot delete vm with id %d using purge: %w", vmID, err)
+		}
 	}
 
 	return task, nil
+}
+
+// deleteVMWithPurge deletes a VM passing purge=1, which instructs Proxmox to
+// also remove the VM from any HA, replication and backup-job configuration it
+// is referenced by. go-proxmox's VirtualMachine.Delete does not expose the
+// purge parameter, so the request is issued directly against the API.
+func (c *APIClient) deleteVMWithPurge(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error) {
+	var upid proxmox.UPID
+	if err := c.DeleteWithParams(ctx,
+		fmt.Sprintf("/nodes/%s/qemu/%d", vm.Node, vm.VMID),
+		map[string]string{"purge": "1"}, &upid); err != nil {
+		return nil, err
+	}
+
+	return proxmox.NewTask(upid, c.Client), nil
+}
+
+// isUsedInHAError reports whether err is the Proxmox rejection raised when a VM
+// cannot be deleted because it is still referenced by an HA resource. Proxmox
+// surfaces this message in the HTTP status line (reason phrase), so a string
+// match is the only signal available.
+func isUsedInHAError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "used in ha resources")
+}
+
+// EnsureHAResource registers the VM as a Proxmox HA resource with the requested
+// state. It is idempotent: a missing resource is created, an existing one whose
+// state differs is updated, and a resource already in the desired state is left
+// untouched. state defaults to "started" when empty.
+//
+// Proxmox HA is managed through /cluster/ha/resources on every supported PVE
+// version (the migration from HA groups to HA rules in PVE 9 did not change
+// this endpoint), so no version-specific handling is required here.
+func (c *APIClient) EnsureHAResource(ctx context.Context, vmID int64, state string) error {
+	if state == "" {
+		state = "started"
+	}
+	sid := fmt.Sprintf("vm:%d", vmID)
+
+	var resources []struct {
+		SID   string `json:"sid"`
+		State string `json:"state"`
+	}
+	if err := c.Get(ctx, "/cluster/ha/resources", &resources); err != nil {
+		return fmt.Errorf("cannot list HA resources: %w", err)
+	}
+
+	for _, r := range resources {
+		if r.SID != sid {
+			continue
+		}
+		if r.State == state {
+			return nil
+		}
+		if err := c.Put(ctx, "/cluster/ha/resources/"+sid, map[string]string{"state": state}, nil); err != nil {
+			return fmt.Errorf("cannot update HA resource %s: %w", sid, err)
+		}
+		return nil
+	}
+
+	if err := c.Post(ctx, "/cluster/ha/resources", map[string]string{"sid": sid, "state": state}, nil); err != nil {
+		return fmt.Errorf("cannot create HA resource %s: %w", sid, err)
+	}
+	return nil
 }
 
 // CheckID checks if the vmid is available on the cluster.

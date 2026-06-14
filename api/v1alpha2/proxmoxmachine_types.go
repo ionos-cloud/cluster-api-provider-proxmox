@@ -139,6 +139,31 @@ type ProxmoxMachineSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
 	Tags []string `json:"tags,omitempty"`
+
+	// highAvailability configures Proxmox High Availability (HA) for the VM
+	// backing this machine. When enabled, the VM is registered as a Proxmox HA
+	// resource once it has been provisioned, so the cluster fences and restarts
+	// it on node failure. The HA resource is removed when the machine is
+	// deleted (the VM is deleted with purge=1).
+	//
+	// This field is also honoured on ProxmoxMachineTemplate, so a whole
+	// MachineDeployment / control plane can opt into HA.
+	// +optional
+	HighAvailability *HighAvailabilitySpec `json:"highAvailability,omitempty"`
+}
+
+// HighAvailabilitySpec configures Proxmox High Availability for a VM.
+type HighAvailabilitySpec struct {
+	// enabled registers the VM as a Proxmox HA resource once it is provisioned.
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled"`
+
+	// state is the requested HA state for the resource, mapped to the Proxmox
+	// HA resource "state" (request state). Defaults to "started".
+	// +kubebuilder:validation:Enum=started;stopped;disabled;ignored
+	// +kubebuilder:default=started
+	// +optional
+	State string `json:"state,omitempty"`
 }
 
 // Storage is the physical storage on the node.
