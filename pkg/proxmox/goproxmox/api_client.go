@@ -249,10 +249,51 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 
 	task, err := vm.Delete(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
+		// A VM that is part of a Proxmox HA group cannot be removed while it is
+		// still referenced by an HA resource: PVE rejects the plain delete with
+		// "unable to remove VM <id> - used in HA resources and purge parameter
+		// not set." Retrying with purge=1 lets PVE drop the HA reference (along
+		// with any replication/backup-job references) as part of the delete.
+		//
+		// The cloud-init ISO cleanup that vm.Delete performs already ran during
+		// the attempt above (it happens before the failing DELETE call), so the
+		// purge retry only needs to issue the delete itself.
+		//
+		// See https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/216
+		if !isUsedInHAError(err) && vm.HA.Managed != 1 {
+			return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
+		}
+
+		task, err = c.deleteVMWithPurge(ctx, vm)
+		if err != nil {
+			return nil, fmt.Errorf("cannot delete vm with id %d using purge: %w", vmID, err)
+		}
 	}
 
 	return task, nil
+}
+
+// deleteVMWithPurge deletes a VM passing purge=1, which instructs Proxmox to
+// also remove the VM from any HA, replication and backup-job configuration it
+// is referenced by. go-proxmox's VirtualMachine.Delete does not expose the
+// purge parameter, so the request is issued directly against the API.
+func (c *APIClient) deleteVMWithPurge(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error) {
+	var upid proxmox.UPID
+	if err := c.DeleteWithParams(ctx,
+		fmt.Sprintf("/nodes/%s/qemu/%d", vm.Node, vm.VMID),
+		map[string]string{"purge": "1"}, &upid); err != nil {
+		return nil, err
+	}
+
+	return proxmox.NewTask(upid, c.Client), nil
+}
+
+// isUsedInHAError reports whether err is the Proxmox rejection raised when a VM
+// cannot be deleted because it is still referenced by an HA resource. Proxmox
+// surfaces this message in the HTTP status line (reason phrase), so a string
+// match is the only signal available.
+func isUsedInHAError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "used in ha resources")
 }
 
 // CheckID checks if the vmid is available on the cluster.
