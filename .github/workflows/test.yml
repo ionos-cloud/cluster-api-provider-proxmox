@@ -161,7 +161,7 @@ jobs:
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request_target'
-        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         with:
           args: >
             -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
@@ -177,7 +177,7 @@ jobs:
 
       - name: SonarQube
         if: github.event_name == 'push'
-        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         with:
           args: >
             -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
