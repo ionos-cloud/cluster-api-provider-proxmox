@@ -265,7 +265,7 @@ func parseRouteTarget(s *string, is6 *bool) (netip.Prefix, error) {
 	if ptr.Deref(s, "") == "" {
 		return netip.Prefix{}, nil
 	}
-	if isRouteTargetPlaceholder(*s) {
+	if network.IsRouteTargetPlaceholder(s) {
 		if ptr.Deref(is6, false) {
 			return netip.PrefixFrom(netip.IPv6Unspecified(), 0), nil
 		}
@@ -281,11 +281,6 @@ func parseRouteTarget(s *string, is6 *bool) (netip.Prefix, error) {
 	return netip.PrefixFrom(addr, addr.BitLen()), nil
 }
 
-// isRouteTargetPlaceholder pays the goconst linter.
-func isRouteTargetPlaceholder(s string) bool {
-	return s == "default" || s == "all"
-}
-
 // resolveFamily determines the address family used to expand a placeholder
 // target. An explicit is6 always wins; otherwise the family is borrowed from the
 // first hint that carries a concrete address (a bare IP or a prefix).
@@ -294,7 +289,7 @@ func resolveFamily(is6 *bool, hints ...*string) *bool {
 		return is6
 	}
 	for _, h := range hints {
-		if ptr.Deref(h, "") == "" || isRouteTargetPlaceholder(*h) {
+		if ptr.Deref(h, "") == "" || network.IsRouteTargetPlaceholder(h) {
 			continue
 		}
 		if p, err := netip.ParsePrefix(*h); err == nil {
