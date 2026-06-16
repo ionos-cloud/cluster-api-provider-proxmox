@@ -33,6 +33,7 @@ import (
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/vmservice"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
 // ProxmoxMachine is a type that implements
@@ -258,26 +259,13 @@ func validateVRFConfigRoutingPolicy(vrf *infrav1.VRFDevice) error {
 	return nil
 }
 
-// isRouteTargetPlaceholder reports whether a route/rule target
-// is the ip family ambiguous "default"|"all" placeholder.
-func isRouteTargetPlaceholder(s *string) bool {
-	return s != nil && (*s == "default" || *s == "all")
-}
-
-// isConcreteRouteTarget reports whether a route/rule target is set to a concrete
-// address (i.e. set and not the family ambiguous "default"|"all" placeholder),
-// from which the ip address family can be derived.
-func isConcreteRouteTarget(s *string) bool {
-	return s != nil && *s != "" && !isRouteTargetPlaceholder(s)
-}
-
 // validateRoutingPolicyPlaceholder requires is6 to be set when a policy's to or
 // from is the "default"|"all" placeholder and neither field carries a concrete
 // address, since otherwise the ip address family cannot be derived.
 // This needs to be done in the webhook because two fields exceed CELs budget.
 func validateRoutingPolicyPlaceholder(policy infrav1.RoutingPolicySpec) error {
-	hasPlaceholder := isRouteTargetPlaceholder(policy.To) || isRouteTargetPlaceholder(policy.From)
-	hasConcrete := isConcreteRouteTarget(policy.To) || isConcreteRouteTarget(policy.From)
+	hasPlaceholder := network.IsRouteTargetPlaceholder(policy.To) || network.IsRouteTargetPlaceholder(policy.From)
+	hasConcrete := network.IsConcreteRouteTarget(policy.To) || network.IsConcreteRouteTarget(policy.From)
 	if hasPlaceholder && !hasConcrete && policy.Is6 == nil {
 		return fmt.Errorf("is6 must be set when 'to'/'from' is a placeholder and neither provides an address family")
 	}
@@ -298,7 +286,7 @@ func validateRoutes(routes []infrav1.RouteSpec) error {
 // family cannot be derived (via, when set, provides it).
 // This needs to be done in the webhook because two fields exceed CELs budget.
 func validateRoutePlaceholder(route infrav1.RouteSpec) error {
-	if isRouteTargetPlaceholder(route.To) && !isConcreteRouteTarget(route.Via) && route.Is6 == nil {
+	if network.IsRouteTargetPlaceholder(route.To) && !network.IsConcreteRouteTarget(route.Via) && route.Is6 == nil {
 		return fmt.Errorf("is6 must be set when 'to' is a placeholder and 'via' is unset")
 	}
 	return nil
