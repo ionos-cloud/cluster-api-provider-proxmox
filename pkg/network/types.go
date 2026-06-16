@@ -89,3 +89,16 @@ type FIBRuleData struct {
 	From     netip.Prefix
 	Priority *int64
 }
+
+// IsRouteTargetPlaceholder reports whether a route/rule target
+// is the ip family ambiguous "default"|"all" placeholder.
+func IsRouteTargetPlaceholder(s *string) bool {
+	return s != nil && (*s == "default" || *s == "all")
+}
+
+// IsConcreteRouteTarget reports whether a route/rule target is set to a concrete
+// address (i.e. set and not the family ambiguous "default"|"all" placeholder),
+// from which the ip address family can be derived.
+func IsConcreteRouteTarget(s *string) bool {
+	return s != nil && *s != "" && !IsRouteTargetPlaceholder(s)
+}
