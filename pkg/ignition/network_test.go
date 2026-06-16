@@ -181,7 +181,6 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []network.RoutingData{{
-
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To[int32](100),
@@ -202,13 +201,11 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
 						FIBRules: []network.FIBRuleData{{
-
 							To: netip.MustParsePrefix("8.7.6.5/32"), Table: ptr.To(int32(500)),
 							From:     netip.MustParsePrefix("1.1.1.1/32"),
 							Priority: ptr.To(int64(100)),
 						}},
 						Routes: []network.RoutingData{{
-
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.1.1"),
 							Metric: ptr.To[int32](200),
@@ -235,7 +232,6 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []network.RoutingData{{
-
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To(int32(100)),
@@ -268,7 +264,6 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []network.RoutingData{{
-
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To(int32(100)),
@@ -296,7 +291,6 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   infrav1.DefaultNetworkDevice,
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []network.RoutingData{{
-
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.0.1"),
 							Metric: ptr.To[int32](100),
@@ -317,7 +311,6 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						ProxName:   "net1",
 						DNSServers: []string{"10.0.1.1"},
 						Routes: []network.RoutingData{{
-
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.0.1.1"),
 							Metric: ptr.To[int32](200),
@@ -330,13 +323,11 @@ func TestRenderNetworkConfigData(t *testing.T) {
 						Table:    ptr.To(int32(644)),
 						Children: []string{"eth1"},
 						Routes: []network.RoutingData{{
-
 							To:     netip.PrefixFrom(netip.MustParseAddr("3.4.5.6"), 32),
 							Via:    netip.MustParseAddr("10.0.1.1"),
 							Metric: ptr.To(int32(100)),
 						}},
 						FIBRules: []network.FIBRuleData{{
-
 							To:       netip.MustParsePrefix("8.7.6.5/32"),
 							From:     netip.MustParsePrefix("1.1.1.1/32"),
 							Priority: ptr.To(int64(100)),

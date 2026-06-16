@@ -85,7 +85,6 @@ func TestEnricher_Enrich(t *testing.T) {
 				},
 				DNSServers: []string{"10.1.1.1"},
 				Routes: []network.RoutingData{{
-
 					To:  netip.MustParsePrefix("0.0.0.0/0"),
 					Via: netip.MustParseAddr("10.1.1.1"),
 				}, {
