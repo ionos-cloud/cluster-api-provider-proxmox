@@ -270,6 +270,11 @@ ARTIFACTS ?= $(ROOT_DIR)/_artifacts
 SKIP_CLEANUP ?= false
 SKIP_CREATE_MGMT_CLUSTER ?= false
 
+# report groups and progress to github
+ifeq ($(GITHUB_ACTIONS),true)
+GINKGO_ARGS += --github-output
+endif
+
 .PHONY: e2e-image
 e2e-image:
 	docker build --tag="$(REPOSITORY):e2e" .
