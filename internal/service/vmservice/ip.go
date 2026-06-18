@@ -129,10 +129,14 @@ func reconcileAddressRecovery(ctx context.Context, machineScope *scope.MachineSc
 	netPoolAddresses := make(map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
 	incomplete, err := collectDeviceAddresses(ctx, machineScope, netPoolAddresses, resolveExistingIPAddress)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "resolving existing IPAddressClaims for status recovery")
 	}
+	// incomplete: at least one expected IPAddressClaim did not resolve cleanly.
+	// len == 0: Spec.Network declares no NetworkDevices, so there is nothing to
+	// republish (a populated map always carries the synthetic "default" net).
+	// Either way, leave it to the regular provisioning path.
 	if incomplete || len(netPoolAddresses) == 0 {
-		machineScope.Logger.Info("address recovery skipped: not all expected IPAddressClaims resolved cleanly")
+		machineScope.Logger.Info("address recovery skipped: no fully-resolved IPAddressClaims to republish")
 		return nil
 	}
 
