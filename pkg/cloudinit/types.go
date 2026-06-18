@@ -1,5 +1,5 @@
 /*
-Copyright 2023-2025 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ limitations under the License.
 
 package cloudinit
 
-import "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
+import "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 
 const (
 	// FormatCloudConfig is the format for cloud-config.
@@ -30,5 +30,5 @@ type BaseCloudInitData struct {
 	InstanceID          string
 	KubernetesVersion   string
 	ProviderIDInjection bool
-	NetworkConfigData   []types.NetworkConfigData
+	NetworkConfigData   []network.ConfigData
 }

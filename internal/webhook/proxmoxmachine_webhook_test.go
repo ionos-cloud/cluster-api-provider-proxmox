@@ -79,6 +79,52 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("routing policy [0] requires a table")))
 		})
 
+		It("should require is6 when a placeholder route target has no via to derive the family", func() {
+			machine := validProxmoxMachine("route-placeholder-no-via")
+			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.Routes = []infrav1.RouteSpec{{
+				To:    ptr.To("default"),
+				Table: ptr.To(int32(100)),
+			}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("is6 must be set")))
+		})
+
+		It("should accept a placeholder route target when via derives the family", func() {
+			machine := validProxmoxMachine("route-placeholder-via")
+			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.Routes = []infrav1.RouteSpec{{
+				To:  ptr.To("default"),
+				Via: ptr.To("2001:db8::1"),
+			}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+		})
+
+		It("should accept a placeholder route target when is6 is set", func() {
+			machine := validProxmoxMachine("route-placeholder-is6")
+			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.Routes = []infrav1.RouteSpec{{
+				To:  ptr.To("default"),
+				Is6: ptr.To(true),
+			}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+		})
+
+		It("should require is6 when a placeholder routing policy target has no concrete family", func() {
+			machine := validProxmoxMachine("rule-placeholder-no-is6")
+			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{
+				From:  ptr.To("all"),
+				Table: ptr.To(int32(100)),
+			}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("is6 must be set")))
+		})
+
+		It("should accept a placeholder routing policy target when the peer field derives the family", func() {
+			machine := validProxmoxMachine("rule-placeholder-peer")
+			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{
+				To:    ptr.To("all"),
+				From:  ptr.To("192.168.1.0/24"),
+				Table: ptr.To(int32(100)),
+			}}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
+		})
+
 		It("should accept MTU=1 (inherit bridge MTU) on default device", func() {
 			machine := validProxmoxMachine("net-inherit-mtu-default")
 			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(1))

@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/cluster-api-provider-proxmox
 
-go 1.25.0
+go 1.25.11
 
 replace (
 	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.9.0
@@ -19,9 +19,9 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.4.1
-	github.com/luthermonson/go-proxmox v0.4.1
-	github.com/onsi/ginkgo/v2 v2.28.3
-	github.com/onsi/gomega v1.40.0
+	github.com/luthermonson/go-proxmox v0.6.0
+	github.com/onsi/ginkgo/v2 v2.30.0
+	github.com/onsi/gomega v1.41.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -49,6 +49,7 @@ tool (
 	github.com/onsi/ginkgo/v2/ginkgo
 	github.com/vektra/mockery/v2
 	golang.org/x/tools/cmd/goimports
+	golang.org/x/vuln/cmd/govulncheck
 	k8s.io/code-generator/cmd/conversion-gen
 	sigs.k8s.io/controller-runtime/tools/setup-envtest
 	sigs.k8s.io/controller-tools/cmd/controller-gen
@@ -129,7 +130,7 @@ require (
 	github.com/dave/dst v0.27.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denis-tingaikin/go-header v0.5.0 // indirect
-	github.com/diskfs/go-diskfs v1.7.0 // indirect
+	github.com/diskfs/go-diskfs v1.9.3 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/djherbis/times v1.6.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
@@ -332,14 +333,15 @@ require (
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/exp/typeparams v0.0.0-20251125195548-87e1e737ad39 // indirect
 	golang.org/x/mod v0.36.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6 // indirect
 	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
+	golang.org/x/vuln v1.3.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260128011058-8636f8732409 // indirect

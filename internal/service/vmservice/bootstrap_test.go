@@ -38,8 +38,8 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/cloudinit"
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/ignition"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
-	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/types"
 )
 
 const (
@@ -246,7 +246,8 @@ func TestReconcileBootstrapData_UpdateStatus(t *testing.T) {
 	require.Equal(t, infrav1.DefaultNetworkDevice, networkConfigData[0].ProxName)
 	require.Equal(t, "ethernet", networkConfigData[0].Type)
 	require.Equal(t, "10.100.10.10"+"/16", networkConfigData[1].IPConfigs[0].IPAddress.String())
-	require.Equal(t, "10.100.10.1", networkConfigData[1].IPConfigs[0].Gateway)
+	require.Equal(t, "10.100.10.1", networkConfigData[1].Routes[0].Via.String())
+	require.Equal(t, "0.0.0.0/0", networkConfigData[1].Routes[0].To.String())
 	require.Equal(t, "AA:23:64:4D:84:CD", networkConfigData[1].MacAddress)
 	require.Equal(t, "eth1", networkConfigData[1].Name)
 	require.Equal(t, infrav1.NetName("net1"), networkConfigData[1].ProxName)
@@ -372,8 +373,8 @@ func TestGetCommonInterfaceConfig_MissingIPPool(t *testing.T) {
 		},
 	}
 
-	cfg := &types.NetworkConfigData{Name: "net1"}
-	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
+	cfg := &network.ConfigData{Name: "net1"}
+	require.NoError(t, getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig))
 	// Check that no IP config has been assigned even in the presence of an IPPoolRef.
 	require.Len(t, cfg.IPConfigs, 0)
 }
@@ -406,13 +407,13 @@ func TestGetCommonInterfaceConfig(t *testing.T) {
 		},
 	}
 
-	cfg := &types.NetworkConfigData{Name: "net1"}
-	getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig)
+	cfg := &network.ConfigData{Name: "net1"}
+	require.NoError(t, getCommonInterfaceConfig(context.Background(), machineScope, cfg, machineScope.ProxmoxMachine.Spec.Network.NetworkDevices[0].InterfaceConfig))
 	require.Equal(t, "1.2.3.4", cfg.DNSServers[0])
-	require.Equal(t, "default", *cfg.Routes[0].To)
-	require.Equal(t, "172.24.16.0/24", *cfg.Routes[1].To)
-	require.Equal(t, "10.10.10.0/24", *cfg.FIBRules[0].To)
-	require.Equal(t, "172.24.16.0/24", *cfg.FIBRules[1].From)
+	require.Equal(t, "0.0.0.0/0", cfg.Routes[0].To.String())
+	require.Equal(t, "172.24.16.0/24", cfg.Routes[1].To.String())
+	require.Equal(t, "10.10.10.0/24", cfg.FIBRules[0].To.String())
+	require.Equal(t, "172.24.16.0/24", cfg.FIBRules[1].From.String())
 }
 
 func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
@@ -428,7 +429,7 @@ func TestGetVirtualNetworkDevices_VRFDevice_MissingInterface(t *testing.T) {
 			}},
 		},
 	}
-	networkConfigData := []types.NetworkConfigData{{}}
+	networkConfigData := []network.ConfigData{{}}
 
 	cfg, err := getVirtualNetworkDevices(context.Background(), machineScope, networkSpec, networkConfigData)
 	require.Error(t, err)
@@ -482,10 +483,13 @@ func TestReconcileBootstrapData_DualStack(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData))
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
 	require.Equal(t, "10.0.0.254/24", ipConfigs[0].IPAddress.String())
-	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
 	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress.String())
+	routes := networkConfigData[0].Routes
+	require.Equal(t, "10.0.0.1", routes[0].Via.String())
+	require.Equal(t, "0.0.0.0/0", routes[0].To.String())
+	require.Equal(t, "2001:db8::1", routes[1].Via.String())
+	require.Equal(t, "::/0", routes[1].To.String())
 }
 
 func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
@@ -539,14 +543,16 @@ func TestReconcileBootstrapData_DualStack_AdditionalDevices(t *testing.T) {
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	require.Equal(t, 2, len(networkConfigData[1].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
 	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
-	require.Equal(t, "2001:db8::1", ipConfigs[1].Gateway)
 	require.Equal(t, "2001:db8::2/96", ipConfigs[1].IPAddress.String())
+	routes := networkConfigData[0].Routes
+	require.Equal(t, "10.0.0.1", routes[0].Via.String())
+	require.Equal(t, "0.0.0.0/0", routes[0].To.String())
+	require.Equal(t, "2001:db8::1", routes[1].Via.String())
+	require.Equal(t, "::/0", routes[1].To.String())
 	ipConfigs = networkConfigData[1].IPConfigs
-	require.Equal(t, "", ipConfigs[0].Gateway) // No Gateway assigned
+	require.Empty(t, networkConfigData[1].Routes) // No Gateway assigned
 	require.Equal(t, "10.0.0.10/24", ipConfigs[0].IPAddress.String())
-	require.Equal(t, "", ipConfigs[1].Gateway) // No Gateway assigned
 	require.Equal(t, "2001:db8::9/64", ipConfigs[1].IPAddress.String())
 }
 
@@ -597,13 +603,15 @@ func TestReconcileBootstrapData_DualStack_SplitDefaultGateway(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData[0].IPConfigs))
 	require.Equal(t, 1, len(networkConfigData[1].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
 	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
 	require.True(t, ipConfigs[0].Default)
+	require.Equal(t, "10.0.0.1", networkConfigData[0].Routes[0].Via.String())
+	require.Equal(t, "0.0.0.0/0", networkConfigData[0].Routes[0].To.String())
 	ipConfigs = networkConfigData[1].IPConfigs
-	require.Equal(t, "2001:db8::1", ipConfigs[0].Gateway)
 	require.Equal(t, "2001:db8::2/96", ipConfigs[0].IPAddress.String())
 	require.True(t, ipConfigs[0].Default)
+	require.Equal(t, "2001:db8::1", networkConfigData[1].Routes[0].Via.String())
+	require.Equal(t, "::/0", networkConfigData[1].Routes[0].To.String())
 }
 
 func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
@@ -643,18 +651,20 @@ func TestReconcileBootstrapData_VirtualDevices_VRF(t *testing.T) {
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	require.Equal(t, 1, len(networkConfigData[1].IPConfigs))
 	require.Equal(t, 0, len(networkConfigData[2].IPConfigs))
-	require.Equal(t, 1, len(networkConfigData[2].Interfaces))
+	require.Equal(t, 1, len(networkConfigData[2].Children))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
 	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
 	require.Equal(t, "10.20.10.10/23", ipConfigs[1].IPAddress.String())
+	require.Equal(t, "10.0.0.1", networkConfigData[0].Routes[0].Via.String())
+	require.Equal(t, "0.0.0.0/0", networkConfigData[0].Routes[0].To.String())
 	ipConfigs = networkConfigData[1].IPConfigs
 	require.Equal(t, "10.100.10.10/22", ipConfigs[0].IPAddress.String())
 	// VRF Data
 	require.Equal(t, "vrf", networkConfigData[2].Type)
 	require.Equal(t, "vrf-blue", networkConfigData[2].Name)
-	require.Equal(t, "eth1", networkConfigData[2].Interfaces[0])
-	require.Equal(t, int32(500), networkConfigData[2].Table)
+	// Children stores the names of the controlled devices.
+	require.Equal(t, "eth1", networkConfigData[2].Children[0])
+	require.Equal(t, int32(500), *networkConfigData[2].Table)
 }
 
 func TestVMHasMacAddress(t *testing.T) {
@@ -781,8 +791,9 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	require.Equal(t, 1, len(networkConfigData))
 	require.Equal(t, 2, len(networkConfigData[0].IPConfigs))
 	ipConfigs := networkConfigData[0].IPConfigs
-	require.Equal(t, "10.0.0.1", ipConfigs[0].Gateway)
 	require.Equal(t, "10.10.10.10/24", ipConfigs[0].IPAddress.String())
-	require.Equal(t, "", ipConfigs[1].Gateway)
 	require.Equal(t, "10.5.10.10/23", ipConfigs[1].IPAddress.String())
+	require.Equal(t, "10.0.0.1", networkConfigData[0].Routes[0].Via.String())
+	require.Equal(t, "0.0.0.0/0", networkConfigData[0].Routes[0].To.String())
+	require.Equal(t, 1, len(networkConfigData[0].Routes)) // second IP has no gateway
 }

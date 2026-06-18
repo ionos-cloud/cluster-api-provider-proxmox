@@ -995,6 +995,12 @@ spec:
                                     description: RouteSpec describes an IPv4/IPv6
                                       Route.
                                     properties:
+                                      is6:
+                                        description: |-
+                                          is6 defines if a RouteSpec is IPv6.
+                                          It is only required to disambiguate a 'default'|'all' placeholder 'to'
+                                          when 'via' is unset, otherwise the family is derived from 'via'.
+                                        type: boolean
                                       metric:
                                         description: metric is the priority of the
                                           route in the routing table.
@@ -1027,6 +1033,12 @@ spec:
                                       from:
                                         description: from is the subnet of the source.
                                         type: string
+                                      is6:
+                                        description: |-
+                                          is6 defines if a RoutingPolicySpec is IPv6.
+                                          It is only required to disambiguate a 'default'|'all' placeholder when
+                                          neither 'to' nor 'from' carries a concrete address to derive the family.
+                                        type: boolean
                                       priority:
                                         description: priority is the position in the
                                           ip rule FIB table.
@@ -1090,6 +1102,12 @@ spec:
                                     description: RouteSpec describes an IPv4/IPv6
                                       Route.
                                     properties:
+                                      is6:
+                                        description: |-
+                                          is6 defines if a RouteSpec is IPv6.
+                                          It is only required to disambiguate a 'default'|'all' placeholder 'to'
+                                          when 'via' is unset, otherwise the family is derived from 'via'.
+                                        type: boolean
                                       metric:
                                         description: metric is the priority of the
                                           route in the routing table.
@@ -1122,6 +1140,12 @@ spec:
                                       from:
                                         description: from is the subnet of the source.
                                         type: string
+                                      is6:
+                                        description: |-
+                                          is6 defines if a RoutingPolicySpec is IPv6.
+                                          It is only required to disambiguate a 'default'|'all' placeholder when
+                                          neither 'to' nor 'from' carries a concrete address to derive the family.
+                                        type: boolean
                                       priority:
                                         description: priority is the position in the
                                           ip rule FIB table.

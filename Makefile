@@ -155,6 +155,9 @@ verify-gen: generate manifests mockgen ## Verify go generated files and CRDs are
 		echo "generated files are out of date, run make generate and/or make mockgen"; exit 1; \
 	fi
 
+.PHONY: govulncheck
+govulncheck: ## Run govulncheck to check for known vulnerabilities in the code.
+	go tool govulncheck ./...
 
 ##@ Deployment
 

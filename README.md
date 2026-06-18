@@ -25,6 +25,7 @@ Cluster API v1beta2
 | CAPMOX v0.8 |     ✓      |
 
 ### CAPMOX v1alpha1 (obsolete)
+<details>
 
 Cluster API v1beta1
 
@@ -37,6 +38,8 @@ Cluster API v1beta1
 | CAPMOX v0.5 |     ☓     |     ☓     |     ✓     |     ✓     |     ☓     |     ☓     |      ☓     |
 | CAPMOX v0.6 |     ☓     |     ☓     |     ☓     |     ✓     |     ✓     |     ☓     |      ☓     |
 | CAPMOX v0.7 |     ☓     |     ☓     |     ☓     |     ☓     |     ✓     |     ✓     |      ✓     |
+
+</details>
 
 (See [Kubernetes support matrix](https://cluster-api.sigs.k8s.io/reference/versions.html) of Cluster API versions).
 

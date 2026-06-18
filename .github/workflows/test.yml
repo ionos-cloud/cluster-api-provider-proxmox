@@ -41,7 +41,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0  # base history back to BASE_SHA
           persist-credentials: false  # keep token out of .git/config so make verify / make test can't read it
@@ -92,9 +92,9 @@ jobs:
       matrix:
         include:
           - go: "1.25"
-            image: golang@sha256:298734aec230b5f3e8cee450ce6d7eccc39f1797ba548ee90d57e9803030c6c3 # 1.25-bookworm
+            image: golang@sha256:3140b898a3ec52ec5e8a7dc325a3dbdc732c35e0bde3fcc0e0d764c781d7da10 # 1.25.11-trixie
           - go: "1.26"
-            image: golang@sha256:a085df697019cb63b40a70f6a92b948f7dc9df96dfcb2c20ba6eed25ce28f5b3 # 1.26.3-trixie
+            image: golang@sha256:0dcba0d95dbfb072e9917a106b9e07d7cc298097dc83e9307056ef1889de654d # 1.26.4-trixie
     # Allow the 1.25 job to fail on PRs labelled go/1.26 (code requires 1.26+).
     continue-on-error: ${{ matrix.go == '1.25' && contains(github.event.pull_request.labels.*.name, 'go/1.26') }}
     container:
@@ -102,7 +102,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -136,13 +136,13 @@ jobs:
       SONAR_HOST_URL: https://sonarcloud.io
     steps:
       - if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           path: upstream
           persist-credentials: false
           ref: ${{ github.event.pull_request.base.sha }}  # pin to PR base SHA (matches pre-screen's BASE_SHA)
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0  # SonarQube needs git history for blame and new-code attribution
           path: pr
@@ -161,7 +161,7 @@ jobs:
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request_target'
-        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         with:
           args: >
             -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
@@ -177,7 +177,7 @@ jobs:
 
       - name: SonarQube
         if: github.event_name == 'push'
-        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         with:
           args: >
             -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
