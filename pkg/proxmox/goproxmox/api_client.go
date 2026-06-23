@@ -212,13 +212,12 @@ NEXT_VM:
 	return vmTemplate.Node, int32(vmTemplate.VMID), nil
 }
 
-// DeleteVM deletes a VM based on the nodeName and vmID. When purge is true and
-// the plain deletion is rejected, the VM is deleted again with purge=1, which
-// instructs Proxmox to drop the VM from any HA, replication and backup-job
-// configuration it is referenced by. Callers that register VMs as Proxmox HA
-// resources must pass purge=true, since PVE otherwise rejects the deletion of an
-// HA-managed VM with "unable to remove VM <id> - used in HA resources and purge
-// parameter not set" (issue #216).
+// DeleteVM deletes a VM based on the nodeName and vmID. When purge is true the
+// VM is deleted with purge=1, which instructs Proxmox to drop the VM from any
+// HA, replication and backup-job configuration it is referenced by. Callers that
+// register VMs as Proxmox HA resources must pass purge=true, since PVE otherwise
+// rejects the deletion of an HA-managed VM with "unable to remove VM <id> - used
+// in HA resources and purge parameter not set" (issue #216).
 func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64, purge bool) (*proxmox.Task, error) {
 	// A vmID can not be lower than 100.
 	// If the provided vmID is lower (like -1 in issue #31), just error out without calling the API.
@@ -253,24 +252,23 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64, p
 		}
 	}
 
-	// vm.Delete performs the cloud-init ISO cleanup and then issues a plain
-	// delete. For an HA-managed VM that plain delete is rejected ("used in HA
-	// resources and purge parameter not set"); when the caller opted into purge
-	// we retry with purge=1, which drops the HA (and replication/backup-job)
-	// references as part of the delete. The ISO cleanup already ran above, so
-	// the retry only needs to issue the delete itself.
+	// When the caller opted into purge, the VM is known to be HA-managed, so we
+	// delete it with purge=1 directly: a plain delete first would be rejected by
+	// PVE ("used in HA resources and purge parameter not set") on every HA VM and
+	// needlessly spam the node's task log.
 	//
 	// See https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/216
-	task, err := vm.Delete(ctx)
-	if err != nil {
-		if !purge {
-			return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
-		}
-
-		task, err = c.deleteVMWithPurge(ctx, vm)
+	if purge {
+		task, err := c.deleteVMWithPurge(ctx, vm)
 		if err != nil {
 			return nil, fmt.Errorf("cannot delete vm with id %d using purge: %w", vmID, err)
 		}
+		return task, nil
+	}
+
+	task, err := vm.Delete(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
 	}
 
 	return task, nil
