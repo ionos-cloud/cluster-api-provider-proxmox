@@ -109,6 +109,12 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 
 	Convert_string_To_Pointer_string(src.TemplateSource.SourceNode, ok, restored.TemplateSource.SourceNode, &dst.TemplateSource.SourceNode)
 
+	// HighAvailability does not exist in v1alpha1; restore it from the Hub
+	// annotation so a v1alpha1 round-trip does not drop HA configuration.
+	if ok {
+		dst.HighAvailability = restored.HighAvailability
+	}
+
 	if dst.Network != nil && restored.Network != nil {
 		for i := range restored.Network.NetworkDevices {
 			device := getNetDeviceByName(src.Network.AdditionalDevices, string(dst.Network.NetworkDevices[i].Name))

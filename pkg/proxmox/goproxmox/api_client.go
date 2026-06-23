@@ -212,8 +212,14 @@ NEXT_VM:
 	return vmTemplate.Node, int32(vmTemplate.VMID), nil
 }
 
-// DeleteVM deletes a VM based on the nodeName and vmID.
-func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error) {
+// DeleteVM deletes a VM based on the nodeName and vmID. When purge is true and
+// the plain deletion is rejected, the VM is deleted again with purge=1, which
+// instructs Proxmox to drop the VM from any HA, replication and backup-job
+// configuration it is referenced by. Callers that register VMs as Proxmox HA
+// resources must pass purge=true, since PVE otherwise rejects the deletion of an
+// HA-managed VM with "unable to remove VM <id> - used in HA resources and purge
+// parameter not set" (issue #216).
+func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64, purge bool) (*proxmox.Task, error) {
 	// A vmID can not be lower than 100.
 	// If the provided vmID is lower (like -1 in issue #31), just error out without calling the API.
 	if vmID < 100 {
@@ -247,20 +253,17 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		}
 	}
 
+	// vm.Delete performs the cloud-init ISO cleanup and then issues a plain
+	// delete. For an HA-managed VM that plain delete is rejected ("used in HA
+	// resources and purge parameter not set"); when the caller opted into purge
+	// we retry with purge=1, which drops the HA (and replication/backup-job)
+	// references as part of the delete. The ISO cleanup already ran above, so
+	// the retry only needs to issue the delete itself.
+	//
+	// See https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/216
 	task, err := vm.Delete(ctx)
 	if err != nil {
-		// A VM that is part of a Proxmox HA group cannot be removed while it is
-		// still referenced by an HA resource: PVE rejects the plain delete with
-		// "unable to remove VM <id> - used in HA resources and purge parameter
-		// not set." Retrying with purge=1 lets PVE drop the HA reference (along
-		// with any replication/backup-job references) as part of the delete.
-		//
-		// The cloud-init ISO cleanup that vm.Delete performs already ran during
-		// the attempt above (it happens before the failing DELETE call), so the
-		// purge retry only needs to issue the delete itself.
-		//
-		// See https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/216
-		if !isUsedInHAError(err) && vm.HA.Managed != 1 {
+		if !purge {
 			return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
 		}
 
@@ -276,24 +279,17 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 // deleteVMWithPurge deletes a VM passing purge=1, which instructs Proxmox to
 // also remove the VM from any HA, replication and backup-job configuration it
 // is referenced by. go-proxmox's VirtualMachine.Delete does not expose the
-// purge parameter, so the request is issued directly against the API.
+// purge parameter, so the request is issued directly against the API. Proxmox
+// DELETE endpoints take options as query parameters, so purge=1 is appended to
+// the path and the request goes through the version-stable Client.Delete.
 func (c *APIClient) deleteVMWithPurge(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error) {
 	var upid proxmox.UPID
-	if err := c.DeleteWithParams(ctx,
-		fmt.Sprintf("/nodes/%s/qemu/%d", vm.Node, vm.VMID),
-		map[string]string{"purge": "1"}, &upid); err != nil {
+	path := fmt.Sprintf("/nodes/%s/qemu/%d?purge=1", vm.Node, vm.VMID)
+	if err := c.Delete(ctx, path, &upid); err != nil {
 		return nil, err
 	}
 
 	return proxmox.NewTask(upid, c.Client), nil
-}
-
-// isUsedInHAError reports whether err is the Proxmox rejection raised when a VM
-// cannot be deleted because it is still referenced by an HA resource. Proxmox
-// surfaces this message in the HTTP status line (reason phrase), so a string
-// match is the only signal available.
-func isUsedInHAError(err error) bool {
-	return err != nil && strings.Contains(strings.ToLower(err.Error()), "used in ha resources")
 }
 
 // EnsureHAResource registers the VM as a Proxmox HA resource with the requested

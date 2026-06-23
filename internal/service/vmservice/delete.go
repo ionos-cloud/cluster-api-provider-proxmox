@@ -36,7 +36,12 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 	vmID := machineScope.ProxmoxMachine.GetVirtualMachineID()
 	node := machineScope.LocateProxmoxNode()
 
-	if _, err := machineScope.InfraCluster.ProxmoxClient.DeleteVM(ctx, node, vmID); err != nil {
+	// VMs that opted into Proxmox HA are registered as HA resources, so they can
+	// only be deleted with purge=1 (PVE otherwise rejects the deletion). See #216.
+	ha := machineScope.ProxmoxMachine.Spec.HighAvailability
+	purge := ha != nil && ha.Enabled
+
+	if _, err := machineScope.InfraCluster.ProxmoxClient.DeleteVM(ctx, node, vmID, purge); err != nil {
 		if VMNotFound(err) || errors.Is(err, goproxmox.ErrVMIDFree) {
 			// remove machine from cluster status
 			machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), util.IsControlPlaneMachine(machineScope.Machine))

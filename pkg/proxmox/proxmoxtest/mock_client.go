@@ -270,9 +270,9 @@ func (_c *MockClient_ConfigureVM_Call) RunAndReturn(run func(context.Context, *g
 	return _c
 }
 
-// DeleteVM provides a mock function with given fields: ctx, nodeName, vmID
-func (_m *MockClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*go_proxmox.Task, error) {
-	ret := _m.Called(ctx, nodeName, vmID)
+// DeleteVM provides a mock function with given fields: ctx, nodeName, vmID, purge
+func (_m *MockClient) DeleteVM(ctx context.Context, nodeName string, vmID int64, purge bool) (*go_proxmox.Task, error) {
+	ret := _m.Called(ctx, nodeName, vmID, purge)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteVM")
@@ -280,19 +280,19 @@ func (_m *MockClient) DeleteVM(ctx context.Context, nodeName string, vmID int64)
 
 	var r0 *go_proxmox.Task
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*go_proxmox.Task, error)); ok {
-		return rf(ctx, nodeName, vmID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, bool) (*go_proxmox.Task, error)); ok {
+		return rf(ctx, nodeName, vmID, purge)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *go_proxmox.Task); ok {
-		r0 = rf(ctx, nodeName, vmID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, bool) *go_proxmox.Task); ok {
+		r0 = rf(ctx, nodeName, vmID, purge)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*go_proxmox.Task)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
-		r1 = rf(ctx, nodeName, vmID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, bool) error); ok {
+		r1 = rf(ctx, nodeName, vmID, purge)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -309,13 +309,14 @@ type MockClient_DeleteVM_Call struct {
 //   - ctx context.Context
 //   - nodeName string
 //   - vmID int64
-func (_e *MockClient_Expecter) DeleteVM(ctx interface{}, nodeName interface{}, vmID interface{}) *MockClient_DeleteVM_Call {
-	return &MockClient_DeleteVM_Call{Call: _e.mock.On("DeleteVM", ctx, nodeName, vmID)}
+//   - purge bool
+func (_e *MockClient_Expecter) DeleteVM(ctx interface{}, nodeName interface{}, vmID interface{}, purge interface{}) *MockClient_DeleteVM_Call {
+	return &MockClient_DeleteVM_Call{Call: _e.mock.On("DeleteVM", ctx, nodeName, vmID, purge)}
 }
 
-func (_c *MockClient_DeleteVM_Call) Run(run func(ctx context.Context, nodeName string, vmID int64)) *MockClient_DeleteVM_Call {
+func (_c *MockClient_DeleteVM_Call) Run(run func(ctx context.Context, nodeName string, vmID int64, purge bool)) *MockClient_DeleteVM_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(bool))
 	})
 	return _c
 }
@@ -325,7 +326,7 @@ func (_c *MockClient_DeleteVM_Call) Return(_a0 *go_proxmox.Task, _a1 error) *Moc
 	return _c
 }
 
-func (_c *MockClient_DeleteVM_Call) RunAndReturn(run func(context.Context, string, int64) (*go_proxmox.Task, error)) *MockClient_DeleteVM_Call {
+func (_c *MockClient_DeleteVM_Call) RunAndReturn(run func(context.Context, string, int64, bool) (*go_proxmox.Task, error)) *MockClient_DeleteVM_Call {
 	_c.Call.Return(run)
 	return _c
 }

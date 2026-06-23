@@ -36,7 +36,7 @@ type Client interface {
 
 	GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error)
 
-	DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error)
+	DeleteVM(ctx context.Context, nodeName string, vmID int64, purge bool) (*proxmox.Task, error)
 
 	EnsureHAResource(ctx context.Context, vmID int64, state string) error
 

@@ -37,9 +37,27 @@ func TestDeleteVM_SuccessNotFound(t *testing.T) {
 		Node:    "node1",
 	}, false)
 
-	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("vm does not exist: some reason")).Once()
+	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123), false).Return(nil, errors.New("vm does not exist: some reason")).Once()
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
 	require.Empty(t, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+}
+
+// TestDeleteVM_HARequestsPurge ensures a machine that opted into Proxmox HA is
+// deleted with purge=true, so PVE drops the HA reference along with the VM (#216).
+func TestDeleteVM_HARequestsPurge(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.HighAvailability = &infrav1.HighAvailabilitySpec{Enabled: true, State: "started"}
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node1",
+	}, false)
+
+	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123), true).Return(nil, errors.New("vm does not exist: some reason")).Once()
+
+	require.NoError(t, DeleteVM(context.TODO(), machineScope))
+	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
 }
