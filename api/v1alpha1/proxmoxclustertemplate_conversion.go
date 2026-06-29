@@ -55,7 +55,7 @@ func (dst *ProxmoxClusterTemplate) ConvertFrom(srcRaw conversion.Hub) error {
 	// Fake ProxmoxClusterTemplate v1alpha1 fields, so patches apply for old ClusterClasses.
 	dst.Spec.Template.Spec.CloneSpec = &ProxmoxClusterCloneSpec{
 		ProxmoxMachineSpec: map[string]ProxmoxMachineSpec{
-			"controlPlane": ProxmoxMachineSpec{
+			"controlPlane": {
 				VirtualMachineCloneSpec: VirtualMachineCloneSpec{
 					TemplateSource: TemplateSource{
 						SourceNode: "pve1",

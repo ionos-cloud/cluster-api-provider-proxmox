@@ -20,7 +20,6 @@ package consts
 import (
 	"reflect"
 
-	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 )
 
@@ -39,7 +38,7 @@ func GetInClusterIPPoolKind() string {
 // GetIPAMInClusterAPIGroup returns a pointer to APIGroupVersion as required by
 // typedlocalobjectreferences.
 func GetIPAMInClusterAPIGroup() *string {
-	return ptr.To(ipamicv1.GroupVersion.String())
+	return new(ipamicv1.GroupVersion.String())
 }
 
 // GetIPAMInClusterAPIVersion returns the APIGroup as required for TypeMeta.

@@ -1,5 +1,5 @@
 /*
-Copyright 2023 IONOS Cloud.
+Copyright 2023-2026 IONOS Cloud.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,21 +33,21 @@ var _ proxmox.LeveledLoggerInterface = Logger{}
 type Logger struct{}
 
 // Errorf logs message at error level.
-func (Logger) Errorf(format string, args ...interface{}) {
+func (Logger) Errorf(format string, args ...any) {
 	klog.Errorf(format, args...)
 }
 
 // Warnf logs message at warn level.
-func (Logger) Warnf(format string, args ...interface{}) {
+func (Logger) Warnf(format string, args ...any) {
 	klog.Infof(format, args...)
 }
 
 // Infof logs message at info level.
-func (Logger) Infof(format string, args ...interface{}) {
+func (Logger) Infof(format string, args ...any) {
 	klog.V(2).Infof(format, args...)
 }
 
 // Debugf logs message at debug level.
-func (Logger) Debugf(format string, args ...interface{}) {
+func (Logger) Debugf(format string, args ...any) {
 	klog.V(4).Infof(format, args...)
 }

@@ -293,10 +293,10 @@ func resolveFamily(is6 *bool, hints ...*string) *bool {
 			continue
 		}
 		if p, err := netip.ParsePrefix(*h); err == nil {
-			return ptr.To(p.Addr().Is6())
+			return new(p.Addr().Is6())
 		}
 		if addr, err := netip.ParseAddr(*h); err == nil {
-			return ptr.To(addr.Is6())
+			return new(addr.Is6())
 		}
 	}
 	return nil
