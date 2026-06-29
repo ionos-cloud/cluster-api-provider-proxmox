@@ -164,12 +164,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	initBootstrapCluster(bootstrapClusterProxy, e2eConfig, clusterctlConfigPath, artifactFolder)
 
 	return []byte(
-			strings.Join([]string{
-				artifactFolder,
-				configPath,
-				clusterctlConfigPath,
-				bootstrapClusterProxy.GetKubeconfigPath(),
-			}, ","),
+		strings.Join([]string{
+			artifactFolder,
+			configPath,
+			clusterctlConfigPath,
+			bootstrapClusterProxy.GetKubeconfigPath(),
+		}, ","),
 	)
 }, func(data []byte) {
 	// Before each ParallelNode.

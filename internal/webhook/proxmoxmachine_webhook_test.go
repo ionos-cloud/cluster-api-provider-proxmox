@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -46,7 +45,7 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow invalid network mtu for additional device", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(1000))
+			machine.Spec.Network.NetworkDevices[0].MTU = new(int32(1000))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1280 or 1, but was 1000")))
 		})
 
@@ -57,13 +56,13 @@ var _ = Describe("Controller Test", func() {
 
 		It("should disallow invalid network vlan", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.NetworkDevices[0].VLAN = ptr.To(int32(0))
+			machine.Spec.Network.NetworkDevices[0].VLAN = new(int32(0))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("greater than or equal to 1")))
 		})
 
 		It("should disallow invalid link mtu", func() {
 			machine := validProxmoxMachine("test-machine")
-			machine.Spec.Network.NetworkDevices[0].LinkMTU = ptr.To(int32(1000))
+			machine.Spec.Network.NetworkDevices[0].LinkMTU = new(int32(1000))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("mtu must be at least 1280, but was 1000")))
 		})
 
@@ -82,8 +81,8 @@ var _ = Describe("Controller Test", func() {
 		It("should require is6 when a placeholder route target has no via to derive the family", func() {
 			machine := validProxmoxMachine("route-placeholder-no-via")
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.Routes = []infrav1.RouteSpec{{
-				To:    ptr.To("default"),
-				Table: ptr.To(int32(100)),
+				To:    new("default"),
+				Table: new(int32(100)),
 			}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("is6 must be set")))
 		})
@@ -91,8 +90,8 @@ var _ = Describe("Controller Test", func() {
 		It("should accept a placeholder route target when via derives the family", func() {
 			machine := validProxmoxMachine("route-placeholder-via")
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.Routes = []infrav1.RouteSpec{{
-				To:  ptr.To("default"),
-				Via: ptr.To("2001:db8::1"),
+				To:  new("default"),
+				Via: new("2001:db8::1"),
 			}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 		})
@@ -100,8 +99,8 @@ var _ = Describe("Controller Test", func() {
 		It("should accept a placeholder route target when is6 is set", func() {
 			machine := validProxmoxMachine("route-placeholder-is6")
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.Routes = []infrav1.RouteSpec{{
-				To:  ptr.To("default"),
-				Is6: ptr.To(true),
+				To:  new("default"),
+				Is6: new(true),
 			}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 		})
@@ -109,8 +108,8 @@ var _ = Describe("Controller Test", func() {
 		It("should require is6 when a placeholder routing policy target has no concrete family", func() {
 			machine := validProxmoxMachine("rule-placeholder-no-is6")
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{
-				From:  ptr.To("all"),
-				Table: ptr.To(int32(100)),
+				From:  new("all"),
+				Table: new(int32(100)),
 			}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("is6 must be set")))
 		})
@@ -118,16 +117,16 @@ var _ = Describe("Controller Test", func() {
 		It("should accept a placeholder routing policy target when the peer field derives the family", func() {
 			machine := validProxmoxMachine("rule-placeholder-peer")
 			machine.Spec.Network.NetworkDevices[0].InterfaceConfig.Routing.RoutingPolicy = []infrav1.RoutingPolicySpec{{
-				To:    ptr.To("all"),
-				From:  ptr.To("192.168.1.0/24"),
-				Table: ptr.To(int32(100)),
+				To:    new("all"),
+				From:  new("192.168.1.0/24"),
+				Table: new(int32(100)),
 			}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 		})
 
 		It("should accept MTU=1 (inherit bridge MTU) on default device", func() {
 			machine := validProxmoxMachine("net-inherit-mtu-default")
-			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(1))
+			machine.Spec.Network.NetworkDevices[0].MTU = new(int32(1))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 		})
 
@@ -139,23 +138,23 @@ var _ = Describe("Controller Test", func() {
 
 		It("should reject unknown network model values", func() {
 			machine := validProxmoxMachine("net-unknown-model")
-			machine.Spec.Network.NetworkDevices[0].Model = ptr.To("foo")
+			machine.Spec.Network.NetworkDevices[0].Model = new("foo")
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("Unsupported value")))
 		})
 
 		It("should reject too large MTU", func() {
 			machine := validProxmoxMachine("net-mtu-too-large")
-			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(65521))
+			machine.Spec.Network.NetworkDevices[0].MTU = new(int32(65521))
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid MTU value")))
 		})
 
 		It("should reject FIB rule priorities that match kernel rules", func() {
 			machine5 := validProxmoxMachine("net-routingpolicy-priority-32765")
-			machine5.Spec.Network.NetworkDevices[0].RoutingPolicy = []infrav1.RoutingPolicySpec{{Priority: ptr.To(int64(32765))}}
+			machine5.Spec.Network.NetworkDevices[0].RoutingPolicy = []infrav1.RoutingPolicySpec{{Priority: new(int64(32765))}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine5)).To(MatchError(ContainSubstring("Cowardly refusing to insert FIB rule matching kernel rules")))
 
 			machine6 := validProxmoxMachine("net-routingpolicy-priority-32766")
-			machine6.Spec.Network.NetworkDevices[0].RoutingPolicy = []infrav1.RoutingPolicySpec{{Priority: ptr.To(int64(32766))}}
+			machine6.Spec.Network.NetworkDevices[0].RoutingPolicy = []infrav1.RoutingPolicySpec{{Priority: new(int64(32766))}}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine6)).To(MatchError(ContainSubstring("Cowardly refusing to insert FIB rule matching kernel rules")))
 
 		})
@@ -178,22 +177,22 @@ var _ = Describe("Controller Test", func() {
 
 		It("should error with multiple default ipv4 pool tags", func() {
 			machine := validProxmoxMachine("multiple-default-v4-pools")
-			machine.Spec.Network.NetworkDevices[0].DefaultIPv4 = ptr.To(true)
-			machine.Spec.Network.NetworkDevices[1].DefaultIPv4 = ptr.To(true)
+			machine.Spec.Network.NetworkDevices[0].DefaultIPv4 = new(true)
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv4 = new(true)
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("More than one default IPv4/IPv6 interface in NetworkDevices")))
 		})
 
 		It("should error with multiple default ipv6 pool tags", func() {
 			machine := validProxmoxMachine("multiple-default-v6-pools")
-			machine.Spec.Network.NetworkDevices[0].DefaultIPv6 = ptr.To(true)
-			machine.Spec.Network.NetworkDevices[1].DefaultIPv6 = ptr.To(true)
+			machine.Spec.Network.NetworkDevices[0].DefaultIPv6 = new(true)
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv6 = new(true)
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("More than one default IPv4/IPv6 interface in NetworkDevices")))
 		})
 
 		It("should not add default ipv4/ipv6 pool tags when defined", func() {
 			machine := validProxmoxMachine("default-pools-exist")
-			machine.Spec.Network.NetworkDevices[1].DefaultIPv4 = ptr.To(true)
-			machine.Spec.Network.NetworkDevices[1].DefaultIPv6 = ptr.To(true)
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv4 = new(true)
+			machine.Spec.Network.NetworkDevices[1].DefaultIPv6 = new(true)
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 			g.Expect(machine.Spec.Network.NetworkDevices[0].DefaultIPv4).To(BeNil())
 			g.Expect(machine.Spec.Network.NetworkDevices[0].DefaultIPv6).To(BeNil())
@@ -220,10 +219,10 @@ var _ = Describe("Controller Test", func() {
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &machine)).To(Succeed())
 
 			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&machine), &machine)).To(Succeed())
-			machine.Spec.Network.NetworkDevices[0].MTU = ptr.To(int32(50))
+			machine.Spec.Network.NetworkDevices[0].MTU = new(int32(50))
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid MTU value")))
-			machine.Spec.Network.NetworkDevices[0].VLAN = ptr.To(int32(0))
+			machine.Spec.Network.NetworkDevices[0].VLAN = new(int32(0))
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &machine)).To(MatchError(ContainSubstring("invalid MTU value")))
 
@@ -254,13 +253,13 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 		Spec: infrav1.ProxmoxMachineSpec{
 			VirtualMachineCloneSpec: infrav1.VirtualMachineCloneSpec{
 				TemplateSource: infrav1.TemplateSource{
-					SourceNode: ptr.To("pve"),
-					TemplateID: ptr.To(int32(100)),
+					SourceNode: new("pve"),
+					TemplateID: new(int32(100)),
 				},
 			},
-			NumSockets: ptr.To(int32(1)),
-			NumCores:   ptr.To(int32(1)),
-			MemoryMiB:  ptr.To(int32(1024)),
+			NumSockets: new(int32(1)),
+			NumCores:   new(int32(1)),
+			MemoryMiB:  new(int32(1024)),
 			Disks: &infrav1.Storage{
 				BootVolume: &infrav1.DiskSize{
 					Disk:   "scsi[0]",
@@ -270,25 +269,25 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 			Network: &infrav1.NetworkSpec{
 				NetworkDevices: []infrav1.NetworkDevice{{
 					Name:   infrav1.NetName("net0"),
-					Bridge: ptr.To("vmbr1"),
-					Model:  ptr.To("virtio"),
-					MTU:    ptr.To(int32(1500)),
-					VLAN:   ptr.To(int32(100)),
+					Bridge: new("vmbr1"),
+					Model:  new("virtio"),
+					MTU:    new(int32(1500)),
+					VLAN:   new(int32(100)),
 				}, {
 					Name:   infrav1.NetName("net1"),
-					Bridge: ptr.To("vmbr2"),
-					Model:  ptr.To("virtio"),
-					MTU:    ptr.To(int32(1500)),
-					VLAN:   ptr.To(int32(100)),
+					Bridge: new("vmbr2"),
+					Model:  new("virtio"),
+					MTU:    new(int32(1500)),
+					VLAN:   new(int32(100)),
 					InterfaceConfig: infrav1.InterfaceConfig{
 						IPPoolRef: []corev1.TypedLocalObjectReference{{
 							Name:     "simple-pool",
 							Kind:     InClusterIPPool,
-							APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+							APIGroup: new("ipam.cluster.x-k8s.io"),
 						}},
 						Routing: infrav1.Routing{
 							RoutingPolicy: []infrav1.RoutingPolicySpec{{
-								Table: ptr.To(int32(665)),
+								Table: new(int32(665)),
 							}},
 						},
 					},
@@ -299,7 +298,7 @@ func validProxmoxMachine(name string) infrav1.ProxmoxMachine {
 						Name:  "vrf-green",
 						Routing: infrav1.Routing{
 							RoutingPolicy: []infrav1.RoutingPolicySpec{{
-								Table: ptr.To(int32(665)),
+								Table: new(int32(665)),
 							}},
 						}},
 					},
@@ -313,9 +312,9 @@ func invalidMTUProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
 		Name:   infrav1.DefaultNetworkDevice,
-		Bridge: ptr.To("vmbr1"),
-		Model:  ptr.To("virtio"),
-		MTU:    ptr.To[int32](50),
+		Bridge: new("vmbr1"),
+		Model:  new("virtio"),
+		MTU:    new(int32(50)),
 	}}
 	return machine
 }
@@ -324,9 +323,9 @@ func invalidVLANProxmoxMachine(name string) infrav1.ProxmoxMachine {
 	machine := validProxmoxMachine(name)
 	machine.Spec.Network.NetworkDevices = []infrav1.NetworkDevice{{
 		Name:   infrav1.DefaultNetworkDevice,
-		Bridge: ptr.To("vmbr1"),
-		Model:  ptr.To("virtio"),
-		VLAN:   ptr.To[int32](0),
+		Bridge: new("vmbr1"),
+		Model:  new("virtio"),
+		VLAN:   new(int32(0)),
 	}}
 	return machine
 }

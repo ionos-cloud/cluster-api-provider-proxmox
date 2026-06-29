@@ -23,7 +23,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
@@ -32,7 +31,7 @@ func TestFindVM_FindByNodeAndID(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
 
@@ -44,7 +43,7 @@ func TestFindVM_FindByNodeLocationsAndID(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: machineScope.ProxmoxMachine.GetName()},
 		Node:    "node3",
@@ -60,8 +59,8 @@ func TestFindVM_NotFound(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
-	machineScope.ProxmoxMachine.Status.ProxmoxNode = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node2")
 
 	proxmoxClient.EXPECT().GetVM(ctx, "node2", int64(123)).Return(nil, errors.New("error")).Once()
 
@@ -81,8 +80,8 @@ func TestFindVM_NotInitialized(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	vm.Name = "bar"
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
-	machineScope.ProxmoxMachine.Status.ProxmoxNode = ptr.To("node2")
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node2")
 
 	proxmoxClient.EXPECT().GetVM(ctx, "node2", int64(123)).Return(vm, nil).Once()
 
@@ -97,7 +96,7 @@ func TestUpdateVMLocation_MissingName(t *testing.T) {
 	vmr := newVMResource()
 	vmr.Name = ""
 	vm.VirtualMachineConfig.Name = ""
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
@@ -113,7 +112,7 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 	name := "foo"
 	vmr.Name = name
 	vm.VirtualMachineConfig.Name = name
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
@@ -128,8 +127,8 @@ func TestUpdateVMLocation_UpdateNode(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	vmr := newVMResource()
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
-	machineScope.ProxmoxMachine.Status.ProxmoxNode = ptr.To("node3")
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node3")
 	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
 		Node:    "node3",
@@ -147,8 +146,8 @@ func TestUpdateVMLocation_WithTask(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
-	machineScope.ProxmoxMachine.Status.TaskRef = ptr.To("test-task-uupid")
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.TaskRef = new("test-task-uupid")
 
 	require.Error(t, updateVMLocation(context.TODO(), machineScope))
 }
@@ -161,7 +160,7 @@ func TestUpdateVMLocation_WithoutTaskNameMismatch(t *testing.T) {
 	name := "foo"
 	vmr.Name = name
 	vm.VirtualMachineConfig.Name = name
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = ptr.To(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.TaskRef = nil
 
 	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()

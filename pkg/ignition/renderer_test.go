@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
@@ -39,7 +38,7 @@ func validEthernet() network.ConfigData {
 		Routes: []network.RoutingData{{
 			To:     netip.MustParsePrefix("0.0.0.0/0"),
 			Via:    netip.MustParseAddr("10.0.0.1"),
-			Metric: ptr.To[int32](100),
+			Metric: new(int32(100)),
 		}},
 	}
 }

@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
@@ -489,7 +488,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -511,11 +510,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 							IPAddress: netip.MustParsePrefix("10.10.10.12/24"),
 						}},
 						DNSServers: []string{"8.8.8.8", "8.8.4.4"},
-						LinkMTU:    ptr.To(int32(9001)),
+						LinkMTU:    new(int32(9001)),
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -541,7 +540,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -567,7 +566,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -593,7 +592,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					}, {
 						Type:       network.TypeEthernet,
@@ -605,11 +604,11 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.11.1"),
-							Metric: ptr.To(int32(200)),
+							Metric: new(int32(200)),
 						}, {
 
 							To:     netip.MustParsePrefix("172.16.24.1/24"),
-							Metric: ptr.To(int32(50)),
+							Metric: new(int32(50)),
 							Via:    netip.MustParseAddr("10.10.10.254"),
 						}, {
 
@@ -640,7 +639,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					}, {
 						Type: network.TypeEthernet,
@@ -650,14 +649,14 @@ func TestNetworkConfig_Render(t *testing.T) {
 						}},
 						MacAddress: "92:60:a0:5b:22:c3",
 						FIBRules: []network.FIBRuleData{{
-							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: new(int32(100)),
 							From:     netip.MustParsePrefix("192.168.178.1/24"),
-							Priority: ptr.To(int64(999)),
+							Priority: new(int64(999)),
 						}},
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.11.1"),
-							Metric: ptr.To(int32(200)),
+							Metric: new(int32(200)),
 						}},
 					},
 				},
@@ -702,7 +701,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					}, {
 						Type:       network.TypeEthernet,
@@ -715,7 +714,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.11.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -739,7 +738,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -764,7 +763,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 					{
@@ -778,7 +777,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("192.168.100.254"),
-							Metric: ptr.To(int32(200)),
+							Metric: new(int32(200)),
 						}},
 					},
 				},
@@ -815,12 +814,12 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}, {
 
 							To:     netip.MustParsePrefix("::/0"),
 							Via:    netip.MustParseAddr("2001:db8::1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -847,7 +846,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 					{
@@ -881,7 +880,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("::/0"),
 							Via:    netip.MustParseAddr("2001:db8::1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 				},
@@ -963,7 +962,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 					{
@@ -977,28 +976,28 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("192.168.100.254"),
-							Metric: ptr.To(int32(200)),
+							Metric: new(int32(200)),
 						}},
 					},
 					{
 						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
-						Table:    ptr.To(int32(500)),
+						Table:    new(int32(500)),
 						Children: []string{"eth0", "eth1"},
 						Routes: []network.RoutingData{{
-							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: new(int32(100)),
 							Via:    netip.MustParseAddr("192.168.178.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}, {
 
 							To:     netip.MustParsePrefix("10.10.10.0/24"),
 							Via:    netip.MustParseAddr("192.168.178.254"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 						FIBRules: []network.FIBRuleData{{
-							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: new(int32(100)),
 							From:     netip.MustParsePrefix("192.168.178.1/24"),
-							Priority: ptr.To(int64(999)),
+							Priority: new(int64(999)),
 						}},
 					},
 				},
@@ -1023,7 +1022,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 					{
@@ -1037,39 +1036,39 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("192.168.100.254"),
-							Metric: ptr.To(int32(200)),
+							Metric: new(int32(200)),
 						}},
 					},
 					{
 						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
-						Table:    ptr.To(int32(500)),
+						Table:    new(int32(500)),
 						Children: []string{"eth0"},
 						Routes: []network.RoutingData{{
-							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: new(int32(100)),
 							Via:    netip.MustParseAddr("192.168.178.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}, {
 
 							To:     netip.MustParsePrefix("10.10.10.0/24"),
 							Via:    netip.MustParseAddr("192.168.178.254"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 						FIBRules: []network.FIBRuleData{{
-							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(100)),
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: new(int32(100)),
 							From:     netip.MustParsePrefix("192.168.178.1/24"),
-							Priority: ptr.To(int64(999)),
+							Priority: new(int64(999)),
 						}},
 					},
 					{
 						Type:     network.TypeVRF,
 						Name:     "vrf-red",
-						Table:    ptr.To(int32(501)),
+						Table:    new(int32(501)),
 						Children: []string{"eth1"},
 						FIBRules: []network.FIBRuleData{{
-							To: netip.MustParsePrefix("0.0.0.0/0"), Table: ptr.To(int32(101)),
+							To: netip.MustParsePrefix("0.0.0.0/0"), Table: new(int32(101)),
 							From:     netip.MustParsePrefix("192.168.100.0/24"),
-							Priority: ptr.To(int64(999)),
+							Priority: new(int64(999)),
 						}},
 					},
 				},
@@ -1092,7 +1091,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 					{
 						Type:  network.TypeVRF,
 						Name:  "vrf-blue",
-						Table: ptr.To(int32(500)),
+						Table: new(int32(500)),
 						FIBRules: []network.FIBRuleData{{
 							From: netip.MustParsePrefix("10.10.0.0/16"),
 						}},
@@ -1123,10 +1122,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 					{
 						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
-						Table:    ptr.To(int32(500)),
+						Table:    new(int32(500)),
 						Children: []string{"eth0", "eth1"},
 						Routes: []network.RoutingData{{
-							Table: ptr.To(int32(100)),
+							Table: new(int32(100)),
 						}},
 					},
 				},
@@ -1146,7 +1145,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
 						Routes: []network.RoutingData{{
-							Table: ptr.To(int32(100)),
+							Table: new(int32(100)),
 						}},
 					},
 				},
@@ -1166,10 +1165,10 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
 						Routes: []network.RoutingData{{
-							Table: ptr.To(int32(100)), To: netip.MustParsePrefix("0.0.0.0/0"),
+							Table: new(int32(100)), To: netip.MustParsePrefix("0.0.0.0/0"),
 						}, {
 
-							Table: ptr.To(int32(100)), To: netip.MustParsePrefix("0.0.0.0/0"),
+							Table: new(int32(100)), To: netip.MustParsePrefix("0.0.0.0/0"),
 						}},
 					},
 				},
@@ -1209,8 +1208,8 @@ func TestNetworkConfig_Render(t *testing.T) {
 						MacAddress: "92:60:a0:5b:22:c2",
 						DHCP4:      true,
 						FIBRules: []network.FIBRuleData{{
-							Table:    ptr.To(int32(100)),
-							Priority: ptr.To(int64(100)),
+							Table:    new(int32(100)),
+							Priority: new(int64(100)),
 						}},
 					},
 				},
@@ -1235,7 +1234,7 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("0.0.0.0/0"),
 							Via:    netip.MustParseAddr("10.10.10.1"),
-							Metric: ptr.To(int32(100)),
+							Metric: new(int32(100)),
 						}},
 					},
 					{
@@ -1249,13 +1248,13 @@ func TestNetworkConfig_Render(t *testing.T) {
 						Routes: []network.RoutingData{{
 							To:     netip.MustParsePrefix("::/0"),
 							Via:    netip.MustParseAddr("2001:db8::"),
-							Metric: ptr.To(int32(200)),
+							Metric: new(int32(200)),
 						}},
 					},
 					{
 						Type:     network.TypeVRF,
 						Name:     "vrf-blue",
-						Table:    ptr.To(int32(500)),
+						Table:    new(int32(500)),
 						Children: []string{"NO &anchor", "asdf !.tag"},
 						Routes: []network.RoutingData{{
 							To:  netip.PrefixFrom(netip.MustParseAddr("::"), 128),

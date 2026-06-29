@@ -21,14 +21,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 )
 
 func defaultRoute(metric int32) RoutingData {
 	return RoutingData{
 		To:     netip.MustParsePrefix("0.0.0.0/0"),
 		Via:    netip.MustParseAddr("10.0.0.1"),
-		Metric: ptr.To(metric),
+		Metric: new(metric),
 	}
 }
 
@@ -59,7 +58,7 @@ func TestNetwork_Validate(t *testing.T) {
 		},
 		"route without target is malformed": {
 			devices: []ConfigData{
-				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{{Metric: ptr.To[int32](100)}}},
+				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{{Metric: new(int32(100))}}},
 			},
 			err: ErrMalformedRoute,
 		},
@@ -77,15 +76,15 @@ func TestNetwork_Validate(t *testing.T) {
 				// tables and must not be flagged as conflicting.
 				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{defaultRoute(100)}},
 				{Type: "ethernet", Name: "eth1", Routes: []RoutingData{defaultRoute(100)}},
-				{Type: "vrf", Name: "vrf-a", Table: ptr.To[int32](100), Children: []string{"eth0"}},
-				{Type: "vrf", Name: "vrf-b", Table: ptr.To[int32](200), Children: []string{"eth1"}},
+				{Type: "vrf", Name: "vrf-a", Table: new(int32(100)), Children: []string{"eth0"}},
+				{Type: "vrf", Name: "vrf-b", Table: new(int32(200)), Children: []string{"eth1"}},
 			},
 		},
 		"identical routes in the same VRF collide": {
 			devices: []ConfigData{
 				{Type: "ethernet", Name: "eth0", Routes: []RoutingData{defaultRoute(100)}},
 				{Type: "ethernet", Name: "eth1", Routes: []RoutingData{defaultRoute(100)}},
-				{Type: "vrf", Name: "vrf-a", Table: ptr.To[int32](100), Children: []string{"eth0", "eth1"}},
+				{Type: "vrf", Name: "vrf-a", Table: new(int32(100)), Children: []string{"eth0", "eth1"}},
 			},
 			err: ErrConflictingMetrics,
 		},
@@ -97,10 +96,10 @@ func TestNetwork_Validate(t *testing.T) {
 				{Type: "ethernet", Name: "eth1", Routes: []RoutingData{{
 					To:     netip.MustParsePrefix("0.0.0.0/0"),
 					Via:    netip.MustParseAddr("10.0.0.1"),
-					Metric: ptr.To[int32](100),
-					Table:  ptr.To[int32](200),
+					Metric: new(int32(100)),
+					Table:  new(int32(200)),
 				}}},
-				{Type: "vrf", Name: "vrf-a", Table: ptr.To[int32](100), Children: []string{"eth0", "eth1"}},
+				{Type: "vrf", Name: "vrf-a", Table: new(int32(100)), Children: []string{"eth0", "eth1"}},
 			},
 		},
 		"ethernet FIB rule requires a table": {
@@ -118,7 +117,7 @@ func TestNetwork_Validate(t *testing.T) {
 				{Type: "ethernet", Name: "eth0", DHCP4: true, FIBRules: []FIBRuleData{{
 					To:    netip.MustParsePrefix("2001:db8::/64"),
 					From:  netip.MustParsePrefix("10.0.0.0/8"),
-					Table: ptr.To[int32](500),
+					Table: new(int32(500)),
 				}}},
 			},
 			err: ErrMalformedFIBRule,
@@ -128,7 +127,7 @@ func TestNetwork_Validate(t *testing.T) {
 				{Type: "ethernet", Name: "eth0", DHCP4: true, FIBRules: []FIBRuleData{{
 					To:    netip.MustParsePrefix("2001:db8::/64"),
 					From:  netip.MustParsePrefix("2001:db8:1::/64"),
-					Table: ptr.To[int32](500),
+					Table: new(int32(500)),
 				}}},
 			},
 		},

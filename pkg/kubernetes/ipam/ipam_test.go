@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
@@ -111,7 +110,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 	s.Equal(pool.Spec.Prefix, 24)
 
 	s.cluster.Spec.IPv4Config.Gateway = "10.11.0.0"
-	s.cluster.Spec.IPv4Config.Metric = ptr.To(int32(123))
+	s.cluster.Spec.IPv4Config.Metric = new(int32(123))
 
 	ipamConfig = s.cluster.Spec.IPv4Config
 
@@ -141,7 +140,7 @@ func (s *IPAMTestSuite) Test_CreateOrUpdateInClusterIPPool() {
 		Addresses: []string{"2001:db8::/64"},
 		Prefix:    64,
 		Gateway:   "2001:db8::1",
-		Metric:    ptr.To(int32(123)),
+		Metric:    new(int32(123)),
 	}
 
 	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
@@ -228,7 +227,7 @@ func (s *IPAMTestSuite) Test_GetDefaultInClusterIPPool() {
 func (s *IPAMTestSuite) Test_GetInClusterIPPool() {
 	notFound, err := s.helper.GetInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
 		Name:     "simple-pool",
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind:     InClusterIPPool,
 	})
 	s.Nil(notFound)
@@ -245,7 +244,7 @@ func (s *IPAMTestSuite) Test_GetInClusterIPPool() {
 	}, &pool))
 
 	found, err := s.helper.GetInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		APIGroup: new("ipam.cluster.x-k8s.io"),
 		Name:     "test-cluster-v4-icip",
 		Kind:     InClusterIPPool})
 	s.NoError(err)
@@ -255,7 +254,7 @@ func (s *IPAMTestSuite) Test_GetInClusterIPPool() {
 func (s *IPAMTestSuite) Test_GetGlobalInClusterIPPool() {
 	notFound, err := s.helper.GetGlobalInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
 		Name:     "simple-global-pool",
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind:     GlobalInClusterIPPool})
 	s.Nil(notFound)
 	s.Error(err)
@@ -280,7 +279,7 @@ func (s *IPAMTestSuite) Test_GetGlobalInClusterIPPool() {
 
 	found, err := s.helper.GetGlobalInClusterIPPool(s.ctx, corev1.TypedLocalObjectReference{
 		Name:     "test-global-cluster-icip",
-		APIGroup: ptr.To("ipam.cluster.x-k8s.io"),
+		APIGroup: new("ipam.cluster.x-k8s.io"),
 		Kind:     GlobalInClusterIPPool})
 
 	s.NoError(err)
@@ -379,7 +378,7 @@ func (s *IPAMTestSuite) Test_GetIPPoolAnnotations() {
 				Name:     "test-ippool-annotations",
 			},
 			Address: "10.10.11.11",
-			Prefix:  ptr.To[int32](24),
+			Prefix:  new(int32(24)),
 			Gateway: "10.10.11.254",
 		},
 	}
@@ -740,7 +739,7 @@ func (s *IPAMTestSuite) Test_ResolveIPAddressClaimMissingWithOrphanedDeterminist
 func (s *IPAMTestSuite) Test_GetIPAddressByPoolFiltersByPoolRefAndSorts() {
 	poolRef := corev1.TypedLocalObjectReference{
 		Name:     "test-cluster-v4-icip",
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     GetInClusterIPPoolKind(),
 	}
 
@@ -821,7 +820,7 @@ func (s *IPAMTestSuite) Test_MatchesPoolRefIgnoresIPAddressTypeMeta() {
 	}))
 	s.False(matchesPoolRef(ip, corev1.TypedLocalObjectReference{
 		Name:     "test-cluster-v4-icip",
-		APIGroup: ptr.To("other.ipam.example.com"),
+		APIGroup: new("other.ipam.example.com"),
 		Kind:     GetInClusterIPPoolKind(),
 	}))
 	s.False(matchesPoolRef(ip, corev1.TypedLocalObjectReference{
@@ -838,22 +837,22 @@ func (s *IPAMTestSuite) Test_MatchesClaimPoolRefComparesNameGroupAndKind() {
 
 	s.True(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
 		Name:     "test-cluster-v4-icip",
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     GetInClusterIPPoolKind(),
 	}))
 	s.False(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
 		Name:     "other-pool",
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     GetInClusterIPPoolKind(),
 	}))
 	s.False(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
 		Name:     "test-cluster-v4-icip",
-		APIGroup: ptr.To("other.ipam.example.com"),
+		APIGroup: new("other.ipam.example.com"),
 		Kind:     GetInClusterIPPoolKind(),
 	}))
 	s.False(matchesClaimPoolRef(*claim, corev1.TypedLocalObjectReference{
 		Name:     "test-cluster-v4-icip",
-		APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+		APIGroup: new(ipamicv1.GroupVersion.String()),
 		Kind:     GetGlobalInClusterIPPoolKind(),
 	}))
 }
@@ -902,7 +901,7 @@ func (s *IPAMTestSuite) testIPClaimDef(device infrav1.NetName, offset, poolName 
 		Device: device,
 		PoolRef: corev1.TypedLocalObjectReference{
 			Name:     poolName,
-			APIGroup: ptr.To(ipamicv1.GroupVersion.String()),
+			APIGroup: new(ipamicv1.GroupVersion.String()),
 			Kind:     GetInClusterIPPoolKind(),
 		},
 		Annotations: map[string]string{
@@ -953,7 +952,7 @@ func (s *IPAMTestSuite) testIPAddress(namespace, name, poolName string) *ipamv1.
 				Name:     poolName,
 			},
 			Address: "192.0.2.1",
-			Prefix:  ptr.To[int32](24),
+			Prefix:  new(int32(24)),
 			Gateway: "192.0.2.254",
 		},
 	}
@@ -1088,7 +1087,7 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 				Name:     poolName,
 			},
 			Address: "10.10.10.11",
-			Prefix:  ptr.To[int32](24),
+			Prefix:  new(int32(24)),
 			Gateway: "10.10.10.1",
 		},
 	}

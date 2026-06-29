@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
@@ -169,7 +168,7 @@ func TestShouldUpdateNetworkDevices_NoNetworkConfig(t *testing.T) {
 func TestShouldUpdateNetworkDevices_MissingDefaultDeviceOnVM(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
-		NetworkDevices: []infrav1.NetworkDevice{{Bridge: ptr.To("vmbr1"), Model: ptr.To("virtio")}},
+		NetworkDevices: []infrav1.NetworkDevice{{Bridge: new("vmbr1"), Model: new("virtio")}},
 	}
 	machineScope.SetVirtualMachine(newStoppedVM())
 
@@ -179,7 +178,7 @@ func TestShouldUpdateNetworkDevices_MissingDefaultDeviceOnVM(t *testing.T) {
 func TestShouldUpdateNetworkDevices_DefaultDeviceNeedsUpdate(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
-		NetworkDevices: []infrav1.NetworkDevice{{Bridge: ptr.To("vmbr1"), Model: ptr.To("virtio")}},
+		NetworkDevices: []infrav1.NetworkDevice{{Bridge: new("vmbr1"), Model: new("virtio")}},
 	}
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0"))
 
@@ -192,8 +191,8 @@ func TestShouldUpdateNetworkDevices_MissingAdditionalDeviceOnVM(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:   "net1",
-				Bridge: ptr.To("vmbr1"),
-				Model:  ptr.To("virtio"),
+				Bridge: new("vmbr1"),
+				Model:  new("virtio"),
 			},
 		},
 	}
@@ -208,8 +207,8 @@ func TestShouldUpdateNetworkDevices_AdditionalDeviceNeedsUpdate(t *testing.T) {
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
 				Name:   "net1",
-				Bridge: ptr.To("vmbr1"),
-				Model:  ptr.To("virtio"),
+				Bridge: new("vmbr1"),
+				Model:  new("virtio"),
 			},
 		},
 	}
@@ -223,15 +222,15 @@ func TestShouldUpdateNetworkDevices_NoUpdate(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
 		NetworkDevices: []infrav1.NetworkDevice{
 			{
-				Bridge: ptr.To("vmbr0"),
-				Model:  ptr.To("virtio"),
-				MTU:    ptr.To[int32](1500),
+				Bridge: new("vmbr0"),
+				Model:  new("virtio"),
+				MTU:    new(int32(1500)),
 			},
 			{
 				Name:   "net1",
-				Bridge: ptr.To("vmbr1"),
-				Model:  ptr.To("virtio"),
-				MTU:    ptr.To[int32](1500),
+				Bridge: new("vmbr1"),
+				Model:  new("virtio"),
+				MTU:    new(int32(1500)),
 			},
 		},
 	}
@@ -276,7 +275,7 @@ func TestExtractNetworkVLAN(t *testing.T) {
 func TestShouldUpdateNetworkDevices_VLANChanged(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
-		NetworkDevices: []infrav1.NetworkDevice{{Bridge: ptr.To("vmbr0"), Model: ptr.To("virtio"), VLAN: ptr.To(int32(100))}},
+		NetworkDevices: []infrav1.NetworkDevice{{Bridge: new("vmbr0"), Model: new("virtio"), VLAN: new(int32(100))}},
 	}
 	machineScope.SetVirtualMachine(newVMWithNets("virtio=A6:23:64:4D:84:CB,bridge=vmbr0,tag=101"))
 
@@ -317,10 +316,10 @@ func TestExtractNetworkQueue(t *testing.T) {
 
 func TestFormatNetworkDevice(t *testing.T) {
 	require.Equal(t, "virtio,bridge=vmbr0", formatNetworkDevice("virtio", "vmbr0", nil, nil, nil))
-	require.Equal(t, "virtio,bridge=vmbr0,mtu=1500", formatNetworkDevice("virtio", "vmbr0", ptr.To(int32(1500)), nil, nil))
-	require.Equal(t, "virtio,bridge=vmbr0,tag=100", formatNetworkDevice("virtio", "vmbr0", nil, ptr.To(int32(100)), nil))
-	require.Equal(t, "virtio,bridge=vmbr0,queues=4", formatNetworkDevice("virtio", "vmbr0", nil, nil, ptr.To(int32(4))))
-	require.Equal(t, "virtio,bridge=vmbr0,mtu=1500,tag=100,queues=4", formatNetworkDevice("virtio", "vmbr0", ptr.To(int32(1500)), ptr.To(int32(100)), ptr.To(int32(4))))
+	require.Equal(t, "virtio,bridge=vmbr0,mtu=1500", formatNetworkDevice("virtio", "vmbr0", new(int32(1500)), nil, nil))
+	require.Equal(t, "virtio,bridge=vmbr0,tag=100", formatNetworkDevice("virtio", "vmbr0", nil, new(int32(100)), nil))
+	require.Equal(t, "virtio,bridge=vmbr0,queues=4", formatNetworkDevice("virtio", "vmbr0", nil, nil, new(int32(4))))
+	require.Equal(t, "virtio,bridge=vmbr0,mtu=1500,tag=100,queues=4", formatNetworkDevice("virtio", "vmbr0", new(int32(1500)), new(int32(100)), new(int32(4))))
 }
 
 func TestExtractMACAddress(t *testing.T) {
@@ -361,28 +360,28 @@ func TestParseRouteTarget(t *testing.T) {
 	}{
 		// nil / empty string -> zero prefix (unset)
 		{name: "nil input", s: nil, expect: netip.Prefix{}},
-		{name: "empty string", s: ptr.To(""), expect: netip.Prefix{}},
+		{name: "empty string", s: new(""), expect: netip.Prefix{}},
 
 		// "default" / "all" aliases -> IPv4 unspecified by default
-		{name: "default -> ipv4", s: ptr.To("default"), expect: netip.MustParsePrefix("0.0.0.0/0")},
-		{name: "all -> ipv4", s: ptr.To("all"), expect: netip.MustParsePrefix("0.0.0.0/0")},
-		{name: "default is6=false -> ipv4", s: ptr.To("default"), is6: ptr.To(false), expect: netip.MustParsePrefix("0.0.0.0/0")},
-		{name: "default is6=true -> ipv6", s: ptr.To("default"), is6: ptr.To(true), expect: netip.MustParsePrefix("::/0")},
-		{name: "all is6=true -> ipv6", s: ptr.To("all"), is6: ptr.To(true), expect: netip.MustParsePrefix("::/0")},
+		{name: "default -> ipv4", s: new("default"), expect: netip.MustParsePrefix("0.0.0.0/0")},
+		{name: "all -> ipv4", s: new("all"), expect: netip.MustParsePrefix("0.0.0.0/0")},
+		{name: "default is6=false -> ipv4", s: new("default"), is6: new(false), expect: netip.MustParsePrefix("0.0.0.0/0")},
+		{name: "default is6=true -> ipv6", s: new("default"), is6: new(true), expect: netip.MustParsePrefix("::/0")},
+		{name: "all is6=true -> ipv6", s: new("all"), is6: new(true), expect: netip.MustParsePrefix("::/0")},
 
 		// CIDR prefixes pass through normalised
-		{name: "ipv4 prefix", s: ptr.To("10.0.0.0/8"), expect: netip.MustParsePrefix("10.0.0.0/8")},
-		{name: "ipv6 prefix", s: ptr.To("::/0"), expect: netip.MustParsePrefix("::/0")},
-		{name: "host prefix /32", s: ptr.To("192.168.1.1/32"), expect: netip.MustParsePrefix("192.168.1.1/32")},
-		{name: "host prefix /128", s: ptr.To("2001:db8::1/128"), expect: netip.MustParsePrefix("2001:db8::1/128")},
+		{name: "ipv4 prefix", s: new("10.0.0.0/8"), expect: netip.MustParsePrefix("10.0.0.0/8")},
+		{name: "ipv6 prefix", s: new("::/0"), expect: netip.MustParsePrefix("::/0")},
+		{name: "host prefix /32", s: new("192.168.1.1/32"), expect: netip.MustParsePrefix("192.168.1.1/32")},
+		{name: "host prefix /128", s: new("2001:db8::1/128"), expect: netip.MustParsePrefix("2001:db8::1/128")},
 
 		// Bare IP addresses mapped to /32 or /128
-		{name: "bare ipv4", s: ptr.To("10.0.0.1"), expect: netip.PrefixFrom(netip.MustParseAddr("10.0.0.1"), 32)},
-		{name: "bare ipv6", s: ptr.To("2001:db8::1"), expect: netip.PrefixFrom(netip.MustParseAddr("2001:db8::1"), 128)},
+		{name: "bare ipv4", s: new("10.0.0.1"), expect: netip.PrefixFrom(netip.MustParseAddr("10.0.0.1"), 32)},
+		{name: "bare ipv6", s: new("2001:db8::1"), expect: netip.PrefixFrom(netip.MustParseAddr("2001:db8::1"), 128)},
 
 		// Invalid -> error
-		{name: "garbage", s: ptr.To("not-an-ip"), err: true},
-		{name: "partial", s: ptr.To("10.0.0"), err: true},
+		{name: "garbage", s: new("not-an-ip"), err: true},
+		{name: "partial", s: new("10.0.0"), err: true},
 	}
 
 	for _, tc := range cases {
@@ -407,17 +406,17 @@ func TestParseVia(t *testing.T) {
 	}{
 		// nil / empty -> zero address (unset)
 		{name: "nil", s: nil, expect: netip.Addr{}},
-		{name: "empty", s: ptr.To(""), expect: netip.Addr{}},
+		{name: "empty", s: new(""), expect: netip.Addr{}},
 
 		// Valid bare addresses
-		{name: "ipv4", s: ptr.To("10.0.0.1"), expect: netip.MustParseAddr("10.0.0.1")},
-		{name: "ipv6", s: ptr.To("2001:db8::1"), expect: netip.MustParseAddr("2001:db8::1")},
+		{name: "ipv4", s: new("10.0.0.1"), expect: netip.MustParseAddr("10.0.0.1")},
+		{name: "ipv6", s: new("2001:db8::1"), expect: netip.MustParseAddr("2001:db8::1")},
 
 		// Prefixes and placeholders are rejected (Via must be a bare address)
-		{name: "prefix rejected", s: ptr.To("10.0.0.0/8"), err: true},
-		{name: "default rejected", s: ptr.To("default"), err: true},
-		{name: "all rejected", s: ptr.To("all"), err: true},
-		{name: "garbage", s: ptr.To("not-an-ip"), err: true},
+		{name: "prefix rejected", s: new("10.0.0.0/8"), err: true},
+		{name: "default rejected", s: new("default"), err: true},
+		{name: "all rejected", s: new("all"), err: true},
+		{name: "garbage", s: new("not-an-ip"), err: true},
 	}
 
 	for _, tc := range cases {
@@ -434,8 +433,8 @@ func TestParseVia(t *testing.T) {
 }
 
 func TestToRoutingData(t *testing.T) {
-	table100 := ptr.To[int32](100)
-	metric50 := ptr.To[int32](50)
+	table100 := new(int32(100))
+	metric50 := new(int32(50))
 
 	cases := []struct {
 		name   string
@@ -451,7 +450,7 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "default gateway ipv4",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("default"), Via: ptr.To("10.0.0.1"), Metric: metric50},
+				{To: new("default"), Via: new("10.0.0.1"), Metric: metric50},
 			},
 			expect: []network.RoutingData{{
 				To:     netip.MustParsePrefix("0.0.0.0/0"),
@@ -462,7 +461,7 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "default gateway ipv6 via is6",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("default"), Is6: ptr.To(true), Via: ptr.To("2001:db8::1")},
+				{To: new("default"), Is6: new(true), Via: new("2001:db8::1")},
 			},
 			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("::/0"),
@@ -472,7 +471,7 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "default gateway ipv6 family derived from via without is6",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("default"), Via: ptr.To("2001:db8::1")},
+				{To: new("default"), Via: new("2001:db8::1")},
 			},
 			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("::/0"),
@@ -482,7 +481,7 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "default gateway ipv4 family derived from via without is6",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("all"), Via: ptr.To("10.0.0.1")},
+				{To: new("all"), Via: new("10.0.0.1")},
 			},
 			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("0.0.0.0/0"),
@@ -492,7 +491,7 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "explicit is6 overrides via family",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("default"), Is6: ptr.To(false), Via: ptr.To("10.0.0.1")},
+				{To: new("default"), Is6: new(false), Via: new("10.0.0.1")},
 			},
 			expect: []network.RoutingData{{
 				To:  netip.MustParsePrefix("0.0.0.0/0"),
@@ -502,7 +501,7 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "explicit prefix + table",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("172.16.0.0/12"), Via: ptr.To("10.0.0.254"), Table: table100},
+				{To: new("172.16.0.0/12"), Via: new("10.0.0.254"), Table: table100},
 			},
 			expect: []network.RoutingData{{
 				To: netip.MustParsePrefix("172.16.0.0/12"), Table: table100,
@@ -512,7 +511,7 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "route without Via",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("0.0.0.0/0")},
+				{To: new("0.0.0.0/0")},
 			},
 			expect: []network.RoutingData{{
 				To: netip.MustParsePrefix("0.0.0.0/0"),
@@ -521,8 +520,8 @@ func TestToRoutingData(t *testing.T) {
 		{
 			name: "multiple routes preserved in order",
 			specs: []infrav1.RouteSpec{
-				{To: ptr.To("0.0.0.0/0"), Via: ptr.To("10.0.0.1")},
-				{To: ptr.To("::/0"), Via: ptr.To("2001:db8::1")},
+				{To: new("0.0.0.0/0"), Via: new("10.0.0.1")},
+				{To: new("::/0"), Via: new("2001:db8::1")},
 			},
 			expect: []network.RoutingData{
 				{To: netip.MustParsePrefix("0.0.0.0/0"), Via: netip.MustParseAddr("10.0.0.1")},
@@ -531,12 +530,12 @@ func TestToRoutingData(t *testing.T) {
 		},
 		{
 			name:  "invalid To -> error",
-			specs: []infrav1.RouteSpec{{To: ptr.To("not-an-ip")}},
+			specs: []infrav1.RouteSpec{{To: new("not-an-ip")}},
 			err:   true,
 		},
 		{
 			name:  "prefix in Via -> error",
-			specs: []infrav1.RouteSpec{{To: ptr.To("0.0.0.0/0"), Via: ptr.To("10.0.0.0/8")}},
+			specs: []infrav1.RouteSpec{{To: new("0.0.0.0/0"), Via: new("10.0.0.0/8")}},
 			err:   true,
 		},
 	}
@@ -555,8 +554,8 @@ func TestToRoutingData(t *testing.T) {
 }
 
 func TestToFIBRuleData(t *testing.T) {
-	table500 := ptr.To[int32](500)
-	prio100 := ptr.To[int64](100)
+	table500 := new(int32(500))
+	prio100 := new(int64(100))
 
 	cases := []struct {
 		name   string
@@ -572,7 +571,7 @@ func TestToFIBRuleData(t *testing.T) {
 		{
 			name: "to + table",
 			specs: []infrav1.RoutingPolicySpec{
-				{To: ptr.To("10.0.0.0/8"), Table: table500, Priority: prio100},
+				{To: new("10.0.0.0/8"), Table: table500, Priority: prio100},
 			},
 			expect: []network.FIBRuleData{{
 				To: netip.MustParsePrefix("10.0.0.0/8"), Table: table500,
@@ -582,7 +581,7 @@ func TestToFIBRuleData(t *testing.T) {
 		{
 			name: "from + table",
 			specs: []infrav1.RoutingPolicySpec{
-				{From: ptr.To("192.168.1.0/24"), Table: table500},
+				{From: new("192.168.1.0/24"), Table: table500},
 			},
 			expect: []network.FIBRuleData{{
 				Table: table500,
@@ -592,7 +591,7 @@ func TestToFIBRuleData(t *testing.T) {
 		{
 			name: "bare IP in From mapped to /32",
 			specs: []infrav1.RoutingPolicySpec{
-				{From: ptr.To("10.1.2.3"), Table: table500},
+				{From: new("10.1.2.3"), Table: table500},
 			},
 			expect: []network.FIBRuleData{{
 				Table: table500,
@@ -602,7 +601,7 @@ func TestToFIBRuleData(t *testing.T) {
 		{
 			name: "to + from + priority + table",
 			specs: []infrav1.RoutingPolicySpec{
-				{To: ptr.To("0.0.0.0/0"), From: ptr.To("172.16.0.0/12"), Table: table500, Priority: prio100},
+				{To: new("0.0.0.0/0"), From: new("172.16.0.0/12"), Table: table500, Priority: prio100},
 			},
 			expect: []network.FIBRuleData{{
 				To: netip.MustParsePrefix("0.0.0.0/0"), Table: table500,
@@ -613,7 +612,7 @@ func TestToFIBRuleData(t *testing.T) {
 		{
 			name: "Is6 disambiguates the From placeholder to ::/0",
 			specs: []infrav1.RoutingPolicySpec{
-				{From: ptr.To("all"), Is6: ptr.To(true), Table: table500},
+				{From: new("all"), Is6: new(true), Table: table500},
 			},
 			expect: []network.FIBRuleData{{
 				Table: table500,
@@ -623,7 +622,7 @@ func TestToFIBRuleData(t *testing.T) {
 		{
 			name: "placeholder To family derived from concrete From without is6",
 			specs: []infrav1.RoutingPolicySpec{
-				{To: ptr.To("all"), From: ptr.To("2001:db8::/64"), Table: table500},
+				{To: new("all"), From: new("2001:db8::/64"), Table: table500},
 			},
 			expect: []network.FIBRuleData{{
 				To:    netip.PrefixFrom(netip.IPv6Unspecified(), 0),
@@ -634,7 +633,7 @@ func TestToFIBRuleData(t *testing.T) {
 		{
 			name: "placeholder From family derived from concrete To without is6",
 			specs: []infrav1.RoutingPolicySpec{
-				{To: ptr.To("192.168.1.0/24"), From: ptr.To("default"), Table: table500},
+				{To: new("192.168.1.0/24"), From: new("default"), Table: table500},
 			},
 			expect: []network.FIBRuleData{{
 				To:    netip.MustParsePrefix("192.168.1.0/24"),
@@ -644,12 +643,12 @@ func TestToFIBRuleData(t *testing.T) {
 		},
 		{
 			name:  "invalid To -> error",
-			specs: []infrav1.RoutingPolicySpec{{To: ptr.To("no fun")}},
+			specs: []infrav1.RoutingPolicySpec{{To: new("no fun")}},
 			err:   true,
 		},
 		{
 			name:  "invalid From -> error",
-			specs: []infrav1.RoutingPolicySpec{{From: ptr.To("allowed")}},
+			specs: []infrav1.RoutingPolicySpec{{From: new("allowed")}},
 			err:   true,
 		},
 	}
