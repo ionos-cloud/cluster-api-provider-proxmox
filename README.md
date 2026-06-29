@@ -20,9 +20,10 @@ This provider's versions are compatible with the following versions of Cluster A
 
 Cluster API v1beta2
 
-|             | CAPI v1.11 |
-|-------------|:----------:|
-| CAPMOX v0.8 |     ✓      |
+|             | CAPI v1.11 | CAPI v1.12 |
+|-------------|:----------:|:----------:|
+| CAPMOX v0.8 |     ✓      |            |
+| CAPMOX v0.9 |     ✓      |     ✓      |
 
 ### CAPMOX v1alpha1 (obsolete)
 <details>

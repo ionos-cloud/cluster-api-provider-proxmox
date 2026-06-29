@@ -65,7 +65,7 @@ providers:
   - name: proxmox
     type: InfrastructureProvider
     versions:
-      - name: v0.8.99
+      - name: v0.9.99
         value: "${PWD}/config/default"
         replacements:
           - old: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev
