@@ -69,6 +69,21 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	}
 
 	machineScope.Logger.V(4).Info("updating the ProxmoxMachine's IP addresses.")
+	writeIPAddressStatus(pm, netPoolAddresses)
+
+	conditions.Set(pm, metav1.Condition{
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
+	})
+
+	return true, nil
+}
+
+// writeIPAddressStatus republishes ProxmoxMachine.status.ipAddresses from the
+// resolved per-net/pool addresses. Within each net the addresses are ordered by
+// their pool-offset annotation and split into IPv4/IPv6 before being stored.
+func writeIPAddressStatus(pm *infrav1.ProxmoxMachine, netPoolAddresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) {
 	for net, pools := range netPoolAddresses {
 		addresses := slices.Concat(slices.Collect(maps.Values(pools))...)
 		slices.SortFunc(addresses, func(a, b ipamv1.IPAddress) int {
@@ -88,14 +103,74 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 		}
 		pm.SetIPAddresses(ipSpec)
 	}
+}
 
-	conditions.Set(pm, metav1.Condition{
-		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-		Status: metav1.ConditionFalse,
-		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
-	})
+// reconcileAddressRecovery republishes ProxmoxMachine IP/address status for an
+// already-running machine (e.g. one restored from a backup) whose status was
+// lost. It is read-only with respect to both Proxmox and the IPAM objects: it
+// never creates claims, mutates the VM, or changes the provisioning condition.
+// It is a no-op unless the VM is running and status.ipAddresses is empty, and it
+// only republishes when every expected IPAddressClaim resolves cleanly. Orphaned
+// or conflicting IPAM objects are deliberately left to the regular provisioning
+// path.
+func reconcileAddressRecovery(ctx context.Context, machineScope *scope.MachineScope) error {
+	pm := machineScope.ProxmoxMachine
 
-	return true, nil
+	// Only act on already-running machines that are missing their IP status.
+	if machineScope.VirtualMachine == nil || !machineScope.VirtualMachine.IsRunning() {
+		return nil
+	}
+	if len(pm.Status.IPAddresses) > 0 || pm.Spec.Network == nil {
+		return nil
+	}
+
+	machineScope.Logger.V(4).Info("attempting IP/address status recovery for running machine with empty status")
+
+	netPoolAddresses := make(map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+	incomplete, err := collectDeviceAddresses(ctx, machineScope, netPoolAddresses, resolveExistingIPAddress)
+	if err != nil {
+		return errors.Wrap(err, "resolving existing IPAddressClaims for status recovery")
+	}
+	// incomplete: at least one expected IPAddressClaim did not resolve cleanly.
+	// len == 0: Spec.Network declares no NetworkDevices, so there is nothing to
+	// republish (a populated map always carries the synthetic "default" net).
+	// Either way, leave it to the regular provisioning path.
+	if incomplete || len(netPoolAddresses) == 0 {
+		machineScope.Logger.Info("address recovery skipped: no fully-resolved IPAddressClaims to republish")
+		return nil
+	}
+
+	writeIPAddressStatus(pm, netPoolAddresses)
+
+	addr, err := getClusterAPIMachineAddresses(machineScope)
+	if err != nil {
+		// status.ipAddresses was repopulated; CAPI machine addresses could not be
+		// derived (e.g. no default network). Leave that to the regular path.
+		machineScope.Logger.Info("recovered status.ipAddresses but could not derive machine addresses", "reason", err.Error())
+		return nil
+	}
+	machineScope.SetAddresses(addr)
+
+	machineScope.Logger.Info("recovered ProxmoxMachine IP and address status from existing IPAM claims")
+	record.Eventf(pm, "RecoveredIPAddressStatus", "Republished IP/address status for running machine from existing IPAM claims")
+	return nil
+}
+
+// resolveExistingIPAddress is the read-only resolver used by the status-recovery
+// path. It returns the resolved address only when the expected IPAddressClaim is
+// fully resolved; for any other state it returns no address (and never creates,
+// mutates, or sets conditions), which causes recovery to be skipped.
+func resolveExistingIPAddress(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error) {
+	resolution, err := machineScope.IPAMHelper.ResolveIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
+	if err != nil {
+		return nil, err
+	}
+	if resolution.Status == ipam.ClaimResolved {
+		return []ipamv1.IPAddress{*resolution.Address}, nil
+	}
+	machineScope.Logger.V(4).Info("address recovery: IPAddressClaim not resolved",
+		"claim", resolution.ClaimName, "status", resolution.Status, "device", ipClaimDef.Device)
+	return []ipamv1.IPAddress{}, nil
 }
 
 // Todo: add tagging to its own stage.
@@ -203,10 +278,23 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 	}
 }
 
+// ipAddressResolver resolves the IPAddress(es) for a single device/pool claim
+// definition. handleDevices uses the create-capable handleIPAddresses; the
+// read-only status-recovery path uses resolveExistingIPAddress.
+type ipAddressResolver func(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error)
+
 func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (bool, error) {
+	return collectDeviceAddresses(ctx, machineScope, addresses, handleIPAddresses)
+}
+
+// collectDeviceAddresses walks the machine's network devices and pools, resolves
+// each device/pool claim via the supplied resolver, and groups the resulting
+// addresses into the per-net/pool map (including the synthetic "default" net).
+// It returns requeue=true when any claim did not resolve to an address.
+func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress, resolve ipAddressResolver) (bool, error) {
 	// paranoidly handle callers handing us an empty map
 	if addresses == nil {
-		return false, errors.New("handleDevices called without a map")
+		return false, errors.New("collectDeviceAddresses called without a map")
 	}
 
 	networkSpec := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{})
@@ -248,7 +336,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 				ipClaimDef.Annotations[infrav1.ProxmoxDefaultGatewayAnnotation] = "true"
 			}
 
-			ipAddresses, err := handleIPAddresses(ctx, machineScope, ipClaimDef)
+			ipAddresses, err := resolve(ctx, machineScope, ipClaimDef)
 			if err != nil {
 				return true, errors.Wrapf(err, "unable to handle IPAddress for device %+v, pool %s", net.Name, ipPool.Name)
 			}
