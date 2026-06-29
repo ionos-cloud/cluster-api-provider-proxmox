@@ -14,9 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// File: pkg/proxmox/proxmoxtest/mock_client_test.go
-// Package: proxmoxtest
-
 package proxmoxtest
 
 import (
@@ -27,29 +24,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFindVMTemplateByTags_Return(t *testing.T) {
+func TestFindVMTemplatesByTags_Return(t *testing.T) {
 	m := NewMockClient(t)
-	m.EXPECT().FindVMTemplateByTags(mock.Anything, []string{"tag"}, "subset").
-		Run(func(_ context.Context, _ []string, _ string) {}).
-		Return("tmpl", int32(42), nil)
+	m.EXPECT().FindVMTemplatesByTags(mock.Anything, []string{"tag"}, []string{"node1"}, false, "exact").
+		Run(func(_ context.Context, _ []string, _ []string, _ bool, _ string) {}).
+		Return(map[string]int32{"node1": 42}, nil)
 
-	id, node, err := m.FindVMTemplateByTags(context.Background(), []string{"tag"}, "subset")
+	result, err := m.FindVMTemplatesByTags(context.Background(), []string{"tag"}, []string{"node1"}, false, "exact")
 	require.NoError(t, err)
-	require.Equal(t, "tmpl", id)
-	require.Equal(t, int32(42), node)
+	require.Equal(t, map[string]int32{"node1": 42}, result)
 }
 
-func TestFindVMTemplateByTags_RunAndReturn(t *testing.T) {
+func TestFindVMTemplatesByTags_RunAndReturn(t *testing.T) {
 	m := NewMockClient(t)
-	m.EXPECT().FindVMTemplateByTags(mock.Anything, []string{"a", "b"}, "exact").
-		RunAndReturn(func(_ context.Context, tags []string, policy string) (string, int32, error) {
+	m.EXPECT().FindVMTemplatesByTags(mock.Anything, []string{"a", "b"}, []string{"node1", "node2"}, true, "exact").
+		RunAndReturn(func(_ context.Context, tags []string, nodes []string, local bool, policy string) (map[string]int32, error) {
 			require.Equal(t, []string{"a", "b"}, tags)
+			require.Equal(t, []string{"node1", "node2"}, nodes)
+			require.True(t, local)
 			require.Equal(t, "exact", policy)
-			return "tmpl2", int32(7), nil
+			return map[string]int32{"node1": 7, "node2": 8}, nil
 		})
 
-	id, node, err := m.FindVMTemplateByTags(context.Background(), []string{"a", "b"}, "exact")
+	result, err := m.FindVMTemplatesByTags(context.Background(), []string{"a", "b"}, []string{"node1", "node2"}, true, "exact")
 	require.NoError(t, err)
-	require.Equal(t, "tmpl2", id)
-	require.Equal(t, int32(7), node)
+	require.Equal(t, map[string]int32{"node1": 7, "node2": 8}, result)
 }

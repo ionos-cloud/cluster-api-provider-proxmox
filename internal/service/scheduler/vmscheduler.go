@@ -44,24 +44,19 @@ func (err InsufficientMemoryError) Error() string {
 		err.requested, err.node, err.available)
 }
 
-// ScheduleVM decides which node to a ProxmoxMachine should be scheduled on.
-// It requires the machine's ProxmoxCluster to have at least 1 allowed node.
-func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, error) {
+// ScheduleVM decides which node a ProxmoxMachine should be scheduled on.
+// templateMap is a node→templateID map (from FindVMTemplatesByTags or GetTemplateMap).
+// allowedNodes is the pre-resolved list of candidate nodes.
+// Returns the selected node name and the corresponding templateID from templateMap.
+func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope, templateMap map[string]int32, allowedNodes []string) (string, int32, error) {
 	client := machineScope.InfraCluster.ProxmoxClient
-	// Use the default allowed nodes from the ProxmoxCluster.
-	allowedNodes := machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
 	schedulerHints := machineScope.InfraCluster.ProxmoxCluster.Spec.SchedulerHints
 	locations := machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.Workers
 	if util.IsControlPlaneMachine(machineScope.Machine) {
 		locations = machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.ControlPlane
 	}
 
-	// If ProxmoxMachine defines allowedNodes use them instead
-	if len(machineScope.ProxmoxMachine.Spec.AllowedNodes) > 0 {
-		allowedNodes = machineScope.ProxmoxMachine.Spec.AllowedNodes
-	}
-
-	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, schedulerHints)
+	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, schedulerHints, templateMap)
 }
 
 func selectNode(
@@ -71,12 +66,13 @@ func selectNode(
 	locations []infrav1.NodeLocation,
 	allowedNodes []string,
 	schedulerHints *infrav1.SchedulerHints,
-) (string, error) {
+	templateMap map[string]int32,
+) (string, int32, error) {
 	byMemory := make(sortByAvailableMemory, len(allowedNodes))
 	for i, nodeName := range allowedNodes {
 		mem, err := client.GetReservableMemoryBytes(ctx, nodeName, schedulerHints.GetMemoryAdjustment())
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 		byMemory[i] = nodeInfo{Name: nodeName, AvailableMemory: mem}
 	}
@@ -86,7 +82,7 @@ func selectNode(
 	requestedMemory := uint64(ptr.Deref(machine.Spec.MemoryMiB, 0)) * 1024 * 1024 // convert to bytes
 	if requestedMemory > byMemory[0].AvailableMemory {
 		// no more space on the node with the highest amount of available memory
-		return "", InsufficientMemoryError{
+		return "", 0, InsufficientMemoryError{
 			node:      byMemory[0].Name,
 			available: byMemory[0].AvailableMemory,
 			requested: requestedMemory,
@@ -128,7 +124,7 @@ func selectNode(
 		)
 	}
 
-	return decision, nil
+	return decision, templateMap[decision], nil
 }
 
 type resourceClient interface {

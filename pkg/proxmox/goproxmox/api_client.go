@@ -20,8 +20,8 @@ package goproxmox
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -145,8 +145,84 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 	return nil, fmt.Errorf("unable to find VM with ID %d on any of the nodes", vmID)
 }
 
-// FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
-func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string, matchPolicy string) (string, int32, error) {
+// FindVMTemplatesByTags finds VM templates by tags across the cluster.
+//
+// When localStorage is false (default), exactly one matching template is expected across
+// the whole cluster; returns a single-entry map {node: vmid}. matchPolicy controls tag matching.
+//
+// When localStorage is true, one template per node in allowedNodes is required;
+// returns a map of {node: vmid} for each node. matchPolicy controls tag matching per-node.
+// All nodes in allowedNodes must have exactly one matching template.
+func (c *APIClient) FindVMTemplatesByTags(ctx context.Context, templateTags []string, allowedNodes []string, localStorage bool, matchPolicy string) (map[string]int32, error) {
+	matchPolicy, err := validateMatchPolicy(matchPolicy)
+	if err != nil {
+		return nil, err
+	}
+	if localStorage {
+		return c.findVMTemplatesLocalStorage(ctx, templateTags, allowedNodes, matchPolicy)
+	}
+	node, vmid, err := c.findSingleVMTemplateByTags(ctx, templateTags, matchPolicy)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]int32{node: vmid}, nil
+}
+
+// validateMatchPolicy ensures matchPolicy is one of the supported values.
+// An empty policy falls back to "exact", matching the CRD default.
+func validateMatchPolicy(matchPolicy string) (string, error) {
+	switch infrav1.TemplateMatchPolicy(matchPolicy) {
+	case infrav1.TemplateMatchPolicyExact, infrav1.TemplateMatchPolicySubset, infrav1.TemplateMatchPolicyBest:
+		return matchPolicy, nil
+	case "":
+		return string(infrav1.TemplateMatchPolicyExact), nil
+	default:
+		return "", fmt.Errorf("%w: %q", ErrInvalidMatchPolicy, matchPolicy)
+	}
+}
+
+// normalizeTags lowercases, sorts and deduplicates the given tags in place.
+// It returns an error if a tag does not conform to the permitted character set.
+func normalizeTags(tags []string) ([]string, error) {
+	// permittedTagRegex matches the character set Proxmox allows for tags. It is the
+	// lowercase equivalent of the CRD validation pattern on tag fields.
+	permittedTagRegex := regexp.MustCompile(`^[a-z0-9_][a-z0-9_\-+.]*$`)
+	for i, tag := range tags {
+		tags[i] = strings.ToLower(tag)
+		if !permittedTagRegex.MatchString(tags[i]) {
+			return nil, fmt.Errorf("%w: tag %q does not match %q", ErrInvalidTag, tag, permittedTagRegex)
+		}
+	}
+	slices.Sort(tags)
+	return slices.Compact(tags), nil
+}
+
+// templateTagDistance reports whether vm is a template carrying all requiredTags
+// and how many extra tags it has beyond the required ones.
+func templateTagDistance(logger logr.Logger, vm *proxmox.ClusterResource, requiredTags []string) (int, bool) {
+	if vm.Template == 0 || len(vm.Tags) == 0 {
+		return 0, false
+	}
+
+	vmTagMap := make(map[string]struct{})
+	for _, tag := range strings.Split(vm.Tags, ";") {
+		vmTagMap[strings.ToLower(strings.TrimSpace(tag))] = struct{}{}
+	}
+
+	logger.V(4).Info("VM Template Tags", "Name", vm.Name, "Tags", vm.Tags)
+
+	for _, tag := range requiredTags {
+		if _, exists := vmTagMap[tag]; !exists {
+			return 0, false
+		}
+	}
+
+	return len(vmTagMap) - len(requiredTags), true
+}
+
+// findSingleVMTemplateByTags finds exactly one VM template across the cluster (shared storage path).
+// Preserves the original FindVMTemplateByTags behavior.
+func (c *APIClient) findSingleVMTemplateByTags(ctx context.Context, templateTags []string, matchPolicy string) (string, int32, error) {
 	logger := log.FromContext(ctx)
 
 	cluster, err := c.Cluster(ctx)
@@ -158,45 +234,27 @@ func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []str
 		return "", -1, fmt.Errorf("could not list vm resources: %w", err)
 	}
 
-	for i, tag := range templateTags {
-		// Proxmox VM tags are always lowercase
-		templateTags[i] = strings.ToLower(tag)
+	templateTags, err = normalizeTags(templateTags)
+	if err != nil {
+		return "", -1, err
 	}
-	// compact templateTags because of collisions after lowercasing
-	slices.Sort(templateTags)
-	templateTags = slices.Compact(templateTags)
 
 	var vmTemplate *proxmox.ClusterResource
 	matches, bestDistance := 0, int(^uint(0)>>1)
-NEXT_VM:
 	for _, vm := range vmResources {
-		if vm.Template == 0 || len(vm.Tags) == 0 {
-			continue NEXT_VM
+		distance, ok := templateTagDistance(logger, vm, templateTags)
+		if !ok {
+			continue
 		}
 
-		vmTagMap := make(map[string]string)
-		for _, tag := range strings.Split(vm.Tags, ";") {
-			vmTagMap[strings.ToLower(strings.TrimSpace(tag))] = ""
-		}
-
-		logger.V(4).Info("VM Template Tags", "Name", vm.Name, "Tags", maps.Values(vmTagMap))
-
-		for _, tag := range templateTags {
-			if _, exists := vmTagMap[tag]; !exists {
-				continue NEXT_VM
-			}
-		}
-
-		// distance is always >= 0 because all other cases already jump to NEXT_VM.
-		distance := len(vmTagMap) - len(templateTags)
 		switch infrav1.TemplateMatchPolicy(matchPolicy) {
 		case infrav1.TemplateMatchPolicyExact:
 			if distance != 0 {
-				continue NEXT_VM
+				continue
 			}
 		case infrav1.TemplateMatchPolicyBest:
 			if distance > bestDistance {
-				continue NEXT_VM
+				continue
 			}
 			bestDistance = distance
 		}
@@ -210,6 +268,87 @@ NEXT_VM:
 	}
 
 	return vmTemplate.Node, int32(vmTemplate.VMID), nil
+}
+
+// templateCandidate is a VM template considered for a node in the local storage path.
+type templateCandidate struct {
+	vmid     int32
+	distance int
+}
+
+// upsertTemplateCandidate records vm as the template candidate for its node, honoring
+// matchPolicy. It returns an error if more than one template matches on the same node.
+func upsertTemplateCandidate(perNode map[string]templateCandidate, vm *proxmox.ClusterResource, distance int, matchPolicy string, templateTags []string) error {
+	policy := infrav1.TemplateMatchPolicy(matchPolicy)
+	if policy == infrav1.TemplateMatchPolicyExact && distance != 0 {
+		return nil
+	}
+
+	existing, exists := perNode[vm.Node]
+	if exists && policy == infrav1.TemplateMatchPolicyBest && distance >= existing.distance {
+		return nil
+	}
+	if exists && (policy != infrav1.TemplateMatchPolicyBest || distance == existing.distance) {
+		return fmt.Errorf("%w: multiple VM templates found on node %q with tags %q", ErrMultipleTemplatesFound, vm.Node, strings.Join(templateTags, ";"))
+	}
+
+	perNode[vm.Node] = templateCandidate{vmid: int32(vm.VMID), distance: distance}
+	return nil
+}
+
+// findVMTemplatesLocalStorage finds one template per node in allowedNodes (local storage path).
+func (c *APIClient) findVMTemplatesLocalStorage(ctx context.Context, templateTags []string, allowedNodes []string, matchPolicy string) (map[string]int32, error) {
+	logger := log.FromContext(ctx)
+
+	if len(templateTags) == 0 {
+		return nil, fmt.Errorf("%w: no template tags defined", ErrTemplateNotFound)
+	}
+	if len(allowedNodes) == 0 {
+		return nil, fmt.Errorf("%w: no allowed nodes defined for local storage template lookup", ErrTemplateNotFound)
+	}
+
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
+	}
+	vmResources, err := cluster.Resources(ctx, "vm")
+	if err != nil {
+		return nil, fmt.Errorf("could not list VM resources: %w", err)
+	}
+
+	templateTags, err = normalizeTags(templateTags)
+	if err != nil {
+		return nil, err
+	}
+
+	allowedNodeSet := make(map[string]struct{}, len(allowedNodes))
+	for _, n := range allowedNodes {
+		allowedNodeSet[n] = struct{}{}
+	}
+
+	perNode := make(map[string]templateCandidate)
+	for _, vm := range vmResources {
+		if _, ok := allowedNodeSet[vm.Node]; !ok {
+			continue
+		}
+		distance, ok := templateTagDistance(logger, vm, templateTags)
+		if !ok {
+			continue
+		}
+		if err := upsertTemplateCandidate(perNode, vm, distance, matchPolicy, templateTags); err != nil {
+			return nil, err
+		}
+	}
+
+	result := make(map[string]int32, len(allowedNodes))
+	for _, node := range allowedNodes {
+		cand, ok := perNode[node]
+		if !ok {
+			return nil, fmt.Errorf("%w: no template found on node %q with tags %q", ErrTemplateNotFound, node, strings.Join(templateTags, ";"))
+		}
+		result[node] = cand.vmid
+	}
+	return result, nil
 }
 
 // DeleteVM deletes a VM based on the nodeName and vmID.
