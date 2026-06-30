@@ -315,8 +315,8 @@ If both are configured on the same NIC, that NIC receives multiple addresses (on
 ### Example: additive pools on `net0`
 
 ```yaml
-kind: ProxmoxMachineTemplate
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxMachineTemplate
 metadata:
   name: "test-control-plane"
 spec:
