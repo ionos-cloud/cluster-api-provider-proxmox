@@ -25,7 +25,7 @@ type VMCloneRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	Format      string `json:"format,omitempty"`
-	Full        uint8  `json:"full,omitempty"`
+	Full        bool   `json:"full,omitempty"`
 	Pool        string `json:"pool,omitempty"`
 	SnapName    string `json:"snapname,omitempty"`
 	Storage     string `json:"storage,omitempty"`

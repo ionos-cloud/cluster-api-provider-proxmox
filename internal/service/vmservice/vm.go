@@ -304,10 +304,10 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	sockets := ptr.Deref(machineScope.ProxmoxMachine.Spec.NumSockets, 0)
 	cores := ptr.Deref(machineScope.ProxmoxMachine.Spec.NumCores, 0)
 	memory := ptr.Deref(machineScope.ProxmoxMachine.Spec.MemoryMiB, 0)
-	if sockets > 0 && vmConfig.Sockets != int(sockets) {
+	if sockets > 0 && ptr.Deref(vmConfig.Sockets, 0) != int(sockets) {
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionSockets, Value: sockets})
 	}
-	if cores > 0 && vmConfig.Cores != int(cores) {
+	if cores > 0 && ptr.Deref(vmConfig.Cores, 0) != int(cores) {
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCores, Value: cores})
 	}
 	if memory > 0 && int(vmConfig.Memory) != int(memory) {
@@ -451,11 +451,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	if scope.ProxmoxMachine.Spec.Format != nil {
 		options.Format = string(*scope.ProxmoxMachine.Spec.Format)
 	}
-	var full uint8
-	if ptr.Deref(scope.ProxmoxMachine.Spec.Full, true) {
-		full = 1
-	}
-	options.Full = full
+	options.Full = ptr.Deref(scope.ProxmoxMachine.Spec.Full, true)
 	if scope.ProxmoxMachine.Spec.Pool != nil {
 		options.Pool = *scope.ProxmoxMachine.Spec.Pool
 	}

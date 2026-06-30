@@ -161,7 +161,7 @@ func shouldUpdateNetworkDevices(machineScope *scope.MachineScope) bool {
 		return false
 	}
 
-	nets := machineScope.VirtualMachine.VirtualMachineConfig.MergeNets()
+	nets := machineScope.VirtualMachine.VirtualMachineConfig.Nets
 
 	devices := machineScope.ProxmoxMachine.Spec.Network.NetworkDevices
 	for _, v := range devices {
