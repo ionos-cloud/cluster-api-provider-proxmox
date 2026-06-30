@@ -247,7 +247,7 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		}
 	}
 
-	task, err := vm.Delete(ctx)
+	task, err := vm.Delete(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
 	}
