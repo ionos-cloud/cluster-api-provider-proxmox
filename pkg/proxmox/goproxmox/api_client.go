@@ -85,7 +85,7 @@ func (c *APIClient) CloneVM(ctx context.Context, templateID int, clone capmox.VM
 		NewID:       clone.NewID,
 		Description: clone.Description,
 		Format:      clone.Format,
-		Full:        clone.Full,
+		Full:        proxmox.IntOrBool(clone.Full),
 		Name:        clone.Name,
 		Pool:        clone.Pool,
 		SnapName:    clone.SnapName,
