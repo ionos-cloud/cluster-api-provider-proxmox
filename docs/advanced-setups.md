@@ -176,6 +176,52 @@ This behaviour can be configured in the `ProxmoxCluster` CR through the field `.
 
 For example, setting it to `0` (zero), entirely disables scheduling based on memory. Alternatively, if you set it to any value greater than `0`, the scheduler will treat your host as it would have `${value}%` of memory. In real numbers that would mean, if you have a host with 64GB of memory and set the number to `300`, the scheduler would allow you to provision guests with a total of 192GB memory and therefore overprovision the host. (Use with caution! It's strongly suggested to have memory ballooning configured everywhere.). Or, if you were to set it to `95` for example, it would treat your host as it would only have 60,8GB of memory, and leave the remaining 3,2GB for the host.
 
+#### CPU-aware scheduling
+
+On heterogeneous Proxmox clusters — where nodes have different CPU core counts — the default memory-only scheduler distributes VMs by memory headroom alone, which can cause CPU overcommit on nodes with fewer cores.
+
+Setting `.spec.schedulerHints.cpuAdjustment` to a value greater than `0` adds CPU as a hard-fit constraint and as a scoring dimension alongside memory. For each candidate node, the scheduler computes a per-resource score based on remaining headroom after hypothetical placement: free capacity in the physical range counts fully, free capacity in the overcommit range counts less, and nodes close to saturation are penalized non-linearly. The two per-resource scores are then combined with weights derived from `memoryTolerance` and `cpuTolerance`, and the node with the highest total score wins.
+
+Two separate knobs control the behaviour:
+
+- **Adjustment** — how much overcommit to allow. `cpuAdjustment: 300` means a 64-core host can allocate up to 192 vCPUs; `cpuAdjustment: 100` disables overcommit.
+- **Tolerance** — how acceptable it is to saturate a resource, in `[0, 100]`. Higher tolerance means the scheduler is *more willing* to fill up that resource, so it contributes less to the decision.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `cpuAdjustment` | `0` | CPU not considered: no hard-fit check, no contribution to the score. Set to `100`+ to enable CPU-aware scoring. |
+| `memoryAdjustment` | `100` | Memory allocatable as `phys × value/100`. Values below 100 reserve memory for the host. |
+| `cpuTolerance` | `100` | By default CPU is only a hard-fit constraint; it does not drive the choice between fitting nodes. Lower it (e.g. `50`) to actively spread VMs across CPU capacity. |
+| `memoryTolerance` | `0` | Memory is fully protected: the scheduler always prefers nodes with more free memory. |
+
+**Example 1 — spread VMs across CPU while still protecting memory:**
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxCluster
+spec:
+  schedulerHints:
+    memoryAdjustment: 100
+    cpuAdjustment: 300
+    cpuTolerance: 50     # CPU spreading has moderate weight in the decision
+    memoryTolerance: 0   # memory always has maximum weight (default)
+```
+
+**Example 2 — RAM-constrained cluster, CPU headroom available:**
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxCluster
+spec:
+  schedulerHints:
+    memoryAdjustment: 95    # reserve 5% of RAM for the hypervisor
+    cpuAdjustment: 200
+    memoryTolerance: 0      # memory is precious (default)
+    cpuTolerance: 100       # CPU saturation is tolerated (default)
+```
+
+When `cpuAdjustment` is enabled, CPU and memory are **hard-fit constraints**: if no node can fit the requested VM (computed from `numSockets × numCores` and `memoryMiB` on the `ProxmoxMachine`), provisioning fails with `InsufficientCPUError` or `InsufficientMemoryError` respectively.
+
 ## Template lookup based on Proxmox tags
 
 Our provider is able to look up templates based on their attached tags, for `ProxmoxMachine` resources, that make use of a tag selector.
