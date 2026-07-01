@@ -116,10 +116,16 @@ jobs:
       - run: make verify
       - run: make test
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      # Upload even on failure: sonar runs on test failure too, and `go test`
+      # writes the coverage profile before its non-zero exit, so a failing run
+      # still gets a sonar report. If the file is missing (catastrophic failure)
+      # the upload just fails and sonar has nothing to run against anyway.
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: go-coverage-${{ matrix.go }}
           path: cover.out
+          if-no-files-found: error
           retention-days: 7
 
   test-sh:
@@ -157,7 +163,10 @@ jobs:
 
       - run: make test-sh
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      # Upload even on failure (see test-go): kcov writes sonarqube.xml before
+      # make test-sh's exit code, so a failing run still feeds sonar.
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sh-coverage
           path: hack/spec/coverage/sonarqube.xml
