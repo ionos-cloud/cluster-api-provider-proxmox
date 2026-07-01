@@ -2,7 +2,11 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.34.1
+ENVTEST_K8S_VERSION ?= $(shell hack/envtest-ver.sh)
+
+.PHONY: print-envtest-ver
+print-envtest-ver:
+	@echo $(ENVTEST_K8S_VERSION)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -147,6 +151,10 @@ verify: fix fmt generate manifests mockgen tidy vet ## verify the manifests and 
 		exit 1 ;\
 	fi
 
+.PHONY: verify-versions
+verify-versions: ## Verify repository version definitions are consistent.
+	hack/verify-versions.sh
+
 .PHONY: govulncheck
 govulncheck: ## Run govulncheck to check for known vulnerabilities in the code.
 	go tool govulncheck ./...
@@ -174,7 +182,17 @@ deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/c
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	go tool kustomize build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
+SHELLSPEC_ARGS ?=
+
 ##@ Test
+
+.PHONY: lint-sh
+lint-sh: ## Run shellcheck on hack/ scripts.
+	shellcheck hack/*.sh
+
+.PHONY: test-sh
+test-sh: ## Run ShellSpec tests for hack/ scripts with kcov coverage.
+	cd hack/spec && shellspec --kcov --kcov-options='--include-path=$(CURDIR)/hack/' $(SHELLSPEC_ARGS)
 
 .PHONY: tilt-up
 tilt-up: ## Start Tilt in a kind cluster.
