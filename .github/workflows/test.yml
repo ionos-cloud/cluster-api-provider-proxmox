@@ -4,7 +4,7 @@
 #                No PR code execution.
 #   test-go    — PR Go code runs in a digest-pinned Go container with
 #                permissions:{} to avoid cache poisoning.
-#   test-sh    — PR shell tests run on ubuntu-slim with permissions:{},
+#   test-sh    — PR shell tests run on ubuntu-26.04 with permissions:{},
 #                gated by pre-screen exactly like test-go.
 #   sonar      — environment-gated SONAR_TOKEN; upstream and PR trees in
 #                separate paths. Scanner reads PR sources with upstream config
@@ -132,7 +132,8 @@ jobs:
     needs: pre-screen
     # Same pre-screen gate as test-go: fork PRs touching hack/ are already blocked, so running PR shell code here is as safe as test-go.
     if: always() && (needs.pre-screen.result == 'success' || needs.pre-screen.result == 'skipped')
-    runs-on: ubuntu-slim
+    # ubuntu-26.04 ships yq and, unlike 24.04, has kcov (v43, emits sonarqube.xml) in its repos.
+    runs-on: ubuntu-26.04
     permissions: {}
     env:
       GOTOOLCHAIN: local
