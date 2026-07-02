@@ -2,6 +2,14 @@ name: e2e
 
 on:
   workflow_call:
+    inputs:
+      event-name:
+        description: >-
+          The caller's github.event_name (push / pull_request / pull_request_target). Passed
+          explicitly so this workflow branches on the trigger without reading github.event_name
+          inside a called workflow — which does hold the caller's event, but is repeatedly misread.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -25,14 +33,14 @@ jobs:
           # Fork code runs here (pull_request_target via e2e-external.yml); keep the GITHUB_TOKEN out of
           # .git/config so make test-e2e can't read it.
           persist-credentials: false
-          # actions/checkout v7 refuses fork-PR checkout under pull_request_target unless opted in. Only
-          # the pull_request_target path (e2e-external.yml: forks + dependabot) can trip that guard, so
-          # scope the opt-in to that event; it stays false on the e2e-main.yml path (push / same-repo
-          # pull_request). e2e runs the checked-out code against real PROXMOX_* secrets on the self-hosted
-          # runner, so execution and secrets are inseparable — the security boundary is the environment:
-          # e2e manual-approval gate, where the approver MUST review the diff for exfiltration before
-          # approving. Do not weaken that gate.
-          allow-unsafe-pr-checkout: ${{ github.event_name == 'pull_request_target' }}
+          # actions/checkout v7 refuses fork-PR checkout under pull_request_target unless opted in. That
+          # guard only fires for a fork PR on the e2e-external.yml (pull_request_target) path; on the
+          # e2e-main.yml paths (push / same-repo pull_request) and for dependabot (non-fork) it never
+          # triggers, so `true` is a no-op there and weakens nothing. e2e runs the checked-out code
+          # against real PROXMOX_* secrets on the self-hosted runner, so execution and secrets are
+          # inseparable — the security boundary is the environment: e2e manual-approval gate, where the
+          # approver MUST review the diff for exfiltration before approving. Do not weaken that gate.
+          allow-unsafe-pr-checkout: true
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
@@ -43,7 +51,7 @@ jobs:
           # Skip Flatcar unless it's a push to main or the e2e/flatcar label is set. Inverted so the
           # surviving branch is the truthy 'Flatcar' string: '' is falsy in Actions expressions, so a
           # `cond && '' || 'Flatcar'` form would always fall through to 'Flatcar' and never run Flatcar.
-          SKIP_E2E: ${{ (github.event_name != 'push' && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
+          SKIP_E2E: ${{ (inputs.event-name != 'push' && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
 
       - name: Upload logs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
