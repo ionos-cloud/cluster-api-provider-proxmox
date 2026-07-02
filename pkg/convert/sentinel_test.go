@@ -484,7 +484,7 @@ func TestGenerateSentinel(t *testing.T) {
 
 	// bool sentinel
 	s = generateSentinel("bool", &intCounter, "")
-	if s != "true" {
+	if s != "true" { //nolint:goconst
 		t.Errorf("bool sentinel = %q, want true", s)
 	}
 
