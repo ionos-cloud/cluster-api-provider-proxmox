@@ -3,11 +3,7 @@ name: e2e
 on:
   workflow_call:
     inputs:
-      event-name:
-        description: >-
-          The caller's github.event_name (push / pull_request / pull_request_target). Passed
-          explicitly so this workflow branches on the trigger without reading github.event_name
-          inside a called workflow — which does hold the caller's event, but is repeatedly misread.
+      event_name:
         required: true
         type: string
 
@@ -43,7 +39,7 @@ jobs:
           # Skip Flatcar unless it's a push to main or the e2e/flatcar label is set. Inverted so the
           # surviving branch is the truthy 'Flatcar' string: '' is falsy in Actions expressions, so a
           # `cond && '' || 'Flatcar'` form would always fall through to 'Flatcar' and never run Flatcar.
-          SKIP_E2E: ${{ (inputs.event-name != 'push' && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
+          SKIP_E2E: ${{ (inputs.event_name != 'push' && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
 
       - name: Upload logs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
