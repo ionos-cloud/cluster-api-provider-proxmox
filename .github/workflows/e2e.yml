@@ -30,8 +30,6 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          # Fork code runs here (pull_request_target via e2e-external.yml); keep the GITHUB_TOKEN out of
-          # .git/config so make test-e2e can't read it.
           persist-credentials: false
           # checkout v7 requires this for fork-PR head checkout under pull_request_target.
           allow-unsafe-pr-checkout: true
