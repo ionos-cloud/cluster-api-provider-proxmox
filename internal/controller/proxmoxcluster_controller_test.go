@@ -450,7 +450,7 @@ func setCredentialsRefOnProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster, s
 		return ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
-		Should(BeNil())
+		Should(Succeed())
 }
 
 func setRandomCredentialsRefOnProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster) {
@@ -464,7 +464,7 @@ func setRandomCredentialsRefOnProxmoxCluster(proxmoxCluster *infrav1.ProxmoxClus
 		return ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
-		Should(BeNil())
+		Should(Succeed())
 }
 
 func createOwnerCluster(proxmoxCluster *infrav1.ProxmoxCluster) *clusterv1.Cluster {
@@ -499,7 +499,7 @@ func setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster *infrav1.ProxmoxClust
 		return ph.Patch(testEnv.GetContext(), proxmoxCluster, patch.WithStatusObservedGeneration{})
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
-		Should(BeNil())
+		Should(Succeed())
 }
 
 func setRandomOwnerRefOnSecret(secret *corev1.Secret, ownerRef string) {
@@ -517,7 +517,7 @@ func setRandomOwnerRefOnSecret(secret *corev1.Secret, ownerRef string) {
 		return ph.Patch(testEnv.GetContext(), secret, patch.WithStatusObservedGeneration{})
 	}).WithTimeout(time.Second * 10).
 		WithPolling(time.Second).
-		Should(BeNil())
+		Should(Succeed())
 }
 
 func refreshCluster(proxmoxCluster *infrav1.ProxmoxCluster) *infrav1.ProxmoxCluster {
