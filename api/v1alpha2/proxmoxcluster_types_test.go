@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -213,6 +214,40 @@ func TestRemoveNodeLocation(t *testing.T) {
 
 	cl.RemoveNodeLocation("m4", true)
 	require.Len(t, cl.Status.NodeLocations.ControlPlane, 0)
+}
+
+func TestGetZoneNodes(t *testing.T) {
+	cl := &ProxmoxCluster{
+		Spec: ProxmoxClusterSpec{
+			ZoneConfigs: []ZoneConfigSpec{
+				{
+					Zone:  ptr.To("zone-a"),
+					Nodes: []string{"pve1", "pve2"},
+				},
+				{
+					Zone: ptr.To("zone-b"),
+					// No nodes explicitly set.
+				},
+			},
+		},
+	}
+
+	// Zone found with nodes.
+	nodes := cl.GetZoneNodes("zone-a")
+	require.Equal(t, []string{"pve1", "pve2"}, nodes)
+
+	// Zone found without nodes.
+	nodes = cl.GetZoneNodes("zone-b")
+	require.Nil(t, nodes)
+
+	// Zone not found.
+	nodes = cl.GetZoneNodes("zone-c")
+	require.Nil(t, nodes)
+
+	// Empty ZoneConfigs.
+	empty := &ProxmoxCluster{}
+	nodes = empty.GetZoneNodes("anything")
+	require.Nil(t, nodes)
 }
 
 func TestSetInClusterIPPoolRef(t *testing.T) {
