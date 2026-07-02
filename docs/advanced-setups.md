@@ -302,33 +302,70 @@ With the following config, you can override what has been set in the Proxmox Clu
 
 ## Custom Default Network IP Pool for ProxmoxMachine
 
-Like the Allowed Nodes, in the past we couldn't set a custom IP Pool for the default network device, everything was tied to the ProxmoxCluster IP Config.
-Now, you can also customize the IP Pool for the default network device, just by setting the `ipv4PoolRef` and/or `ipv6PoolRef`.
+In `v1alpha2`, `network.default` / `network.additionalDevices` were replaced by
+`network.networkDevices`, and `ipv4PoolRef` / `ipv6PoolRef` were replaced by `ipPoolRef`.
 
-```diff
+Important: pool references are **additive**.
+
+- `defaultIPv4` / `defaultIPv6` attach addresses from the selected cluster zone (default zone if `network.zone` is not set).
+- `networkDevices[].ipPoolRef` adds more addresses from the listed pools.
+
+If both are configured on the same NIC, that NIC receives multiple addresses (one per pool).
+
+### Example: additive pools on `net0`
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 metadata:
   name: "test-control-plane"
 spec:
   template:
     spec:
-     sourceNode: "pve"
-     templateID: 1000
-     format: "qcow2"
-     full: true
-     network:
-       default:
-         bridge: ${BRIDGE}
-         model: virtio
-+        ipv4PoolRef:
-+          apiGroup: ipam.cluster.x-k8s.io
-+          kind: GlobalInClusterIPPool
-+          name: shared-inclusterippool
+      network:
+        networkDevices:
+        - name: net0
+          bridge: ${BRIDGE}
+          defaultIPv4: true
+          ipPoolRef:
+          - apiGroup: ipam.cluster.x-k8s.io
+            kind: GlobalInClusterIPPool
+            name: shared-inclusterippool
 ```
 
-You can set either `ipv4PoolRef` or `ipv6PoolRef` or you can also set them both for dual-stack.
-It's up for you also to manage the IP Pool, you can choose a `GlobalInClusterIPPool` or an `InClusterIPPool`.
+### Avoiding this behavior
+
+If you want only one address source for the primary NIC, configure and select a dedicated zone:
+
+1. Define `spec.zoneConfig` on `ProxmoxCluster`.
+2. Set `spec.template.spec.network.zone` on `ProxmoxMachineTemplate`.
+3. Do not add extra `ipPoolRef` entries on that NIC unless you explicitly want additional IPs.
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxCluster
+spec:
+  zoneConfig:
+  - zone: "my-zone"
+    ipv4Config:
+      addresses:
+      - 10.0.1.10-10.0.1.50
+      prefix: 24
+      gateway: 10.0.1.1
+    dnsServers: [8.8.8.8]
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxMachineTemplate
+spec:
+  template:
+    spec:
+      network:
+        zone: "my-zone"
+        networkDevices:
+        - name: net0
+          bridge: ${BRIDGE}
+          defaultIPv4: true
+```
 
 ## Notes
 
