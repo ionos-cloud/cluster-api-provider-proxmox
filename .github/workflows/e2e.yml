@@ -22,6 +22,9 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Fork code runs here (pull_request_target via e2e-external.yml); keep the GITHUB_TOKEN out of
+          # .git/config so make test-e2e can't read it.
+          persist-credentials: false
           # actions/checkout v7 refuses fork-PR checkout under pull_request_target unless opted in.
           # Load-bearing only via e2e-external.yml (fork PRs under pull_request_target); a no-op on the
           # e2e-main.yml path (push / non-fork pull_request). e2e must run fork code against the real
@@ -36,7 +39,10 @@ jobs:
 
       - run: make test-e2e "GINKGO_SKIP=$SKIP_E2E"
         env:
-          SKIP_E2E: ${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && '' || 'Flatcar' }}
+          # Skip Flatcar unless it's a push to main or the e2e/flatcar label is set. Inverted so the
+          # surviving branch is the truthy 'Flatcar' string: '' is falsy in Actions expressions, so a
+          # `cond && '' || 'Flatcar'` form would always fall through to 'Flatcar' and never run Flatcar.
+          SKIP_E2E: ${{ (github.event_name != 'push' && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
 
       - name: Upload logs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
