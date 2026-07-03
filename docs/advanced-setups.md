@@ -324,13 +324,13 @@ spec:
     spec:
       network:
         networkDevices:
-        - name: net0
-          bridge: ${BRIDGE}
-          defaultIPv4: true
-          ipPoolRef:
-          - apiGroup: ipam.cluster.x-k8s.io
-            kind: GlobalInClusterIPPool
-            name: shared-inclusterippool
+          - name: net0
+            bridge: ${BRIDGE}
+            defaultIPv4: true
+            ipPoolRef:
+              - apiGroup: ipam.cluster.x-k8s.io
+                kind: GlobalInClusterIPPool
+                name: shared-inclusterippool
 ```
 
 ### Avoiding this behavior
@@ -346,14 +346,19 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxCluster
 spec:
   dnsServers: [8.8.8.8]
+  ipv4Config:
+    addresses:
+      - 10.0.0.10-10.0.0.50
+    prefix: 24
+    gateway: 10.0.0.1
   zoneConfig:
-  - zone: "my-zone"
-    ipv4Config:
-      addresses:
-      - 10.0.1.10-10.0.1.50
-      prefix: 24
-      gateway: 10.0.1.1
-    dnsServers: [8.8.8.8]
+    - zone: "my-zone"
+      ipv4Config:
+        addresses:
+          - 10.0.1.10-10.0.1.50
+        prefix: 24
+        gateway: 10.0.1.1
+      dnsServers: [8.8.8.8]
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxMachineTemplate
@@ -363,9 +368,9 @@ spec:
       network:
         zone: "my-zone"
         networkDevices:
-        - name: net0
-          bridge: ${BRIDGE}
-          defaultIPv4: true
+          - name: net0
+            bridge: ${BRIDGE}
+            defaultIPv4: true
 ```
 
 ## Notes
