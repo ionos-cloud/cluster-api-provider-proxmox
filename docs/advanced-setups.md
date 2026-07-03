@@ -310,7 +310,7 @@ Important: pool references are **additive**.
 - `defaultIPv4` / `defaultIPv6` attach addresses from the selected cluster zone (default zone if `network.zone` is not set).
 - `networkDevices[].ipPoolRef` adds more addresses from the listed pools.
 
-If both are configured on the same NIC, that NIC receives multiple addresses (one per pool).
+If both are configured on the same NIC, that NIC receives multiple addresses (one per configured pool reference).
 
 ### Example: additive pools on `net0`
 
