@@ -32,6 +32,9 @@ const (
 	typeInt    = "int"
 	typeBool   = "bool"
 	typeArray  = "array"
+
+	sTrue  = "true"
+	sFalse = "false"
 )
 
 // SentinelEntry maps an envsubst expression to its sentinel replacement.
@@ -149,7 +152,7 @@ func inferType(expr, yamlText string) string {
 		if _, err := strconv.Atoi(defaultVal); err == nil {
 			return typeInt
 		}
-		if defaultVal == "true" || defaultVal == "false" {
+		if defaultVal == sTrue || defaultVal == sFalse {
 			return typeBool
 		}
 		if strings.HasPrefix(defaultVal, "[") {
@@ -244,7 +247,7 @@ func generateSentinel(typ string, intCounter *int, yamlText string) string {
 			return s
 		})
 	case typeBool:
-		return "true"
+		return sTrue
 	case typeArray:
 		return generateUnique(yamlText, randomArraySentinel)
 	default: // string
