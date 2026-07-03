@@ -36,9 +36,7 @@ jobs:
 
       - run: make test-e2e "GINKGO_SKIP=$SKIP_E2E"
         env:
-          # Skip Flatcar unless it's a push to main or the e2e/flatcar label is set. Inverted so the
-          # surviving branch is the truthy 'Flatcar' string: '' is falsy in Actions expressions, so a
-          # `cond && '' || 'Flatcar'` form would always fall through to 'Flatcar' and never run Flatcar.
+          # Skip Flatcar unless it's a push to main or the e2e/flatcar label is set.
           SKIP_E2E: ${{ (inputs.event_name != 'push' && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
 
       - name: Upload logs
@@ -50,7 +48,7 @@ jobs:
           retention-days: 7
 
       - name: Clean up kind clusters
-        if: always()
+        if: always() || success() || failure()
         run: |
           go tool kind get clusters | xargs -I% go tool kind delete cluster --name %
           docker system prune -a -f
