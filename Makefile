@@ -63,8 +63,8 @@ GOLANGCI_LINT_EXTRA_ARGS ?=
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT_KAL) ## Run linters.
-	go tool golangci-lint run -v $(GOLANGCI_LINT_EXTRA_ARGS)
-	$(GOLANGCI_LINT_KAL) run -v --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
+	go tool golangci-lint run $(GOLANGCI_LINT_EXTRA_ARGS)
+	$(GOLANGCI_LINT_KAL) run --config .golangci-kal.yml $(GOLANGCI_LINT_EXTRA_ARGS)
 
 .PHONY: lint-fix
 lint-fix: ## Run linters with auto-fix.
