@@ -207,7 +207,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		}
 		poolSpec.Pool = pool
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
-			APIGroup: new(ipamicv1.GroupVersion.String()),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Name:     pool.Name,
 			Kind:     GetInClusterIPPoolKind(),
 		}
@@ -230,7 +230,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		}
 		poolSpec.Pool = pool
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
-			APIGroup: new(ipamicv1.GroupVersion.String()),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Name:     pool.Name,
 			Kind:     GetInClusterIPPoolKind(),
 		}
