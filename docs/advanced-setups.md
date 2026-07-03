@@ -345,6 +345,7 @@ If you want only one address source for the primary NIC, configure and select a 
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
 kind: ProxmoxCluster
 spec:
+  dnsServers: [8.8.8.8]
   zoneConfig:
   - zone: "my-zone"
     ipv4Config:
