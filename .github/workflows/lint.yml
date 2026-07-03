@@ -14,7 +14,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: golangci-lint
-        run: go tool golangci-lint run --timeout 10m
+        run: go tool golangci-lint run -v --timeout 10m
 
   lint-api:
     name: lint-api
@@ -27,7 +27,7 @@ jobs:
       - name: build kube-api-linter
         run: go tool golangci-lint custom
       - name: kube-api-linter
-        run: ./bin/golangci-lint-kube-api-linter run --timeout 10m --config .golangci-kal.yml
+        run: ./bin/golangci-lint-kube-api-linter run -v --timeout 10m --config .golangci-kal.yml
 
   yamllint:
     name: yamllint
