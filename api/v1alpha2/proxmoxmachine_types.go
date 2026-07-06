@@ -102,6 +102,12 @@ type ProxmoxMachineSpec struct {
 	// +optional
 	Disks *Storage `json:"disks,omitempty"`
 
+	// pciDevices is a list of host PCI devices to pass through to the VM.
+	// Applied before the first startup alongside other hardware configuration.
+	// +optional
+	// +listType=atomic
+	PCIDevices []PCIDevice `json:"pciDevices,omitempty"`
+
 	// network is the network configuration for this machine's VM.
 	// +required
 	//nolint:kubeapilinter
@@ -172,6 +178,28 @@ type DiskSize struct {
 	// +kubebuilder:validation:Minimum=5
 	// +required
 	SizeGB int32 `json:"sizeGb,omitempty"`
+}
+
+// PCIDevice defines a host PCI device to pass through to the VM.
+type PCIDevice struct {
+	// deviceID is the host PCI device address (e.g. "0000:01:00", "01:00.0").
+	// Multiple devices can be mapped using a semicolon-separated list for SR-IOV.
+	// +kubebuilder:validation:MinLength=1
+	// +required
+	DeviceID string `json:"deviceID,omitempty"`
+
+	// pcie enables PCIe mode (recommended for modern devices and GPUs).
+	// Defaults to false (PCI mode).
+	// +optional
+	PCIe *bool `json:"pcie,omitempty"`
+
+	// rombar makes the option ROM visible to the guest.
+	// +optional
+	ROMBar *bool `json:"rombar,omitempty"`
+
+	// primaryGPU marks this device as the primary GPU and sets x-vga=1 in the Proxmox config.
+	// +optional
+	PrimaryGPU *bool `json:"primaryGPU,omitempty"`
 }
 
 // TargetFileStorageFormat the target format of the cloned disk.

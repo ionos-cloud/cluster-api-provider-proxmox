@@ -1209,6 +1209,38 @@ spec:
                         format: int32
                         minimum: 1
                         type: integer
+                      pciDevices:
+                        description: |-
+                          pciDevices is a list of host PCI devices to pass through to the VM.
+                          Applied before the first startup alongside other hardware configuration.
+                        items:
+                          description: PCIDevice defines a host PCI device to pass
+                            through to the VM.
+                          properties:
+                            deviceID:
+                              description: |-
+                                deviceID is the host PCI device address (e.g. "0000:01:00", "01:00.0").
+                                Multiple devices can be mapped using a semicolon-separated list for SR-IOV.
+                              minLength: 1
+                              type: string
+                            pcie:
+                              description: |-
+                                pcie enables PCIe mode (recommended for modern devices and GPUs).
+                                Defaults to false (PCI mode).
+                              type: boolean
+                            primaryGPU:
+                              description: primaryGPU marks this device as the primary
+                                GPU and sets x-vga=1 in the Proxmox config.
+                              type: boolean
+                            rombar:
+                              description: rombar makes the option ROM visible to
+                                the guest.
+                              type: boolean
+                          required:
+                          - deviceID
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
                       pool:
                         description: pool Add the new VM to the specified pool.
                         type: string

@@ -322,6 +322,61 @@ func TestFormatNetworkDevice(t *testing.T) {
 	require.Equal(t, "virtio,bridge=vmbr0,mtu=1500,tag=100,queues=4", formatNetworkDevice("virtio", "vmbr0", new(int32(1500)), new(int32(100)), new(int32(4))))
 }
 
+func TestFormatPCIDevice(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+	tests := []struct {
+		name     string
+		dev      infrav1.PCIDevice
+		expected string
+	}{
+		{
+			name:     "device ID only",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00"},
+			expected: "0000:01:00",
+		},
+		{
+			name:     "pcie enabled",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PCIe: boolPtr(true)},
+			expected: "0000:01:00,pcie=1",
+		},
+		{
+			name:     "pcie disabled",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PCIe: boolPtr(false)},
+			expected: "0000:01:00",
+		},
+		{
+			name:     "rombar enabled",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", ROMBar: boolPtr(true)},
+			expected: "0000:01:00,rombar=1",
+		},
+		{
+			name:     "rombar disabled",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", ROMBar: boolPtr(false)},
+			expected: "0000:01:00,rombar=0",
+		},
+		{
+			name:     "primary GPU",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PrimaryGPU: boolPtr(true)},
+			expected: "0000:01:00,x-vga=1",
+		},
+		{
+			name:     "all options",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PCIe: boolPtr(true), ROMBar: boolPtr(true), PrimaryGPU: boolPtr(true)},
+			expected: "0000:01:00,pcie=1,rombar=1,x-vga=1",
+		},
+		{
+			name:     "sriov semicolon-list",
+			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00;0000:01:01", PCIe: boolPtr(true)},
+			expected: "0000:01:00;0000:01:01,pcie=1",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, formatPCIDevice(tc.dev))
+		})
+	}
+}
+
 func TestExtractMACAddress(t *testing.T) {
 	type match struct {
 		test     string
