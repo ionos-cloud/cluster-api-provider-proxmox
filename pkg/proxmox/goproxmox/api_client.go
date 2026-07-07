@@ -85,7 +85,7 @@ func (c *APIClient) CloneVM(ctx context.Context, templateID int, clone capmox.VM
 		NewID:       clone.NewID,
 		Description: clone.Description,
 		Format:      clone.Format,
-		Full:        clone.Full,
+		Full:        proxmox.IntOrBool(clone.Full),
 		Name:        clone.Name,
 		Pool:        clone.Pool,
 		SnapName:    clone.SnapName,
@@ -247,7 +247,7 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		}
 	}
 
-	task, err := vm.Delete(ctx)
+	task, err := vm.Delete(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
 	}

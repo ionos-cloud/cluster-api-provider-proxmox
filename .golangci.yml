@@ -9,6 +9,7 @@ linters:
     - copyloopvar
     - dogsled
     - errcheck
+    - ginkgolinter
     - goconst
     - gocritic
     - gocyclo
