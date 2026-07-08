@@ -1342,12 +1342,14 @@ spec:
                   description: PCIDevice defines a host PCI device to pass through
                     to the VM.
                   properties:
-                    deviceID:
+                    deviceIDs:
                       description: |-
-                        deviceID is the host PCI device address (e.g. "0000:01:00", "01:00.0").
-                        Multiple devices can be mapped using a semicolon-separated list for SR-IOV.
-                      minLength: 1
-                      type: string
+                        deviceIDs are the host PCI device addresses for this slot (e.g. "0000:01:00", "01:00.0").
+                        Multiple entries are passed through together as a single logical device for SR-IOV.
+                      items:
+                        type: string
+                      minItems: 1
+                      type: array
                     pcie:
                       description: |-
                         pcie enables PCIe mode (recommended for modern devices and GPUs).
@@ -1361,7 +1363,7 @@ spec:
                       description: rombar makes the option ROM visible to the guest.
                       type: boolean
                   required:
-                  - deviceID
+                  - deviceIDs
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic

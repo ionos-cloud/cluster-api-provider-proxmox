@@ -235,7 +235,7 @@ func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32, queues *
 // e.g. "0000:01:00,pcie=1,x-vga=1".
 func formatPCIDevice(dev infrav1.PCIDevice) string {
 	var sb strings.Builder
-	sb.WriteString(dev.DeviceID)
+	sb.WriteString(strings.Join(dev.DeviceIDs, ";"))
 	if ptr.Deref(dev.PCIe, false) {
 		sb.WriteString(",pcie=1")
 	}

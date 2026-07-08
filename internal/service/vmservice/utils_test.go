@@ -331,42 +331,42 @@ func TestFormatPCIDevice(t *testing.T) {
 	}{
 		{
 			name:     "device ID only",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00"},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00"}},
 			expected: "0000:01:00",
 		},
 		{
 			name:     "pcie enabled",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PCIe: boolPtr(true)},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00"}, PCIe: boolPtr(true)},
 			expected: "0000:01:00,pcie=1",
 		},
 		{
 			name:     "pcie disabled",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PCIe: boolPtr(false)},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00"}, PCIe: boolPtr(false)},
 			expected: "0000:01:00",
 		},
 		{
 			name:     "rombar enabled",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", ROMBar: boolPtr(true)},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00"}, ROMBar: boolPtr(true)},
 			expected: "0000:01:00,rombar=1",
 		},
 		{
 			name:     "rombar disabled",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", ROMBar: boolPtr(false)},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00"}, ROMBar: boolPtr(false)},
 			expected: "0000:01:00,rombar=0",
 		},
 		{
 			name:     "primary GPU",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PrimaryGPU: boolPtr(true)},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00"}, PrimaryGPU: boolPtr(true)},
 			expected: "0000:01:00,x-vga=1",
 		},
 		{
 			name:     "all options",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00", PCIe: boolPtr(true), ROMBar: boolPtr(true), PrimaryGPU: boolPtr(true)},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00"}, PCIe: boolPtr(true), ROMBar: boolPtr(true), PrimaryGPU: boolPtr(true)},
 			expected: "0000:01:00,pcie=1,rombar=1,x-vga=1",
 		},
 		{
 			name:     "sriov semicolon-list",
-			dev:      infrav1.PCIDevice{DeviceID: "0000:01:00;0000:01:01", PCIe: boolPtr(true)},
+			dev:      infrav1.PCIDevice{DeviceIDs: []string{"0000:01:00", "0000:01:01"}, PCIe: boolPtr(true)},
 			expected: "0000:01:00;0000:01:01,pcie=1",
 		},
 	}

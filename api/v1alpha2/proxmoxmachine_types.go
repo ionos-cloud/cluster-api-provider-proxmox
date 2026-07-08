@@ -182,11 +182,11 @@ type DiskSize struct {
 
 // PCIDevice defines a host PCI device to pass through to the VM.
 type PCIDevice struct {
-	// deviceID is the host PCI device address (e.g. "0000:01:00", "01:00.0").
-	// Multiple devices can be mapped using a semicolon-separated list for SR-IOV.
-	// +kubebuilder:validation:MinLength=1
+	// deviceIDs are the host PCI device addresses for this slot (e.g. "0000:01:00", "01:00.0").
+	// Multiple entries are passed through together as a single logical device for SR-IOV.
+	// +kubebuilder:validation:MinItems=1
 	// +required
-	DeviceID string `json:"deviceID,omitempty"`
+	DeviceIDs []string `json:"deviceIDs,omitempty"`
 
 	// pcie enables PCIe mode (recommended for modern devices and GPUs).
 	// Defaults to false (PCI mode).

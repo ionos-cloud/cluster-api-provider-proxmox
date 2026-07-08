@@ -670,8 +670,8 @@ func TestReconcileVirtualMachineConfigQueue(t *testing.T) {
 func TestReconcileVirtualMachineConfigPCIDevices(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.PCIDevices = []infrav1.PCIDevice{
-		{DeviceID: "0000:01:00", PCIe: new(true), PrimaryGPU: new(true)},
-		{DeviceID: "0000:02:00"},
+		{DeviceIDs: []string{"0000:01:00"}, PCIe: new(true), PrimaryGPU: new(true)},
+		{DeviceIDs: []string{"0000:02:00"}},
 	}
 
 	vm := newStoppedVM()
