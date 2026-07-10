@@ -27,6 +27,8 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
+const foreignVMName = "other-cluster-worker"
+
 func TestFindVM_FindByNodeAndID(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
@@ -89,6 +91,52 @@ func TestFindVM_NotInitialized(t *testing.T) {
 	require.ErrorIs(t, err, ErrVMNotInitialized)
 }
 
+func TestFindVM_ControllerAllocatedVMIDCollision(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	vm.Name = foreignVMName
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node2")
+	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
+
+	proxmoxClient.EXPECT().GetVM(ctx, "node2", int64(123)).Return(vm, nil).Once()
+
+	_, err := FindVM(ctx, machineScope)
+	require.ErrorIs(t, err, ErrVMIDCollision)
+}
+
+func TestFindVM_ControllerAllocatedPlaceholderNotInitialized(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	vm.Name = placeholderVMName(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node2")
+	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
+
+	proxmoxClient.EXPECT().GetVM(ctx, "node2", int64(123)).Return(vm, nil).Once()
+
+	_, err := FindVM(ctx, machineScope)
+	require.ErrorIs(t, err, ErrVMNotInitialized)
+}
+
+func TestFindVM_AdoptedNameMismatchNotRecoverable(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	vm.Name = "renamed-vm"
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Spec.ProviderID = "proxmox://existing-vm"
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node2")
+	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
+
+	proxmoxClient.EXPECT().GetVM(ctx, "node2", int64(123)).Return(vm, nil).Once()
+
+	_, err := FindVM(ctx, machineScope)
+	require.ErrorIs(t, err, ErrVMNotInitialized)
+}
+
 func TestUpdateVMLocation_MissingName(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
@@ -120,6 +168,26 @@ func TestUpdateVMLocation_NameMismatch(t *testing.T) {
 	require.Error(t, updateVMLocation(ctx, machineScope))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	require.True(t, machineScope.HasFailed())
+}
+
+func TestUpdateVMLocation_ControllerAllocatedVMIDCollision(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	vmr := newVMResource()
+	name := foreignVMName
+	vmr.Name = name
+	vm.VirtualMachineConfig.Name = name
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
+
+	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmr, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(vm, nil).Once()
+
+	err := updateVMLocation(ctx, machineScope)
+	require.ErrorIs(t, err, ErrVMIDCollision)
+	require.False(t, machineScope.HasFailed())
+	require.Equal(t, int64(123), machineScope.GetVirtualMachineID())
 }
 
 func TestUpdateVMLocation_UpdateNode(t *testing.T) {

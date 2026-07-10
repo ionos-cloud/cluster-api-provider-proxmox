@@ -23,6 +23,7 @@ import (
 
 	lutherproxmox "github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -142,6 +143,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 
 	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+	require.Equal(t, "true", machineScope.ProxmoxMachine.Annotations[vmIDAllocatedByControllerAnnotation])
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
@@ -415,6 +417,66 @@ func TestEnsureVirtualMachine_UpdateVMLocation_Error(t *testing.T) {
 
 	_, err := ensureVirtualMachine(context.Background(), machineScope)
 	require.Error(t, err)
+}
+
+func TestEnsureVirtualMachine_VMIDCollisionRecovers(t *testing.T) {
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.SetVirtualMachineID(123)
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node2")
+	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node2",
+	}, false)
+
+	foreignVM := newRunningVM()
+	foreignVM.Name = foreignVMName
+	foreignVM.VirtualMachineConfig.Name = foreignVM.Name
+	vmResource := newVMResource()
+	vmResource.Name = foreignVM.Name
+
+	proxmoxClient.EXPECT().GetVM(ctx, "node2", int64(123)).Return(nil, fmt.Errorf("not found")).Once()
+	proxmoxClient.EXPECT().FindVMResource(ctx, uint64(123)).Return(vmResource, nil).Once()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(foreignVM, nil).Once()
+
+	requeue, err := ensureVirtualMachine(ctx, machineScope)
+	require.Error(t, err)
+	require.False(t, requeue)
+	require.False(t, machineScope.HasFailed())
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.Equal(t, int64(-1), machineScope.GetVirtualMachineID())
+	require.Nil(t, machineScope.ProxmoxMachine.Status.ProxmoxNode)
+	require.NotContains(t, machineScope.ProxmoxMachine.Annotations, vmIDAllocatedByControllerAnnotation)
+	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+}
+
+func TestEnsureVirtualMachine_VMIDCollisionAtRecordedNodeRecovers(t *testing.T) {
+	ctx := context.Background()
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.SetVirtualMachineID(123)
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node1")
+	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node1",
+	}, false)
+
+	foreignVM := newRunningVM()
+	foreignVM.Name = foreignVMName
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(foreignVM, nil).Once()
+
+	requeue, err := ensureVirtualMachine(ctx, machineScope)
+	require.ErrorIs(t, err, ErrVMIDCollision)
+	require.False(t, requeue)
+	require.False(t, machineScope.HasFailed())
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.Equal(t, int64(-1), machineScope.GetVirtualMachineID())
+	require.Nil(t, machineScope.ProxmoxMachine.Status.ProxmoxNode)
+	require.NotContains(t, machineScope.ProxmoxMachine.Annotations, vmIDAllocatedByControllerAnnotation)
+	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 }
 
 func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
