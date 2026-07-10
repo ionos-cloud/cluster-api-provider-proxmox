@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -34,7 +33,7 @@ func machineTemplateWithSourceNode(node string, annotations map[string]string) *
 	tmpl := &infrav1.ProxmoxMachineTemplate{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-template", Annotations: annotations},
 	}
-	tmpl.Spec.Template.Spec.SourceNode = ptr.To(node)
+	tmpl.Spec.Template.Spec.SourceNode = new(node)
 	return tmpl
 }
 
@@ -90,7 +89,7 @@ func TestProxmoxMachineTemplateValidateUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{DryRun: ptr.To(tt.dryRun)}}
+			req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{DryRun: new(tt.dryRun)}}
 			ctx := admission.NewContextWithRequest(context.Background(), req)
 
 			_, err := webhook.ValidateUpdate(ctx, oldTmpl, tt.newTmpl)
