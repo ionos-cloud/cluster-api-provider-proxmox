@@ -212,7 +212,11 @@ NEXT_VM:
 	return vmTemplate.Node, int32(vmTemplate.VMID), nil
 }
 
-// DeleteVM deletes a VM based on the nodeName and vmID.
+// DeleteVM deletes a VM based on the nodeName and vmID. The VM is deleted with
+// purge, which drops it from any HA, replication and backup-job configuration it
+// is referenced by. Without it PVE rejects the deletion of an HA-managed VM with
+// "unable to remove VM <id> - used in HA resources and purge parameter not set"
+// (issue #216).
 func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error) {
 	// A vmID can not be lower than 100.
 	// If the provided vmID is lower (like -1 in issue #31), just error out without calling the API.
@@ -247,12 +251,53 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		}
 	}
 
-	task, err := vm.Delete(ctx, nil)
+	task, err := vm.Delete(ctx, &proxmox.VirtualMachineDeleteOptions{Purge: true})
 	if err != nil {
 		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
 	}
 
 	return task, nil
+}
+
+// EnsureHAResource registers the VM as a Proxmox HA resource with the requested
+// state. It is idempotent: a missing resource is created, an existing one whose
+// state differs is updated, and a resource already in the desired state is left
+// untouched. state defaults to "started" when empty.
+//
+// Proxmox HA is managed through /cluster/ha/resources on every supported PVE
+// version (the migration from HA groups to HA rules in PVE 9 did not change
+// this endpoint), so no version-specific handling is required here.
+func (c *APIClient) EnsureHAResource(ctx context.Context, vmID int64, state infrav1.HighAvailabilityState) error {
+	if state == "" {
+		state = infrav1.HighAvailabilityStateStarted
+	}
+	sid := fmt.Sprintf("vm:%d", vmID)
+
+	var resources []struct {
+		SID   string `json:"sid"`
+		State string `json:"state"`
+	}
+	if err := c.Get(ctx, "/cluster/ha/resources", &resources); err != nil {
+		return fmt.Errorf("cannot list HA resources: %w", err)
+	}
+
+	for _, r := range resources {
+		if r.SID != sid {
+			continue
+		}
+		if r.State == string(state) {
+			return nil
+		}
+		if err := c.Put(ctx, "/cluster/ha/resources/"+sid, map[string]string{"state": string(state)}, nil); err != nil {
+			return fmt.Errorf("cannot update HA resource %s: %w", sid, err)
+		}
+		return nil
+	}
+
+	if err := c.Post(ctx, "/cluster/ha/resources", map[string]string{"sid": sid, "state": string(state)}, nil); err != nil {
+		return fmt.Errorf("cannot create HA resource %s: %w", sid, err)
+	}
+	return nil
 }
 
 // CheckID checks if the vmid is available on the cluster.
