@@ -49,6 +49,24 @@ Describe 'helpers.sh — pure functions'
     End
   End
 
+  Describe 'validate_sha256'
+    It 'accepts a valid digest'
+      When call validate_sha256 'cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe'
+      The status should be success
+    End
+
+    It 'accepts a valid digest with sha256: prefix'
+      When call validate_sha256 'sha256:cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe'
+      The status should be success
+    End
+
+    It 'rejects a malformed digest'
+      When run validate_sha256 'not-a-digest'
+      The status should be failure
+      The error should include 'invalid sha256 digest'
+    End
+  End
+
   Describe 'validate_capi'
     It 'accepts a valid contract'
       When call validate_capi 'v1beta2'

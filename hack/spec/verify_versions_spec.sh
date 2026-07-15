@@ -1,6 +1,6 @@
 Describe 'verify-versions.sh'
-  setup() { setup_fixture_repo; setup_go_mock; return; }
-  cleanup() { cleanup_fixture_repo; cleanup_go_mock; return; }
+  setup() { setup_fixture_repo; setup_go_mock; setup_docker_mock; return; }
+  cleanup() { cleanup_docker_mock; cleanup_go_mock; cleanup_fixture_repo; return; }
   BeforeEach 'setup'
   AfterEach 'cleanup'
 
@@ -24,6 +24,21 @@ Describe 'verify-versions.sh'
     The status should be failure
     The error should include 'Go version mismatch'
     The error should include '.golangci-kal.yml'
+  End
+
+  It 'detects Go version mismatch in the test workflow pinned image tag'
+    testworkflow_set_go_image '1.25.9' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The error should include 'Go version mismatch'
+    The error should include '.github/workflows/test.yml'
+  End
+
+  It 'ignores the test workflow image when its minor differs from go.mod'
+    gomod_set_go '1.26.0' >/dev/null
+    When run script ../verify-versions.sh
+    The status should be failure
+    The error should not include 'test.yml'
   End
 
   It 'detects golangci-lint version mismatch in .custom-gcl.yaml'

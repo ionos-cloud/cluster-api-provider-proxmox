@@ -1,6 +1,6 @@
 Describe 'helpers.sh — file version functions'
-  setup() { setup_fixture_repo; return; }
-  cleanup() { cleanup_fixture_repo; return; }
+  setup() { setup_fixture_repo; setup_docker_mock; return; }
+  cleanup() { cleanup_docker_mock; cleanup_fixture_repo; return; }
   BeforeEach 'setup'
   AfterEach 'cleanup'
 
@@ -49,6 +49,92 @@ Describe 'helpers.sh — file version functions'
       golangcikal_set_go '1.26' >/dev/null
       When call cat "${REPO_ROOT}/.golangci-kal.yml"
       The output should include 'go: "1.26"'
+    End
+  End
+
+  Describe 'testworkflow_get_go_minor'
+    It 'returns the Go major.minor of the active matrix entry'
+      When call testworkflow_get_go_minor
+      The output should equal '1.25'
+    End
+  End
+
+  Describe 'testworkflow_get_go_tag'
+    It 'returns the image tag comment of the active matrix entry'
+      When call testworkflow_get_go_tag
+      The output should equal '1.25.0-trixie'
+    End
+  End
+
+  Describe 'testworkflow_get_go_digest'
+    It 'returns the pinned sha256 digest of the active matrix entry'
+      When call testworkflow_get_go_digest
+      The output should equal 'abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd'
+    End
+  End
+
+  Describe 'docker_resolve_digest'
+    It 'resolves a digest via the mocked docker buildx imagetools inspect'
+      When call docker_resolve_digest 'golang:1.25.3-trixie'
+      The output should equal 'cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe'
+    End
+  End
+
+  Describe 'testworkflow_set_go_image'
+    It 'resolves and writes the digest and tag when the minor matches'
+      When call testworkflow_set_go_image '1.25.3'
+      The output should include 'Updated golang@sha256:abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd (1.25.0-trixie)'
+      The output should include 'to golang@sha256:cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe (1.25.3-trixie)'
+    End
+
+    It 'writes the new digest and tag to the file'
+      testworkflow_set_go_image '1.25.3' >/dev/null
+      When call testworkflow_get_go_digest
+      The output should equal 'cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe'
+    End
+
+    It 'preserves the tag suffix'
+      testworkflow_set_go_image '1.25.3' >/dev/null
+      When call testworkflow_get_go_tag
+      The output should equal '1.25.3-trixie'
+    End
+
+    It 'does not touch the file on a Go minor bump'
+      When call testworkflow_set_go_image '1.26.0'
+      The output should equal ''
+      The status should be success
+    End
+
+    It 'leaves the matrix entry untouched on a Go minor bump'
+      testworkflow_set_go_image '1.26.0' >/dev/null
+      When call testworkflow_get_go_digest
+      The output should equal 'abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd'
+    End
+
+    It 're-resolves and refreshes the digest even when the version is unchanged'
+      When call testworkflow_set_go_image '1.25.0'
+      The output should include 'Updated golang@sha256:abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd (1.25.0-trixie)'
+      The output should include 'to golang@sha256:cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe (1.25.0-trixie)'
+    End
+
+    It 'stays silent when the resolved digest already matches (idempotent)'
+      testworkflow_set_go_image '1.25.3' >/dev/null
+      When call testworkflow_set_go_image '1.25.3'
+      The output should equal ''
+      The status should be success
+    End
+
+    It 'uses a given digest directly, without invoking docker'
+      printf '#!/usr/bin/env bash\nexit 1\n' > "${DOCKER_MOCK_DIR}/docker"
+      When call testworkflow_set_go_image '1.25.3' 'sha256:1234123412341234123412341234123412341234123412341234123412341234'
+      The output should include 'to golang@sha256:1234123412341234123412341234123412341234123412341234123412341234 (1.25.3-trixie)'
+      The status should be success
+    End
+
+    It 'accepts a given digest without the sha256: prefix'
+      printf '#!/usr/bin/env bash\nexit 1\n' > "${DOCKER_MOCK_DIR}/docker"
+      When call testworkflow_set_go_image '1.25.3' '1234123412341234123412341234123412341234123412341234123412341234'
+      The output should include 'to golang@sha256:1234123412341234123412341234123412341234123412341234123412341234 (1.25.3-trixie)'
     End
   End
 
