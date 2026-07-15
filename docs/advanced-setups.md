@@ -94,6 +94,54 @@ export IPV6_GATEWAY="2001:db8:1::1"
 
 If you're using cilium, be aware that cilium's helm chart requires `ipv6.enabled=true` to actually support IPv6 pod- and service networks.
 
+### Referencing allocated IPs in KubeadmConfig
+
+CAPMOX injects the IP addresses it allocates into the cloud-init NoCloud
+`meta-data` file, so they can be referenced from KubeadmControlPlane or
+KubeadmConfigTemplate via the cloud-init Jinja datasource
+(`{{ ds.meta_data.<key> }}`).
+
+The following keys are populated when an IP from the cluster's default IPv4
+or IPv6 pool is allocated onto a network device that has `defaultIPv4` /
+`defaultIPv6` set:
+
+| Key | Value |
+| --- | --- |
+| `ipv4`, `ipv4_prefix`, `ipv4_gateway` | The default IPv4 address, its prefix length, and its gateway |
+| `ipv6`, `ipv6_prefix`, `ipv6_gateway` | The default IPv6 address, its prefix length, and its gateway |
+
+In addition, a `_<device>` suffixed variant is emitted for every network
+device with an allocated IP, e.g. `ipv4_net0`, `ipv6_net0`, `ipv4_net1`,
+`ipv6_prefix_net1`. The device name matches the name used in the
+`ProxmoxMachineTemplate` `network.networkDevices` list. Keys are omitted
+when the corresponding address is not allocated, so single-stack clusters
+do not produce empty `ipv6*` keys.
+
+Example: an IPv6-primary dual-stack control plane that needs to advertise
+its IPv6 address to kubeadm via `--node-ip`:
+
+```yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: KubeadmControlPlane
+metadata:
+  name: my-cluster-control-plane
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+        - name: node-ip
+          value: "{{ ds.meta_data.ipv6 }},{{ ds.meta_data.ipv4 }}"
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+        - name: node-ip
+          value: "{{ ds.meta_data.ipv6 }},{{ ds.meta_data.ipv4 }}"
+```
+
+This removes the need for `preKubeadmCommands` shell snippets that derive
+the node IP from `ip addr` output.
+
 ## IPv6 only cluster
 
 Clusters without IPv4 are possible, but require kube-vip to be newer than 0.7.1 (version 0.7.0 probably works, but we did not test it).
