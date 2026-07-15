@@ -213,12 +213,17 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrVMNotFound):
-			if err := updateVMLocation(ctx, machineScope); err != nil {
-				return false, errors.Wrap(err, "error trying to locate vm")
+			if locationErr := updateVMLocation(ctx, machineScope); locationErr != nil {
+				if errors.Is(locationErr, ErrVMIDCollision) {
+					return false, recoverFromVMIDCollision(machineScope, locationErr)
+				}
+				return false, errors.Wrap(locationErr, "error trying to locate vm")
 			}
 
 			// we always want to trigger reconciliation at this point.
 			return false, err
+		case errors.Is(err, ErrVMIDCollision):
+			return false, recoverFromVMIDCollision(machineScope, err)
 		case errors.Is(err, ErrVMNotInitialized):
 			return true, err
 		case !errors.Is(err, ErrVMNotCreated):
@@ -245,6 +250,7 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		// make sure spec.VirtualMachineID is always set.
 		machineScope.ProxmoxMachine.Status.TaskRef = new(string(resp.Task.UPID))
 		machineScope.SetVirtualMachineID(resp.NewID)
+		machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
 
 		// requeue until cloning is finished
 		return true, nil
