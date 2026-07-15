@@ -16,6 +16,7 @@ setup_fixture_repo() {
   # Re-evaluate paths set at source time by helpers.sh.
   METADATA_FILE="${REPO_ROOT}/metadata.yaml"
   E2E_CONFIG_DIR="${REPO_ROOT}/test/e2e/config"
+  TEST_WORKFLOW_FILE="${REPO_ROOT}/.github/workflows/test.yml"
   return
 }
 
@@ -62,6 +63,37 @@ cleanup_go_mock() {
   fi
   if [[ -n "${ORIGINAL_PATH:-}" ]]; then
     export PATH="${ORIGINAL_PATH}"
+  fi
+  return
+}
+
+# setup_docker_mock creates a temporary directory with a mock `docker`
+# script emulating `docker buildx imagetools inspect`, and prepends it to
+# PATH.
+setup_docker_mock() {
+  DOCKER_MOCK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/capmox-docker-mock.XXXXXX")
+  cat > "${DOCKER_MOCK_DIR}/docker" <<'MOCK'
+#!/usr/bin/env bash
+if [[ "$1" == "buildx" && "$2" == "imagetools" && "$3" == "inspect" ]]; then
+  echo '{"mediaType":"application/vnd.oci.image.index.v1+json","digest":"sha256:cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe","size":9050}'
+  exit 0
+fi
+echo "mock docker: unexpected invocation: $*" >&2
+exit 1
+MOCK
+  chmod +x "${DOCKER_MOCK_DIR}/docker"
+  ORIGINAL_PATH_DOCKER="${PATH}"
+  export PATH="${DOCKER_MOCK_DIR}:${PATH}"
+  return
+}
+
+# cleanup_docker_mock removes the mock directory and restores PATH.
+cleanup_docker_mock() {
+  if [[ -n "${DOCKER_MOCK_DIR:-}" && -d "${DOCKER_MOCK_DIR}" ]]; then
+    rm -rf "${DOCKER_MOCK_DIR}"
+  fi
+  if [[ -n "${ORIGINAL_PATH_DOCKER:-}" ]]; then
+    export PATH="${ORIGINAL_PATH_DOCKER}"
   fi
   return
 }

@@ -35,6 +35,19 @@ validate_semver() {
     return
 }
 
+# validate_sha256 exits with an error if the argument is not a valid sha256
+# digest, with or without a leading "sha256:" prefix.
+validate_sha256() {
+    local raw="$1" v
+    v="${raw#sha256:}"
+    if ! [[ "${v}" =~ ^[0-9a-f]{64}$ ]]; then
+        echo "ERROR: invalid sha256 digest '${raw}'" >&2
+        echo "Expected: 64 hex characters, with or without a 'sha256:' prefix" >&2
+        exit 1
+    fi
+    return
+}
+
 # validate_capi exits with an error if the argument is not a valid cluster-api
 # contract version.
 # Accepts v1betaN (e.g. v1beta2).
@@ -241,6 +254,50 @@ golangcikal_get_go() {
     return
 }
 
+# TEST_WORKFLOW_FILE pins the Go container image used by the test-go job.
+TEST_WORKFLOW_FILE="${REPO_ROOT}/.github/workflows/test.yml"
+
+# testworkflow_get_go_minor returns the Go major.minor of the active test-go
+# matrix entry (e.g. "1.26"). Returns empty string if the file does not exist.
+testworkflow_get_go_minor() {
+    if [[ -f "${TEST_WORKFLOW_FILE}" ]]; then
+        awk '/^[[:space:]]*- go: "/{match($0, /[0-9]+\.[0-9]+/); print substr($0, RSTART, RLENGTH); exit}' "${TEST_WORKFLOW_FILE}"
+    fi
+    return
+}
+
+# testworkflow_get_go_tag returns the image tag comment of the active
+# test-go matrix entry (e.g. "1.26.4-trixie").
+testworkflow_get_go_tag() {
+    if [[ -f "${TEST_WORKFLOW_FILE}" ]]; then
+        awk '/^[[:space:]]*image: golang@sha256:/{sub(/.*# /, ""); print; exit}' "${TEST_WORKFLOW_FILE}"
+    fi
+    return
+}
+
+# testworkflow_get_go_digest returns the pinned sha256 digest (without the
+# "sha256:" prefix) of the active test-go matrix entry.
+testworkflow_get_go_digest() {
+    if [[ -f "${TEST_WORKFLOW_FILE}" ]]; then
+        awk '/^[[:space:]]*image: golang@sha256:/{match($0, /sha256:[0-9a-f]+/); print substr($0, RSTART+7, RLENGTH-7); exit}' "${TEST_WORKFLOW_FILE}"
+    fi
+    return
+}
+
+# docker_resolve_digest resolves the sha256 digest (without the "sha256:"
+# prefix) of a Docker image reference such as "golang:1.26.4-trixie".
+docker_resolve_digest() {
+    local image="$1" digest
+    digest=$(docker buildx imagetools inspect "${image}" --format '{{json .Manifest}}' | yq -p json '.digest')
+    digest="${digest#sha256:}"
+    if ! [[ "${digest}" =~ ^[0-9a-f]{64}$ ]]; then
+        echo "ERROR: failed to resolve digest for ${image}" >&2
+        return 1
+    fi
+    echo "${digest}"
+    return
+}
+
 # customgcl_get_version returns the golangci-lint version from .custom-gcl.yaml
 # (e.g. "v2.9.0"). Returns empty string if the file does not exist.
 customgcl_get_version() {
@@ -282,6 +339,36 @@ golangcikal_set_go() {
         if yqsi ".run.go = \"${new}\" | .run.go style=\"double\"" "${f}"; then
             echo ".golangci-kal.yml: Updated Go ${old} to ${new}"
         fi
+    fi
+    return
+}
+
+# testworkflow_set_go_image writes the pinned Go image digest for the
+# active test-go matrix entry, given a new Go version. If a digest is
+# given, it's used as-is; otherwise it's resolved via docker_resolve_digest.
+# Only takes effect when the version's major.minor matches the entry
+# already active.
+# Usage: testworkflow_set_go_image <new-version> [<digest>]
+testworkflow_set_go_image() {
+    local new="$1" given_digest="${2:-}" new_minor active_minor old_tag old_digest suffix new_tag new_digest
+    if [[ ! -f "${TEST_WORKFLOW_FILE}" ]]; then return; fi
+
+    new_minor=$(echo "${new}" | cut -d. -f1-2)
+    active_minor=$(testworkflow_get_go_minor)
+    if [[ "${active_minor}" != "${new_minor}" ]]; then return; fi
+
+    old_tag=$(testworkflow_get_go_tag)
+    old_digest=$(testworkflow_get_go_digest)
+    suffix=$(echo "${old_tag}" | sed -E 's/^[0-9]+\.[0-9]+\.[0-9]+//')
+    new_tag="${new}${suffix}"
+    if [[ -n "${given_digest}" ]]; then
+        new_digest="${given_digest#sha256:}"
+    else
+        new_digest=$(docker_resolve_digest "golang:${new_tag}")
+    fi
+
+    if sedi "s/^([[:space:]]*image: golang@sha256:)[0-9a-f]+( # ).*/\1${new_digest}\2${new_tag}/" "${TEST_WORKFLOW_FILE}"; then
+        echo ".github/workflows/test.yml: Updated golang@sha256:${old_digest} (${old_tag}) to golang@sha256:${new_digest} (${new_tag})"
     fi
     return
 }
