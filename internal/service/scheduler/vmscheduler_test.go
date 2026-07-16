@@ -249,13 +249,19 @@ func TestScheduleVM(t *testing.T) {
 	require.Equal(t, "pve2", node)
 }
 
-func TestScheduleVMWithEffectiveAllowedNodes(t *testing.T) {
+func TestScheduleVMWithFailureDomainNodes(t *testing.T) {
 	ctrlClient := setupClient()
 
 	proxmoxCluster := infrav1.ProxmoxCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: "bar"},
 		Spec: infrav1.ProxmoxClusterSpec{
 			AllowedNodes: []string{"pve1", "pve2", "pve3"},
+			ZoneConfigs: []infrav1.ZoneConfigSpec{
+				{
+					Zone:  new("zone-a"),
+					Nodes: []string{"pve3"},
+				},
+			},
 		},
 		Status: infrav1.ProxmoxClusterStatus{
 			NodeLocations: &infrav1.NodeLocations{
@@ -280,8 +286,11 @@ func TestScheduleVMWithEffectiveAllowedNodes(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "default"},
 	}
 	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
-		Client:  ctrlClient,
-		Machine: &clusterv1.Machine{ObjectMeta: metav1.ObjectMeta{Name: "foo-machine", Namespace: "default"}},
+		Client: ctrlClient,
+		Machine: &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{Name: "foo-machine", Namespace: "default"},
+			Spec:       clusterv1.MachineSpec{FailureDomain: "zone-a"},
+		},
 		Cluster: cluster,
 		InfraCluster: &scope.ClusterScope{
 			Cluster:        cluster,
@@ -292,11 +301,9 @@ func TestScheduleVMWithEffectiveAllowedNodes(t *testing.T) {
 		IPAMHelper:     &ipam.Helper{},
 	})
 	require.NoError(t, err)
+	require.NoError(t, machineScope.FailureDomainError())
 
-	// Set effective allowed nodes to only pve3 (simulating failure domain filtering).
-	machineScope.SetEffectiveAllowedNodes([]string{"pve3"})
-
-	// Only pve3 should be queried.
+	// The failure domain restricts placement to pve3: only pve3 may be queried.
 	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve3", int64(100)).Return(miBytes(60), nil)
 
 	node, err := ScheduleVM(context.Background(), machineScope)

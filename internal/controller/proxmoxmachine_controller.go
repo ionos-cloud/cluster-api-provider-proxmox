@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -215,19 +214,17 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		}
 	}
 
-	// If the CAPI Machine has a failure domain set, restrict allowed nodes
-	// to those belonging to that zone and set the effective zone for IPAM.
-	if faildom := machineScope.Machine.Spec.FailureDomain; faildom != "" {
-		if err := machineScope.ApplyFailureDomainNodes(faildom); err != nil {
-			machineScope.Logger.Error(err, "failure domain not found", "failureDomain", faildom)
-			conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedFailureDomainNotReadyReason,
-				Message: fmt.Sprintf("failure domain %q not found in ProxmoxCluster zones", faildom),
-			})
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
-		}
+	// Placement is resolved once at scope construction; do not provision
+	// until the referenced failure domain exists in the ProxmoxCluster zones.
+	if err := machineScope.FailureDomainError(); err != nil {
+		machineScope.Logger.Error(err, "failure domain not found", "failureDomain", machineScope.Machine.Spec.FailureDomain)
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedFailureDomainNotReadyReason,
+			Message: err.Error(),
+		})
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
 	// find the vm
@@ -255,7 +252,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	// Set proxmox deployment zone for label selectors.
 	labels := machineScope.ProxmoxMachine.GetLabels()
 	labels[infrav1.ProxmoxZoneLabel] =
-		ptr.Deref(machineScope.GetEffectiveZone(), "default")
+		ptr.Deref(machineScope.Zone(), "default")
 	machineScope.ProxmoxMachine.SetLabels(labels)
 
 	machineScope.SetReady()

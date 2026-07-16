@@ -54,12 +54,7 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 		locations = machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.ControlPlane
 	}
 
-	allowedNodes := machineScope.GetEffectiveAllowedNodes()
-	if len(allowedNodes) == 0 {
-		allowedNodes = machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
-	}
-
-	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, schedulerHints)
+	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, machineScope.AllowedNodes(), schedulerHints)
 }
 
 func selectNode(

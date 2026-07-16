@@ -53,7 +53,7 @@ func GetInClusterIPPoolRefs(ctx context.Context, machineScope *scope.MachineScop
 		IPv6 *corev1.TypedLocalObjectReference
 	}
 
-	pools, err := machineScope.IPAMHelper.GetInClusterPools(ctx, machineScope.ProxmoxMachine, machineScope.GetEffectiveZone())
+	pools, err := machineScope.IPAMHelper.GetInClusterPools(ctx, machineScope.ProxmoxMachine, machineScope.Zone())
 	if err != nil {
 		return ret, err
 	}

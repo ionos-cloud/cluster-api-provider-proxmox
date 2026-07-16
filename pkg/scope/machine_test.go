@@ -173,26 +173,10 @@ func TestMachineScope_SkipCloudInit(t *testing.T) {
 	require.False(t, scope.SkipQemuGuestCheck())
 }
 
-func TestMachineScope_GetEffectiveAllowedNodes(t *testing.T) {
-	scope := MachineScope{
-		ProxmoxMachine: &infrav1.ProxmoxMachine{
-			Spec: infrav1.ProxmoxMachineSpec{
-				AllowedNodes: []string{"spec-node1"},
-			},
-		},
-	}
-
-	// Without override, returns spec AllowedNodes.
-	require.Equal(t, []string{"spec-node1"}, scope.GetEffectiveAllowedNodes())
-
-	// With override, returns effective nodes.
-	scope.SetEffectiveAllowedNodes([]string{"fd-node1", "fd-node2"})
-	require.Equal(t, []string{"fd-node1", "fd-node2"}, scope.GetEffectiveAllowedNodes())
-}
-
-func TestMachineScope_ApplyFailureDomainNodes(t *testing.T) {
+func TestMachineScope_ResolvePlacement(t *testing.T) {
 	cluster := &infrav1.ProxmoxCluster{
 		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"cluster-node1", "cluster-node2"},
 			ZoneConfigs: []infrav1.ZoneConfigSpec{
 				{
 					Zone:  new("zone-a"),
@@ -206,33 +190,70 @@ func TestMachineScope_ApplyFailureDomainNodes(t *testing.T) {
 		},
 	}
 
-	t.Run("zone with nodes", func(t *testing.T) {
-		scope := MachineScope{
+	newScope := func(failureDomain string, proxmoxMachine *infrav1.ProxmoxMachine) *MachineScope {
+		return &MachineScope{
+			Machine: &clusterv1.Machine{
+				Spec: clusterv1.MachineSpec{FailureDomain: failureDomain},
+			},
 			InfraCluster:   &ClusterScope{ProxmoxCluster: cluster},
-			ProxmoxMachine: &infrav1.ProxmoxMachine{},
+			ProxmoxMachine: proxmoxMachine,
 		}
-		require.NoError(t, scope.ApplyFailureDomainNodes("zone-a"))
-		require.Equal(t, []string{"pve1", "pve2"}, scope.GetEffectiveAllowedNodes())
+	}
+
+	t.Run("machine spec nodes take precedence over cluster spec", func(t *testing.T) {
+		scope := newScope("", &infrav1.ProxmoxMachine{
+			Spec: infrav1.ProxmoxMachineSpec{AllowedNodes: []string{"spec-node1"}},
+		})
+		require.NoError(t, scope.resolvePlacement())
+		require.Equal(t, []string{"spec-node1"}, scope.AllowedNodes())
+		require.Nil(t, scope.Zone())
 	})
 
-	t.Run("zone without nodes", func(t *testing.T) {
-		scope := MachineScope{
-			InfraCluster:   &ClusterScope{ProxmoxCluster: cluster},
-			ProxmoxMachine: &infrav1.ProxmoxMachine{},
-		}
-		require.NoError(t, scope.ApplyFailureDomainNodes("zone-b"))
-		// No override set, falls back to spec AllowedNodes.
-		require.Nil(t, scope.GetEffectiveAllowedNodes())
+	t.Run("cluster spec fallback when machine spec is empty", func(t *testing.T) {
+		scope := newScope("", &infrav1.ProxmoxMachine{})
+		require.NoError(t, scope.resolvePlacement())
+		require.Equal(t, []string{"cluster-node1", "cluster-node2"}, scope.AllowedNodes())
 	})
 
-	t.Run("zone not found", func(t *testing.T) {
-		scope := MachineScope{
-			InfraCluster:   &ClusterScope{ProxmoxCluster: cluster},
-			ProxmoxMachine: &infrav1.ProxmoxMachine{},
-		}
-		err := scope.ApplyFailureDomainNodes("zone-c")
+	t.Run("network zone resolved without failure domain", func(t *testing.T) {
+		scope := newScope("", &infrav1.ProxmoxMachine{
+			Spec: infrav1.ProxmoxMachineSpec{
+				Network: &infrav1.NetworkSpec{Zone: new("net-zone")},
+			},
+		})
+		require.NoError(t, scope.resolvePlacement())
+		require.Equal(t, "net-zone", *scope.Zone())
+	})
+
+	t.Run("failure domain nodes and zone win over specs", func(t *testing.T) {
+		scope := newScope("zone-a", &infrav1.ProxmoxMachine{
+			Spec: infrav1.ProxmoxMachineSpec{
+				AllowedNodes: []string{"spec-node1"},
+				Network:      &infrav1.NetworkSpec{Zone: new("net-zone")},
+			},
+		})
+		require.NoError(t, scope.resolvePlacement())
+		require.Equal(t, []string{"pve1", "pve2"}, scope.AllowedNodes())
+		require.Equal(t, "zone-a", *scope.Zone())
+	})
+
+	t.Run("zone without nodes falls back to specs", func(t *testing.T) {
+		scope := newScope("zone-b", &infrav1.ProxmoxMachine{
+			Spec: infrav1.ProxmoxMachineSpec{AllowedNodes: []string{"spec-node1"}},
+		})
+		require.NoError(t, scope.resolvePlacement())
+		require.Equal(t, []string{"spec-node1"}, scope.AllowedNodes())
+		require.Equal(t, "zone-b", *scope.Zone())
+	})
+
+	t.Run("zone not found returns typed error, fallbacks stay usable", func(t *testing.T) {
+		scope := newScope("zone-c", &infrav1.ProxmoxMachine{})
+		err := scope.resolvePlacement()
 		require.Error(t, err)
+		require.ErrorAs(t, err, &FailureDomainNotFoundError{})
 		require.Contains(t, err.Error(), "zone-c")
+		// The scope must remain usable for paths that proceed anyway (deletion).
+		require.Equal(t, []string{"cluster-node1", "cluster-node2"}, scope.AllowedNodes())
 	})
 }
 
