@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -221,11 +220,11 @@ func TestGetZoneNodes(t *testing.T) {
 		Spec: ProxmoxClusterSpec{
 			ZoneConfigs: []ZoneConfigSpec{
 				{
-					Zone:  ptr.To("zone-a"),
+					Zone:  new("zone-a"),
 					Nodes: []string{"pve1", "pve2"},
 				},
 				{
-					Zone: ptr.To("zone-b"),
+					Zone: new("zone-b"),
 					// No nodes explicitly set.
 				},
 			},

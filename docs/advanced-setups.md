@@ -286,7 +286,7 @@ to target specific zones.
 
 ### Configuration
 
-Add `nodes` and optionally `controlPlane` to each zone in `ProxmoxCluster.spec.zoneConfig`:
+Add `nodes` and optionally `controlPlaneEligible` to each zone in `ProxmoxCluster.spec.zoneConfig`:
 
 ```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
@@ -314,7 +314,7 @@ spec:
       dnsServers: ["8.8.8.8"]
     - zone: "rack-b"
       nodes: ["pve3", "pve4"]
-      controlPlane: false          # workers only
+      controlPlaneEligible: false  # workers only
       ipv4Config:
         addresses: ["10.0.2.10-10.0.2.30"]
         prefix: 24
@@ -325,7 +325,7 @@ spec:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `nodes` | `[]string` | — | Proxmox nodes belonging to this zone. VMs assigned to this failure domain are scheduled only on these nodes. |
-| `controlPlane` | `*bool` | `true` | Whether this zone is eligible for control plane machines. Set to `false` for worker-only zones. |
+| `controlPlaneEligible` | `*bool` | `true` | Whether control plane machines may be placed in this zone. Set to `false` for worker-only zones. |
 
 ### How it works
 

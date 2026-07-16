@@ -1309,8 +1309,8 @@ func (in *ZoneConfigSpec) DeepCopyInto(out *ZoneConfigSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.ControlPlane != nil {
-		in, out := &in.ControlPlane, &out.ControlPlane
+	if in.ControlPlaneEligible != nil {
+		in, out := &in.ControlPlaneEligible, &out.ControlPlaneEligible
 		*out = new(bool)
 		**out = **in
 	}

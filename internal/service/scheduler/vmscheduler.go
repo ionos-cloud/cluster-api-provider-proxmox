@@ -54,7 +54,6 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 		locations = machineScope.InfraCluster.ProxmoxCluster.Status.NodeLocations.ControlPlane
 	}
 
-	// Use effective allowed nodes (failure-domain override > machine spec > cluster spec).
 	allowedNodes := machineScope.GetEffectiveAllowedNodes()
 	if len(allowedNodes) == 0 {
 		allowedNodes = machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes

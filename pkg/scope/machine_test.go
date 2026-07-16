@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/require"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -196,11 +195,11 @@ func TestMachineScope_ApplyFailureDomainNodes(t *testing.T) {
 		Spec: infrav1.ProxmoxClusterSpec{
 			ZoneConfigs: []infrav1.ZoneConfigSpec{
 				{
-					Zone:  ptr.To("zone-a"),
+					Zone:  new("zone-a"),
 					Nodes: []string{"pve1", "pve2"},
 				},
 				{
-					Zone: ptr.To("zone-b"),
+					Zone: new("zone-b"),
 					// No explicit nodes.
 				},
 			},

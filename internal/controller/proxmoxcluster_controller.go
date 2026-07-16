@@ -307,7 +307,7 @@ func (r *ProxmoxClusterReconciler) reconcileFailureDomains(clusterScope *scope.C
 
 		faildoms = append(faildoms, clusterv1.FailureDomain{
 			Name:         zoneName,
-			ControlPlane: ptr.To(ptr.Deref(zc.ControlPlane, true)),
+			ControlPlane: new(ptr.Deref(zc.ControlPlaneEligible, true)),
 		})
 	}
 

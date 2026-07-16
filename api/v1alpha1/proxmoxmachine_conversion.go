@@ -87,7 +87,6 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumSockets, ok, restored.NumSockets, &dst.NumSockets)
 	clusterv1.Convert_int32_To_Pointer_int32(src.MemoryMiB, ok, restored.MemoryMiB, &dst.MemoryMiB)
 
-	// Restore FailureDomain (v1alpha2-only field, set by CAPI machine controller).
 	if ok {
 		dst.FailureDomain = restored.FailureDomain
 	}

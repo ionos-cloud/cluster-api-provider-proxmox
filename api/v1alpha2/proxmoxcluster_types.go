@@ -157,10 +157,10 @@ type ZoneConfigSpec struct {
 	// +listType=set
 	Nodes []string `json:"nodes,omitempty"`
 
-	// controlPlane indicates whether this zone is eligible for control plane machines.
-	// Defaults to true when not set.
+	// controlPlaneEligible indicates whether control plane machines may be
+	// placed in this zone. Defaults to true when not set.
 	// +optional
-	ControlPlane *bool `json:"controlPlane,omitempty"`
+	ControlPlaneEligible *bool `json:"controlPlaneEligible,omitempty"`
 }
 
 // IPConfigSpec contains information about available IP config.

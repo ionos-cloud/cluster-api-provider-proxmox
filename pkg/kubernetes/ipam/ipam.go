@@ -186,7 +186,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		specZone = *moxm.Spec.Network.Zone
 	}
 
-	zone := ptr.To(ptr.Deref(zoneOverride, specZone))
+	zone := new(ptr.Deref(zoneOverride, specZone))
 	zoneIndex := slices.IndexFunc(h.cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
 		return ptr.Equal(zone, z.Zone)
 	})

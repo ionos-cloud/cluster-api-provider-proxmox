@@ -283,7 +283,7 @@ func (m *MachineScope) GetEffectiveAllowedNodes() []string {
 // Returns an error if no matching zone is found in the ProxmoxCluster spec.
 func (m *MachineScope) ApplyFailureDomainNodes(failureDomain string) error {
 	// Set the effective zone for IPAM pool selection (does not mutate spec).
-	m.SetEffectiveZone(ptr.To(failureDomain))
+	m.SetEffectiveZone(new(failureDomain))
 
 	nodes := m.InfraCluster.ProxmoxCluster.GetZoneNodes(failureDomain)
 	if nodes != nil {

@@ -1241,10 +1241,10 @@ spec:
                   description: ZoneConfigSpec is the Network Configuration for further
                     deployment zones.
                   properties:
-                    controlPlane:
+                    controlPlaneEligible:
                       description: |-
-                        controlPlane indicates whether this zone is eligible for control plane machines.
-                        Defaults to true when not set.
+                        controlPlaneEligible indicates whether control plane machines may be
+                        placed in this zone. Defaults to true when not set.
                       type: boolean
                     dnsServers:
                       description: dnsServers contains information about nameservers
