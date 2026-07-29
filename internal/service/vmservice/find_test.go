@@ -27,8 +27,6 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
-const foreignVMName = "other-cluster-worker"
-
 func TestFindVM_FindByNodeAndID(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
@@ -95,7 +93,7 @@ func TestFindVM_ControllerAllocatedVMIDCollision(t *testing.T) {
 	ctx := context.TODO()
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
-	vm.Name = foreignVMName
+	vm.Name = t.Name()
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node2")
 	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
@@ -175,7 +173,7 @@ func TestUpdateVMLocation_ControllerAllocatedVMIDCollision(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	vm := newRunningVM()
 	vmr := newVMResource()
-	name := foreignVMName
+	name := t.Name()
 	vmr.Name = name
 	vm.VirtualMachineConfig.Name = name
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))

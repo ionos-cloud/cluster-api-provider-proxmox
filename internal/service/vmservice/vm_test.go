@@ -431,7 +431,7 @@ func TestEnsureVirtualMachine_VMIDCollisionRecovers(t *testing.T) {
 	}, false)
 
 	foreignVM := newRunningVM()
-	foreignVM.Name = foreignVMName
+	foreignVM.Name = t.Name()
 	foreignVM.VirtualMachineConfig.Name = foreignVM.Name
 	vmResource := newVMResource()
 	vmResource.Name = foreignVM.Name
@@ -464,7 +464,7 @@ func TestEnsureVirtualMachine_VMIDCollisionAtRecordedNodeRecovers(t *testing.T) 
 	}, false)
 
 	foreignVM := newRunningVM()
-	foreignVM.Name = foreignVMName
+	foreignVM.Name = t.Name()
 	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(foreignVM, nil).Once()
 
 	requeue, err := ensureVirtualMachine(ctx, machineScope)
