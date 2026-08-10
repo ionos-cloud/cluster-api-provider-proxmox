@@ -41,6 +41,7 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 	// Restore lossy fields
 	dst.Spec.ZoneConfigs = restored.Spec.ZoneConfigs
 	dst.Status.InClusterZoneRef = restored.Status.InClusterZoneRef
+	restoreSchedulerHints(&dst.Spec.SchedulerHints, restored.Spec.SchedulerHints)
 
 	clusterv1.Convert_bool_To_Pointer_bool(src.Spec.ExternalManagedControlPlane, ok, restored.Spec.ExternalManagedControlPlane, &dst.Spec.ExternalManagedControlPlane)
 
@@ -72,4 +73,22 @@ func (src *ProxmoxClusterList) ConvertTo(dstRaw conversion.Hub) error {
 func (dst *ProxmoxClusterList) ConvertFrom(srcRaw conversion.Hub) error {
 	src := srcRaw.(*v1alpha2.ProxmoxClusterList)
 	return Convert_v1alpha2_ProxmoxClusterList_To_v1alpha1_ProxmoxClusterList(src, dst, nil)
+}
+
+// restoreSchedulerHints restores v1alpha2-only SchedulerHints fields
+// (CPUAdjustment, MemoryTolerance, CPUTolerance) from the annotation-decoded
+// hub object. Shared between ProxmoxCluster and ProxmoxClusterTemplate
+// ConvertTo paths.
+func restoreSchedulerHints(dst **v1alpha2.SchedulerHints, restored *v1alpha2.SchedulerHints) {
+	if restored == nil {
+		return
+	}
+
+	if *dst == nil {
+		*dst = &v1alpha2.SchedulerHints{}
+	}
+
+	(*dst).CPUAdjustment = restored.CPUAdjustment
+	(*dst).MemoryTolerance = restored.MemoryTolerance
+	(*dst).CPUTolerance = restored.CPUTolerance
 }

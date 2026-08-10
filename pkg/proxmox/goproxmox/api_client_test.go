@@ -148,7 +148,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/lxc`,
 				newJSONResponder(200, proxmox.Containers{}))
 
-			reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", test.nodeMemoryAdjustment)
+			reservable, _, err := client.GetReservableMemoryBytes(context.Background(), "test", test.nodeMemoryAdjustment)
 			require.NoError(t, err)
 			require.Equal(t, test.expect, reservable)
 		})
@@ -158,7 +158,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		client := newTestClient(t)
 		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
 			newJSONResponder(401, "Forbidden"))
-		reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
+		reservable, _, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
@@ -172,7 +172,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 			newJSONResponder(200, proxmox.Node{Memory: proxmox.Memory{Total: 30}, Name: "test"}))
 		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu`,
 			newJSONResponder(401, nil))
-		reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", 1)
+		reservable, _, err := client.GetReservableMemoryBytes(context.Background(), "test", 1)
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
