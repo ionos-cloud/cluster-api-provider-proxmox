@@ -26,6 +26,17 @@ spec:
       - pve1
       - pve2
       - pve3
+    - name: availabilityZones
+      value:
+      - name: az-1
+        nodes:
+        - pve1
+      - name: az-2
+        nodes:
+        - pve2
+      - name: az-3
+        nodes:
+        - pve3
     - name: controlPlaneEndpoint
       value:
         host: 10.10.10.9

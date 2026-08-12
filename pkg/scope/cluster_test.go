@@ -93,6 +93,46 @@ func TestNewClusterScope_MissingProxmoxClient(t *testing.T) {
 	}
 }
 
+func TestNewClusterScope_NoDefaultCredentialsNeededWhenZonesCoverAllNodes(t *testing.T) {
+	// Regression test: a ProxmoxCluster spanning multiple physically separate Proxmox VE
+	// clusters (one per availability zone, each with its own credentialsRef) must not fail
+	// just because it lacks a top-level spec.credentialsRef / global controller credentials,
+	// as long as every allowed node is covered by a zone with its own credentialsRef.
+	k8sClient := getFakeClient(t)
+
+	proxmoxCluster := &infrav1.ProxmoxCluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: infrav1.GroupVersion.String(),
+			Kind:       "ProxmoxCluster",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "proxmoxcluster",
+			Namespace: "default",
+		},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"skbo001004", "skbo002004"},
+			AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+				{Name: "az1", Nodes: []string{"skbo001004"}, CredentialsRef: &corev1.SecretReference{Name: "proxmox-az1-credentials"}},
+				{Name: "az2", Nodes: []string{"skbo002004"}, CredentialsRef: &corev1.SecretReference{Name: "proxmox-az2-credentials"}},
+			},
+		},
+	}
+
+	clusterScope, err := NewClusterScope(ClusterScopeParams{
+		Client:         k8sClient,
+		Cluster:        &clusterv1.Cluster{},
+		ProxmoxCluster: proxmoxCluster,
+		IPAMHelper:     &ipam.Helper{},
+	})
+	require.NoError(t, err)
+	require.Nil(t, clusterScope.ProxmoxClient)
+
+	// The default client is never expected to be used here, but requesting it explicitly
+	// (e.g. for zone "") must fail clearly instead of returning a nil client.
+	_, err = clusterScope.GetProxmoxClient(context.Background(), "")
+	require.Error(t, err)
+}
+
 func TestNewClusterScope_SetupProxmoxClient(t *testing.T) {
 	k8sClient := getFakeClient(t)
 
@@ -239,6 +279,106 @@ func TestListProxmoxMachinesForCluster(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, expectedMachineList.Items, machines)
+}
+
+func TestClusterScope_GetProxmoxClient(t *testing.T) {
+	k8sClient := getFakeClient(t)
+	defaultClient := proxmoxtest.NewMockClient(t)
+
+	proxmoxCluster := &infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "proxmoxcluster",
+			Namespace: "default",
+		},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1"}},
+				{Name: "az-2", Nodes: []string{"pve2"}, CredentialsRef: &corev1.SecretReference{Name: "az-2-secret", Namespace: "default"}},
+			},
+		},
+	}
+
+	err := k8sClient.Create(context.Background(), &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "az-2-secret", Namespace: "default"},
+		StringData: map[string]string{"url": "https://az2.example.com:8006", "token": "token", "secret": "secret"},
+	})
+	require.NoError(t, err)
+
+	clusterScope, err := NewClusterScope(ClusterScopeParams{
+		Client:         k8sClient,
+		Cluster:        &clusterv1.Cluster{},
+		ProxmoxCluster: proxmoxCluster,
+		ProxmoxClient:  defaultClient,
+		IPAMHelper:     &ipam.Helper{},
+	})
+	require.NoError(t, err)
+
+	// No zone falls back to the default client.
+	client, err := clusterScope.GetProxmoxClient(context.Background(), "")
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+
+	// A zone without its own credentialsRef falls back to the default client.
+	client, err = clusterScope.GetProxmoxClient(context.Background(), "az-1")
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+
+	// A zone with its own credentialsRef resolves its own secret and attempts to build a
+	// dedicated client (fails here since there's no real Proxmox API to reach in this test).
+	_, err = clusterScope.GetProxmoxClient(context.Background(), "az-2")
+	require.Error(t, err)
+
+	// An unknown zone falls back to the default client.
+	client, err = clusterScope.GetProxmoxClient(context.Background(), "unknown")
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+}
+
+func TestClusterScope_GetProxmoxClientForNode(t *testing.T) {
+	k8sClient := getFakeClient(t)
+	defaultClient := proxmoxtest.NewMockClient(t)
+
+	proxmoxCluster := &infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "proxmoxcluster",
+			Namespace: "default",
+		},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1"}},
+				{Name: "az-2", Nodes: []string{"pve2"}, CredentialsRef: &corev1.SecretReference{Name: "az-2-secret", Namespace: "default"}},
+			},
+		},
+	}
+
+	err := k8sClient.Create(context.Background(), &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "az-2-secret", Namespace: "default"},
+		StringData: map[string]string{"url": "https://az2.example.com:8006", "token": "token", "secret": "secret"},
+	})
+	require.NoError(t, err)
+
+	clusterScope, err := NewClusterScope(ClusterScopeParams{
+		Client:         k8sClient,
+		Cluster:        &clusterv1.Cluster{},
+		ProxmoxCluster: proxmoxCluster,
+		ProxmoxClient:  defaultClient,
+		IPAMHelper:     &ipam.Helper{},
+	})
+	require.NoError(t, err)
+
+	// A node in a zone without its own credentialsRef falls back to the default client.
+	client, err := clusterScope.GetProxmoxClientForNode(context.Background(), "pve1")
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+
+	// A node not listed in any availability zone falls back to the default client.
+	client, err = clusterScope.GetProxmoxClientForNode(context.Background(), "pve-unknown")
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+
+	// A node in a zone with its own credentialsRef resolves that zone's client.
+	_, err = clusterScope.GetProxmoxClientForNode(context.Background(), "pve2")
+	require.Error(t, err)
 }
 
 func getFakeClient(t *testing.T) ctrlclient.Client {

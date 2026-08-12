@@ -1,12 +1,4 @@
----
-# E2E test scenario using local dev images and manifests built from the source tree for following providers:
-# - cluster-api
-# - bootstrap kubeadm
-# - control-plane kubeadm
-# - proxmox
-
 images:
-  # Use local dev images built source tree;
   - name: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:e2e
     loadBehavior: mustLoad
 providers:
@@ -17,12 +9,12 @@ providers:
         value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.11/core-components.yaml
         type: url
         files:
-          - sourcePath: "../data/shared/v1beta2/metadata.yaml"
+          - sourcePath: ../data/shared/v1beta2/metadata.yaml
         replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
+          - old: 'imagePullPolicy: Always'
+            new: 'imagePullPolicy: IfNotPresent'
+          - old: --leader-elect
+            new: --leader-elect=false
   - name: kubeadm
     type: BootstrapProvider
     versions:
@@ -30,12 +22,12 @@ providers:
         value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.11/bootstrap-components.yaml
         type: url
         files:
-          - sourcePath: "../data/shared/v1beta2/metadata.yaml"
+          - sourcePath: ../data/shared/v1beta2/metadata.yaml
         replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
+          - old: 'imagePullPolicy: Always'
+            new: 'imagePullPolicy: IfNotPresent'
+          - old: --leader-elect
+            new: --leader-elect=false
   - name: kubeadm
     type: ControlPlaneProvider
     versions:
@@ -43,12 +35,12 @@ providers:
         value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.12.11/control-plane-components.yaml
         type: url
         files:
-          - sourcePath: "../data/shared/v1beta2/metadata.yaml"
+          - sourcePath: ../data/shared/v1beta2/metadata.yaml
         replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
+          - old: 'imagePullPolicy: Always'
+            new: 'imagePullPolicy: IfNotPresent'
+          - old: --leader-elect
+            new: --leader-elect=false
   - name: in-cluster
     type: IPAMProvider
     versions:
@@ -56,29 +48,29 @@ providers:
         value: https://github.com/kubernetes-sigs/cluster-api-ipam-provider-in-cluster/releases/download/v1.1.0/ipam-components.yaml
         type: url
         files:
-          - sourcePath: "../data/shared/ipam/metadata.yaml"
+          - sourcePath: ../data/shared/ipam/metadata.yaml
         replacements:
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
-          - old: "--leader-elect"
-            new: "--leader-elect=false"
+          - old: 'imagePullPolicy: Always'
+            new: 'imagePullPolicy: IfNotPresent'
+          - old: --leader-elect
+            new: --leader-elect=false
   - name: proxmox
     type: InfrastructureProvider
     versions:
-      - name: v0.9.99
-        value: "${PWD}/config/default"
+      - name: v0.10.99
+        value: ${PWD}/config/default
         replacements:
           - old: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev
             new: ghcr.io/ionos-cloud/cluster-api-provider-proxmox:e2e
-          - old: "imagePullPolicy: Always"
-            new: "imagePullPolicy: IfNotPresent"
+          - old: 'imagePullPolicy: Always'
+            new: 'imagePullPolicy: IfNotPresent'
     files:
-      - sourcePath: "${PWD}/metadata.yaml"
-        targetName: "metadata.yaml"
-      - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-ci.yaml"
-        targetName: "cluster-template.yaml"
-      - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-upgrades.yaml"
-      - sourcePath: "${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-flatcar.yaml"
+      - sourcePath: ${PWD}/metadata.yaml
+        targetName: metadata.yaml
+      - sourcePath: ${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-ci.yaml
+        targetName: cluster-template.yaml
+      - sourcePath: ${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-upgrades.yaml
+      - sourcePath: ${PWD}/test/e2e/data/infrastructure-proxmox/cluster-template-flatcar.yaml
 variables:
   KUBERNETES_VERSION: "${KUBERNETES_VERSION:-v1.34.11}"
   CONTROL_PLANE_MACHINE_COUNT: "${CONTROL_PLANE_MACHINE_COUNT:-1}"
@@ -109,14 +101,36 @@ variables:
   KUBETEST_CONFIGURATION: "${PWD}/test/e2e/data/kubetest/conformance.yaml"
   EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: true
 intervals:
-  default/wait-controllers: ["3m", "10s"]
-  default/wait-cluster: ["20m", "10s"]
-  default/wait-control-plane: ["50m", "10s"]
-  default/wait-worker-nodes: ["30m", "10s"]
-  default/wait-delete-cluster: ["20m", "10s"]
-  default/wait-machine-upgrade: ["50m", "10s"]
-  default/wait-machine-remediation: ["30m", "10s"]
-  default/wait-deployment: ["5m", "10s"]
-  default/wait-job: ["5m", "10s"]
-  default/wait-service: ["3m", "10s"]
-  node-drain/wait-machine-deleted: ["10m", "10s"]
+  default/wait-controllers:
+    - 3m
+    - 10s
+  default/wait-cluster:
+    - 20m
+    - 10s
+  default/wait-control-plane:
+    - 50m
+    - 10s
+  default/wait-worker-nodes:
+    - 30m
+    - 10s
+  default/wait-delete-cluster:
+    - 20m
+    - 10s
+  default/wait-machine-upgrade:
+    - 50m
+    - 10s
+  default/wait-machine-remediation:
+    - 30m
+    - 10s
+  default/wait-deployment:
+    - 5m
+    - 10s
+  default/wait-job:
+    - 5m
+    - 10s
+  default/wait-service:
+    - 3m
+    - 10s
+  node-drain/wait-machine-deleted:
+    - 10m
+    - 10s

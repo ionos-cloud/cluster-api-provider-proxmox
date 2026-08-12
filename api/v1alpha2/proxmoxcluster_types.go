@@ -123,6 +123,31 @@ func (v APIEndpoint) String() string {
 	return net.JoinHostPort(v.Host, fmt.Sprintf("%d", v.Port))
 }
 
+// AvailabilityZoneSpec defines a named group of Proxmox nodes representing an availability zone.
+// ProxmoxMachines reference availability zones by name to constrain VM placement.
+type AvailabilityZoneSpec struct {
+	// name is the unique identifier for this availability zone.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`
+	Name string `json:"name"`
+
+	// nodes lists the Proxmox nodes belonging to this availability zone.
+	// +required
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	Nodes []string `json:"nodes"`
+
+	// credentialsRef is a reference to a Secret that contains the credentials to use for the Proxmox
+	// cluster backing this availability zone. This allows each availability zone to be backed by a
+	// physically separate Proxmox cluster with its own API endpoint.
+	// If not supplied, the ProxmoxCluster's own credentialsRef (or the controller's credentials) will be used.
+	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
+	// +optional
+	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
+}
+
 // ZoneConfigSpec is the Network Configuration for further deployment zones.
 type ZoneConfigSpec struct {
 	// zone is the name of your deployment zone.
@@ -369,12 +394,12 @@ func (c *ProxmoxCluster) AddInClusterZoneRef(pool client.Object) {
 	}
 
 	index := slices.IndexFunc(c.Status.InClusterZoneRef, func(r InClusterZoneRef) bool {
-		return *r.Zone == zone
+		return r.Zone != nil && *r.Zone == zone
 	})
 
 	if index < 0 {
 		c.Status.InClusterZoneRef = append(c.Status.InClusterZoneRef, InClusterZoneRef{Zone: &zone})
-		index = len(c.Status.InClusterZoneRef)
+		index = len(c.Status.InClusterZoneRef) - 1
 	}
 
 	poolRef := corev1.LocalObjectReference{Name: pool.GetName()}
