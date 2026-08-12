@@ -11,7 +11,18 @@ sedi() { local file="$2"; sed -E "$@" > "${file}.tmp" && { cmp -s "${file}" "${f
 
 # yqsi runs a yq expression against a file in-place.
 # Returns 0 if the file was changed, 1 if it was unchanged.
-yqsi() { local expr="$1" file="$2"; yq "${expr}" "${file}" > "${file}.tmp" && { cmp -s "${file}" "${file}.tmp" && rm "${file}.tmp" && return 1; mv "${file}.tmp" "${file}"; }; }
+yqsi() {
+    local expr="$1" file="$2"
+    # jq-backed yq defaults to JSON output; force YAML output for YAML files.
+    local out_flag=()
+    if [[ "${file}" == *.yml || "${file}" == *.yaml ]]; then
+        out_flag=(-y)
+    fi
+    yq "${out_flag[@]}" "${expr}" "${file}" > "${file}.tmp" && {
+        cmp -s "${file}" "${file}.tmp" && rm "${file}.tmp" && return 1
+        mv "${file}.tmp" "${file}"
+    }
+}
 
 # ---- version helpers ----
 
@@ -249,7 +260,7 @@ dockerfile_get_go() {
 golangcikal_get_go() {
     local f="${REPO_ROOT}/.golangci-kal.yml"
     if [[ -f "${f}" ]]; then
-        yq '.run.go' "${f}"
+        yq -r '.run.go' "${f}"
     fi
     return
 }
@@ -303,7 +314,7 @@ docker_resolve_digest() {
 customgcl_get_version() {
     local f="${REPO_ROOT}/.custom-gcl.yaml"
     if [[ -f "${f}" ]]; then
-        yq '.version' "${f}"
+        yq -r '.version' "${f}"
     fi
     return
 }
@@ -393,7 +404,7 @@ customgcl_set_version() {
 clusterctl_get_version() {
     local f="${REPO_ROOT}/clusterctl-settings.json"
     if [[ -f "${f}" ]]; then
-        yq -oy '.config.nextVersion' "${f}"
+        yq -r '.config.nextVersion' "${f}"
     fi
     return
 }
@@ -444,7 +455,7 @@ E2E_CONFIG_DIR="${REPO_ROOT}/test/e2e/config"
 # e2econfig_get_k8s returns the default KUBERNETES_VERSION from the first
 # e2e config file (e.g. "v1.32.2").
 e2econfig_get_k8s() {
-    yq '.variables.KUBERNETES_VERSION | match("v[0-9]+\.[0-9]+\.[0-9]+") | .string' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    yq -r '.variables.KUBERNETES_VERSION | match("v[0-9]+[.][0-9]+[.][0-9]+") | .string' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
     return
 }
 
@@ -466,7 +477,7 @@ e2econfig_set_k8s() {
 # e2econfig_get_capi returns the cluster-api provider version from the first
 # e2e config file (e.g. "v1.10.4").
 e2econfig_get_capi() {
-    yq '.providers[] | select(.type == "CoreProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    yq -r '.providers[] | select(.type == "CoreProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
     return
 }
 
@@ -475,7 +486,7 @@ e2econfig_get_capi() {
 # major.minor with a fixed .99 patch component to denote "the development
 # version of this series".
 e2econfig_get_capmox() {
-    yq '.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
+    yq -r '.providers[] | select(.type == "InfrastructureProvider") | .versions[0].name' "${E2E_CONFIG_DIR}/proxmox-ci.yaml"
     return
 }
 
@@ -497,14 +508,13 @@ e2econfig_set_capmox() {
 # e2econfig_set_capi updates the cluster-api provider version in all e2e
 # config files, including both the provider name and download URL.
 e2econfig_set_capi() {
-    local new="$1" old old_escaped changed=false
+    local new="$1" old changed=false
     old=$(e2econfig_get_capi)
     if [[ -z "${old}" ]]; then return; fi
-    old_escaped="${old//./\\.}"
     for f in "${E2E_CONFIG_DIR}/proxmox-ci.yaml" "${E2E_CONFIG_DIR}/proxmox-dev.yaml"; do
         if [[ -f "${f}" ]] && yqsi '
               (.providers[].versions[] | select(.value | test("cluster-api/releases/download"))) |=
-                (.name = "'"${new}"'" | .value = (.value | sub("'"${old_escaped}"'", "'"${new}"'")))
+                (.name = "'"${new}"'" | .value = (.value | split("'"${old}"'") | join("'"${new}"'")))
             ' "${f}"; then
             changed=true
         fi
@@ -553,7 +563,7 @@ CAPI_CONTRACT="${CAPI_CONTRACT:-v1beta2}"
 # entry with the highest major.minor in the top-level metadata.yaml (e.g.
 # "v1beta1"). This is the contract the project currently implements.
 metadata_latest_contract() {
-    yq '[.releaseSeries[] | {"v": ((.major * 1000) + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
+    yq -r '[.releaseSeries[] | {"v": ((.major * 1000) + .minor), "contract": .contract}] | sort_by(.v) | reverse | .[0].contract' "${METADATA_FILE}"
     return
 }
 
@@ -571,7 +581,7 @@ metadata_has_release() {
 # message.
 metadata_add_release() {
     local major="$1" minor="$2" contract="$3"
-    yq -i '.releaseSeries += [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}]' "${METADATA_FILE}"
+    CONTRACT="${contract}" yqsi '.releaseSeries += [{"major": '"${major}"', "minor": '"${minor}"', "contract": env.CONTRACT}]' "${METADATA_FILE}" >/dev/null
     echo "metadata.yaml: Added releaseSeries entry for v${major}.${minor} (${contract})"
     return
 }
@@ -602,8 +612,8 @@ e2emetadata_contract_has_release() {
 e2emetadata_contract_add_release() {
     local major="$1" minor="$2" contract="$3"
     local rel="test/e2e/data/shared/${contract}/metadata.yaml"
-    yq -i '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": "'"${contract}"'"}] + .releaseSeries' \
-        "${REPO_ROOT}/${rel}"
+    CONTRACT="${contract}" yqsi '.releaseSeries = [{"major": '"${major}"', "minor": '"${minor}"', "contract": env.CONTRACT}] + .releaseSeries' \
+        "${REPO_ROOT}/${rel}" >/dev/null
     echo "${rel}: Added releaseSeries entry for v${major}.${minor} (${contract})"
     return
 }
