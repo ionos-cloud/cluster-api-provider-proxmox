@@ -138,6 +138,15 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 	} // State Machine is finished
 	scope.Logger.V(4).Info("condition", "condition", conditions.GetReason(scope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 
+	// If the machine opted into Proxmox HA, register the VM as an HA resource now
+	// that it is provisioned. This is idempotent and re-asserted on every
+	// reconcile, so it also recovers HA membership if it is removed out-of-band.
+	if ha := scope.ProxmoxMachine.Spec.HighAvailability; ha != nil && ptr.Deref(ha.Enabled, false) {
+		if err := scope.InfraCluster.ProxmoxClient.EnsureHAResource(ctx, scope.ProxmoxMachine.GetVirtualMachineID(), ha.State); err != nil {
+			return vm, errors.Wrapf(err, "failed to ensure Proxmox HA resource for vm %s", scope.Name())
+		}
+	}
+
 	vm.State = infrav1.VirtualMachineStateReady
 	return vm, nil
 }
