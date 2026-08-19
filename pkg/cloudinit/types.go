@@ -16,8 +16,6 @@ limitations under the License.
 
 package cloudinit
 
-import "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
-
 const (
 	// FormatCloudConfig is the format for cloud-config.
 	FormatCloudConfig = "cloud-config"
@@ -30,5 +28,4 @@ type BaseCloudInitData struct {
 	InstanceID          string
 	KubernetesVersion   string
 	ProviderIDInjection bool
-	NetworkConfigData   []network.ConfigData
 }
