@@ -61,6 +61,20 @@ type MachineScope struct {
 	ProxmoxMachine *infrav1.ProxmoxMachine
 	IPAMHelper     *ipam.Helper
 	VirtualMachine *proxmox.VirtualMachine
+
+	// allowedNodes is the placement node list resolved once by
+	// resolvePlacement. Immutable after scope construction.
+	allowedNodes []string
+
+	// zone is the zone resolved once by resolvePlacement. Immutable after
+	// scope construction. nil means the default zone.
+	zone *string
+
+	// failureDomainErr records the FailureDomainNotFoundError encountered
+	// by resolvePlacement, if any. Kept on the scope instead of failing
+	// construction so reconciliation paths that must proceed without the
+	// zone (e.g. deletion) still get a usable scope.
+	failureDomainErr error
 }
 
 // NewMachineScope creates a new MachineScope from the supplied parameters.
@@ -93,7 +107,7 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init patch helper")
 	}
-	return &MachineScope{
+	m := &MachineScope{
 		Logger:      params.Logger,
 		client:      params.Client,
 		patchHelper: helper,
@@ -103,7 +117,79 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 		InfraCluster:   params.InfraCluster,
 		ProxmoxMachine: params.ProxmoxMachine,
 		IPAMHelper:     params.IPAMHelper,
-	}, nil
+	}
+	m.failureDomainErr = m.resolvePlacement()
+	return m, nil
+}
+
+// FailureDomainNotFoundError is returned when the CAPI Machine references a
+// failure domain that is not configured in the ProxmoxCluster zones.
+type FailureDomainNotFoundError struct {
+	FailureDomain string
+}
+
+func (err FailureDomainNotFoundError) Error() string {
+	return fmt.Sprintf("failure domain %q not configured in ProxmoxCluster zones", err.FailureDomain)
+}
+
+// resolvePlacement resolves the machine's placement inputs once, at scope
+// construction. The precedence chains are:
+//
+//   - allowed nodes: failure domain zone nodes > ProxmoxMachine spec > ProxmoxCluster spec
+//   - zone: failure domain > Spec.Network.Zone > nil (the default zone)
+//
+// When the referenced failure domain is not configured in the ProxmoxCluster
+// zones it returns a FailureDomainNotFoundError; the remaining fields are
+// still resolved from the specs so the scope stays usable for paths that
+// must proceed anyway, such as deletion.
+func (m *MachineScope) resolvePlacement() error {
+	m.allowedNodes = m.ProxmoxMachine.Spec.AllowedNodes
+	if len(m.allowedNodes) == 0 {
+		m.allowedNodes = m.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
+	}
+	if m.ProxmoxMachine.Spec.Network != nil {
+		m.zone = m.ProxmoxMachine.Spec.Network.Zone
+	}
+
+	faildom := m.Machine.Spec.FailureDomain
+	if faildom == "" {
+		return nil
+	}
+
+	m.zone = new(faildom)
+	if nodes := m.InfraCluster.ProxmoxCluster.GetZoneNodes(faildom); len(nodes) > 0 {
+		m.allowedNodes = nodes
+		return nil
+	}
+
+	// The zone may exist without an explicit node list; only a missing zone
+	// is an error.
+	for _, zc := range m.InfraCluster.ProxmoxCluster.Spec.ZoneConfigs {
+		if ptr.Deref(zc.Zone, "") == faildom {
+			return nil
+		}
+	}
+
+	return FailureDomainNotFoundError{FailureDomain: faildom}
+}
+
+// AllowedNodes returns the Proxmox nodes the machine may be placed on,
+// resolved once at scope construction. An empty result means any node.
+func (m *MachineScope) AllowedNodes() []string {
+	return m.allowedNodes
+}
+
+// Zone returns the zone the machine belongs to, resolved once at scope
+// construction. nil means the default zone.
+func (m *MachineScope) Zone() *string {
+	return m.zone
+}
+
+// FailureDomainError returns the FailureDomainNotFoundError encountered
+// while resolving placement, or nil. Callers that are about to provision
+// must treat a non-nil result as "failure domain not ready".
+func (m *MachineScope) FailureDomainError() error {
+	return m.failureDomainErr
 }
 
 // Name returns the ProxmoxMachine name.

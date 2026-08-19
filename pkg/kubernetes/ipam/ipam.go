@@ -152,8 +152,9 @@ func (h *Helper) poolFromObjectRef(ctx context.Context, o any, namespace *string
 }
 
 // GetInClusterPools returns the IPPools belonging to the ProxmoxCluster relative to its Zone.
+// The zoneOverride parameter, when non-nil, takes precedence over the machine's Spec.Network.Zone.
 // TODO: streamline codeflow (unify GetIPPools).
-func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine) (
+func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMachine, zoneOverride infrav1.Zone) (
 	struct {
 		Zone infrav1.Zone
 		IPv4 *struct {
@@ -179,7 +180,13 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 
 	namespace := moxm.ObjectMeta.Namespace
 
-	zone := new(ptr.Deref(moxm.Spec.Network.Zone, "default"))
+	// Use zoneOverride if provided (from failure domain), else fall back to spec.
+	specZone := "default"
+	if moxm.Spec.Network != nil && moxm.Spec.Network.Zone != nil {
+		specZone = *moxm.Spec.Network.Zone
+	}
+
+	zone := new(ptr.Deref(zoneOverride, specZone))
 	zoneIndex := slices.IndexFunc(h.cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
 		return ptr.Equal(zone, z.Zone)
 	})
