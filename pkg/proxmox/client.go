@@ -40,6 +40,12 @@ type Client interface {
 
 	GetTask(ctx context.Context, upID string) (*proxmox.Task, error)
 
+	// GetVMActiveTask returns the still-running task of the given type for vmID
+	// on nodeName, or nil when Proxmox has none. It lets callers make
+	// task-issuing operations idempotent against Proxmox itself, rather than
+	// against a possibly stale cached ProxmoxMachine status.
+	GetVMActiveTask(ctx context.Context, nodeName string, vmID int64, taskType string) (*proxmox.Task, error)
+
 	GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, error)
 
 	ResizeDisk(ctx context.Context, vm *proxmox.VirtualMachine, disk, size string) (*proxmox.Task, error)

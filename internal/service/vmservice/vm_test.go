@@ -842,6 +842,7 @@ func TestReconcileVM_StateMachine(t *testing.T) {
 	)
 
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node2", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().GetVMActiveTask(context.Background(), "node2", int64(123), goproxmox.TaskTypeStartVM).Return(nil, nil).Once()
 	proxmoxClient.EXPECT().StartVM(context.Background(), vm).Return(newTask(), nil).Once()
 
 	// Provide IPAddresses fields to fake network bootstrap.
