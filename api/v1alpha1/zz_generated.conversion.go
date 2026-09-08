@@ -954,6 +954,7 @@ func autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(
 	} else {
 		out.NodeLocations = nil
 	}
+	// WARNING: in.FailureDomains requires manual conversion: does not exist in peer-type
 	return nil
 }
 

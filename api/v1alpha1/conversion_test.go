@@ -420,8 +420,10 @@ func hubProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, c randfill.Continue)
 func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Continue) {
 	c.FillNoCustom(in)
 
-	// InClusterZoneRef doesn't exist in v1alpha1, so it will be lost during hub→spoke→hub
+	// InClusterZoneRef and FailureDomains don't exist in v1alpha1, so they are lost
+	// during hub→spoke→hub (restored via MarshalData but normalized for fuzz stability).
 	in.InClusterZoneRef = nil
+	in.FailureDomains = nil
 
 	// Zone field does not exist in v1alpha1 NodeLocation, so it will be lost during hub→spoke→hub
 	if in.NodeLocations != nil {

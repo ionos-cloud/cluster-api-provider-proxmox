@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -265,6 +266,14 @@ type ProxmoxClusterStatus struct {
 	// for different machines.
 	// +optional
 	NodeLocations *NodeLocations `json:"nodeLocations,omitempty"`
+
+	// failureDomains is the list of failure domains known to the infrastructure provider,
+	// reconciled from spec.availabilityZones so that Cluster API can distribute
+	// control plane and worker machines across zones.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	FailureDomains []clusterv1.FailureDomain `json:"failureDomains,omitempty"`
 }
 
 // ProxmoxClusterInitializationStatus provides observations of the ProxmoxCluster initialization process.
