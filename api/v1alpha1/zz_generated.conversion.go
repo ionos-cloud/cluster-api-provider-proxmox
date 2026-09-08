@@ -868,6 +868,7 @@ func autoConvert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *
 		return err
 	}
 	out.AllowedNodes = *(*[]string)(unsafe.Pointer(&in.AllowedNodes))
+	// WARNING: in.AvailabilityZones requires manual conversion: does not exist in peer-type
 	if in.SchedulerHints != nil {
 		in, out := &in.SchedulerHints, &out.SchedulerHints
 		*out = new(SchedulerHints)

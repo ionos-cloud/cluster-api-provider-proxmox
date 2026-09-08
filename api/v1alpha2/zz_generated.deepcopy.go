@@ -462,6 +462,13 @@ func (in *ProxmoxClusterSpec) DeepCopyInto(out *ProxmoxClusterSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.AvailabilityZones != nil {
+		in, out := &in.AvailabilityZones, &out.AvailabilityZones
+		*out = make([]AvailabilityZoneSpec, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.SchedulerHints != nil {
 		in, out := &in.SchedulerHints, &out.SchedulerHints
 		*out = new(SchedulerHints)

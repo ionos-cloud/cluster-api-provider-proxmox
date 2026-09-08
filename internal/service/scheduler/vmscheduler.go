@@ -101,6 +101,32 @@ func nodeToZone(azs []infrav1.AvailabilityZoneSpec, nodes []string) map[string]s
 	return result
 }
 
+// nodesForAvailabilityZone returns the nodes listed in the availability zone with the
+// given name, or nil if no such zone is configured.
+func nodesForAvailabilityZone(azs []infrav1.AvailabilityZoneSpec, name string) []string {
+	for _, az := range azs {
+		if az.Name == name {
+			return az.Nodes
+		}
+	}
+	return nil
+}
+
+// intersectNodes returns the nodes present in both a and b, preserving the order of a.
+func intersectNodes(a, b []string) []string {
+	bset := make(map[string]struct{}, len(b))
+	for _, n := range b {
+		bset[n] = struct{}{}
+	}
+	var result []string
+	for _, n := range a {
+		if _, ok := bset[n]; ok {
+			result = append(result, n)
+		}
+	}
+	return result
+}
+
 func selectNode(
 	ctx context.Context,
 	client resourceClient,

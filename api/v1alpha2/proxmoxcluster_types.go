@@ -56,6 +56,14 @@ type ProxmoxClusterSpec struct {
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
 
+	// availabilityZones defines named groups of Proxmox nodes that represent
+	// availability zones. ProxmoxMachines can reference an availability zone by
+	// name to constrain VM scheduling to only nodes in that zone.
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	AvailabilityZones []AvailabilityZoneSpec `json:"availabilityZones,omitempty"`
+
 	// schedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
 	// to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
 	// +optional

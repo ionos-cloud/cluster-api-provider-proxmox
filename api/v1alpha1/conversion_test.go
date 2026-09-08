@@ -411,9 +411,10 @@ func spokeProxmoxClusterSpec(in *ProxmoxClusterSpec, c randfill.Continue) {
 }
 
 func hubProxmoxClusterSpec(in *v1alpha2.ProxmoxClusterSpec, c randfill.Continue) {
-	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
-	// Always set to nil to match conversion behavior
+	// ZoneConfigs and AvailabilityZones do not exist in v1alpha1, so they will be lost
+	// during hub→spoke→hub. Always set to nil to match conversion behavior.
 	in.ZoneConfigs = nil
+	in.AvailabilityZones = nil
 }
 
 func hubProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, c randfill.Continue) {
@@ -512,9 +513,10 @@ func ProxmoxClusterTemplateFuzzFuncs(_ runtimeserializer.CodecFactory) []any {
 func hubProxmoxClusterTemplateSpec(in *v1alpha2.ProxmoxClusterTemplateSpec, c randfill.Continue) {
 	c.FillNoCustom(in)
 
-	// ZoneConfigs does not exist in v1alpha1, so it will be lost during hub→spoke→hub
-	// Always set to nil to match conversion behavior
+	// ZoneConfigs and AvailabilityZones do not exist in v1alpha1, so they will be
+	// lost during hub→spoke→hub. Always set to nil to match conversion behavior.
 	in.Template.Spec.ZoneConfigs = nil
+	in.Template.Spec.AvailabilityZones = nil
 }
 
 func spokeProxmoxClusterTemplateSpec(in *ProxmoxClusterTemplateSpec, c randfill.Continue) {
