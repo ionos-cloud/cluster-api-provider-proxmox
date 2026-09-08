@@ -153,7 +153,7 @@ jobs:
           allow-unsafe-pr-checkout: true
 
       # The shell helpers shell out to `go list` / `go mod edit`; pin Go to go.mod.
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: pr/go.mod
 
@@ -231,7 +231,7 @@ jobs:
 
       - name: SonarQube for PR ${{ github.event.pull_request.number }}
         if: github.event_name == 'pull_request_target'
-        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         with:
           args: >
             -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
@@ -248,7 +248,7 @@ jobs:
 
       - name: SonarQube
         if: github.event_name == 'push'
-        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         with:
           args: >
             -Dproject.settings=${{ env.SONAR_CONFIG_DIR }}/sonar-project.properties
@@ -259,7 +259,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
+      - uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
         with:
           scanMetadataReportFile: ${{ runner.temp }}/scannerwork/report-task.txt
         env:
