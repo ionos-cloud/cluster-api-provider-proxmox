@@ -4,7 +4,7 @@ go 1.26.6
 
 replace (
 	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.11.4
-	k8s.io/code-generator => k8s.io/code-generator v0.34.8 // conversion-gen
+	k8s.io/code-generator => k8s.io/code-generator v0.34.11 // conversion-gen
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.12.11
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.19.0 // v0.20 → k8s 35
 	sigs.k8s.io/kind => sigs.k8s.io/kind v0.30.0 // v0.31.0 → k8s 35
@@ -26,9 +26,9 @@ require (
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.49.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.34.8
-	k8s.io/apimachinery v0.34.8
-	k8s.io/client-go v0.34.8
+	k8s.io/api v0.34.11
+	k8s.io/apimachinery v0.34.11
+	k8s.io/client-go v0.34.11
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	sigs.k8s.io/cluster-api v1.12.11
@@ -352,16 +352,16 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.83.1 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	honnef.co/go/tools v0.7.0 // indirect
-	k8s.io/apiextensions-apiserver v0.34.8 // indirect
-	k8s.io/apiserver v0.34.8 // indirect
-	k8s.io/cluster-bootstrap v0.34.8 // indirect
-	k8s.io/code-generator v0.34.8 // indirect
-	k8s.io/component-base v0.34.8 // indirect
+	k8s.io/apiextensions-apiserver v0.34.11 // indirect
+	k8s.io/apiserver v0.34.11 // indirect
+	k8s.io/cluster-bootstrap v0.34.11 // indirect
+	k8s.io/code-generator v0.34.11 // indirect
+	k8s.io/component-base v0.34.11 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250604051438-85fd79dbfd9f // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
 	mvdan.cc/gofumpt v0.9.2 // indirect
