@@ -39,6 +39,7 @@ func (src *ProxmoxClusterTemplate) ConvertTo(dstRaw conversion.Hub) error {
 
 	// Restore lossy fields
 	dst.Spec.Template.Spec.ZoneConfigs = restored.Spec.Template.Spec.ZoneConfigs
+	restoreSchedulerHints(&dst.Spec.Template.Spec.SchedulerHints, restored.Spec.Template.Spec.SchedulerHints)
 
 	clusterv1.Convert_bool_To_Pointer_bool(src.Spec.Template.Spec.ExternalManagedControlPlane, ok, restored.Spec.Template.Spec.ExternalManagedControlPlane, &dst.Spec.Template.Spec.ExternalManagedControlPlane)
 
