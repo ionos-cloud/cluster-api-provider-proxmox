@@ -5,7 +5,7 @@ go 1.26.6
 replace (
 	github.com/golangci/golangci-lint/v2 => github.com/golangci/golangci-lint/v2 v2.11.4
 	k8s.io/code-generator => k8s.io/code-generator v0.34.8 // conversion-gen
-	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.12.9
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.12.11
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.19.0 // v0.20 → k8s 35
 	sigs.k8s.io/kind => sigs.k8s.io/kind v0.30.0 // v0.31.0 → k8s 35
 )
@@ -31,9 +31,9 @@ require (
 	k8s.io/client-go v0.34.8
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	sigs.k8s.io/cluster-api v1.12.9
+	sigs.k8s.io/cluster-api v1.12.11
 	sigs.k8s.io/cluster-api-ipam-provider-in-cluster v1.1.0
-	sigs.k8s.io/cluster-api/test v1.12.9
+	sigs.k8s.io/cluster-api/test v1.12.11
 	sigs.k8s.io/controller-runtime v0.22.5
 	sigs.k8s.io/randfill v1.0.0
 	sigs.k8s.io/yaml v1.6.0
