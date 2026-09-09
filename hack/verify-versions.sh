@@ -38,6 +38,17 @@ if [[ "${GOLANGCI_KAL_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
     fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), .golangci-kal.yml run.go has '${GOLANGCI_KAL_GO_VERSION}'"
 fi
 
+# test.yml's pinned image tag should track go.mod when the matrix's Go
+# minor matches (a mismatch means the row is mid-transition).
+TESTWORKFLOW_GO_MINOR=$(testworkflow_get_go_minor)
+if [[ "${TESTWORKFLOW_GO_MINOR}" == "${GO_VERSION_MINOR}" ]]; then
+    TESTWORKFLOW_GO_TAG=$(testworkflow_get_go_tag)
+    TESTWORKFLOW_GO_VERSION=$(echo "${TESTWORKFLOW_GO_TAG}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || true)
+    if [[ "${TESTWORKFLOW_GO_VERSION}" != "${GO_VERSION_ROOT}" ]]; then
+        fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}', .github/workflows/test.yml pinned image tag is '${TESTWORKFLOW_GO_TAG}'"
+    fi
+fi
+
 # ---- golangci-lint version ----
 # The golangci-lint require directive, replace directive, and .custom-gcl.yaml
 # must all use the same version. Dependabot bumps `require` but leaves

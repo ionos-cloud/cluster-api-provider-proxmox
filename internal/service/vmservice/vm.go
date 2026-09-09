@@ -79,6 +79,14 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 		return vm, err
 	} // VirtualMachineProvisioned reason is Cloning
 
+	// Recover IP/address status for already-running machines (e.g. restored from
+	// backup) whose status was lost. This is read-only and a no-op during normal
+	// provisioning; it does not advance the provisioning state machine below.
+	if err := reconcileAddressRecovery(ctx, scope); err != nil {
+		scope.Logger.V(4).Info("after reconcileAddressRecovery", "machineName", scope.ProxmoxMachine.GetName(), "err", err)
+		return vm, err
+	}
+
 	if requeue, err := reconcileVirtualMachineConfig(ctx, scope); err != nil || requeue {
 		scope.Logger.V(4).Info("after reconcileVirtualMachineConfig", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err

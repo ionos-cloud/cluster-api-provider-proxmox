@@ -1,0 +1,20 @@
+name: Test
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  test-go:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - go: "1.25"
+            image: golang@sha256:abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd # 1.25.0-trixie
+          #- go: "1.26"
+          #  image: golang@sha256:TODO # 1.26.0-trixie
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - run: make test
