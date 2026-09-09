@@ -52,6 +52,24 @@ func TestReconcileVM_EverythingReady(t *testing.T) {
 	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
 }
 
+func TestReconcileVM_HARegistersResource(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
+	vm := newRunningVM()
+	machineScope.SetVirtualMachineID(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = new(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = new(true)
+	machineScope.ProxmoxMachine.Spec.HighAvailability = &infrav1.HighAvailabilitySpec{Enabled: new(true), State: infrav1.HighAvailabilityStateStarted}
+
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, nil).Once()
+	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
+	proxmoxClient.EXPECT().EnsureHAResource(context.Background(), int64(123), infrav1.HighAvailabilityStateStarted).Return(nil).Once()
+
+	result, err := ReconcileVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
+}
+
 func TestReconcileVM_QemuAgentCheckDisabled(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason)
 	vm := newRunningVM()
