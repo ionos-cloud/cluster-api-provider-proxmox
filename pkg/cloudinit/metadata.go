@@ -30,6 +30,44 @@ provider-id: proxmox://{{ .InstanceID }}
 {{- if .KubernetesVersion }}
 kubernetes-version: {{ .KubernetesVersion }}
 {{- end }}
+{{- if .IPv4 }}
+ipv4: {{ .IPv4 }}
+{{- end }}
+{{- if .IPv4Prefix }}
+ipv4_prefix: {{ .IPv4Prefix }}
+{{- end }}
+{{- if .IPv4Gateway }}
+ipv4_gateway: {{ .IPv4Gateway }}
+{{- end }}
+{{- if .IPv6 }}
+ipv6: {{ .IPv6 }}
+{{- end }}
+{{- if .IPv6Prefix }}
+ipv6_prefix: {{ .IPv6Prefix }}
+{{- end }}
+{{- if .IPv6Gateway }}
+ipv6_gateway: {{ .IPv6Gateway }}
+{{- end }}
+{{- range .NetworkAddresses }}
+{{- if .IPv4 }}
+ipv4_{{ .DeviceName }}: {{ .IPv4 }}
+{{- end }}
+{{- if .IPv4Prefix }}
+ipv4_prefix_{{ .DeviceName }}: {{ .IPv4Prefix }}
+{{- end }}
+{{- if .IPv4Gateway }}
+ipv4_gateway_{{ .DeviceName }}: {{ .IPv4Gateway }}
+{{- end }}
+{{- if .IPv6 }}
+ipv6_{{ .DeviceName }}: {{ .IPv6 }}
+{{- end }}
+{{- if .IPv6Prefix }}
+ipv6_prefix_{{ .DeviceName }}: {{ .IPv6Prefix }}
+{{- end }}
+{{- if .IPv6Gateway }}
+ipv6_gateway_{{ .DeviceName }}: {{ .IPv6Gateway }}
+{{- end }}
+{{- end }}
 `
 )
 
@@ -46,15 +84,8 @@ type Metadata struct {
 }
 
 // NewMetadata returns a new Metadata object.
-func NewMetadata(instanceID, hostname string, kubernetesVersion string, injectProviderID bool) *Metadata {
-	ci := new(Metadata)
-	ci.data = BaseCloudInitData{
-		Hostname:            hostname,
-		InstanceID:          instanceID,
-		KubernetesVersion:   kubernetesVersion,
-		ProviderIDInjection: injectProviderID,
-	}
-	return ci
+func NewMetadata(in MetadataInput) *Metadata {
+	return &Metadata{data: BaseCloudInitData{MetadataInput: in}}
 }
 
 // Render returns rendered metadata.
