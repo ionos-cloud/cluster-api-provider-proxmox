@@ -539,6 +539,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	scope.ProxmoxMachine.Status.ProxmoxNode = new(node)
+	scope.ProxmoxMachine.Status.FailureDomain = scope.ZoneForNode(node)
 
 	// if the creation was successful, we store the information about the node in the
 	// cluster status

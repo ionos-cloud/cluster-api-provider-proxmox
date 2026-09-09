@@ -45,6 +45,9 @@ func (src *ProxmoxMachine) ConvertTo(dstRaw conversion.Hub) error {
 		restored.Status.Initialization.Provisioned,
 		&dst.Status.Initialization.Provisioned)
 
+	// Restore lossy fields that don't exist in v1alpha1
+	dst.Status.FailureDomain = restored.Status.FailureDomain
+
 	if dst.Status.VMStatus != nil && *dst.Status.VMStatus == "" {
 		dst.Status.VMStatus = nil
 	}

@@ -127,6 +127,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 
 	// Update the Proxmox node in the status.
 	s.ProxmoxMachine.Status.ProxmoxNode = new(vm.Node)
+	s.ProxmoxMachine.Status.FailureDomain = s.ZoneForNode(vm.Node)
 
 	// Attempt to update the cluster status
 	updated := s.InfraCluster.ProxmoxCluster.UpdateNodeLocation(

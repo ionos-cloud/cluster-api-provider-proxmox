@@ -273,6 +273,8 @@ type ProxmoxClusterStatus struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=name
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=100
 	FailureDomains []clusterv1.FailureDomain `json:"failureDomains,omitempty"`
 }
 

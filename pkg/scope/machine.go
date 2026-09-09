@@ -168,6 +168,12 @@ func (m *MachineScope) LocateProxmoxNode() string {
 	return node
 }
 
+// ZoneForNode returns the name of the availability zone that contains the given
+// Proxmox node, or "" if the node is not listed in any availability zone.
+func (m *MachineScope) ZoneForNode(node string) string {
+	return zoneForNode(m.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones, node)
+}
+
 // GetProviderID returns the ProxmoxMachine providerID from the spec.
 func (m *MachineScope) GetProviderID() string {
 	return m.ProxmoxMachine.Spec.ProviderID

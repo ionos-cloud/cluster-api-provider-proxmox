@@ -1329,6 +1329,7 @@ func autoConvert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(
 	out.ProxmoxNode = (*string)(unsafe.Pointer(in.ProxmoxNode))
 	out.TaskRef = (*string)(unsafe.Pointer(in.TaskRef))
 	// WARNING: in.RetryAfter requires manual conversion: inconvertible types (*k8s.io/apimachinery/pkg/apis/meta/v1.Time vs k8s.io/apimachinery/pkg/apis/meta/v1.Time)
+	// WARNING: in.FailureDomain requires manual conversion: does not exist in peer-type
 	return nil
 }
 
