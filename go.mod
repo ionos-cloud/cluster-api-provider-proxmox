@@ -22,7 +22,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.49.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -333,7 +333,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
