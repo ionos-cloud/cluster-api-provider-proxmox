@@ -840,6 +840,12 @@ spec:
                             - message: Value is immutable
                               rule: self == oldSelf
                         type: object
+                      failureDomain:
+                        description: |-
+                          failureDomain is the failure domain the machine is placed in.
+                          This field is part of the Cluster API InfrastructureMachine contract
+                          and is set by the CAPI machine controller.
+                        type: string
                       format:
                         description: format for file storage. Only valid for full
                           clone.

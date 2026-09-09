@@ -41,6 +41,7 @@ func (src *ProxmoxCluster) ConvertTo(dstRaw conversion.Hub) error {
 	// Restore lossy fields
 	dst.Spec.ZoneConfigs = restored.Spec.ZoneConfigs
 	dst.Status.InClusterZoneRef = restored.Status.InClusterZoneRef
+	dst.Status.FailureDomains = restored.Status.FailureDomains
 
 	clusterv1.Convert_bool_To_Pointer_bool(src.Spec.ExternalManagedControlPlane, ok, restored.Spec.ExternalManagedControlPlane, &dst.Spec.ExternalManagedControlPlane)
 
