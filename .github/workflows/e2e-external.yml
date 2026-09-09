@@ -1,0 +1,19 @@
+name: "e2e (external PR)"
+
+on:
+  pull_request_target:
+    types: ["opened", "synchronize", "reopened", "labeled", "unlabeled"]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    if: >-
+      (github.event.pull_request.head.repo.fork ||
+       github.event.pull_request.user.login == 'dependabot[bot]') &&
+      !contains(github.event.pull_request.labels.*.name, 'e2e/none')
+    uses: ./.github/workflows/e2e.yml
+    with:
+      event_name: ${{ github.event_name }}
+    secrets: inherit
