@@ -12,7 +12,7 @@ replace (
 
 require (
 	github.com/flatcar/ignition v0.36.2
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.4.2
