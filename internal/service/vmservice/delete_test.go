@@ -36,9 +36,41 @@ func TestDeleteVM_SuccessNotFound(t *testing.T) {
 		Node:    "node1",
 	}, false)
 
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("vm does not exist")).Once()
 	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("vm does not exist: some reason")).Once()
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
 	require.Empty(t, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+}
+
+// A freed VMID is handed to the next clone within seconds. A stale record must
+// never destroy the VM that now holds the ID.
+func TestDeleteVM_SkipsVMWithAnotherName(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	vm.Name = "someone-else"
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node1",
+	}, false)
+
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
+	// no DeleteVM expectation: a destroy call fails the test
+
+	require.NoError(t, DeleteVM(context.TODO(), machineScope))
+	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
+	require.Empty(t, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+}
+
+func TestDeleteVM_DestroysOwnVM(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	vm := newRunningVM()
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, nil).Once()
+
+	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 }
