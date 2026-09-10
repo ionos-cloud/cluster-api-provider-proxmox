@@ -29,6 +29,7 @@ import (
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 )
 
 func TestNewMachineScope_MissingParams(t *testing.T) {
@@ -220,4 +221,94 @@ func TestMachineScope_GetBootstrapSecret(t *testing.T) {
 	bootstrapSecret := corev1.Secret{}
 	require.NoErrorf(t, scope.GetBootstrapSecret(context.Background(), &bootstrapSecret), "")
 	require.Equal(t, secret.GetName(), bootstrapSecret.GetName())
+}
+
+func TestMachineScope_ProxmoxClient_NominalSingleCluster(t *testing.T) {
+	// Nominal case: no availability zones/failure domain configured, the
+	// machine must use the ProxmoxCluster's default client unchanged.
+	defaultClient := proxmoxtest.NewMockClient(t)
+	infraCluster := &ClusterScope{
+		ProxmoxCluster: &infrav1.ProxmoxCluster{},
+		ProxmoxClient:  defaultClient,
+	}
+	machineScope := MachineScope{
+		Machine:      &clusterv1.Machine{},
+		InfraCluster: infraCluster,
+	}
+
+	client, err := machineScope.ProxmoxClient(context.Background())
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+}
+
+func TestMachineScope_ProxmoxClient_PerZoneOverride(t *testing.T) {
+	defaultClient := proxmoxtest.NewMockClient(t)
+	infraCluster := &ClusterScope{
+		client: fake.NewClientBuilder().Build(),
+		ProxmoxCluster: &infrav1.ProxmoxCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "proxmoxcluster", Namespace: "default"},
+			Spec: infrav1.ProxmoxClusterSpec{
+				AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+					{Name: "az-1", Nodes: []string{"pve1"}},
+				},
+			},
+		},
+		ProxmoxClient: defaultClient,
+	}
+
+	// A machine without a failure domain keeps using the default client.
+	machineScope := MachineScope{
+		Machine:      &clusterv1.Machine{},
+		InfraCluster: infraCluster,
+	}
+	client, err := machineScope.ProxmoxClient(context.Background())
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+
+	// A machine assigned to a zone without a dedicated credentialsRef also
+	// keeps using the default client.
+	machineScope.Machine.Spec.FailureDomain = "az-1"
+	client, err = machineScope.ProxmoxClient(context.Background())
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+}
+
+func TestMachineScope_ProxmoxClient_ResolvesFromKnownNodeWithoutFailureDomain(t *testing.T) {
+	// Regression test: worker Machines created by a plain MachineDeployment never get
+	// Machine.Spec.FailureDomain assigned by CAPI (unlike control-plane Machines, which
+	// KubeadmControlPlane spreads across failure domains). Once the machine has been
+	// scheduled onto a node, the client must be resolved from that node's zone rather
+	// than always falling back to the default client.
+	defaultClient := proxmoxtest.NewMockClient(t)
+	infraCluster := &ClusterScope{
+		client: fake.NewClientBuilder().Build(),
+		ProxmoxCluster: &infrav1.ProxmoxCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "proxmoxcluster", Namespace: "default"},
+			Spec: infrav1.ProxmoxClusterSpec{
+				AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+					{Name: "az-1", Nodes: []string{"pve1"}},
+					{Name: "az-2", Nodes: []string{"pve2"}, CredentialsRef: &corev1.SecretReference{Name: "az-2-secret", Namespace: "default"}},
+				},
+			},
+		},
+		ProxmoxClient: defaultClient,
+	}
+
+	machineScope := MachineScope{
+		Machine:        &clusterv1.Machine{}, // no FailureDomain set
+		InfraCluster:   infraCluster,
+		ProxmoxMachine: &infrav1.ProxmoxMachine{Status: infrav1.ProxmoxMachineStatus{ProxmoxNode: new(string)}},
+	}
+
+	// Not yet scheduled on a node in az-2: falls back to the default client.
+	*machineScope.ProxmoxMachine.Status.ProxmoxNode = "pve1"
+	client, err := machineScope.ProxmoxClient(context.Background())
+	require.NoError(t, err)
+	require.Same(t, defaultClient, client)
+
+	// Scheduled on a node in az-2, which has its own credentialsRef: resolving that
+	// zone's client is attempted (fails here since there's no real Proxmox API).
+	*machineScope.ProxmoxMachine.Status.ProxmoxNode = "pve2"
+	_, err = machineScope.ProxmoxClient(context.Background())
+	require.Error(t, err)
 }

@@ -37,7 +37,12 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 
 	machineScope.V(4).Info("ensuring machine is started")
 
-	t, err := startVirtualMachine(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine)
+	pmoxClient, err := machineScope.ProxmoxClient(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	t, err := startVirtualMachine(ctx, pmoxClient, machineScope.VirtualMachine)
 	if err != nil {
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,

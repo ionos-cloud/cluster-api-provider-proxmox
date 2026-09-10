@@ -47,7 +47,6 @@ func (err InsufficientMemoryError) Error() string {
 // ScheduleVM decides which node to a ProxmoxMachine should be scheduled on.
 // It requires the machine's ProxmoxCluster to have at least 1 allowed node.
 func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, error) {
-	client := machineScope.InfraCluster.ProxmoxClient
 	// Use the default allowed nodes from the ProxmoxCluster.
 	allowedNodes := machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes
 	schedulerHints := machineScope.InfraCluster.ProxmoxCluster.Spec.SchedulerHints
@@ -61,7 +60,71 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 		allowedNodes = machineScope.ProxmoxMachine.Spec.AllowedNodes
 	}
 
-	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, schedulerHints)
+	// Restrict to the AZ nodes when CAPI has assigned a failure domain.
+	if fd := machineScope.Machine.Spec.FailureDomain; fd != "" {
+		azNodes := nodesForAvailabilityZone(machineScope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones, fd)
+		allowedNodes = intersectNodes(allowedNodes, azNodes)
+	}
+
+	// Candidate nodes may span multiple availability zones, each potentially backed by its
+	// own Proxmox client/credentials (e.g. when Machine.Spec.FailureDomain isn't set, which is
+	// the case for plain MachineDeployment workers - CAPI doesn't spread those across zones the
+	// way it does control-plane Machines). Resolve the client per node rather than assuming a
+	// single client can reach every allowed node.
+	client := multiZoneClient{infraCluster: machineScope.InfraCluster}
+
+	// Map every candidate node to its availability zone (nodes without a zone are treated as
+	// their own single-node zone) so round-robin balancing happens per-AZ instead of per-node.
+	// Without this, an AZ made of several Proxmox nodes could receive multiple replacement
+	// workers during a rolling upgrade while other AZs get none, since load looked "spread out"
+	// at the node level even though it wasn't spread across zones.
+	nodeZone := nodeToZone(machineScope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones, allowedNodes)
+
+	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, nodeZone, schedulerHints)
+}
+
+// nodeToZone maps each node to the name of the availability zone it belongs to. Nodes that
+// aren't part of any configured availability zone are mapped to themselves, so they're treated
+// as an independent single-node zone for balancing purposes.
+func nodeToZone(azs []infrav1.AvailabilityZoneSpec, nodes []string) map[string]string {
+	result := make(map[string]string, len(nodes))
+	for _, n := range nodes {
+		result[n] = n
+	}
+	for _, az := range azs {
+		for _, n := range az.Nodes {
+			if _, ok := result[n]; ok {
+				result[n] = az.Name
+			}
+		}
+	}
+	return result
+}
+
+// nodesForAvailabilityZone returns the nodes listed in the availability zone with the
+// given name, or nil if no such zone is configured.
+func nodesForAvailabilityZone(azs []infrav1.AvailabilityZoneSpec, name string) []string {
+	for _, az := range azs {
+		if az.Name == name {
+			return az.Nodes
+		}
+	}
+	return nil
+}
+
+// intersectNodes returns the nodes present in both a and b, preserving the order of a.
+func intersectNodes(a, b []string) []string {
+	bset := make(map[string]struct{}, len(b))
+	for _, n := range b {
+		bset[n] = struct{}{}
+	}
+	var result []string
+	for _, n := range a {
+		if _, ok := bset[n]; ok {
+			result = append(result, n)
+		}
+	}
+	return result
 }
 
 func selectNode(
@@ -70,6 +133,7 @@ func selectNode(
 	machine *infrav1.ProxmoxMachine,
 	locations []infrav1.NodeLocation,
 	allowedNodes []string,
+	nodeZone map[string]string,
 	schedulerHints *infrav1.SchedulerHints,
 ) (string, error) {
 	byMemory := make(sortByAvailableMemory, len(allowedNodes))
@@ -93,14 +157,15 @@ func selectNode(
 		}
 	}
 
-	// count the existing vms per node
-	nodeCounter := make(map[string]int)
+	// count the existing vms per availability zone, so nodes belonging to an already loaded
+	// zone are deprioritized as a group rather than individually.
+	zoneCounter := make(map[string]int)
 	for _, nl := range locations {
-		nodeCounter[nl.Node]++
+		zoneCounter[zoneOf(nodeZone, nl.Node)]++
 	}
 
 	for i, info := range byMemory {
-		info.ScheduledVMs = nodeCounter[info.Name]
+		info.ScheduledVMs = zoneCounter[zoneOf(nodeZone, info.Name)]
 		byMemory[i] = info
 	}
 
@@ -131,8 +196,31 @@ func selectNode(
 	return decision, nil
 }
 
+// zoneOf returns the zone a node belongs to, falling back to the node name itself when it has
+// no entry in nodeZone (e.g. no availability zones are configured).
+func zoneOf(nodeZone map[string]string, node string) string {
+	if zone, ok := nodeZone[node]; ok {
+		return zone
+	}
+	return node
+}
+
 type resourceClient interface {
 	GetReservableMemoryBytes(context.Context, string, int64) (uint64, error)
+}
+
+// multiZoneClient implements resourceClient by resolving the correct Proxmox client for
+// each node individually, based on the availability zone (if any) the node belongs to.
+type multiZoneClient struct {
+	infraCluster *scope.ClusterScope
+}
+
+func (c multiZoneClient) GetReservableMemoryBytes(ctx context.Context, node string, memoryAdjustment int64) (uint64, error) {
+	client, err := c.infraCluster.GetProxmoxClientForNode(ctx, node)
+	if err != nil {
+		return 0, err
+	}
+	return client.GetReservableMemoryBytes(ctx, node, memoryAdjustment)
 }
 
 type nodeInfo struct {

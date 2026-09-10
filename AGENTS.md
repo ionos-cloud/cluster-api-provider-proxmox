@@ -87,6 +87,12 @@ The ProxmoxMachine controller delegates VM operations to services under `interna
 
 `pkg/proxmox/client.go` defines the `Client` interface for all Proxmox API operations. The production implementation lives in `pkg/proxmox/goproxmox/` (wrapping `go-proxmox`). Tests use a mock at `pkg/proxmox/proxmoxtest/`.
 
+A `ProxmoxCluster` normally talks to a single Proxmox VE cluster, via either the controller-wide credentials or `spec.credentialsRef`. `pkg/scope/cluster.go`'s `ClusterScope.GetProxmoxClient(ctx, zone)` additionally resolves a dedicated client per availability zone (see below) when that zone defines its own `credentialsRef`, falling back to the default client otherwise. `MachineScope.ProxmoxClient(ctx)` (`pkg/scope/machine.go`) picks the right client for a Machine from its `spec.failureDomain`. Always use these scope methods instead of a raw client field when adding code that talks to Proxmox.
+
+### Availability Zones and Multi-Cluster Setups
+
+`ProxmoxCluster.spec.availabilityZones` groups Proxmox nodes into named zones; CAPI surfaces them as failure domains and CAPMOX restricts Machine scheduling to a zone's nodes (see `docs/advanced-setups.md`). Each `AvailabilityZoneSpec` can optionally set its own `credentialsRef`, letting a single CAPI `Cluster` span multiple physically separate Proxmox VE clusters (one per AZ). Zones without `credentialsRef` keep using the `ProxmoxCluster`'s default client — this is the nominal, single-Proxmox-cluster path and must keep working unchanged.
+
 ### API Versions and Conversion
 
 - `api/v1alpha2/` — current storage version
