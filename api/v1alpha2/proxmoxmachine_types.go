@@ -540,6 +540,12 @@ type ProxmoxMachineStatus struct {
 	// retryAfter tracks the time we can retry queueing a task.
 	// +optional
 	RetryAfter *metav1.Time `json:"retryAfter,omitempty"`
+
+	// failureDomain is the unique identifier of the failure domain where this Machine has been placed in.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=256
+	FailureDomain string `json:"failureDomain,omitempty"`
 }
 
 // ProxmoxMachineInitializationStatus provides observations of the ProxmoxMachine initialization process.

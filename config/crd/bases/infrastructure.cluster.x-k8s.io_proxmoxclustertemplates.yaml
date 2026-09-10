@@ -974,6 +974,39 @@ spec:
                           type: string
                         type: array
                         x-kubernetes-list-type: set
+                      availabilityZones:
+                        description: |-
+                          availabilityZones defines named groups of Proxmox nodes that represent
+                          availability zones. ProxmoxMachines can reference an availability zone by
+                          name to constrain VM scheduling to only nodes in that zone.
+                        items:
+                          description: |-
+                            AvailabilityZoneSpec defines a named group of Proxmox nodes representing an availability zone.
+                            ProxmoxMachines reference availability zones by name to constrain VM placement.
+                          properties:
+                            name:
+                              description: name is the unique identifier for this
+                                availability zone.
+                              maxLength: 63
+                              minLength: 1
+                              pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$
+                              type: string
+                            nodes:
+                              description: nodes lists the Proxmox nodes belonging
+                                to this availability zone.
+                              items:
+                                type: string
+                              minItems: 1
+                              type: array
+                              x-kubernetes-list-type: set
+                          required:
+                          - name
+                          - nodes
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       controlPlaneEndpoint:
                         description: controlPlaneEndpoint represents the endpoint
                           used to communicate with the control plane.

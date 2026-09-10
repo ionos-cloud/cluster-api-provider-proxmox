@@ -270,3 +270,36 @@ func TestAddInClusterZoneRef(t *testing.T) {
 	require.Equal(t, "zone1-v4", cl.Status.InClusterZoneRef[1].InClusterIPPoolRefV4.Name)
 	require.Equal(t, "zone1-v6", cl.Status.InClusterZoneRef[1].InClusterIPPoolRefV6.Name)
 }
+
+func TestSetInClusterIPPoolRefMultipleZones(t *testing.T) {
+	cl := defaultCluster()
+
+	newPool := func(name, zone string) *ipamicv1.InClusterIPPool {
+		return &ipamicv1.InClusterIPPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: metav1.NamespaceDefault,
+				Labels:    map[string]string{ProxmoxZoneLabel: zone},
+				Annotations: map[string]string{
+					ProxmoxIPFamilyAnnotation: IPv4Type,
+				},
+			},
+			Spec: ipamicv1.InClusterIPPoolSpec{
+				Addresses: []string{"10.10.10.2/24"},
+				Prefix:    24,
+				Gateway:   "10.10.10.1",
+			},
+		}
+	}
+
+	require.NotPanics(t, func() {
+		cl.SetInClusterIPPoolRef(newPool("zone-a-pool", "zone-a"))
+		cl.SetInClusterIPPoolRef(newPool("zone-b-pool", "zone-b"))
+		cl.SetInClusterIPPoolRef(newPool("zone-c-pool", "zone-c"))
+	})
+
+	require.Len(t, cl.Status.InClusterZoneRef, 3)
+	require.Equal(t, "zone-a-pool", cl.Status.InClusterZoneRef[0].InClusterIPPoolRefV4.Name)
+	require.Equal(t, "zone-b-pool", cl.Status.InClusterZoneRef[1].InClusterIPPoolRefV4.Name)
+	require.Equal(t, "zone-c-pool", cl.Status.InClusterZoneRef[2].InClusterIPPoolRefV4.Name)
+}
