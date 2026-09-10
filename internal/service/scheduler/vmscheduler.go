@@ -66,6 +66,13 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 		allowedNodes = intersectNodes(allowedNodes, azNodes)
 	}
 
+	// Candidate nodes may span multiple availability zones, each potentially backed by its
+	// own Proxmox client/credentials (e.g. when Machine.Spec.FailureDomain isn't set, which is
+	// the case for plain MachineDeployment workers - CAPI doesn't spread those across zones the
+	// way it does control-plane Machines). Resolve the client per node rather than assuming a
+	// single client can reach every allowed node.
+	client := multiZoneClient{infraCluster: machineScope.InfraCluster}
+
 	// Map every candidate node to its availability zone (nodes without a zone are treated as
 	// their own single-node zone) so round-robin balancing happens per-AZ instead of per-node.
 	// Without this, an AZ made of several Proxmox nodes could receive multiple replacement
@@ -73,7 +80,7 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 	// at the node level even though it wasn't spread across zones.
 	nodeZone := nodeToZone(machineScope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones, allowedNodes)
 
-	return selectNode(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.ProxmoxMachine, locations, allowedNodes, nodeZone, schedulerHints)
+	return selectNode(ctx, client, machineScope.ProxmoxMachine, locations, allowedNodes, nodeZone, schedulerHints)
 }
 
 // nodeToZone maps each node to the name of the availability zone it belongs to. Nodes that
@@ -200,6 +207,20 @@ func zoneOf(nodeZone map[string]string, node string) string {
 
 type resourceClient interface {
 	GetReservableMemoryBytes(context.Context, string, int64) (uint64, error)
+}
+
+// multiZoneClient implements resourceClient by resolving the correct Proxmox client for
+// each node individually, based on the availability zone (if any) the node belongs to.
+type multiZoneClient struct {
+	infraCluster *scope.ClusterScope
+}
+
+func (c multiZoneClient) GetReservableMemoryBytes(ctx context.Context, node string, memoryAdjustment int64) (uint64, error) {
+	client, err := c.infraCluster.GetProxmoxClientForNode(ctx, node)
+	if err != nil {
+		return 0, err
+	}
+	return client.GetReservableMemoryBytes(ctx, node, memoryAdjustment)
 }
 
 type nodeInfo struct {

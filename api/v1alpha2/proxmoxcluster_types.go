@@ -147,6 +147,14 @@ type AvailabilityZoneSpec struct {
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
 	Nodes []string `json:"nodes"`
+
+	// credentialsRef is a reference to a Secret that contains the credentials to use for the Proxmox
+	// cluster backing this availability zone. This allows each availability zone to be backed by a
+	// physically separate Proxmox cluster with its own API endpoint.
+	// If not supplied, the ProxmoxCluster's own credentialsRef (or the controller's credentials) will be used.
+	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
+	// +optional
+	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
 }
 
 // ZoneConfigSpec is the Network Configuration for further deployment zones.

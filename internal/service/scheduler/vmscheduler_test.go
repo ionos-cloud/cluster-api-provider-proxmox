@@ -282,6 +282,75 @@ func TestScheduleVM(t *testing.T) {
 	require.Equal(t, "pve2", node)
 }
 
+func TestScheduleVM_MultiZoneWithoutFailureDomain(t *testing.T) {
+	// Regression test: a worker Machine (created by a plain MachineDeployment) has no
+	// Machine.Spec.FailureDomain assigned by CAPI. When allowedNodes spans multiple
+	// availability zones, the scheduler must query each node's reservable memory using
+	// that node's own zone client rather than a single client for every node.
+	ctrlClient := setupClient()
+
+	ipamHelper := &ipam.Helper{}
+
+	proxmoxCluster := infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"pve1", "pve2"},
+			AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1"}},
+				{Name: "az-2", Nodes: []string{"pve2"}, CredentialsRef: &corev1.SecretReference{Name: "az-2-secret", Namespace: "default"}},
+			},
+		},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{},
+		},
+	}
+	require.NoError(t, ctrlClient.Create(context.Background(), &proxmoxCluster))
+
+	proxmoxMachine := &infrav1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "foo-machine",
+			Labels: map[string]string{"cluster.x-k8s.io/cluster-name": "bar"},
+		},
+		Spec: infrav1.ProxmoxMachineSpec{MemoryMiB: new(int32(10))},
+	}
+
+	defaultClient := proxmoxtest.NewMockClient(t)
+
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "default"},
+	}
+	infraCluster, err := scope.NewClusterScope(scope.ClusterScopeParams{
+		Client:         ctrlClient,
+		Cluster:        cluster,
+		ProxmoxCluster: &proxmoxCluster,
+		ProxmoxClient:  defaultClient,
+		IPAMHelper:     ipamHelper,
+	})
+	require.NoError(t, err)
+
+	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
+		Client: ctrlClient,
+		Machine: &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{Name: "foo-machine", Namespace: "default"},
+			// no FailureDomain set, as for a plain MachineDeployment worker
+		},
+		Cluster:        cluster,
+		InfraCluster:   infraCluster,
+		ProxmoxMachine: proxmoxMachine,
+		IPAMHelper:     ipamHelper,
+	})
+	require.NoError(t, err)
+
+	// pve1 (az-1, no dedicated credentialsRef) is queried with the default client.
+	defaultClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", int64(100)).Return(miBytes(60), nil)
+
+	// pve2 (az-2, dedicated credentialsRef) can't resolve a client since the secret
+	// doesn't exist in this test, so scheduling must fail instead of silently using
+	// the default client against a node it doesn't manage.
+	_, err = ScheduleVM(context.Background(), machineScope)
+	require.Error(t, err)
+}
+
 func TestInsufficientMemoryError_Error(t *testing.T) {
 	err := InsufficientMemoryError{
 		node:      "pve1",
