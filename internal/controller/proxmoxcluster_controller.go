@@ -235,6 +235,8 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		Reason: clusterv1.ProvisionedReason,
 	})
 
+	reconcileFailureDomains(clusterScope)
+
 	clusterScope.SetReady()
 
 	return ctrl.Result{}, nil
@@ -379,4 +381,22 @@ func getNamespaceFromProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster) stri
 		namespace = proxmoxCluster.GetNamespace()
 	}
 	return namespace
+}
+
+// reconcileFailureDomains syncs Status.FailureDomains from Spec.AvailabilityZones so
+// CAPI can spread MachineDeployments across zones via Machine.Spec.FailureDomain.
+func reconcileFailureDomains(clusterScope *scope.ClusterScope) {
+	azs := clusterScope.ProxmoxCluster.Spec.AvailabilityZones
+	if len(azs) == 0 {
+		clusterScope.ProxmoxCluster.Status.FailureDomains = nil
+		return
+	}
+	fds := make([]clusterv1.FailureDomain, 0, len(azs))
+	for _, az := range azs {
+		fds = append(fds, clusterv1.FailureDomain{
+			Name:         az.Name,
+			ControlPlane: new(true),
+		})
+	}
+	clusterScope.ProxmoxCluster.Status.FailureDomains = fds
 }
