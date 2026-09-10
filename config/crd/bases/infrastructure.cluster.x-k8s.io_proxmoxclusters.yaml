@@ -1102,6 +1102,24 @@ spec:
                     AvailabilityZoneSpec defines a named group of Proxmox nodes representing an availability zone.
                     ProxmoxMachines reference availability zones by name to constrain VM placement.
                   properties:
+                    credentialsRef:
+                      description: |-
+                        credentialsRef is a reference to a Secret that contains the credentials to use for the Proxmox
+                        cluster backing this availability zone. This allows each availability zone to be backed by a
+                        physically separate Proxmox cluster with its own API endpoint.
+                        If not supplied, the ProxmoxCluster's own credentialsRef (or the controller's credentials) will be used.
+                        if no namespace is provided, the namespace of the ProxmoxCluster will be used.
+                      properties:
+                        name:
+                          description: name is unique within a namespace to reference
+                            a secret resource.
+                          type: string
+                        namespace:
+                          description: namespace defines the space within which the
+                            secret name must be unique.
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
                     name:
                       description: name is the unique identifier for this availability
                         zone.
