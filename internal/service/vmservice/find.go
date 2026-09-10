@@ -142,6 +142,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 
 	// Update the Proxmox node in the status.
 	s.ProxmoxMachine.Status.ProxmoxNode = new(vm.Node)
+	s.ProxmoxMachine.Status.FailureDomain = zoneForNode(s.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones, vm.Node)
 
 	// Attempt to update the cluster status
 	updated := s.InfraCluster.ProxmoxCluster.UpdateNodeLocation(
@@ -174,4 +175,17 @@ func recoverFromVMIDCollision(s *scope.MachineScope, cause error) error {
 	})
 
 	return cause
+}
+
+// zoneForNode returns the name of the availability zone that contains the given Proxmox node,
+// or "" if the node is not listed in any availability zone.
+func zoneForNode(azs []infrav1.AvailabilityZoneSpec, node string) string {
+	for _, az := range azs {
+		for _, n := range az.Nodes {
+			if n == node {
+				return az.Name
+			}
+		}
+	}
+	return ""
 }

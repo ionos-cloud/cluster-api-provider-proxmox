@@ -209,6 +209,7 @@ func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *
 
 func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *v1alpha2.ProxmoxClusterStatus, out *ProxmoxClusterStatus, s conversion.Scope) error {
 	// Accept WARNING: in.InClusterZoneRef does not exist in peer-type
+	// Accept WARNING: in.FailureDomains does not exist in peer-type
 	if err := autoConvert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in, out, s); err != nil {
 		return err
 	}
@@ -220,6 +221,7 @@ func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *
 }
 
 func Convert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in *v1alpha2.ProxmoxMachineStatus, out *ProxmoxMachineStatus, s conversion.Scope) error {
+	// Accept WARNING: in.FailureDomain does not exist in peer-type
 	err := autoConvert_v1alpha2_ProxmoxMachineStatus_To_v1alpha1_ProxmoxMachineStatus(in, out, s)
 	if err != nil {
 		return err
