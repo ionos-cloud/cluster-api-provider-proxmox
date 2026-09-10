@@ -36,13 +36,17 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 	vmID := machineScope.ProxmoxMachine.GetVirtualMachineID()
 	node := machineScope.LocateProxmoxNode()
 
+	// Proxmox reuses a freed VMID for the next clone within seconds, so the
+	// recorded ID may now belong to another machine. Never destroy a VM whose
+	// name is not ours; treat it as already gone.
+	if vm, err := machineScope.InfraCluster.ProxmoxClient.GetVM(ctx, node, vmID); err == nil && vm.Name != machineScope.ProxmoxMachine.GetName() {
+		machineScope.Info("VMID belongs to another VM, skipping destroy", "vmID", vmID, "vmName", vm.Name)
+		return releaseDeletedVM(machineScope)
+	}
+
 	if _, err := machineScope.InfraCluster.ProxmoxClient.DeleteVM(ctx, node, vmID); err != nil {
 		if VMNotFound(err) || errors.Is(err, goproxmox.ErrVMIDFree) {
-			// remove machine from cluster status
-			machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), util.IsControlPlaneMachine(machineScope.Machine))
-			// The VM is deleted so remove the finalizer.
-			ctrlutil.RemoveFinalizer(machineScope.ProxmoxMachine, infrav1.MachineFinalizer)
-			return machineScope.InfraCluster.PatchObject()
+			return releaseDeletedVM(machineScope)
 		}
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
@@ -53,6 +57,14 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 	}
 
 	return nil
+}
+
+// releaseDeletedVM drops the machine from the cluster status and removes the
+// finalizer, for a VM that is gone or was never ours.
+func releaseDeletedVM(machineScope *scope.MachineScope) error {
+	machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), util.IsControlPlaneMachine(machineScope.Machine))
+	ctrlutil.RemoveFinalizer(machineScope.ProxmoxMachine, infrav1.MachineFinalizer)
+	return machineScope.InfraCluster.PatchObject()
 }
 
 // VMNotFound checks if the given err is related to that the VM is not found in Proxmox.
