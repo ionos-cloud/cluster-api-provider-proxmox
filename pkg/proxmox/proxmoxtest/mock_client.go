@@ -631,6 +631,67 @@ func (_c *MockClient_GetVM_Call) RunAndReturn(run func(context.Context, string, 
 	return _c
 }
 
+// GetVMActiveTask provides a mock function with given fields: ctx, nodeName, vmID, taskType
+func (_m *MockClient) GetVMActiveTask(ctx context.Context, nodeName string, vmID int64, taskType string) (*go_proxmox.Task, error) {
+	ret := _m.Called(ctx, nodeName, vmID, taskType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVMActiveTask")
+	}
+
+	var r0 *go_proxmox.Task
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) (*go_proxmox.Task, error)); ok {
+		return rf(ctx, nodeName, vmID, taskType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string) *go_proxmox.Task); ok {
+		r0 = rf(ctx, nodeName, vmID, taskType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*go_proxmox.Task)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, string) error); ok {
+		r1 = rf(ctx, nodeName, vmID, taskType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_GetVMActiveTask_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVMActiveTask'
+type MockClient_GetVMActiveTask_Call struct {
+	*mock.Call
+}
+
+// GetVMActiveTask is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeName string
+//   - vmID int64
+//   - taskType string
+func (_e *MockClient_Expecter) GetVMActiveTask(ctx interface{}, nodeName interface{}, vmID interface{}, taskType interface{}) *MockClient_GetVMActiveTask_Call {
+	return &MockClient_GetVMActiveTask_Call{Call: _e.mock.On("GetVMActiveTask", ctx, nodeName, vmID, taskType)}
+}
+
+func (_c *MockClient_GetVMActiveTask_Call) Run(run func(ctx context.Context, nodeName string, vmID int64, taskType string)) *MockClient_GetVMActiveTask_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockClient_GetVMActiveTask_Call) Return(_a0 *go_proxmox.Task, _a1 error) *MockClient_GetVMActiveTask_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_GetVMActiveTask_Call) RunAndReturn(run func(context.Context, string, int64, string) (*go_proxmox.Task, error)) *MockClient_GetVMActiveTask_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // QemuAgentStatus provides a mock function with given fields: ctx, vm
 func (_m *MockClient) QemuAgentStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) error {
 	ret := _m.Called(ctx, vm)
