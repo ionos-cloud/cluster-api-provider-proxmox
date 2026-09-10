@@ -158,15 +158,20 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 		return false, nil
 	}
 
+	pmoxClient, err := machineScope.ProxmoxClient(ctx)
+	if err != nil {
+		return true, err
+	}
+
 	if !machineScope.SkipQemuGuestCheck() {
-		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
+		if err := pmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
 			return true, errors.Wrap(err, "error waiting for agent")
 		}
 	}
 
 	// TODO: Is there a status for Ignition?
 	if !machineScope.SkipCloudInitCheck() {
-		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
+		if running, err := pmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
 			if running {
 				return true, nil
 			}
@@ -324,7 +329,11 @@ func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) (requ
 		}
 
 		if bv := disks.BootVolume; bv != nil {
-			task, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize())
+			pmoxClient, err := machineScope.ProxmoxClient(ctx)
+			if err != nil {
+				return false, err
+			}
+			task, err := pmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize())
 			if err != nil {
 				machineScope.Error(err, "unable to set disk size", "vm", machineScope.VirtualMachine.VMID)
 				return false, err
@@ -422,7 +431,12 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 
 	machineScope.V(4).Info("reconciling virtual machine config")
 
-	task, err := machineScope.InfraCluster.ProxmoxClient.ConfigureVM(ctx, machineScope.VirtualMachine, vmOptions...)
+	pmoxClient, err := machineScope.ProxmoxClient(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	task, err := pmoxClient.ConfigureVM(ctx, machineScope.VirtualMachine, vmOptions...)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to configure VM %s", machineScope.Name())
 	}
@@ -552,12 +566,17 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		}
 	}
 
+	pmoxClient, err := scope.ProxmoxClientForTarget(ctx, options.Target)
+	if err != nil {
+		return proxmox.VMCloneResponse{}, err
+	}
+
 	templateID := scope.ProxmoxMachine.GetTemplateID()
 	if templateID == -1 {
 		var err error
 		templateSelectorTags := scope.ProxmoxMachine.GetTemplateSelectorTags()
 		templateMatchPolicy := string(scope.ProxmoxMachine.GetTemplateMatchPolicy())
-		options.Node, templateID, err = scope.InfraCluster.ProxmoxClient.FindVMTemplateByTags(ctx, templateSelectorTags, templateMatchPolicy)
+		options.Node, templateID, err = pmoxClient.FindVMTemplateByTags(ctx, templateSelectorTags, templateMatchPolicy)
 
 		if err != nil {
 			if errors.Is(err, goproxmox.ErrTemplateNotFound) {
@@ -571,7 +590,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 			return proxmox.VMCloneResponse{}, err
 		}
 	}
-	res, err := scope.InfraCluster.ProxmoxClient.CloneVM(ctx, int(templateID), options)
+	res, err := pmoxClient.CloneVM(ctx, int(templateID), options)
 	if err != nil {
 		return res, err
 	}
@@ -611,12 +630,16 @@ func getNextFreeVMIDfromRange(ctx context.Context, scope *scope.MachineScope, vm
 	if err != nil {
 		return 0, err
 	}
+	pmoxClient, err := scope.ProxmoxClient(ctx)
+	if err != nil {
+		return 0, err
+	}
 	// Get next free vmid from the range
 	for i := vmIDRangeStart; i <= vmIDRangeEnd; i++ {
 		if slices.Contains(usedVMIDs, i) {
 			continue
 		}
-		if vmidFree, err := scope.InfraCluster.ProxmoxClient.CheckID(ctx, i); err == nil && vmidFree {
+		if vmidFree, err := pmoxClient.CheckID(ctx, i); err == nil && vmidFree {
 			return i, nil
 		} else if err != nil {
 			return 0, err
@@ -644,5 +667,9 @@ func getUsedVMIDs(ctx context.Context, scope *scope.MachineScope) ([]int64, erro
 var selectNextNode = scheduler.ScheduleVM
 
 func unmountCloudInitISO(ctx context.Context, machineScope *scope.MachineScope) error {
-	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, machineScope.VirtualMachine, inject.CloudInitISODevice)
+	pmoxClient, err := machineScope.ProxmoxClient(ctx)
+	if err != nil {
+		return err
+	}
+	return pmoxClient.UnmountCloudInitISO(ctx, machineScope.VirtualMachine, inject.CloudInitISODevice)
 }

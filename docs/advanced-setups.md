@@ -124,6 +124,87 @@ the configured zone names. CAPMOX intersects the zone's nodes with
 `allowedNodes` before selecting a Proxmox VE host. Every zone is still reached
 through the same client/credentials above.
 
+### Multiple Proxmox VE clusters (one per availability zone)
+
+The section above assumes `az-1`/`az-2`/`az-3` all belong to one Proxmox VE
+cluster reachable with one set of credentials. This section instead covers
+the case where each zone is a **physically separate Proxmox VE cluster**
+(for example, one Proxmox cluster per datacenter) that needs its **own**
+API endpoint and credentials — something a single `spec.credentialsRef` on
+the `ProxmoxCluster` cannot express.
+
+For that, set `credentialsRef` on the individual `AvailabilityZoneSpec` entry
+instead of (or in addition to) the `ProxmoxCluster`-level one. A zone without
+its own `credentialsRef` keeps using the `ProxmoxCluster`'s default client
+(global credentials or its `spec.credentialsRef`), so existing single-cluster
+configurations, including the one above, keep working unchanged.
+
+If every availability zone defines its own `credentialsRef` and every node in
+`allowedNodes` belongs to one of those zones, `spec.credentialsRef` on the
+`ProxmoxCluster` can be omitted entirely — there is no shared Proxmox VE
+cluster to reach with a default client. If any node isn't covered by a zone
+with its own `credentialsRef`, a default (`spec.credentialsRef` or the
+controller's global credentials) is still required.
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxCluster
+metadata:
+  name: capmox-cluster
+spec:
+  availabilityZones:
+  - name: az-1
+    nodes: [pve1a, pve1b]
+    credentialsRef:
+      name: proxmox-az1-credentials
+  - name: az-2
+    nodes: [pve2a, pve2b]
+    credentialsRef:
+      name: proxmox-az2-credentials
+  - name: az-3
+    nodes: [pve3a, pve3b]
+    credentialsRef:
+      name: proxmox-az3-credentials
+  # controlPlaneEndpoint, dnsServers, and IP configuration are also required.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: proxmox-az1-credentials
+stringData:
+  url: "https://pve-az1.example:8006"
+  token: "root@pam!capi"
+  secret: "REDACTED"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: proxmox-az2-credentials
+stringData:
+  url: "https://pve-az2.example:8006"
+  token: "root@pam!capi"
+  secret: "REDACTED"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: proxmox-az3-credentials
+stringData:
+  url: "https://pve-az3.example:8006"
+  token: "root@pam!capi"
+  secret: "REDACTED"
+```
+
+CAPMOX resolves the Proxmox client for a Machine from the Proxmox VE node it's
+scheduled on (falling back to its assigned `spec.failureDomain` before that
+node is known), so control-plane and worker Machines scheduled across
+`az-1`/`az-2`/`az-3` are each provisioned against the correct Proxmox VE
+cluster — this also applies to worker Machines from a plain
+`MachineDeployment`, which CAPI doesn't automatically assign a
+`spec.failureDomain` to. If `credentialsRef` (or `namespace` within it) is
+omitted from a zone, or the zone's secret can't be resolved, CAPMOX falls back
+to the `ProxmoxCluster`'s default client, which must then be configured.
+
 ### Verify placement
 
 On the management cluster, inspect the generated failure domains and the

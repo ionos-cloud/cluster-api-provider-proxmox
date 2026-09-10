@@ -140,13 +140,23 @@ type AvailabilityZoneSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`
+	//nolint:kubeapilinter // required field must not use omitempty, else controller-gen marks it optional
 	Name string `json:"name"`
 
 	// nodes lists the Proxmox nodes belonging to this availability zone.
 	// +required
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
+	//nolint:kubeapilinter // required field must not use omitempty, else controller-gen marks it optional
 	Nodes []string `json:"nodes"`
+
+	// credentialsRef is a reference to a Secret that contains the credentials to use for the Proxmox
+	// cluster backing this availability zone. This allows each availability zone to be backed by a
+	// physically separate Proxmox cluster with its own API endpoint.
+	// If not supplied, the ProxmoxCluster's own credentialsRef (or the controller's credentials) will be used.
+	// if no namespace is provided, the namespace of the ProxmoxCluster will be used.
+	// +optional
+	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
 }
 
 // ZoneForNode returns the name of the availability zone that contains the given Proxmox node,
