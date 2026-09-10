@@ -185,11 +185,12 @@ For example, you can set the `TEMPLATE_TAGS="tag1,tag2"` environment variable. Y
 Template selection is controlled by the `TemplateSelector` on the `ProxmoxMachine`:
 
 - `matchTags`: the list of tags that should be used when searching for a VM template.
-- `resolutionPolicy`: controls how `matchTags` are evaluated against the tags on a template. It supports two values:
+- `matchPolicy`: controls how `matchTags` are evaluated against the tags on a template. It supports two values:
   - `exact` (default): the template's tags must be an exact 1:1 match with `matchTags` (after normalisation). This preserves the behaviour from earlier releases.
-  - `subset`: the template's tags must contain all of the `matchTags`, but may include additional tags.
+  - `bestSubset`: selects a template with a matching subset and the least additional tags.
+  - `uniqueSubset`: requires the template's tags to contain all MatchTags, but allows additional tags.
 
-The lookup must always result in a unique template. If no template or more than one template matches the configured tags under the chosen `resolutionPolicy`, provisioning will fail.
+The lookup must always result in a unique template. If no template or more than one template matches the configured tags under the chosen `matchPolicy`, provisioning will fail.
 
 ### Using TemplateSelector with ClusterClass
 
