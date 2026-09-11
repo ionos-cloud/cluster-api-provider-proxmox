@@ -49,7 +49,12 @@ func FindVM(ctx context.Context, scope *scope.MachineScope) (*proxmox.VirtualMac
 	if vmID > 0 {
 		node := scope.LocateProxmoxNode()
 
-		vm, err := scope.InfraCluster.ProxmoxClient.GetVM(ctx, node, vmID)
+		pmoxClient, err := scope.ProxmoxClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		vm, err := pmoxClient.GetVM(ctx, node, vmID)
 		if err != nil {
 			scope.Error(err, "unable to find vm")
 			return nil, ErrVMNotFound
@@ -78,15 +83,20 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 
 	vmID := s.GetVirtualMachineID()
 
+	pmoxClient, err := s.ProxmoxClient(ctx)
+	if err != nil {
+		return err
+	}
+
 	// We are looking for a machine with the ID and check if the name matches.
 	// Then we have to update the node in the machine and cluster status.
-	rsc, err := s.InfraCluster.ProxmoxClient.FindVMResource(ctx, uint64(vmID))
+	rsc, err := pmoxClient.FindVMResource(ctx, uint64(vmID))
 	if err != nil {
 		return err
 	}
 
 	// find the VM, to make sure the vm config is up-to-date.
-	vm, err := s.InfraCluster.ProxmoxClient.GetVM(ctx, rsc.Node, vmID)
+	vm, err := pmoxClient.GetVM(ctx, rsc.Node, vmID)
 	if err != nil {
 		return errors.Wrapf(err, "unable to find vm with id %d", rsc.VMID)
 	}
@@ -117,6 +127,7 @@ func updateVMLocation(ctx context.Context, s *scope.MachineScope) error {
 
 	// Update the Proxmox node in the status.
 	s.ProxmoxMachine.Status.ProxmoxNode = new(vm.Node)
+	s.ProxmoxMachine.Status.FailureDomain = s.ZoneForNode(vm.Node)
 
 	// Attempt to update the cluster status
 	updated := s.InfraCluster.ProxmoxCluster.UpdateNodeLocation(
