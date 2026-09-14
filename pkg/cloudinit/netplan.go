@@ -26,8 +26,7 @@ import (
 //
 // Field order within each struct matches the desired YAML key order, and
 // pointer / slice fields use `omitempty` so that a key is emitted only when the
-// corresponding ConfigData value is set — mirroring the previous template's
-// conditionals.
+// corresponding ConfigData value is set.
 
 type netplanConfig struct {
 	Network netplanNetwork `yaml:"network"`
