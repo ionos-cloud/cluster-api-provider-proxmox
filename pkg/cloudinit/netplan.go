@@ -21,9 +21,8 @@ import (
 )
 
 // The types below model the subset of the netplan v2 schema that CAPMOX emits.
-// They are marshalled to YAML directly (see NetworkConfig.Render) instead of
-// being rendered through a text template, so the output is valid by
-// construction and special characters are quoted correctly.
+// They are marshalled to YAML directly (see NetworkConfig.Render),
+// so the output is valid by construction and special characters are quoted correctly.
 //
 // Field order within each struct matches the desired YAML key order, and
 // pointer / slice fields use `omitempty` so that a key is emitted only when the
