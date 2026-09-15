@@ -47,6 +47,39 @@ func miBytes(in int32) uint64 {
 	return uint64(in) * 1024 * 1024
 }
 
+func TestSelectNodeBalancesAcrossAvailabilityZones(t *testing.T) {
+	// Regression test: az-1 has two nodes, az-2 has one. Without AZ-aware balancing, the
+	// scheduler would spread the first two VMs across pve1a/pve1b (both in az-1) because it
+	// only looked at per-node counts, leaving az-2 empty.
+	allowedNodes := []string{"pve1a", "pve1b", "pve2"}
+	nodeZone := map[string]string{"pve1a": "az-1", "pve1b": "az-1", "pve2": "az-2"}
+	var locations []infrav1.NodeLocation
+	requestMiB := int32(8)
+	availableMem := map[string]uint64{
+		"pve1a": miBytes(100),
+		"pve1b": miBytes(100),
+		"pve2":  miBytes(100),
+	}
+
+	// Expect the second VM to land in az-2 (on pve2) instead of stacking with the first VM's
+	// zone (az-1), even though pve1b is a distinct, equally-available node.
+	expectedZones := []string{"az-1", "az-2", "az-1"}
+
+	for i, expectedZone := range expectedZones {
+		proxmoxMachine := &infrav1.ProxmoxMachine{
+			Spec: infrav1.ProxmoxMachineSpec{MemoryMiB: &requestMiB},
+		}
+		client := fakeResourceClient(availableMem)
+
+		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, nodeZone, &infrav1.SchedulerHints{})
+		require.NoError(t, err)
+		require.Equalf(t, expectedZone, nodeZone[node], "round %d: node %s", i+1, node)
+
+		availableMem[node] -= miBytes(requestMiB)
+		locations = append(locations, infrav1.NodeLocation{Node: node})
+	}
+}
+
 func TestSelectNode(t *testing.T) {
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
 	var locations []infrav1.NodeLocation
@@ -74,7 +107,7 @@ func TestSelectNode(t *testing.T) {
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, nil, &infrav1.SchedulerHints{})
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
@@ -94,7 +127,7 @@ func TestSelectNode(t *testing.T) {
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, nil, &infrav1.SchedulerHints{})
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 
@@ -137,7 +170,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 			client := fakeResourceClient(availableMem)
 
-			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, nil, &infrav1.SchedulerHints{})
 			require.NoError(t, err)
 			require.Equal(t, expectedNode, node)
 
@@ -157,7 +190,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 
 		client := fakeResourceClient(availableMem)
 
-		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
+		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, nil, &infrav1.SchedulerHints{})
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
 		require.Empty(t, node)
 
@@ -247,6 +280,75 @@ func TestScheduleVM(t *testing.T) {
 	node, err := ScheduleVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, "pve2", node)
+}
+
+func TestScheduleVM_MultiZoneWithoutFailureDomain(t *testing.T) {
+	// Regression test: a worker Machine (created by a plain MachineDeployment) has no
+	// Machine.Spec.FailureDomain assigned by CAPI. When allowedNodes spans multiple
+	// availability zones, the scheduler must query each node's reservable memory using
+	// that node's own zone client rather than a single client for every node.
+	ctrlClient := setupClient()
+
+	ipamHelper := &ipam.Helper{}
+
+	proxmoxCluster := infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"pve1", "pve2"},
+			AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1"}},
+				{Name: "az-2", Nodes: []string{"pve2"}, CredentialsRef: &corev1.SecretReference{Name: "az-2-secret", Namespace: "default"}},
+			},
+		},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{},
+		},
+	}
+	require.NoError(t, ctrlClient.Create(context.Background(), &proxmoxCluster))
+
+	proxmoxMachine := &infrav1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "foo-machine",
+			Labels: map[string]string{"cluster.x-k8s.io/cluster-name": "bar"},
+		},
+		Spec: infrav1.ProxmoxMachineSpec{MemoryMiB: new(int32(10))},
+	}
+
+	defaultClient := proxmoxtest.NewMockClient(t)
+
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "default"},
+	}
+	infraCluster, err := scope.NewClusterScope(scope.ClusterScopeParams{
+		Client:         ctrlClient,
+		Cluster:        cluster,
+		ProxmoxCluster: &proxmoxCluster,
+		ProxmoxClient:  defaultClient,
+		IPAMHelper:     ipamHelper,
+	})
+	require.NoError(t, err)
+
+	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
+		Client: ctrlClient,
+		Machine: &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{Name: "foo-machine", Namespace: "default"},
+			// no FailureDomain set, as for a plain MachineDeployment worker
+		},
+		Cluster:        cluster,
+		InfraCluster:   infraCluster,
+		ProxmoxMachine: proxmoxMachine,
+		IPAMHelper:     ipamHelper,
+	})
+	require.NoError(t, err)
+
+	// pve1 (az-1, no dedicated credentialsRef) is queried with the default client.
+	defaultClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", int64(100)).Return(miBytes(60), nil)
+
+	// pve2 (az-2, dedicated credentialsRef) can't resolve a client since the secret
+	// doesn't exist in this test, so scheduling must fail instead of silently using
+	// the default client against a node it doesn't manage.
+	_, err = ScheduleVM(context.Background(), machineScope)
+	require.Error(t, err)
 }
 
 func TestInsufficientMemoryError_Error(t *testing.T) {
