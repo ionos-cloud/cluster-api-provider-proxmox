@@ -17,6 +17,7 @@ limitations under the License.
 package cloudinit
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/pkg/errors"
@@ -25,111 +26,9 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
-const (
-	/* network-config template. */
-	networkConfigTpl = `network:
-  version: 2
-  renderer: networkd
-  ethernets:
-{{- range $index, $element := .NetworkConfigData }}
-  {{- $type := $element.Type }}
-  {{- if eq $type "ethernet" }}
-    {{ $element.Name }}:
-      match:
-        macaddress: {{ $element.MacAddress }}
-      {{- template "commonSettings" $element }}
-  {{- end -}}
-{{- end -}}
-{{- $vrf := 0 -}}
-{{- range $index, $element := .NetworkConfigData }}
-  {{- if eq $element.Type "vrf" }}
-  {{- if eq $vrf 0 }}
-  vrfs:
-  {{- $vrf = 1 }}
-  {{- end }}
-    {{$element.Name}}:
-      table: {{ $element.Table }}
-    {{- template "routes" . }}
-    {{- template "rules" . }}
-    {{- $interfaces := $element.Children }}
-    {{- if $interfaces }}
-      interfaces:
-      {{- range $interfaces }}
-        - '{{ . }}'
-      {{- end -}}
-    {{- end -}}
-  {{- end }}
-{{- end -}}
-
-  {{- define "dns" }}
-    {{- if .DNSServers }}
-      nameservers:
-        addresses:
-        {{- range .DNSServers }}
-          - '{{ . }}'
-        {{- end -}}
-    {{- end -}}
-  {{- end -}}
-
-{{- define "dhcp" }}
-      dhcp4: {{ if .DHCP4 }}true{{ else }}false{{ end }}
-      dhcp6: {{ if .DHCP6 }}true{{ else }}false{{ end }}
-{{- end -}}
-
-{{- define "rules" }}
-    {{- if .FIBRules }}
-      routing-policy:
-      {{- range $index, $rule := .FIBRules }}
-        - {
-        {{- if $rule.To.IsValid }} "to": "{{$rule.To}}", {{ end -}}
-        {{- if $rule.From.IsValid }} "from": "{{$rule.From}}", {{ end -}}
-        {{- if $rule.Priority }} "priority": {{$rule.Priority}}, {{ end -}}
-        {{- if $rule.Table }} "table": {{$rule.Table}}, {{ end -}} }
-      {{- end }}
-    {{- end }}
-{{- end -}}
-
-{{- define "routes" }}
-    {{- if .Routes }}
-      routes:
-        {{- range $index, $route := .Routes }}
-        - {
-          {{- if $route.To.IsValid }} "to": "{{$route.To}}", {{ end -}}
-          {{- if $route.Via.IsValid }} "via": "{{$route.Via}}", {{ end -}}
-          {{- if $route.Metric }} "metric": {{$route.Metric}}, {{ end -}}
-          {{- if $route.Table }} "table": {{$route.Table}}, {{ end -}} }
-        {{- end -}}
-    {{- end -}}
-{{- end -}}
-
-{{- define "ipAddresses" }}
-    {{- if .IPConfigs }}
-      addresses:
-        {{- range $ipconfig := .IPConfigs }}
-        - '{{ (.IPAddress).String }}'
-        {{- end }}
-    {{- end -}}
-{{- end -}}
-
-{{- define "mtu" }}
-    {{- if .LinkMTU }}
-      mtu: {{ .LinkMTU }}
-    {{- end -}}
-{{- end -}}
-
-{{- define "commonSettings" }}
-    {{- template "dhcp" . }}
-    {{- template "ipAddresses" . }}
-    {{- template "routes" . }}
-    {{- template "rules" . }}
-    {{- template "dns" . }}
-    {{- template "mtu" . }}
-{{- end -}}
-`
-	// EmptyNetworkV1 is an empty network-config for version 1.
-	EmptyNetworkV1 = `version: 1
+// EmptyNetworkV1 is an empty network-config for version 1.
+const EmptyNetworkV1 = `version: 1
 config: []`
-)
 
 // NetworkConfig provides functionality to render machine network-config.
 //
@@ -151,27 +50,29 @@ func (r *NetworkConfig) Inspect() ([]byte, error) {
 }
 
 // Render returns rendered network-config.
+//
+// The netplan v2 config is built as a typed structure and marshalled to YAML,
+// so the output is valid by construction (no post-hoc parse check) and special
+// characters in names/addresses are quoted correctly.
 func (r *NetworkConfig) Render() ([]byte, error) {
-	// Validate inputs to template
 	if err := r.Validate(); err != nil {
 		return nil, err
 	}
 
-	nc, err := render("network-config", networkConfigTpl, BaseCloudInitData{NetworkConfigData: r.Devices})
-	if err != nil {
-		return nil, err
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	// netplan examples and the previous renderer use two-space indentation.
+	enc.SetIndent(2)
+	if err := enc.Encode(buildNetplanConfig(r.Devices)); err != nil {
+		return nil, errors.Wrap(err, "failed to marshal network-config")
+	}
+	if err := enc.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to flush network-config")
 	}
 
-	// Check YAML render to be valid
-	var unused any
-	err = yaml.Unmarshal(nc, &unused)
-	if err != nil {
-		return nil, errors.Wrap(err,
-			"Template produced invalid YAML. Please file a bug at: "+
-				"https://github.com/ionos-cloud/cluster-api-provider-proxmox/")
-	}
-
-	return nc, nil
+	// Drop the trailing newline the encoder appends, to match the previous
+	// renderer's output.
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
 // Validate runs the shared, renderer-agnostic validation (embedded
