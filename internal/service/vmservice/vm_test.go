@@ -667,6 +667,29 @@ func TestReconcileVirtualMachineConfigQueue(t *testing.T) {
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
 }
 
+func TestReconcileVirtualMachineConfigPCIDevices(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.PCIDevices = []infrav1.PCIDevice{
+		{DeviceIDs: []string{"0000:01:00"}, PCIe: new(true), PrimaryGPU: new(true)},
+		{DeviceIDs: []string{"0000:02:00"}},
+	}
+
+	vm := newStoppedVM()
+	task := newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions := []any{
+		proxmox.VirtualMachineOption{Name: "hostpci0", Value: "0000:01:00,pcie=1,x-vga=1"},
+		proxmox.VirtualMachineOption{Name: "hostpci1", Value: "0000:02:00"},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.TODO(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(context.TODO(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
 func TestReconcileDisks_UnmountCloudInitISO(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason)
 

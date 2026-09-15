@@ -19,6 +19,7 @@ package vmservice
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -43,11 +44,12 @@ const (
 	// See the following link for a list of available config options:
 	// https://pve.proxmox.com/pve-docs/api-viewer/index.html#/nodes/{node}/qemu/{vmid}/config
 
-	optionSockets     = "sockets"
-	optionCores       = "cores"
-	optionMemory      = "memory"
-	optionTags        = "tags"
-	optionDescription = "description"
+	optionSockets       = "sockets"
+	optionCores         = "cores"
+	optionMemory        = "memory"
+	optionTags          = "tags"
+	optionDescription   = "description"
+	optionHostPCIPrefix = "hostpci"
 )
 
 // ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmIDRange.
@@ -352,6 +354,14 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		if len(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice) > length {
 			vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionTags, Value: strings.Join(machineScope.VirtualMachine.VirtualMachineConfig.TagsSlice, ";")})
 		}
+	}
+
+	// PCI device passthrough
+	for i, dev := range machineScope.ProxmoxMachine.Spec.PCIDevices {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
+			Name:  fmt.Sprintf("%s%d", optionHostPCIPrefix, i),
+			Value: formatPCIDevice(dev),
+		})
 	}
 
 	if len(vmOptions) == 0 {
