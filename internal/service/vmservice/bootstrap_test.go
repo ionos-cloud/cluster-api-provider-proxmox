@@ -748,14 +748,24 @@ func TestReconcileBootstrapData_Format_Ignition(t *testing.T) {
 }
 
 func TestDefaultISOInjector(t *testing.T) {
-	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), cloudinit.NewNetworkConfig(nil))
+	injector := defaultISOInjector(newRunningVM(), []byte("data"), cloudinit.NewMetadata(cloudinit.MetadataInput{
+		InstanceID:          biosUUID,
+		Hostname:            "test",
+		KubernetesVersion:   "1.2.3",
+		ProviderIDInjection: true,
+	}), cloudinit.NewNetworkConfig(nil))
 
 	require.NotEmpty(t, injector)
 	require.Equal(t, []byte("data"), injector.(*inject.ISOInjector).BootstrapData)
 }
 
 func TestIgnitionISOInjector(t *testing.T) {
-	injector := defaultIgnitionISOInjector(newRunningVM(), cloudinit.NewMetadata(biosUUID, "test", "1.2.3", true), &ignition.Enricher{
+	injector := defaultIgnitionISOInjector(newRunningVM(), cloudinit.NewMetadata(cloudinit.MetadataInput{
+		InstanceID:          biosUUID,
+		Hostname:            "test",
+		KubernetesVersion:   "1.2.3",
+		ProviderIDInjection: true,
+	}), &ignition.Enricher{
 		BootstrapData: []byte("data"),
 		Hostname:      "test",
 	})
@@ -796,4 +806,128 @@ func TestReconcileBootstrapData_DefaultDeviceIPPoolRef(t *testing.T) {
 	require.Equal(t, "10.0.0.1", networkConfigData[0].Routes[0].Via.String())
 	require.Equal(t, "0.0.0.0/0", networkConfigData[0].Routes[0].To.String())
 	require.Equal(t, 1, len(networkConfigData[0].Routes)) // second IP has no gateway
+}
+
+// captureMetadata replaces getISOInjector with a hook that records the metadata
+// renderer, returning a pointer to the rendered bytes (populated when the test
+// triggers a Render call).
+func captureMetadata(t *testing.T) *[]byte {
+	captured := new([]byte)
+	getISOInjector = func(vm *proxmox.VirtualMachine, bootstrapData []byte, metadata, network cloudinit.Renderer) isoInjector {
+		out, err := metadata.Render()
+		require.NoError(t, err)
+		*captured = out
+		return FakeISOInjector{
+			VirtualMachine: vm,
+			BootstrapData:  bootstrapData,
+			MetaData:       metadata,
+			Network:        network,
+		}
+	}
+	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+	return captured
+}
+
+// captureIgnitionMetadata is the ignition equivalent of captureMetadata.
+func captureIgnitionMetadata(t *testing.T) *[]byte {
+	captured := new([]byte)
+	getIgnitionISOInjector = func(_ *proxmox.VirtualMachine, metadata cloudinit.Renderer, _ *ignition.Enricher) isoInjector {
+		out, err := metadata.Render()
+		require.NoError(t, err)
+		*captured = out
+		return FakeIgnitionISOInjector{}
+	}
+	t.Cleanup(func() { getIgnitionISOInjector = defaultIgnitionISOInjector })
+	return captured
+}
+
+func TestReconcileBootstrapData_InjectsIPAddressesInMetadata_CloudConfig(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0", "virtio=AA:23:64:4D:84:CD,bridge=vmbr1")
+	metadataPtr := captureMetadata(t)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+
+	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
+	proxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+		Addresses: []string{"2001:db8::/96"},
+		Prefix:    96,
+		Gateway:   "2001:db8::1",
+	}
+	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
+	proxmoxCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
+		{Name: "test-v4-icip"},
+		{Name: "test-v6-icip"},
+	}
+	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: new(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: new(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+	}}
+	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
+
+	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
+	addDefaultIPPool(machineScope)
+	addDefaultIPPoolV6(machineScope)
+	addGlobalInClusterIPPool(machineScope, "extraPool0", "net1")
+	createNetworkSpecForMachine(t, kubeClient, machineScope, "10.10.10.10", "2001:db8::2", "10.0.0.10")
+
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	rendered := string(*metadataPtr)
+	// Default-NIC aliases (the briefing's {{ ds.meta_data.ipv6 }} use case).
+	require.Contains(t, rendered, "ipv4: 10.10.10.10\n")
+	require.Contains(t, rendered, "ipv4_prefix: 24\n")
+	require.Contains(t, rendered, "ipv4_gateway: 10.0.0.1\n")
+	require.Contains(t, rendered, "ipv6: 2001:db8::2\n")
+	require.Contains(t, rendered, "ipv6_prefix: 96\n")
+	require.Contains(t, rendered, "ipv6_gateway: 2001:db8::1\n")
+	// Per-NIC entries.
+	require.Contains(t, rendered, "ipv4_net0: 10.10.10.10\n")
+	require.Contains(t, rendered, "ipv6_net0: 2001:db8::2\n")
+	require.Contains(t, rendered, "ipv4_net1: 10.0.0.10\n")
+}
+
+func TestReconcileBootstrapData_InjectsIPAddressesInMetadata_Ignition(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
+	setupVMWithMetadata(machineScope, "virtio=A6:23:64:4D:84:CB,bridge=vmbr0")
+	metadataPtr := captureIgnitionMetadata(t)
+	createBootstrapSecret(t, kubeClient, machineScope, ignition.FormatIgnition)
+
+	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
+	proxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+		Addresses: []string{"2001:db8::/96"},
+		Prefix:    96,
+		Gateway:   "2001:db8::1",
+	}
+	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
+	proxmoxCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
+		{Name: "test-v4-icip"},
+		{Name: "test-v6-icip"},
+	}
+	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: new(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: new(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+	}}
+	require.NoError(t, kubeClient.Status().Update(context.Background(), proxmoxCluster))
+
+	defaultPool := addDefaultIPPool(machineScope)
+	defaultPoolV6 := addDefaultIPPoolV6(machineScope)
+	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.254", 0, &defaultPool)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "2001:db8::2", 1, &defaultPoolV6)
+
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+	require.True(t, *machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+
+	rendered := string(*metadataPtr)
+	require.Contains(t, rendered, "ipv4: 10.0.0.254\n")
+	require.Contains(t, rendered, "ipv6: 2001:db8::2\n")
+	require.Contains(t, rendered, "ipv4_net0: 10.0.0.254\n")
+	require.Contains(t, rendered, "ipv6_net0: 2001:db8::2\n")
 }
