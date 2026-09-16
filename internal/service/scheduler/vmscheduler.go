@@ -79,16 +79,16 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 // nodeToZone maps each node to the name of the availability zone it belongs to. Nodes that
 // aren't part of any configured availability zone are mapped to themselves, so they're treated
 // as an independent single-node zone for balancing purposes.
+//
+// Resolution uses the shared infrav1.ZoneForNode helper (first-match) so the scheduler and the
+// controller that records Status.FailureDomain agree on which zone a node belongs to.
 func nodeToZone(azs []infrav1.AvailabilityZoneSpec, nodes []string) map[string]string {
 	result := make(map[string]string, len(nodes))
 	for _, n := range nodes {
-		result[n] = n
-	}
-	for _, az := range azs {
-		for _, n := range az.Nodes {
-			if _, ok := result[n]; ok {
-				result[n] = az.Name
-			}
+		if zone := infrav1.ZoneForNode(azs, n); zone != "" {
+			result[n] = zone
+		} else {
+			result[n] = n
 		}
 	}
 	return result

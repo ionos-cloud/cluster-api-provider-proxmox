@@ -149,6 +149,21 @@ type AvailabilityZoneSpec struct {
 	Nodes []string `json:"nodes"`
 }
 
+// ZoneForNode returns the name of the availability zone that contains the given Proxmox node,
+// or "" if the node is not listed in any availability zone.
+//
+// When a node appears in more than one zone, the first match (in AvailabilityZones order) wins.
+// The ProxmoxCluster validating webhook rejects such overlapping configurations, so this
+// ambiguity is not expected in practice; first-match is used as a deterministic fallback.
+func ZoneForNode(azs []AvailabilityZoneSpec, node string) string {
+	for _, az := range azs {
+		if slices.Contains(az.Nodes, node) {
+			return az.Name
+		}
+	}
+	return ""
+}
+
 // ZoneConfigSpec is the Network Configuration for further deployment zones.
 type ZoneConfigSpec struct {
 	// zone is the name of your deployment zone.
