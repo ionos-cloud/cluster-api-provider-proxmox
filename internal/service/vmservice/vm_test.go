@@ -26,11 +26,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
+	ipam "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -477,6 +481,46 @@ func TestEnsureVirtualMachine_VMIDCollisionAtRecordedNodeRecovers(t *testing.T) 
 	require.Nil(t, machineScope.ProxmoxMachine.Status.ProxmoxNode)
 	require.NotContains(t, machineScope.ProxmoxMachine.Annotations, vmIDAllocatedByControllerAnnotation)
 	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
+}
+
+func TestReconcileVM_VMIDCollisionReturnsBeforeIPAddressClaimAdoption(t *testing.T) {
+	ctx := context.Background()
+	machineScope, proxmoxClient, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.SetVirtualMachineID(123)
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node1")
+	machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node1",
+	}, false)
+
+	defaultPoolRef := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     "InClusterIPPool",
+		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
+	}
+	ipClaimDef := ipam.IPClaimDef{
+		PoolRef: defaultPoolRef,
+		Device:  infrav1.DefaultNetworkDevice,
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolOffsetAnnotation: "0",
+		},
+	}
+	require.NoError(t, machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef))
+	claimName := ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)
+	var claim ipamv1.IPAddressClaim
+	require.NoError(t, kubeClient.Get(ctx, client.ObjectKey{Name: claimName, Namespace: machineScope.Namespace()}, &claim))
+	claim.OwnerReferences = nil
+	require.NoError(t, kubeClient.Update(ctx, &claim))
+
+	foreignVM := newRunningVM()
+	foreignVM.Name = t.Name()
+	proxmoxClient.EXPECT().GetVM(ctx, "node1", int64(123)).Return(foreignVM, nil).Once()
+
+	_, err := ReconcileVM(ctx, machineScope)
+	require.ErrorIs(t, err, ErrVMIDCollision)
+	require.NoError(t, kubeClient.Get(ctx, client.ObjectKeyFromObject(&claim), &claim))
+	require.Empty(t, claim.OwnerReferences)
 }
 
 func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {

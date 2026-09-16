@@ -441,36 +441,54 @@ const (
 	ClaimMissing IPAddressClaimResolutionStatus = "ClaimMissing"
 	// ClaimPending means the expected IPAddressClaim exists but has no AddressRef yet.
 	ClaimPending IPAddressClaimResolutionStatus = "ClaimPending"
+	// ClaimAdoptable means the expected IPAddressClaim has no owner references and
+	// all available claim/address provenance checks passed.
+	ClaimAdoptable IPAddressClaimResolutionStatus = "ClaimAdoptable"
 	// ClaimResolved means the expected IPAddressClaim and referenced IPAddress are valid.
 	ClaimResolved IPAddressClaimResolutionStatus = "ClaimResolved"
-	// ClaimConflict means the expected IPAddressClaim exists but cannot be safely consumed.
+	// ClaimConflict means the expected claim/address state cannot be safely consumed.
 	ClaimConflict IPAddressClaimResolutionStatus = "ClaimConflict"
 )
 
-// IPAddressClaimConflictReason describes why an existing IPAddressClaim cannot
-// be safely consumed for the requested IPClaimDef.
+// IPAddressClaimConflictReason describes why existing deterministic claim or
+// address state cannot be safely consumed for the requested IPClaimDef.
 type IPAddressClaimConflictReason string
 
 const (
+	// ConflictClaimDeleting means the IPAddressClaim is being deleted and its allocation may be released.
+	ConflictClaimDeleting IPAddressClaimConflictReason = "ClaimDeleting"
 	// ConflictOwnerMismatch means the expected IPAddressClaim is not owned by the ProxmoxMachine.
 	ConflictOwnerMismatch IPAddressClaimConflictReason = "OwnerMismatch"
 	// ConflictPoolMismatch means the expected IPAddressClaim references a different pool.
 	ConflictPoolMismatch IPAddressClaimConflictReason = "PoolMismatch"
 	// ConflictAddressMissing means the IPAddressClaim AddressRef points at a missing IPAddress.
 	ConflictAddressMissing IPAddressClaimConflictReason = "AddressMissing"
+	// ConflictAddressRef means an adoptable claim references a non-deterministic IPAddress name.
+	ConflictAddressRef IPAddressClaimConflictReason = "AddressRef"
 	// ConflictAddressPoolRef means the referenced IPAddress belongs to a different pool.
 	ConflictAddressPoolRef IPAddressClaimConflictReason = "AddressPoolRef"
+	// ConflictClaimCluster means the IPAddressClaim belongs to a different cluster.
+	ConflictClaimCluster IPAddressClaimConflictReason = "ClaimCluster"
+	// ConflictClaimAnnotations means the IPAddressClaim does not carry the expected CAPMOX allocation metadata.
+	ConflictClaimAnnotations IPAddressClaimConflictReason = "ClaimAnnotations"
+	// ConflictAddressClaimRef means the IPAddress references a different IPAddressClaim.
+	ConflictAddressClaimRef IPAddressClaimConflictReason = "AddressClaimRef"
+	// ConflictAddressCluster means the IPAddress belongs to a different cluster.
+	ConflictAddressCluster IPAddressClaimConflictReason = "AddressCluster"
+	// ConflictAddressOwner means the IPAddress has a conflicting controller owner.
+	ConflictAddressOwner IPAddressClaimConflictReason = "AddressOwner"
 )
 
 // IPAddressClaimResolution is the result of resolving the deterministic
 // IPAddressClaim for an IPClaimDef.
 type IPAddressClaimResolution struct {
-	Status              IPAddressClaimResolutionStatus
-	ConflictReason      IPAddressClaimConflictReason
-	ClaimName           string
-	Claim               *ipamv1.IPAddressClaim
-	Address             *ipamv1.IPAddress
-	OrphanedAddressName string
+	Status             IPAddressClaimResolutionStatus
+	ConflictReason     IPAddressClaimConflictReason
+	ClaimName          string
+	Claim              *ipamv1.IPAddressClaim
+	Address            *ipamv1.IPAddress
+	ConflictingAddress *ipamv1.IPAddress
+	OrphanedAddress    *ipamv1.IPAddress
 }
 
 func ipClaimName(owner client.Object, ipClaimRef IPClaimDef) (string, error) {
@@ -488,8 +506,9 @@ func ipClaimName(owner client.Object, ipClaimRef IPClaimDef) (string, error) {
 }
 
 // ResolveIPAddressClaim resolves the deterministic IPAddressClaim for a
-// ProxmoxMachine and only returns an allocated IPAddress when claim ownership
-// and pool references are valid.
+// ProxmoxMachine without mutating either the claim or its address. Ownerless
+// claims are only classified as adoptable after their CAPMOX provenance and
+// any allocated address have been validated.
 func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.ProxmoxMachine, ipClaimRef IPClaimDef) (IPAddressClaimResolution, error) {
 	claimName, err := ipClaimName(moxm, ipClaimRef)
 	if err != nil {
@@ -504,23 +523,22 @@ func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.Proxmo
 	claim := &ipamv1.IPAddressClaim{}
 	if err := h.ctrlClient.Get(ctx, client.ObjectKey{Name: claimName, Namespace: moxm.Namespace}, claim); err != nil {
 		if apierrors.IsNotFound(err) {
-			orphanedAddress := &ipamv1.IPAddress{}
-			if orphanErr := h.ctrlClient.Get(ctx, client.ObjectKey{Name: claimName, Namespace: moxm.Namespace}, orphanedAddress); orphanErr == nil {
-				result.OrphanedAddressName = orphanedAddress.Name
-			} else if !apierrors.IsNotFound(orphanErr) {
-				return result, orphanErr
-			}
-			return result, nil
+			return h.resolveMissingIPAddressClaim(ctx, moxm, ipClaimRef, result)
 		}
 		return result, err
 	}
 	result.Claim = claim
-
-	isOwner, err := controllerutil.HasOwnerReference(claim.OwnerReferences, moxm, h.ctrlClient.Scheme())
-	if err != nil {
-		return result, err
+	// Ownership cannot cancel deletion. Reject before either pending adoption or
+	// address resolution so an allocation being released is never republished.
+	if !claim.DeletionTimestamp.IsZero() {
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictClaimDeleting
+		return result, nil
 	}
-	if !isOwner && !hasDirectOwnerReference(claim.OwnerReferences, moxm) {
+
+	isOwner := hasDirectControllerOwnerReference(claim.OwnerReferences, moxm)
+	isOwnerless := len(claim.OwnerReferences) == 0
+	if !isOwner && !isOwnerless {
 		result.Status = ClaimConflict
 		result.ConflictReason = ConflictOwnerMismatch
 		return result, nil
@@ -531,25 +549,83 @@ func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.Proxmo
 		result.ConflictReason = ConflictPoolMismatch
 		return result, nil
 	}
+	expectedClusterName := ""
+	if isOwnerless {
+		expectedClusterName, err = h.expectedClusterName(ctx)
+		if err != nil {
+			return result, err
+		}
+		if !hasExpectedClusterLabel(claim, expectedClusterName) {
+			result.Status = ClaimConflict
+			result.ConflictReason = ConflictClaimCluster
+			return result, nil
+		}
+		if !hasExpectedAnnotations(claim.GetAnnotations(), ipClaimRef.Annotations) {
+			result.Status = ClaimConflict
+			result.ConflictReason = ConflictClaimAnnotations
+			return result, nil
+		}
+	}
 
-	if claim.Status.AddressRef.Name == "" {
-		result.Status = ClaimPending
+	addressName := claim.Status.AddressRef.Name
+	pending := addressName == ""
+	if pending {
+		if !isOwnerless {
+			result.Status = ClaimPending
+			return result, nil
+		}
+		// IPAM may have created the address before publishing status.addressRef,
+		// or the claim's status may have been lost during restore. Validate that
+		// deterministic address before changing claim ownership.
+		addressName = claimName
+	} else if isOwnerless && addressName != claimName {
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressRef
 		return result, nil
 	}
 
 	addr := &ipamv1.IPAddress{}
-	if err := h.ctrlClient.Get(ctx, client.ObjectKey{Name: claim.Status.AddressRef.Name, Namespace: claim.Namespace}, addr); err != nil {
+	if err := h.ctrlClient.Get(ctx, client.ObjectKey{Name: addressName, Namespace: claim.Namespace}, addr); err != nil {
 		if apierrors.IsNotFound(err) {
+			if pending {
+				result.Status = ClaimAdoptable
+				return result, nil
+			}
 			result.Status = ClaimConflict
 			result.ConflictReason = ConflictAddressMissing
 			return result, nil
 		}
 		return result, err
 	}
+	result.ConflictingAddress = addr
 
 	if !matchesPoolRef(*addr, ipClaimRef.PoolRef) {
 		result.Status = ClaimConflict
 		result.ConflictReason = ConflictAddressPoolRef
+		return result, nil
+	}
+	if addr.Spec.ClaimRef.Name != claim.Name {
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressClaimRef
+		return result, nil
+	}
+	if !hasSafeAddressControllerReference(addr.OwnerReferences, claim) {
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressOwner
+		return result, nil
+	}
+	if isOwnerless {
+		if !hasExpectedClusterLabel(addr, expectedClusterName) {
+			result.Status = ClaimConflict
+			result.ConflictReason = ConflictAddressCluster
+			return result, nil
+		}
+	}
+	if pending {
+		// A valid existing address is not yet a resolved bidirectional chain.
+		// Keep Address nil so running-machine recovery cannot adopt this claim.
+		result.Status = ClaimAdoptable
+		result.ConflictingAddress = nil
 		return result, nil
 	}
 
@@ -564,13 +640,85 @@ func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.Proxmo
 	maps.Insert(annotations, maps.All(claim.GetAnnotations()))
 	addr.SetAnnotations(annotations)
 
-	result.Status = ClaimResolved
+	if isOwnerless {
+		result.Status = ClaimAdoptable
+	} else {
+		result.Status = ClaimResolved
+	}
 	result.Address = addr
+	result.ConflictingAddress = nil
 	return result, nil
+}
+
+func (h *Helper) resolveMissingIPAddressClaim(ctx context.Context, moxm *infrav1.ProxmoxMachine, ipClaimRef IPClaimDef, result IPAddressClaimResolution) (IPAddressClaimResolution, error) {
+	orphanedAddress := &ipamv1.IPAddress{}
+	if err := h.ctrlClient.Get(ctx, client.ObjectKey{Name: result.ClaimName, Namespace: moxm.Namespace}, orphanedAddress); err != nil {
+		if apierrors.IsNotFound(err) {
+			return result, nil
+		}
+		return result, err
+	}
+	expectedClusterName, err := h.expectedClusterName(ctx)
+	if err != nil {
+		return result, err
+	}
+	result.OrphanedAddress = orphanedAddress
+	switch {
+	case !matchesPoolRef(*orphanedAddress, ipClaimRef.PoolRef):
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressPoolRef
+	case orphanedAddress.Spec.ClaimRef.Name != result.ClaimName:
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressClaimRef
+	case !hasExpectedClusterLabel(orphanedAddress, expectedClusterName):
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressCluster
+	case !hasNoControllerOwnerReference(orphanedAddress.OwnerReferences):
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressOwner
+	}
+	return result, nil
+}
+
+// AdoptIPAddressClaim sets the ProxmoxMachine controller owner reference on an
+// ownerless claim after re-resolving and validating it. No claim fields other
+// than ownerReferences are changed, and the referenced IPAddress is never
+// mutated. The returned bool reports whether this call performed the adoption.
+func (h *Helper) AdoptIPAddressClaim(ctx context.Context, moxm *infrav1.ProxmoxMachine, ipClaimRef IPClaimDef) (IPAddressClaimResolution, bool, error) {
+	result, err := h.ResolveIPAddressClaim(ctx, moxm, ipClaimRef)
+	if err != nil || result.Status != ClaimAdoptable {
+		return result, false, err
+	}
+
+	claim := result.Claim.DeepCopy()
+	if err := controllerutil.SetControllerReference(moxm, claim, h.ctrlClient.Scheme()); err != nil {
+		return result, false, err
+	}
+	// Update is optimistic because it carries the resourceVersion read during the
+	// immediate revalidation above. It also stays within the existing claim RBAC.
+	if err := h.ctrlClient.Update(ctx, claim); err != nil {
+		return result, false, err
+	}
+
+	result.Claim = claim
+	if result.Address == nil {
+		result.Status = ClaimPending
+	} else {
+		result.Status = ClaimResolved
+	}
+	return result, true, nil
 }
 
 // CreateIPAddressClaim creates an IPAddressClaim for a given object.
 func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, ipClaimRef IPClaimDef) error {
+	_, err := h.CreateIPAddressClaimIfMissing(ctx, owner, ipClaimRef)
+	return err
+}
+
+// CreateIPAddressClaimIfMissing creates an IPAddressClaim without updating an
+// object that concurrently appeared at the deterministic name. The returned
+// bool reports whether this call created the claim.
+func (h *Helper) CreateIPAddressClaimIfMissing(ctx context.Context, owner client.Object, ipClaimRef IPClaimDef) (bool, error) {
 	key := client.ObjectKey{
 		Namespace: owner.GetNamespace(),
 		Name:      owner.GetName(),
@@ -583,7 +731,7 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 
 	poolObj, err := h.GetIPPool(ctx, ref)
 	if err != nil {
-		return errors.Wrapf(err, "unable to find %s %s for cluster %s",
+		return false, errors.Wrapf(err, "unable to find %s %s for cluster %s",
 			ref.Kind,
 			ref.Name,
 			owner.GetName(),
@@ -593,17 +741,17 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 	key.Name = poolObj.(metav1.Object).GetName()
 	gvk, err := gvkForObject(poolObj, h.ctrlClient.Scheme())
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// Ensures that the claim has a reference to the cluster of the VM to
 	// support pausing reconciliation.
 	ownerCluster, err := util.GetOwnerCluster(ctx, h.ctrlClient, h.cluster.ObjectMeta)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if ownerCluster == nil { // This can only happen in badly designed tests
-		return errors.New("ProxmoxCluster with OwnerReference but Cluster does not exist")
+		return false, errors.New("ProxmoxCluster with OwnerReference but Cluster does not exist")
 	}
 	labels := map[string]string{
 		clusterv1.ClusterNameLabel: ownerCluster.GetName(),
@@ -617,7 +765,7 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 
 	claimName, err := ipClaimName(owner, ipClaimRef)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	desired := &ipamv1.IPAddressClaim{
@@ -635,12 +783,19 @@ func (h *Helper) CreateIPAddressClaim(ctx context.Context, owner client.Object, 
 			},
 		},
 	}
-	_, err = controllerutil.CreateOrUpdate(ctx, h.ctrlClient, desired, func() error {
-		// set the owner reference to the cluster
-		return controllerutil.SetControllerReference(owner, desired, h.ctrlClient.Scheme())
-	})
-
-	return err
+	if err := controllerutil.SetControllerReference(owner, desired, h.ctrlClient.Scheme()); err != nil {
+		return false, err
+	}
+	if err := h.ctrlClient.Create(ctx, desired); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// A concurrent reconcile created the deterministic claim after the
+			// caller classified it as missing. Leave that object untouched; the
+			// next reconcile will validate its provenance before using it.
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // GetIPAddress attempts to retrieve the IPAddress.
@@ -716,9 +871,10 @@ func normalizedAPIGroup(apiGroupOrVersion string) string {
 	return apiGroupOrVersion
 }
 
-func hasDirectOwnerReference(ownerReferences []metav1.OwnerReference, moxm *infrav1.ProxmoxMachine) bool {
+func hasDirectControllerOwnerReference(ownerReferences []metav1.OwnerReference, moxm *infrav1.ProxmoxMachine) bool {
 	for _, ownerReference := range ownerReferences {
-		if ownerReference.UID == moxm.UID &&
+		if ptr.Deref(ownerReference.Controller, false) &&
+			ownerReference.UID == moxm.UID &&
 			ownerReference.Name == moxm.Name &&
 			ownerReference.Kind == infrav1.ProxmoxMachineKind &&
 			normalizedAPIGroup(ownerReference.APIVersion) == infrav1.GroupVersion.Group {
@@ -726,6 +882,65 @@ func hasDirectOwnerReference(ownerReferences []metav1.OwnerReference, moxm *infr
 		}
 	}
 	return false
+}
+
+func (h *Helper) expectedClusterName(ctx context.Context) (string, error) {
+	ownerCluster, err := util.GetOwnerCluster(ctx, h.ctrlClient, h.cluster.ObjectMeta)
+	if err != nil {
+		return "", err
+	}
+	if ownerCluster == nil {
+		return "", errors.New("ProxmoxCluster with OwnerReference but Cluster does not exist")
+	}
+	return ownerCluster.Name, nil
+}
+
+func hasExpectedClusterLabel(obj metav1.Object, expectedClusterName string) bool {
+	return expectedClusterName != "" && obj.GetLabels()[clusterv1.ClusterNameLabel] == expectedClusterName
+}
+
+func hasExpectedAnnotations(actual, expected map[string]string) bool {
+	for key, value := range expected {
+		if actual[key] != value {
+			return false
+		}
+	}
+	// Absence and an explicit "false" are equivalent for non-default pools, but
+	// any truthy/invalid restored value would change rendered network behavior.
+	if _, expectsDefaultGateway := expected[infrav1.ProxmoxDefaultGatewayAnnotation]; !expectsDefaultGateway {
+		actualDefaultGateway := actual[infrav1.ProxmoxDefaultGatewayAnnotation]
+		if actualDefaultGateway != "" && actualDefaultGateway != "false" {
+			return false
+		}
+	}
+	return true
+}
+
+func hasNoControllerOwnerReference(ownerReferences []metav1.OwnerReference) bool {
+	for _, ownerReference := range ownerReferences {
+		if ptr.Deref(ownerReference.Controller, false) {
+			return false
+		}
+	}
+	return true
+}
+
+func hasSafeAddressControllerReference(ownerReferences []metav1.OwnerReference, claim *ipamv1.IPAddressClaim) bool {
+	foundController := false
+	for _, ownerReference := range ownerReferences {
+		if !ptr.Deref(ownerReference.Controller, false) {
+			continue
+		}
+		if foundController ||
+			ownerReference.UID != claim.UID ||
+			ownerReference.Name != claim.Name ||
+			ownerReference.Kind != "IPAddressClaim" ||
+			normalizedAPIGroup(ownerReference.APIVersion) != ipamv1.GroupVersion.Group {
+			return false
+		}
+		foundController = true
+	}
+	return true
 }
 
 func gvkForObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersionKind, error) {
