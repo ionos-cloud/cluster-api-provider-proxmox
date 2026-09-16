@@ -19,6 +19,7 @@ package vmservice
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
@@ -181,10 +182,8 @@ func recoverFromVMIDCollision(s *scope.MachineScope, cause error) error {
 // or "" if the node is not listed in any availability zone.
 func zoneForNode(azs []infrav1.AvailabilityZoneSpec, node string) string {
 	for _, az := range azs {
-		for _, n := range az.Nodes {
-			if n == node {
-				return az.Name
-			}
+		if slices.Contains(az.Nodes, node) {
+			return az.Name
 		}
 	}
 	return ""
