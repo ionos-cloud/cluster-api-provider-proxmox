@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
@@ -1073,6 +1074,187 @@ func (s *IPAMTestSuite) Test_AdoptIPAddressClaimOnlyChangesOwnerReferencesAndIsI
 	s.NoError(err)
 	s.False(adopted)
 	s.Equal(ClaimResolved, result.Status)
+}
+
+func (s *IPAMTestSuite) Test_AdoptIPAddressClaimPropagatesReadFailures() {
+	tests := []struct {
+		name         string
+		missingClaim bool
+		failObject   client.Object
+	}{
+		{name: "claim lookup", failObject: &ipamv1.IPAddressClaim{}},
+		{name: "allocated address lookup", failObject: &ipamv1.IPAddress{}},
+		{name: "claim cluster lookup", failObject: &clusterv1.Cluster{}},
+		{name: "orphan address lookup", missingClaim: true, failObject: &ipamv1.IPAddress{}},
+		{name: "orphan cluster lookup", missingClaim: true, failObject: &clusterv1.Cluster{}},
+	}
+	for i, tt := range tests {
+		s.Run(tt.name, func() {
+			machine := s.testMachine()
+			def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, fmt.Sprint(i), "test-cluster-v4-icip")
+			claim := s.testIPAddressClaim(machine, def, "")
+			claim.OwnerReferences = nil
+			claim.Status.AddressRef.Name = claim.Name
+			address := s.testIPAddress(claim.Namespace, claim.Name, def.PoolRef.Name)
+			if !tt.missingClaim {
+				s.NoError(s.cl.Create(s.ctx, claim))
+			}
+			s.NoError(s.cl.Create(s.ctx, address))
+			claimBefore := claim.DeepCopy()
+			addressBefore := address.DeepCopy()
+			lookupErr := apierrors.NewServiceUnavailable("IPAM lookup unavailable")
+			builder := fake.NewClientBuilder().WithScheme(s.cl.Scheme()).WithObjects(s.capiCluster, address).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Get: func(ctx context.Context, cl client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						if fmt.Sprintf("%T", obj) == fmt.Sprintf("%T", tt.failObject) {
+							return lookupErr
+						}
+						return cl.Get(ctx, key, obj, opts...)
+					},
+				})
+			if !tt.missingClaim {
+				builder.WithObjects(claim)
+			}
+			cl := builder.Build()
+			result, adopted, err := NewHelper(cl, s.cluster).AdoptIPAddressClaim(s.ctx, machine, def)
+			s.ErrorIs(err, lookupErr)
+			s.False(adopted)
+			s.Nil(result.Address)
+			// Read failures must not be mistaken for absent objects or successful adoption.
+			claims := &ipamv1.IPAddressClaimList{}
+			addresses := &ipamv1.IPAddressList{}
+			s.NoError(cl.List(s.ctx, claims))
+			s.NoError(cl.List(s.ctx, addresses))
+			if tt.missingClaim {
+				s.Empty(claims.Items)
+			} else {
+				s.Len(claims.Items, 1)
+				s.Equal(claimBefore, &claims.Items[0])
+			}
+			s.Equal([]ipamv1.IPAddress{*addressBefore}, addresses.Items)
+		})
+	}
+}
+
+func (s *IPAMTestSuite) Test_AdoptIPAddressClaimRejectsConcurrentUpdate() {
+	machine := s.testMachine()
+	def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, def, "")
+	claim.OwnerReferences = nil
+	cl := fake.NewClientBuilder().WithScheme(s.cl.Scheme()).WithObjects(s.capiCluster, claim).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Update: func(ctx context.Context, cl client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+				// Another reconciler changes the claim between validation and adoption.
+				current := &ipamv1.IPAddressClaim{}
+				s.NoError(cl.Get(ctx, client.ObjectKeyFromObject(obj), current))
+				current.Labels[clusterv1.ClusterNameLabel] = otherClusterName
+				s.NoError(cl.Update(ctx, current))
+				return cl.Update(ctx, obj, opts...)
+			},
+		}).Build()
+
+	_, adopted, err := NewHelper(cl, s.cluster).AdoptIPAddressClaim(s.ctx, machine, def)
+	s.True(apierrors.IsConflict(err), "expected resource-version conflict, got %v", err)
+	s.False(adopted)
+	actual := &ipamv1.IPAddressClaim{}
+	s.NoError(cl.Get(s.ctx, client.ObjectKeyFromObject(claim), actual))
+	s.Empty(actual.OwnerReferences)
+	s.Equal(otherClusterName, actual.Labels[clusterv1.ClusterNameLabel])
+	s.Equal(claim.Spec, actual.Spec)
+	s.Equal(claim.Status, actual.Status)
+}
+
+func (s *IPAMTestSuite) Test_RecoveryRequiresOwningCluster() {
+	for i, missingClaim := range []bool{false, true} {
+		s.Run(fmt.Sprintf("missingClaim=%t", missingClaim), func() {
+			machine := s.testMachine()
+			def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, fmt.Sprint(i), "test-cluster-v4-icip")
+			claim := s.testIPAddressClaim(machine, def, "")
+			claim.OwnerReferences = nil
+			if !missingClaim {
+				s.NoError(s.cl.Create(s.ctx, claim))
+			}
+			s.NoError(s.cl.Create(s.ctx, s.testIPAddress(claim.Namespace, claim.Name, def.PoolRef.Name)))
+			cluster := s.cluster.DeepCopy()
+			cluster.OwnerReferences = nil
+			result, adopted, err := NewHelper(s.cl, cluster).AdoptIPAddressClaim(s.ctx, machine, def)
+			s.EqualError(err, "ProxmoxCluster with OwnerReference but Cluster does not exist")
+			s.False(adopted)
+			s.Nil(result.Address)
+		})
+	}
+}
+
+func (s *IPAMTestSuite) Test_CreateIPAddressClaimPropagatesCreateFailure() {
+	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
+	machine := s.testMachine()
+	def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	pool, err := s.helper.GetIPPool(s.ctx, def.PoolRef)
+	s.NoError(err)
+	createErr := apierrors.NewServiceUnavailable("claim creation unavailable")
+	cl := fake.NewClientBuilder().WithScheme(s.cl.Scheme()).WithObjects(s.capiCluster, pool).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(_ context.Context, _ client.WithWatch, _ client.Object, _ ...client.CreateOption) error {
+				return createErr
+			},
+		}).Build()
+	created, err := NewHelper(cl, s.cluster).CreateIPAddressClaimIfMissing(s.ctx, machine, def)
+	s.ErrorIs(err, createErr)
+	s.False(created)
+	claims := &ipamv1.IPAddressClaimList{}
+	s.NoError(cl.List(s.ctx, claims))
+	s.Empty(claims.Items)
+}
+
+func (s *IPAMTestSuite) Test_CreateIPAddressClaimRejectsInvalidPrerequisites() {
+	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
+	tests := []struct {
+		name    string
+		mutate  func(*infrav1.ProxmoxCluster, *IPClaimDef)
+		message string
+	}{
+		{
+			name: "missing pool",
+			mutate: func(_ *infrav1.ProxmoxCluster, def *IPClaimDef) {
+				def.PoolRef.Name = otherPoolName
+			},
+			message: "unable to find InClusterIPPool " + otherPoolName,
+		},
+		{
+			name: "missing cluster",
+			mutate: func(cluster *infrav1.ProxmoxCluster, _ *IPClaimDef) {
+				cluster.OwnerReferences[0].Name = otherClusterName
+			},
+			message: "not found",
+		},
+		{
+			name: "no cluster owner",
+			mutate: func(cluster *infrav1.ProxmoxCluster, _ *IPClaimDef) {
+				cluster.OwnerReferences = nil
+			},
+			message: "ProxmoxCluster with OwnerReference but Cluster does not exist",
+		},
+		{
+			name: "invalid offset",
+			mutate: func(_ *infrav1.ProxmoxCluster, def *IPClaimDef) {
+				def.Annotations[infrav1.ProxmoxPoolOffsetAnnotation] = "invalid"
+			},
+			message: "invalid",
+		},
+	}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			cluster := s.cluster.DeepCopy()
+			def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+			tt.mutate(cluster, &def)
+			created, err := NewHelper(s.cl, cluster).CreateIPAddressClaimIfMissing(s.ctx, s.testMachine(), def)
+			s.ErrorContains(err, tt.message)
+			s.False(created)
+			claims := &ipamv1.IPAddressClaimList{}
+			s.NoError(s.cl.List(s.ctx, claims))
+			s.Empty(claims.Items)
+		})
+	}
 }
 
 func (s *IPAMTestSuite) Test_ResolveIPAddressClaimUnsafeOrphanIsConflict() {
