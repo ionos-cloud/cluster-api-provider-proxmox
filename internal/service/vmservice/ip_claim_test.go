@@ -31,7 +31,6 @@ import (
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
@@ -125,86 +124,109 @@ func TestIPAddressClaimConflictDiagnosticsAddressFallbacks(t *testing.T) {
 }
 
 func TestIPAddressClaimAPIErrorsDoNotPublishOrMutateAllocations(t *testing.T) {
-	for _, recovery := range []bool{false, true} {
-		mode := "provisioning"
-		if recovery {
-			mode = "recovery"
-		}
-		for _, failure := range []string{"resolution read", "adoption revalidation read", "adoption update"} {
-			t.Run(mode+"/"+failure, func(t *testing.T) {
-				ctx := context.Background()
-				machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
-				pool := corev1.TypedLocalObjectReference{
-					APIGroup: new(ipamicv1.GroupVersion.String()), Kind: "InClusterIPPool",
-					Name: getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
-				}
-				machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
-					NetworkDevices: []infrav1.NetworkDevice{{Name: infrav1.DefaultNetworkDevice, DefaultIPv4: new(true)}},
-				}
-				createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &pool)
-				key := client.ObjectKey{Namespace: machineScope.Namespace(), Name: ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)}
-				var claim ipamv1.IPAddressClaim
-				require.NoError(t, kubeClient.Get(ctx, key, &claim))
-				claim.OwnerReferences = nil
-				require.NoError(t, kubeClient.Update(ctx, &claim))
-				claimBefore := claim.DeepCopy()
-				var address ipamv1.IPAddress
-				require.NoError(t, kubeClient.Get(ctx, key, &address))
-				addressBefore := address.DeepCopy()
-				conditionBefore := *conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
-				readErr := errors.New("injected API read failure")
-				updateErr := apierrors.NewConflict(schema.GroupResource{Group: ipamv1.GroupVersion.Group, Resource: "ipaddressclaims"}, key.Name, errors.New("resource version changed"))
-				claimReads := 0
-				updates := 0
-				failingClient := interceptor.NewClient(kubeClient.(client.WithWatch), interceptor.Funcs{
-					Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						if _, ok := obj.(*ipamv1.IPAddressClaim); ok {
-							claimReads++
-							if (failure == "resolution read" && claimReads == 1) || (failure == "adoption revalidation read" && claimReads == 2) {
-								return readErr
-							}
-						}
-						return c.Get(ctx, key, obj, opts...)
-					},
-					Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
-						if _, ok := obj.(*ipamv1.IPAddressClaim); ok {
-							updates++
-							return updateErr
-						}
-						return c.Update(ctx, obj, opts...)
-					},
-				})
-				machineScope.IPAMHelper = ipam.NewHelper(failingClient, machineScope.InfraCluster.ProxmoxCluster)
-				var err error
-				if recovery {
-					machineScope.SetVirtualMachine(newRunningVM())
-					err = reconcileAddressRecovery(ctx, machineScope)
-				} else {
-					_, err = reconcileIPAddresses(ctx, machineScope)
-				}
-				if failure == "adoption update" {
-					require.ErrorIs(t, err, updateErr)
-					require.True(t, apierrors.IsConflict(err))
-					require.Equal(t, 1, updates)
-				} else {
-					require.ErrorIs(t, err, readErr)
-					require.Zero(t, updates)
-				}
-				if failure != "resolution read" {
-					require.Contains(t, err.Error(), "unable to adopt IPAddressClaim")
-					require.Contains(t, err.Error(), key.Name)
-				}
-				require.Empty(t, machineScope.ProxmoxMachine.Status.IPAddresses)
-				require.Empty(t, machineScope.ProxmoxMachine.Status.Addresses)
-				require.Equal(t, conditionBefore, *conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
-				require.NoError(t, kubeClient.Get(ctx, key, &claim))
-				require.Equal(t, claimBefore, &claim)
-				require.NoError(t, kubeClient.Get(ctx, key, &address))
-				require.Equal(t, addressBefore, &address)
-				var claims ipamv1.IPAddressClaimList
-				require.NoError(t, kubeClient.List(ctx, &claims))
-				require.Len(t, claims.Items, 1)
-			})
+	tests := []struct {
+		name       string
+		recovery   bool
+		failReadAt int
+	}{
+		{name: "provisioning/resolution read", failReadAt: 1},
+		{name: "provisioning/adoption revalidation read", failReadAt: 2},
+		{name: "provisioning/adoption update"},
+		{name: "recovery/resolution read", recovery: true, failReadAt: 1},
+		{name: "recovery/adoption revalidation read", recovery: true, failReadAt: 2},
+		{name: "recovery/adoption update", recovery: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testIPAddressClaimAPIFailure(t, tt.recovery, tt.failReadAt)
+		})
+	}
+}
+
+func testIPAddressClaimAPIFailure(t *testing.T, recovery bool, failReadAt int) {
+	t.Helper()
+	ctx := context.Background()
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
+	pool := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()), Kind: "InClusterIPPool",
+		Name: getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
+	}
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{{Name: infrav1.DefaultNetworkDevice, DefaultIPv4: new(true)}},
+	}
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &pool)
+	key := client.ObjectKey{Namespace: machineScope.Namespace(), Name: ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)}
+	var claim ipamv1.IPAddressClaim
+	require.NoError(t, kubeClient.Get(ctx, key, &claim))
+	claim.OwnerReferences = nil
+	require.NoError(t, kubeClient.Update(ctx, &claim))
+	claimBefore := claim.DeepCopy()
+	var address ipamv1.IPAddress
+	require.NoError(t, kubeClient.Get(ctx, key, &address))
+	addressBefore := address.DeepCopy()
+	conditionBefore := *conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	readErr := errors.New("injected API read failure")
+	updateErr := apierrors.NewConflict(schema.GroupResource{Group: ipamv1.GroupVersion.Group, Resource: "ipaddressclaims"}, key.Name, errors.New("resource version changed"))
+	failingClient := &claimFailureClient{
+		Client: kubeClient, failReadAt: failReadAt, readErr: readErr, updateErr: updateErr,
+	}
+	machineScope.IPAMHelper = ipam.NewHelper(failingClient, machineScope.InfraCluster.ProxmoxCluster)
+	var err error
+	if recovery {
+		machineScope.SetVirtualMachine(newRunningVM())
+		err = reconcileAddressRecovery(ctx, machineScope)
+	} else {
+		_, err = reconcileIPAddresses(ctx, machineScope)
+	}
+	if failReadAt == 0 {
+		require.ErrorIs(t, err, updateErr)
+		require.True(t, apierrors.IsConflict(err))
+		require.Equal(t, 1, failingClient.updates)
+	} else {
+		require.ErrorIs(t, err, readErr)
+		require.Zero(t, failingClient.updates)
+	}
+	if failReadAt != 1 {
+		require.Contains(t, err.Error(), "unable to adopt IPAddressClaim")
+		require.Contains(t, err.Error(), key.Name)
+	}
+	require.Empty(t, machineScope.ProxmoxMachine.Status.IPAddresses)
+	require.Empty(t, machineScope.ProxmoxMachine.Status.Addresses)
+	require.Equal(t, conditionBefore, *conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.NoError(t, kubeClient.Get(ctx, key, &claim))
+	require.Equal(t, claimBefore, &claim)
+	require.NoError(t, kubeClient.Get(ctx, key, &address))
+	require.Equal(t, addressBefore, &address)
+	var claims ipamv1.IPAddressClaimList
+	require.NoError(t, kubeClient.List(ctx, &claims))
+	require.Len(t, claims.Items, 1)
+}
+
+// claimFailureClient fails a selected claim read or its subsequent adoption
+// update, while allowing pool, cluster and address lookups to succeed.
+type claimFailureClient struct {
+	client.Client
+	failReadAt int
+	claimReads int
+	updates    int
+	readErr    error
+	updateErr  error
+}
+
+func (c *claimFailureClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if _, ok := obj.(*ipamv1.IPAddressClaim); ok {
+		c.claimReads++
+		if c.claimReads == c.failReadAt {
+			return c.readErr
 		}
 	}
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
+func (c *claimFailureClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	if _, ok := obj.(*ipamv1.IPAddressClaim); ok {
+		c.updates++
+		return c.updateErr
+	}
+	return c.Client.Update(ctx, obj, opts...)
 }
