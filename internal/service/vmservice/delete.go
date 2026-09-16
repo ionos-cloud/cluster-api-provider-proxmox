@@ -31,16 +31,13 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
-// minimumVMID is the lowest VMID Proxmox accepts.
-const minimumVMID = 100
-
 // DeleteVM implements the logic of destroying a VM.
 func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 	vmID := machineScope.ProxmoxMachine.GetVirtualMachineID()
 	node := machineScope.LocateProxmoxNode()
 
 	// GetVirtualMachineID returns -1 for a machine that never got an ID.
-	if vmID < minimumVMID {
+	if vmID == -1 {
 		return releaseDeletedVM(machineScope)
 	}
 
