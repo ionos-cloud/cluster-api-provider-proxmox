@@ -21,6 +21,7 @@ import (
 	"errors"
 	"testing"
 
+	proxmox "github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
@@ -37,7 +38,8 @@ func TestDeleteVM_SuccessNotFound(t *testing.T) {
 	}, false)
 
 	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("vm does not exist")).Once()
-	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("vm does not exist: some reason")).Once()
+	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(true, nil).Once()
+	// no DeleteVM expectation: a destroy call fails the test
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
@@ -73,4 +75,63 @@ func TestDeleteVM_DestroysOwnVM(t *testing.T) {
 	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, nil).Once()
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
+}
+
+// A lookup failure on the recorded node proves nothing. The VM may sit on
+// another node, or the ID may already belong to another machine.
+func TestDeleteVM_SkipsForeignVMOnAnotherNode(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node1",
+	}, false)
+
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("cannot find vm with id 123")).Once()
+	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
+	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
+		Return(&proxmox.ClusterResource{VMID: 123, Name: "someone-else", Node: "node2"}, nil).Once()
+	// no DeleteVM expectation: a destroy call fails the test
+
+	require.NoError(t, DeleteVM(context.TODO(), machineScope))
+	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
+	require.Empty(t, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+}
+
+// An unreadable cluster is not proof of anything. Requeue, keep the finalizer,
+// and never destroy.
+func TestDeleteVM_RequeuesWhenOwnershipIsUnknown(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("500 Internal Server Error")).Once()
+	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, errors.New("cannot get cluster")).Once()
+	// no DeleteVM expectation: a destroy call fails the test
+
+	require.Error(t, DeleteVM(context.TODO(), machineScope))
+	require.NotEmpty(t, machineScope.ProxmoxMachine.Finalizers)
+}
+
+// Our own VM found on another node still gets destroyed.
+func TestDeleteVM_DestroysOwnVMFoundClusterWide(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("cannot find vm with id 123")).Once()
+	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
+	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
+		Return(&proxmox.ClusterResource{VMID: 123, Name: "test", Node: "node2"}, nil).Once()
+	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, nil).Once()
+
+	require.NoError(t, DeleteVM(context.TODO(), machineScope))
+}
+
+// A machine that never got a VMID has nothing to destroy.
+func TestDeleteVM_NoVMIDReleasesMachine(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = nil
+	// no client expectations: any Proxmox call fails the test
+
+	require.NoError(t, DeleteVM(context.TODO(), machineScope))
+	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
 }
