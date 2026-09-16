@@ -80,6 +80,40 @@ func TestSelectNodeBalancesAcrossAvailabilityZones(t *testing.T) {
 	}
 }
 
+func TestSelectNodeBalancesNodesWithinAvailabilityZone(t *testing.T) {
+	// Regression test: az-1 is made of two nodes pve1 and pve2 with equal memory, and pve1
+	// already hosts three VMs. Because zone-level counting assigns the same ScheduledVMs to
+	// every node in a zone, sortByReplicas used to tie and fall back to memory (here: the
+	// allowedNodes order), keeping placement on pve1. The node-level tiebreak must send the
+	// next VM to pve2, restoring round-robin within the zone.
+	azs := []infrav1.AvailabilityZoneSpec{{Name: "az-1", Nodes: []string{"pve1", "pve2"}}}
+	allowedNodes := []string{"pve1", "pve2"}
+	nodeZone := nodeToZone(azs, allowedNodes)
+	locations := []infrav1.NodeLocation{
+		{Node: "pve1"}, {Node: "pve1"}, {Node: "pve1"},
+	}
+	requestMiB := int32(8)
+	availableMem := map[string]uint64{
+		"pve1": miBytes(65536),
+		"pve2": miBytes(65536),
+	}
+
+	proxmoxMachine := &infrav1.ProxmoxMachine{
+		Spec: infrav1.ProxmoxMachineSpec{MemoryMiB: &requestMiB},
+	}
+	client := fakeResourceClient(availableMem)
+
+	node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, nodeZone, &infrav1.SchedulerHints{})
+	require.NoError(t, err)
+	require.Equal(t, "pve2", node)
+
+	// Sanity check: without AZs (each node is its own zone) the same inputs already picked pve2.
+	nodeZoneNoAZ := nodeToZone(nil, allowedNodes)
+	nodeNoAZ, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, nodeZoneNoAZ, &infrav1.SchedulerHints{})
+	require.NoError(t, err)
+	require.Equal(t, "pve2", nodeNoAZ)
+}
+
 func TestSelectNode(t *testing.T) {
 	allowedNodes := []string{"pve1", "pve2", "pve3"}
 	var locations []infrav1.NodeLocation
