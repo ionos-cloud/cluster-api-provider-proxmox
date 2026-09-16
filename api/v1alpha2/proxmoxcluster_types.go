@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -55,6 +56,14 @@ type ProxmoxClusterSpec struct {
 	// +listType=set
 	// +optional
 	AllowedNodes []string `json:"allowedNodes,omitempty"`
+
+	// availabilityZones defines named groups of Proxmox nodes that represent
+	// availability zones. ProxmoxMachines can reference an availability zone by
+	// name to constrain VM scheduling to only nodes in that zone.
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	AvailabilityZones []AvailabilityZoneSpec `json:"availabilityZones,omitempty"`
 
 	// schedulerHints allows to influence the decision on where a VM will be scheduled. For example by applying a multiplicator
 	// to a node's resources, to allow for overprovisioning or to ensure a node will always have a safety buffer.
@@ -121,6 +130,38 @@ func (v APIEndpoint) IsZero() bool {
 // String returns a formatted version HOST:PORT of this APIEndpoint.
 func (v APIEndpoint) String() string {
 	return net.JoinHostPort(v.Host, fmt.Sprintf("%d", v.Port))
+}
+
+// AvailabilityZoneSpec defines a named group of Proxmox nodes representing an availability zone.
+// ProxmoxMachines reference availability zones by name to constrain VM placement.
+type AvailabilityZoneSpec struct {
+	// name is the unique identifier for this availability zone.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`
+	Name string `json:"name"`
+
+	// nodes lists the Proxmox nodes belonging to this availability zone.
+	// +required
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	Nodes []string `json:"nodes"`
+}
+
+// ZoneForNode returns the name of the availability zone that contains the given Proxmox node,
+// or "" if the node is not listed in any availability zone.
+//
+// When a node appears in more than one zone, the first match (in AvailabilityZones order) wins.
+// The ProxmoxCluster validating webhook rejects such overlapping configurations, so this
+// ambiguity is not expected in practice; first-match is used as a deterministic fallback.
+func ZoneForNode(azs []AvailabilityZoneSpec, node string) string {
+	for _, az := range azs {
+		if slices.Contains(az.Nodes, node) {
+			return az.Name
+		}
+	}
+	return ""
 }
 
 // ZoneConfigSpec is the Network Configuration for further deployment zones.
@@ -232,6 +273,16 @@ type ProxmoxClusterStatus struct {
 	// for different machines.
 	// +optional
 	NodeLocations *NodeLocations `json:"nodeLocations,omitempty"`
+
+	// failureDomains is the list of failure domains known to the infrastructure provider,
+	// reconciled from spec.availabilityZones so that Cluster API can distribute
+	// control plane and worker machines across zones.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=100
+	FailureDomains []clusterv1.FailureDomain `json:"failureDomains,omitempty"`
 }
 
 // ProxmoxClusterInitializationStatus provides observations of the ProxmoxCluster initialization process.
@@ -369,12 +420,12 @@ func (c *ProxmoxCluster) AddInClusterZoneRef(pool client.Object) {
 	}
 
 	index := slices.IndexFunc(c.Status.InClusterZoneRef, func(r InClusterZoneRef) bool {
-		return *r.Zone == zone
+		return r.Zone != nil && *r.Zone == zone
 	})
 
 	if index < 0 {
 		c.Status.InClusterZoneRef = append(c.Status.InClusterZoneRef, InClusterZoneRef{Zone: &zone})
-		index = len(c.Status.InClusterZoneRef)
+		index = len(c.Status.InClusterZoneRef) - 1
 	}
 
 	poolRef := corev1.LocalObjectReference{Name: pool.GetName()}
