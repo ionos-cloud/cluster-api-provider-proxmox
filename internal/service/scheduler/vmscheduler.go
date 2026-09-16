@@ -151,14 +151,19 @@ func selectNode(
 	}
 
 	// count the existing vms per availability zone, so nodes belonging to an already loaded
-	// zone are deprioritized as a group rather than individually.
+	// zone are deprioritized as a group rather than individually. Also count per node so that,
+	// within a multi-node zone, nodes with fewer VMs win the tiebreak instead of falling back
+	// to memory order.
 	zoneCounter := make(map[string]int)
+	nodeCounter := make(map[string]int)
 	for _, nl := range locations {
 		zoneCounter[zoneOf(nodeZone, nl.Node)]++
+		nodeCounter[nl.Node]++
 	}
 
 	for i, info := range byMemory {
 		info.ScheduledVMs = zoneCounter[zoneOf(nodeZone, info.Name)]
+		info.NodeVMs = nodeCounter[info.Name]
 		byMemory[i] = info
 	}
 
@@ -205,7 +210,8 @@ type resourceClient interface {
 type nodeInfo struct {
 	Name            string `json:"node"`
 	AvailableMemory uint64 `json:"mem"`
-	ScheduledVMs    int    `json:"vms"`
+	ScheduledVMs    int    `json:"vms"`  // count of VMs in the node's availability zone
+	NodeVMs         int    `json:"nvms"` // count of VMs on this specific node
 }
 
 type sortByReplicas []nodeInfo
@@ -213,7 +219,13 @@ type sortByReplicas []nodeInfo
 func (a sortByReplicas) Len() int      { return len(a) }
 func (a sortByReplicas) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a sortByReplicas) Less(i, j int) bool {
-	return a[i].ScheduledVMs < a[j].ScheduledVMs
+	// Balance across availability zones first, then across individual nodes within a zone.
+	// Without the node-level tiebreak, every node in a multi-node zone shares the same
+	// ScheduledVMs value, so placement inside the zone degrades to memory order.
+	if a[i].ScheduledVMs != a[j].ScheduledVMs {
+		return a[i].ScheduledVMs < a[j].ScheduledVMs
+	}
+	return a[i].NodeVMs < a[j].NodeVMs
 }
 
 func (a sortByReplicas) String() string {
