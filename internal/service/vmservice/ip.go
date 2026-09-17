@@ -184,7 +184,11 @@ func setVMIPAddressTag(ctx context.Context, machineScope *scope.MachineScope, ip
 	// Add ipv4 tag if the Virtual Machine doesn't have it.
 	if vm := machineScope.VirtualMachine; !vm.HasTag(ipTag) && isIPv4(ipAddress.Spec.Address) {
 		machineScope.Logger.V(4).Info("adding virtual machine ip tag.", "ip", ipAddress.Spec.Address)
-		t, err := machineScope.InfraCluster.ProxmoxClient.TagVM(ctx, vm, ipTag)
+		pmoxClient, err := machineScope.ProxmoxClient(ctx)
+		if err != nil {
+			return false, err
+		}
+		t, err := pmoxClient.TagVM(ctx, vm, ipTag)
 		if err != nil {
 			return false, errors.Wrapf(err, "unable to add IP tag to VirtualMachine %s", machineScope.Name())
 		}
