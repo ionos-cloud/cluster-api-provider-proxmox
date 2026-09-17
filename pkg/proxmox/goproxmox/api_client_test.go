@@ -740,3 +740,72 @@ func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestProxmoxAPIClient_GetVMActiveTask(t *testing.T) {
+	const upid = "UPID:node1:0003072C:1D5E33B0:6A9FFD6C:qmdestroy:104:root@pam:"
+
+	tests := []struct {
+		name      string
+		status    string
+		expectHit bool
+	}{
+		// The task list endpoint reports uppercase RUNNING while
+		// proxmox.TaskRunning is "running". A case-sensitive comparison matched
+		// nothing here, so a duplicate qmdestroy was issued for a VM that was
+		// already being destroyed - and failed with "Configuration file
+		// 'nodes/<node>/qemu-server/<vmid>.conf' does not exist".
+		{name: "uppercase RUNNING as returned by the list endpoint", status: "RUNNING", expectHit: true},
+		{name: "lowercase running as returned by the status endpoint", status: "running", expectHit: true},
+		{name: "stopped task is not active", status: "stopped", expectHit: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+			httpmock.RegisterResponder(http.MethodGet, testBaseURL+"api2/json/nodes/node1/status",
+				newJSONResponder(200, proxmox.Node{}))
+			httpmock.RegisterResponder(http.MethodGet,
+				`=~^http://pve\.local\.test/api2/json/nodes/node1/tasks\?.*`,
+				newJSONResponder(200, []map[string]any{
+					{"upid": upid, "type": "qmdestroy", "id": "104", "node": "node1", "status": test.status},
+				}))
+
+			task, err := client.GetVMActiveTask(context.Background(), "node1", 104, TaskTypeDestroyVM)
+			require.NoError(t, err)
+
+			if !test.expectHit {
+				require.Nil(t, task)
+				return
+			}
+			require.NotNil(t, task)
+			require.Equal(t, upid, string(task.UPID))
+		})
+	}
+}
+
+func TestProxmoxAPIClient_GetVMActiveTask_NoTasks(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet, testBaseURL+"api2/json/nodes/node1/status",
+		newJSONResponder(200, proxmox.Node{}))
+	httpmock.RegisterResponder(http.MethodGet,
+		`=~^http://pve\.local\.test/api2/json/nodes/node1/tasks\?.*`,
+		newJSONResponder(200, []map[string]any{}))
+
+	task, err := client.GetVMActiveTask(context.Background(), "node1", 104, TaskTypeDestroyVM)
+	require.NoError(t, err)
+	require.Nil(t, task)
+}
+
+func TestProxmoxAPIClient_GetVMActiveTask_ListError(t *testing.T) {
+	client := newTestClient(t)
+	httpmock.RegisterResponder(http.MethodGet, testBaseURL+"api2/json/nodes/node1/status",
+		newJSONResponder(200, proxmox.Node{}))
+	httpmock.RegisterResponder(http.MethodGet,
+		`=~^http://pve\.local\.test/api2/json/nodes/node1/tasks\?.*`,
+		httpmock.NewStringResponder(500, `{"data":null}`))
+
+	task, err := client.GetVMActiveTask(context.Background(), "node1", 104, TaskTypeStopVM)
+	require.Error(t, err)
+	require.Nil(t, task)
+	require.Contains(t, err.Error(), "cannot list active qmstop tasks for vm 104 on node node1")
+}

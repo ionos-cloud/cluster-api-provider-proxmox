@@ -265,6 +265,49 @@ func (c *APIClient) CheckID(ctx context.Context, vmid int64) (bool, error) {
 	return cluster.CheckID(ctx, int(vmid))
 }
 
+// Proxmox task types used for idempotency checks.
+const (
+	// TaskTypeStartVM is the Proxmox task type for starting a VM.
+	TaskTypeStartVM = "qmstart"
+	// TaskTypeStopVM is the Proxmox task type for stopping a VM.
+	TaskTypeStopVM = "qmstop"
+	// TaskTypeDestroyVM is the Proxmox task type for destroying a VM.
+	TaskTypeDestroyVM = "qmdestroy"
+)
+
+// GetVMActiveTask returns the still-running task of the given type for vmID on
+// nodeName, or nil when Proxmox has none.
+//
+// Two quirks of the task list endpoint to be aware of:
+//
+//   - It does not populate proxmox.Task's IsRunning/IsCompleted booleans - only
+//     Task.Ping does - so the running check is made against Status.
+//   - It reports Status as "RUNNING", while the per-task status endpoint (and
+//     hence proxmox.TaskRunning) uses "running". The comparison must therefore
+//     be case-insensitive; a case-sensitive one silently matches nothing and
+//     every caller happily issues a duplicate task.
+func (c *APIClient) GetVMActiveTask(ctx context.Context, nodeName string, vmID int64, taskType string) (*proxmox.Task, error) {
+	node := (&proxmox.Node{}).New(c.Client, nodeName)
+
+	tasks, err := node.Tasks(ctx, &proxmox.NodeTasksOptions{
+		VMID:       int(vmID),
+		TypeFilter: taskType,
+		Source:     "active",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot list active %s tasks for vm %d on node %s: %w", taskType, vmID, nodeName, err)
+	}
+
+	for _, task := range tasks {
+		if task == nil || !strings.EqualFold(task.Status, proxmox.TaskRunning) {
+			continue
+		}
+		return task, nil
+	}
+
+	return nil, nil
+}
+
 // GetTask returns a task associated with upID.
 func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, error) {
 	task := proxmox.NewTask(proxmox.UPID(upID), c.Client)

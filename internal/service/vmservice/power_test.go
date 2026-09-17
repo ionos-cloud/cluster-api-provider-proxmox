@@ -20,9 +20,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 )
 
 func TestReconcilePowerState_SetTaskRef(t *testing.T) {
@@ -45,6 +47,70 @@ func TestReconcilePowerState_SetTaskRef(t *testing.T) {
 	require.True(t, requeue)
 	require.NoError(t, err)
 	require.NotEmpty(t, *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+// Regression test for the duplicate qmstart: a reconcile that runs before the
+// previous pass's Status.TaskRef write has propagated through the cache must
+// not issue a second start. StartVM is deliberately not expected here - the
+// mock fails the test if it is called (#727).
+func TestReconcilePowerState_AdoptsInFlightStartTask(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
+
+	vm := newStoppedVM()
+	vm.VMID = 123
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+	machineScope.SetVirtualMachine(vm)
+	// Cache lag: the ref from the pass that already started the VM is not visible.
+	machineScope.ProxmoxMachine.Status.TaskRef = nil
+
+	task := &proxmox.Task{UPID: "UPID:node1:0000A:0000B:0000C:qmstart:123:root@pam:"}
+	proxmoxClient.EXPECT().
+		GetVMActiveTask(ctx, machineScope.LocateProxmoxNode(), int64(123), goproxmox.TaskTypeStartVM).
+		Return(task, nil).Once()
+
+	requeue, err := reconcilePowerState(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Equal(t, string(task.UPID), *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+// With no start in flight the VM must still be started as before.
+func TestReconcilePowerState_StartsWhenNoTaskInFlight(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
+
+	vm := newStoppedVM()
+	vm.VMID = 123
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+	machineScope.SetVirtualMachine(vm)
+
+	started := newTask()
+	proxmoxClient.EXPECT().
+		GetVMActiveTask(ctx, machineScope.LocateProxmoxNode(), int64(123), goproxmox.TaskTypeStartVM).
+		Return(nil, nil).Once()
+	proxmoxClient.EXPECT().StartVM(ctx, vm).Return(started, nil).Once()
+
+	requeue, err := reconcilePowerState(ctx, machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Equal(t, string(started.UPID), *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+// A running VM is not a duplicate-start candidate, so Proxmox must not be
+// queried at all - the state machine just advances.
+func TestReconcilePowerState_RunningVMSkipsTaskLookup(t *testing.T) {
+	ctx := context.TODO()
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason)
+
+	vm := newRunningVM()
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+	machineScope.SetVirtualMachine(vm)
+
+	requeue, err := reconcilePowerState(ctx, machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
 }
 
 func TestStartVirtualMachine_Paused(t *testing.T) {

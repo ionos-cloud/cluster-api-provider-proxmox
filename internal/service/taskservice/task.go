@@ -63,6 +63,79 @@ func GetTask(ctx context.Context, machineScope *scope.MachineScope) (*proxmox.Ta
 	return task, nil
 }
 
+// AdoptActiveTask makes a task-issuing operation idempotent against Proxmox.
+//
+// Status.TaskRef is read through the controller-runtime cache, so a reconcile
+// that runs before a previous pass's status write has propagated sees no task
+// ref and happily issues a second, duplicate task. Asking Proxmox directly is
+// the only reliable answer to "did I already start this?".
+//
+// If a task of taskType is still running for this VM, its UPID is adopted into
+// Status.TaskRef and true is returned, telling the caller to requeue instead of
+// issuing another one.
+func AdoptActiveTask(ctx context.Context, machineScope *scope.MachineScope, taskType string) (bool, error) {
+	vmID := machineScope.ProxmoxMachine.GetVirtualMachineID()
+	if vmID < 100 {
+		return false, nil
+	}
+
+	task, err := machineScope.InfraCluster.ProxmoxClient.GetVMActiveTask(
+		ctx, machineScope.LocateProxmoxNode(), vmID, taskType)
+	if err != nil {
+		return false, err
+	}
+	if task == nil {
+		return false, nil
+	}
+
+	machineScope.Logger.Info("adopting in-flight Proxmox task instead of issuing a new one",
+		"taskType", taskType, "task", string(task.UPID))
+	machineScope.ProxmoxMachine.Status.TaskRef = new(string(task.UPID))
+
+	return true, nil
+}
+
+// InFlight reports whether the task referenced by Status.TaskRef is still
+// running, clearing the ref once it has completed.
+//
+// Unlike ReconcileInFlightTask it never touches the provisioning conditions or
+// the RetryAfter backoff, so it is safe to use on the deletion path, which owns
+// its own condition and must not be pushed back into the provisioning state
+// machine.
+func InFlight(ctx context.Context, machineScope *scope.MachineScope) (bool, error) {
+	if machineScope.ProxmoxMachine.Status.TaskRef == nil {
+		return false, nil
+	}
+
+	// GetTask collapses every lookup failure into ErrTaskNotFound, so an error
+	// here only ever means Proxmox no longer knows this task. Drop the ref so
+	// the caller can make progress rather than requeueing on it forever.
+	task, err := GetTask(ctx, machineScope)
+	if err != nil {
+		machineScope.Logger.V(4).Info("dropping unknown task ref",
+			"task", *machineScope.ProxmoxMachine.Status.TaskRef)
+		machineScope.ProxmoxMachine.Status.TaskRef = nil
+
+		// Intentionally not propagated: a task Proxmox has forgotten is not a
+		// failure, and returning the error here would requeue on it forever.
+		return false, nil //nolint:nilerr
+	}
+	if task == nil {
+		machineScope.ProxmoxMachine.Status.TaskRef = nil
+		return false, nil
+	}
+
+	if task.IsRunning {
+		machineScope.Logger.V(4).Info("waiting for in-flight task",
+			"taskType", task.Type, "task", string(task.UPID))
+		return true, nil
+	}
+
+	machineScope.ProxmoxMachine.Status.TaskRef = nil
+
+	return false, nil
+}
+
 // ReconcileInFlightTask determines if a task associated to the Proxmox VM object is in flight or not.
 func ReconcileInFlightTask(ctx context.Context, machineScope *scope.MachineScope) (bool, error) {
 	// skip if taskRef is nil.
