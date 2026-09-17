@@ -940,6 +940,14 @@ spec:
                       which can be useful with specific Operating Systems like TalOS
                     type: boolean
                 type: object
+              cpuType:
+                description: |-
+                  cpuType is the Proxmox CPU type, set as the "cpu" option on the virtual machine.
+                  Accepts any value the Proxmox "cpu" option accepts, such as "host",
+                  "x86-64-v2-AES,flags=+aes" or "custom-<name>" for a custom CPU model.
+                  Defaults to the property value in the template from which the virtual machine is cloned.
+                pattern: ^([A-Za-z0-9_.-]+|[a-z-]+=[^,]+)(,[a-z-]+=[^,]+)*$
+                type: string
               description:
                 description: description for the new VM.
                 type: string
