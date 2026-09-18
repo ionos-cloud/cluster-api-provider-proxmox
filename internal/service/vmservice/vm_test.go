@@ -767,6 +767,33 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
 }
 
+func TestReconcileVM_CloudInitFailedWrapped(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
+	vm := newRunningVM()
+	machineScope.SetVirtualMachineID(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.IPAddresses = []infrav1.IPAddressesSpec{{
+		NetName: string(infrav1.DefaultNetworkDevice),
+		IPv4:    []string{"10.10.10.10"},
+	}, {
+		NetName: "default",
+		IPv4:    []string{"10.10.10.10"},
+	}}
+	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = new(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = new(true)
+
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, fmt.Errorf("wrapped: %w", goproxmox.ErrCloudInitFailed)).Once()
+	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
+
+	_, err := ReconcileVM(context.Background(), machineScope)
+	require.Error(t, err)
+
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, metav1.ConditionFalse, cond.Status)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason, cond.Reason)
+}
+
 func TestReconcileVM_CloudInitRunning(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
 	vm := newRunningVM()
