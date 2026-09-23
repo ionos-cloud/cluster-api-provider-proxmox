@@ -945,9 +945,9 @@ spec:
                       items:
                         type: string
                       type: array
-                    resolutionPolicy:
+                    matchPolicy:
                       type: string
-                      enum: ["exact","subset"]
+                      enum: ["exact","uniqueSubset","bestSubset"]
                   required:
                     - matchTags
                   type: object
