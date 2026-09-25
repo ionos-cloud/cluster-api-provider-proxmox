@@ -46,6 +46,7 @@ const (
 	optionSockets     = "sockets"
 	optionCores       = "cores"
 	optionMemory      = "memory"
+	optionCPU         = "cpu"
 	optionTags        = "tags"
 	optionDescription = "description"
 )
@@ -326,6 +327,10 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	}
 	if memory > 0 && int(vmConfig.Memory) != int(memory) {
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: memory})
+	}
+	cpuType := ptr.Deref(machineScope.ProxmoxMachine.Spec.CPUType, "")
+	if cpuType != "" && vmConfig.CPU != cpuType {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCPU, Value: cpuType})
 	}
 
 	// Description

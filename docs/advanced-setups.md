@@ -373,6 +373,28 @@ spec:
             defaultIPv4: true
 ```
 
+## CPU type
+
+`cpuType` sets the Proxmox `cpu` option on the virtual machine, replacing the value inherited from the VM template. It accepts any value the option accepts, for example `host`, a named model with flags, or a custom model referenced as `custom-<name>`. See the Proxmox `qm` manual for the format and the permitted flags.
+
+```diff
+kind: ProxmoxMachineTemplate
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+metadata:
+  name: "test-workers"
+spec:
+  template:
+    spec:
+      sourceNode: "pve"
+      templateID: 1000
+      numSockets: 1
+      numCores: 4
+      memoryMiB: 8192
++     cpuType: "host"
+```
+
+The option is applied before the machine first starts.
+
 ## Notes
 
 * Clusters with IPV6 only is supported.
