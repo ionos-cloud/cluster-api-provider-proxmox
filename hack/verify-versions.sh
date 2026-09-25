@@ -34,7 +34,7 @@ if [[ "${DOCKERFILE_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
 fi
 
 GOLANGCI_KAL_GO_VERSION=$(golangcikal_get_go)
-if [[ "${GOLANGCI_KAL_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
+if [[ -n "${GOLANGCI_KAL_GO_VERSION}" && "${GOLANGCI_KAL_GO_VERSION}" != "${GO_VERSION_MINOR}" ]]; then
     fail "Go version mismatch: go.mod has '${GO_VERSION_ROOT}' (${GO_VERSION_MINOR}), .golangci-kal.yml run.go has '${GOLANGCI_KAL_GO_VERSION}'"
 fi
 
@@ -57,7 +57,10 @@ fi
 GOLANGCI_REQUIRE=$(gomod_get_require 'github.com/golangci/golangci-lint/v2')
 GOLANGCI_REPLACE=$(gomod_get_replace 'github.com/golangci/golangci-lint/v2')
 GOLANGCI_CUSTOM=$(customgcl_get_version)
-if [[ "${GOLANGCI_REQUIRE}" != "${GOLANGCI_REPLACE}" || "${GOLANGCI_REPLACE}" != "${GOLANGCI_CUSTOM}" ]]; then
+if [[ "${GOLANGCI_REQUIRE}" != "${GOLANGCI_REPLACE}" ]]; then
+    fail "golangci-lint version mismatch: require='${GOLANGCI_REQUIRE}', replace='${GOLANGCI_REPLACE}'"
+fi
+if [[ -n "${GOLANGCI_CUSTOM}" && "${GOLANGCI_REPLACE}" != "${GOLANGCI_CUSTOM}" ]]; then
     fail "golangci-lint version mismatch: require='${GOLANGCI_REQUIRE}', replace='${GOLANGCI_REPLACE}', .custom-gcl.yaml='${GOLANGCI_CUSTOM}'"
 fi
 

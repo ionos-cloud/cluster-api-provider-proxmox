@@ -1,4 +1,3 @@
----
 apiVersion: clusterctl.cluster.x-k8s.io/v1alpha3
 kind: Metadata
 releaseSeries:
@@ -28,4 +27,7 @@ releaseSeries:
     contract: v1beta2
   - major: 0
     minor: 9
+    contract: v1beta2
+  - major: 0
+    minor: 10
     contract: v1beta2

@@ -67,6 +67,10 @@ type ClusterScope struct {
 	ProxmoxClient  capmox.Client
 	controllerName string
 
+	// zoneProxmoxClients caches Proxmox clients built from an availability zone's
+	// own credentialsRef, keyed by zone name.
+	zoneProxmoxClients map[string]capmox.Client
+
 	IPAMHelper *ipam.Helper
 }
 
@@ -108,8 +112,18 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	clusterScope.patchHelper = helper
 
 	if clusterScope.ProxmoxClient == nil {
-		if clusterScope.ProxmoxCluster.Spec.CredentialsRef == nil {
-			// Fail the cluster if no credentials found.
+		switch {
+		case clusterScope.ProxmoxCluster.Spec.CredentialsRef != nil:
+			// using proxmoxcluster.spec.credentialsRef
+			pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO(), clusterScope.ProxmoxCluster.Spec.CredentialsRef)
+			if err != nil {
+				return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
+			}
+			clusterScope.ProxmoxClient = pmoxClient
+		case defaultProxmoxClientNeeded(clusterScope.ProxmoxCluster):
+			// No global credentials, no spec.credentialsRef, and at least one allowed node
+			// isn't covered by an availability zone with its own credentialsRef: fail the
+			// cluster since there is no way to reach that node.
 			conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
 				Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
 				Status:  metav1.ConditionFalse,
@@ -121,28 +135,127 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 				return nil, err
 			}
 			return nil, errors.New("No credentials found, ProxmoxCluster missing credentialsRef")
+		default:
+			// Every allowed node is covered by an availability zone with its own
+			// credentialsRef (physically separate Proxmox VE clusters, one per zone), so
+			// no default client is required. Leave ProxmoxClient nil; GetProxmoxClient
+			// returns a clear error if it's ever requested for an uncovered node/zone.
 		}
-		// using proxmoxcluster.spec.credentialsRef
-		pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO())
-		if err != nil {
-			return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
-		}
-		clusterScope.ProxmoxClient = pmoxClient
 	}
 
 	return clusterScope, nil
 }
 
-func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, error) {
+// defaultProxmoxClientNeeded reports whether the ProxmoxCluster's default Proxmox client
+// (global controller credentials or spec.credentialsRef) is required, i.e. whether there are
+// no availability zones, any zone without its own credentialsRef, or an allowed node not
+// covered by any availability zone.
+func defaultProxmoxClientNeeded(proxmoxCluster *infrav1.ProxmoxCluster) bool {
+	azs := proxmoxCluster.Spec.AvailabilityZones
+	if len(azs) == 0 {
+		return true
+	}
+
+	coveredNodes := make(map[string]struct{})
+	for _, az := range azs {
+		if az.CredentialsRef == nil {
+			return true
+		}
+		for _, node := range az.Nodes {
+			coveredNodes[node] = struct{}{}
+		}
+	}
+
+	for _, node := range proxmoxCluster.Spec.AllowedNodes {
+		if _, ok := coveredNodes[node]; !ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetProxmoxClient returns the Proxmox client to use for the given availability zone.
+// If zone is empty, or the zone doesn't define its own credentialsRef, the ProxmoxCluster's
+// default client is returned. This allows each availability zone to be backed by a
+// physically separate Proxmox cluster with its own API endpoint and credentials.
+func (s *ClusterScope) GetProxmoxClient(ctx context.Context, zone string) (capmox.Client, error) {
+	if zone == "" {
+		return s.defaultProxmoxClientOrError()
+	}
+
+	az := availabilityZoneByName(s.ProxmoxCluster.Spec.AvailabilityZones, zone)
+	if az == nil || az.CredentialsRef == nil {
+		return s.defaultProxmoxClientOrError()
+	}
+
+	if pmoxClient, ok := s.zoneProxmoxClients[zone]; ok {
+		return pmoxClient, nil
+	}
+
+	pmoxClient, err := s.setupProxmoxClient(ctx, az.CredentialsRef)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to initialize ProxmoxClient for availability zone %q", zone)
+	}
+
+	if s.zoneProxmoxClients == nil {
+		s.zoneProxmoxClients = make(map[string]capmox.Client)
+	}
+	s.zoneProxmoxClients[zone] = pmoxClient
+
+	return pmoxClient, nil
+}
+
+func availabilityZoneByName(azs []infrav1.AvailabilityZoneSpec, name string) *infrav1.AvailabilityZoneSpec {
+	for i := range azs {
+		if azs[i].Name == name {
+			return &azs[i]
+		}
+	}
+	return nil
+}
+
+// GetProxmoxClientForNode returns the Proxmox client responsible for the given Proxmox VE
+// node, resolving the availability zone (if any) that the node belongs to. This should be
+// preferred over GetProxmoxClient when the target node is already known (e.g. once a Machine
+// has been scheduled), since a Machine's spec.failureDomain isn't always set (for example on
+// plain MachineDeployment workers, which CAPI doesn't automatically spread across zones).
+func (s *ClusterScope) GetProxmoxClientForNode(ctx context.Context, node string) (capmox.Client, error) {
+	return s.GetProxmoxClient(ctx, zoneForNode(s.ProxmoxCluster.Spec.AvailabilityZones, node))
+}
+
+// zoneForNode returns the name of the availability zone that contains the given node, or
+// "" if the node isn't listed in any availability zone.
+func zoneForNode(azs []infrav1.AvailabilityZoneSpec, node string) string {
+	for _, az := range azs {
+		if slices.Contains(az.Nodes, node) {
+			return az.Name
+		}
+	}
+	return ""
+}
+
+// defaultProxmoxClientOrError returns the ProxmoxCluster's default client, or an error if
+// none was configured (e.g. every availability zone defines its own credentialsRef and no
+// default was needed at scope creation, but a node/zone without dedicated credentials was
+// requested anyway).
+func (s *ClusterScope) defaultProxmoxClientOrError() (capmox.Client, error) {
+	if s.ProxmoxClient == nil {
+		return nil, errors.New("no default ProxmoxClient configured: set ProxmoxCluster.spec.credentialsRef, the controller's global credentials, or a credentialsRef on every availability zone/allowed node")
+	}
+	return s.ProxmoxClient, nil
+}
+
+func (s *ClusterScope) setupProxmoxClient(ctx context.Context, credentialsRef *corev1.SecretReference) (capmox.Client, error) {
 	// get the credentials secret
 	secret := corev1.Secret{}
-	namespace := s.ProxmoxCluster.Spec.CredentialsRef.Namespace
+	namespace := credentialsRef.Namespace
 	if len(namespace) == 0 {
 		namespace = s.ProxmoxCluster.GetNamespace()
 	}
 	err := s.client.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
-		Name:      s.ProxmoxCluster.Spec.CredentialsRef.Name,
+		Name:      credentialsRef.Name,
 	}, &secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
