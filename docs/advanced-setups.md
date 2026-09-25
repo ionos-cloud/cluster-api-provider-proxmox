@@ -2,6 +2,141 @@
 
 To get started with CAPMOX please refer to the [Getting Started](Usage.md#quick-start) section.
 
+## Availability Zones
+
+CAPMOX can group Proxmox VE nodes into availability zones. Cluster API exposes
+these zones as failure domains and uses them when it creates Machines. CAPMOX
+then restricts scheduling of a Machine to the nodes in its assigned zone.
+
+There is no CAPMOX feature gate or operator setting to enable. The controller
+automatically reconciles `ProxmoxCluster.spec.availabilityZones` into
+`ProxmoxCluster.status.failureDomains`. Do not set `status.failureDomains`
+yourself.
+
+Each zone must have a unique, DNS-compatible name and at least one Proxmox VE
+node. Every node listed in a zone must also be present in `allowedNodes`;
+otherwise no eligible node exists for a Machine assigned to that zone.
+
+### Where to apply the configuration
+
+Apply all Cluster API resources in this section to the management cluster:
+`ClusterClass`, `Cluster`, `ProxmoxCluster`, and CAPI `Machine` resources. Run
+the `kubectl` commands with the management cluster context.
+
+CAPMOX and its CRDs must already be installed on the management cluster with a
+version that supports `spec.availabilityZones`. No feature gate, controller
+restart, or change to the CAPMOX operator Deployment is required.
+
+No availability-zone resource is applied to the workload cluster. The setting
+only controls the Proxmox VE hosts where CAPMOX provisions its virtual
+machines.
+
+### Cluster API topology
+
+For a topology-based `Cluster`, the `ClusterClass` must expose an
+`availabilityZones` variable and patch it into the `ProxmoxClusterTemplate`.
+The provided [default ClusterClass](../templates/cluster-class.yaml) and
+[Cilium ClusterClass](../templates/cluster-class-cilium.yaml) already include
+this variable.
+
+On the management cluster, apply the matching ClusterClass before creating or
+updating the workload cluster:
+
+```bash
+kubectl apply -f templates/cluster-class.yaml
+# Or, for the Cilium flavor:
+kubectl apply -f templates/cluster-class-cilium.yaml
+```
+
+Set the variable under `spec.topology.variables` in the `Cluster`. The default
+example is available in [examples/cluster.yaml](../examples/cluster.yaml), and
+the Cilium equivalent in [examples/cluster-cilium.yaml](../examples/cluster-cilium.yaml).
+
+```yaml
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
+metadata:
+  name: capmox-cluster
+spec:
+  topology:
+    # classRef, version, and other required topology fields omitted
+    variables:
+    - name: allowedNodes
+      value: [pve1, pve2, pve3]
+    - name: availabilityZones
+      value:
+      - name: az-1
+        nodes: [pve1]
+      - name: az-2
+        nodes: [pve2]
+      - name: az-3
+        nodes: [pve3]
+```
+
+Cluster API chooses a failure domain for Machines it creates. To use all three
+zones, create at least three replicas for the relevant control plane or worker
+MachineDeployment. Existing Machines are not moved when zones are added or
+changed.
+
+### Direct ProxmoxCluster configuration
+
+When you manage `ProxmoxCluster` resources directly rather than through a
+`ClusterClass`, apply the following configuration on the management cluster.
+
+This is the **single Proxmox VE cluster** case: `az-1`/`az-2`/`az-3` are just
+node groups inside the *same* physical Proxmox cluster, so there is only one
+set of Proxmox API credentials for the whole `ProxmoxCluster`. Set it with
+`spec.credentialsRef` (pointing at a `Secret` with `url`/`token`/`secret`); if
+omitted, CAPMOX falls back to the controller-wide credentials configured on
+the manager (`PROXMOX_URL`/`PROXMOX_TOKEN`/`PROXMOX_SECRET`).
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxCluster
+metadata:
+  name: capmox-cluster
+spec:
+  allowedNodes: [pve1, pve2, pve3]
+  availabilityZones:
+  - name: az-1
+    nodes: [pve1]
+  - name: az-2
+    nodes: [pve2]
+  - name: az-3
+    nodes: [pve3]
+  # credentialsRef is optional; omit it to use the controller's global credentials.
+  credentialsRef:
+    name: proxmox-credentials
+  # controlPlaneEndpoint, dnsServers, and IP configuration are also required.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: proxmox-credentials
+stringData:
+  url: "https://pve.example:8006"
+  token: "root@pam!capi"
+  secret: "REDACTED"
+```
+
+With this approach, set `spec.failureDomain` on each CAPI `Machine` to one of
+the configured zone names. CAPMOX intersects the zone's nodes with
+`allowedNodes` before selecting a Proxmox VE host. Every zone is still reached
+through the same client/credentials above.
+
+### Verify placement
+
+On the management cluster, inspect the generated failure domains and the
+Machine assignments after reconciliation:
+
+```bash
+kubectl get proxmoxcluster capmox-cluster \
+  -o jsonpath='{range .status.failureDomains[*]}{.name}{"\n"}{end}'
+
+kubectl get machines -l cluster.x-k8s.io/cluster-name=capmox-cluster \
+  -o custom-columns=NAME:.metadata.name,FAILURE-DOMAIN:.spec.failureDomain
+```
+
 ## Multiple NICs
 
 If you want to create VMs with multiple network devices,

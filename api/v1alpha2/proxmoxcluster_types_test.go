@@ -239,3 +239,57 @@ func TestSetInClusterIPPoolRef(t *testing.T) {
 	cl.SetInClusterIPPoolRef(pool)
 	require.Equal(t, cl.Status.InClusterIPPoolRef[0].Name, pool.GetName())
 }
+
+func TestSetInClusterIPPoolRefMultipleZones(t *testing.T) {
+	cl := defaultCluster()
+
+	newPool := func(name, zone string) *ipamicv1.InClusterIPPool {
+		return &ipamicv1.InClusterIPPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: metav1.NamespaceDefault,
+				Labels:    map[string]string{ProxmoxZoneLabel: zone},
+				Annotations: map[string]string{
+					ProxmoxIPFamilyAnnotation: IPv4Type,
+				},
+			},
+			Spec: ipamicv1.InClusterIPPoolSpec{
+				Addresses: []string{"10.10.10.2/24"},
+				Prefix:    24,
+				Gateway:   "10.10.10.1",
+			},
+		}
+	}
+
+	require.NotPanics(t, func() {
+		cl.SetInClusterIPPoolRef(newPool("zone-a-pool", "zone-a"))
+		cl.SetInClusterIPPoolRef(newPool("zone-b-pool", "zone-b"))
+		cl.SetInClusterIPPoolRef(newPool("zone-c-pool", "zone-c"))
+	})
+
+	require.Len(t, cl.Status.InClusterZoneRef, 3)
+	require.Equal(t, "zone-a-pool", cl.Status.InClusterZoneRef[0].InClusterIPPoolRefV4.Name)
+	require.Equal(t, "zone-b-pool", cl.Status.InClusterZoneRef[1].InClusterIPPoolRefV4.Name)
+	require.Equal(t, "zone-c-pool", cl.Status.InClusterZoneRef[2].InClusterIPPoolRefV4.Name)
+}
+
+func TestZoneForNode(t *testing.T) {
+	azs := []AvailabilityZoneSpec{
+		{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+		{Name: "az-2", Nodes: []string{"pve3"}},
+	}
+
+	require.Equal(t, "az-1", ZoneForNode(azs, "pve1"))
+	require.Equal(t, "az-1", ZoneForNode(azs, "pve2"))
+	require.Equal(t, "az-2", ZoneForNode(azs, "pve3"))
+	require.Equal(t, "", ZoneForNode(azs, "pve9"), "node not in any zone should resolve to empty")
+	require.Equal(t, "", ZoneForNode(nil, "pve1"), "no zones configured should resolve to empty")
+
+	// First-match wins when a node is (incorrectly) listed in two zones. The validating
+	// webhook rejects this, but ZoneForNode must still return a deterministic answer.
+	overlap := []AvailabilityZoneSpec{
+		{Name: "az-first", Nodes: []string{"pve1"}},
+		{Name: "az-last", Nodes: []string{"pve1"}},
+	}
+	require.Equal(t, "az-first", ZoneForNode(overlap, "pve1"))
+}
