@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -95,6 +96,151 @@ func TestReconcileIPAddresses_PendingClaimDoesNotCreateDuplicateClaim(t *testing
 	require.NotNil(t, claimsDefaultPool)
 	require.Len(t, *claimsDefaultPool, 1)
 	require.Empty(t, machineScope.ProxmoxMachine.GetIPAddresses())
+}
+
+func TestReconcileIPAddresses_AdoptsValidatedOwnerlessPendingClaim(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
+
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{{
+			Name:        infrav1.DefaultNetworkDevice,
+			DefaultIPv4: new(true),
+		}},
+	}
+	defaultPoolRef := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
+	}
+	ipClaimDef := ipam.IPClaimDef{
+		PoolRef: defaultPoolRef,
+		Device:  infrav1.DefaultNetworkDevice,
+		Annotations: map[string]string{
+			infrav1.ProxmoxPoolOffsetAnnotation:     "0",
+			infrav1.ProxmoxDefaultGatewayAnnotation: "true",
+		},
+	}
+	require.NoError(t, machineScope.IPAMHelper.CreateIPAddressClaim(context.Background(), machineScope.ProxmoxMachine, ipClaimDef))
+	claimName := ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)
+	var claim ipamv1.IPAddressClaim
+	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKey{Name: claimName, Namespace: machineScope.Namespace()}, &claim))
+	claim.OwnerReferences = nil
+	require.NoError(t, kubeClient.Update(context.Background(), &claim))
+
+	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKeyFromObject(&claim), &claim))
+	require.Len(t, claim.OwnerReferences, 1)
+	require.Equal(t, machineScope.Name(), claim.OwnerReferences[0].Name)
+	require.Equal(t, machineScope.ProxmoxMachine.UID, claim.OwnerReferences[0].UID)
+	require.Empty(t, claim.Status.AddressRef.Name)
+	claims := getIPAddressClaimsPerPool(t, kubeClient, machineScope, defaultPoolRef.Name)
+	require.NotNil(t, claims)
+	require.Len(t, *claims, 1)
+}
+
+func TestReconcileIPAddresses_RecreatesClaimForValidatedOrphanWithoutMutatingAddress(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{{
+			Name:        infrav1.DefaultNetworkDevice,
+			DefaultIPv4: new(true),
+		}},
+	}
+	defaultPoolRef := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
+	}
+	claimName := ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)
+	orphan := &ipamv1.IPAddress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      claimName,
+			Namespace: machineScope.Namespace(),
+			Labels: map[string]string{
+				clusterv1.ClusterNameLabel: machineScope.Cluster.Name,
+			},
+			Annotations: map[string]string{"preserved": "value"},
+			Finalizers:  []string{"test.finalizer"},
+		},
+		Spec: ipamv1.IPAddressSpec{
+			ClaimRef: ipamv1.IPAddressClaimReference{Name: claimName},
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: ipamicv1.GroupVersion.Group,
+				Kind:     defaultPoolRef.Kind,
+				Name:     defaultPoolRef.Name,
+			},
+			Address: "192.0.2.10",
+			Prefix:  new(int32(24)),
+			Gateway: "192.0.2.1",
+		},
+	}
+	require.NoError(t, kubeClient.Create(context.Background(), orphan))
+	before := orphan.DeepCopy()
+
+	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	var claim ipamv1.IPAddressClaim
+	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKey{Name: claimName, Namespace: machineScope.Namespace()}, &claim))
+	require.Len(t, claim.OwnerReferences, 1)
+	require.Equal(t, machineScope.Name(), claim.OwnerReferences[0].Name)
+	var actualAddress ipamv1.IPAddress
+	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKeyFromObject(orphan), &actualAddress))
+	require.Equal(t, before, &actualAddress)
+}
+
+func TestReconcileIPAddresses_UnsafeOrphanBlocksWithoutMutation(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{{
+			Name:        infrav1.DefaultNetworkDevice,
+			DefaultIPv4: new(true),
+		}},
+	}
+	defaultPoolRef := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
+	}
+	claimName := ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)
+	orphan := &ipamv1.IPAddress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      claimName,
+			Namespace: machineScope.Namespace(),
+			Labels: map[string]string{
+				clusterv1.ClusterNameLabel: machineScope.Cluster.Name,
+			},
+		},
+		Spec: ipamv1.IPAddressSpec{
+			ClaimRef: ipamv1.IPAddressClaimReference{Name: "other-claim"},
+			PoolRef: ipamv1.IPPoolReference{
+				APIGroup: ipamicv1.GroupVersion.Group,
+				Kind:     defaultPoolRef.Kind,
+				Name:     defaultPoolRef.Name,
+			},
+			Address: "192.0.2.10",
+			Prefix:  new(int32(24)),
+		},
+	}
+	require.NoError(t, kubeClient.Create(context.Background(), orphan))
+	before := orphan.DeepCopy()
+
+	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Empty(t, getIPAddressClaims(t, kubeClient, machineScope))
+
+	var actualAddress ipamv1.IPAddress
+	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKeyFromObject(orphan), &actualAddress))
+	require.Equal(t, before, &actualAddress)
+	message := conditions.GetMessage(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.Contains(t, message, claimName)
+	require.Contains(t, message, string(ipam.ConflictAddressClaimRef))
+	require.Contains(t, message, "other-claim")
 }
 
 // TestReconcileIPAddresses_CreateAdditionalClaim tests if an IPAddressClaim is created for the missing IPAddress on net1.
