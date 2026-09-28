@@ -59,7 +59,7 @@ func TestDeleteVM_SkipsVMWithAnotherName(t *testing.T) {
 
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
 	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
-		Return(&proxmox.ClusterResource{VMID: 123, Name: "someone-else", Node: "node1"}, nil).Once()
+		Return(&proxmox.ClusterResource{VMID: 123, Type: "qemu", Name: "someone-else", Node: "node1"}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
 	// no DeleteVM expectation: a destroy call fails the test
 
@@ -75,7 +75,7 @@ func TestDeleteVM_DestroysOwnVM(t *testing.T) {
 
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
 	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
-		Return(&proxmox.ClusterResource{VMID: 123, Name: "test", Node: "node1"}, nil).Once()
+		Return(&proxmox.ClusterResource{VMID: 123, Type: "qemu", Name: "test", Node: "node1"}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, nil).Once()
 
@@ -96,9 +96,29 @@ func TestDeleteVM_SkipsReusedVMIDWithStaleResourceName(t *testing.T) {
 
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
 	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
-		Return(&proxmox.ClusterResource{VMID: 123, Name: "test", Node: "node2"}, nil).Once()
+		Return(&proxmox.ClusterResource{VMID: 123, Type: "qemu", Name: "test", Node: "node2"}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.TODO(), "node2", int64(123)).Return(vm, nil).Once()
 	// no DeleteVM expectation: a destroy call fails the test
+
+	require.NoError(t, DeleteVM(context.TODO(), machineScope))
+	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
+	require.Empty(t, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+}
+
+// Containers share the VMID space, so a reused VMID can hold a container. A
+// machine is never a container, even when the names match.
+func TestDeleteVM_SkipsContainerOnReusedVMID(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node1",
+	}, false)
+
+	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
+	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
+		Return(&proxmox.ClusterResource{VMID: 123, Type: "lxc", Name: "test", Node: "node1"}, nil).Once()
+	// no GetVM or DeleteVM expectation: either call fails the test
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
@@ -121,7 +141,7 @@ func TestDeleteVM_RequeuesWhileCloning(t *testing.T) {
 
 			proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
 			proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
-				Return(&proxmox.ClusterResource{VMID: 123, Name: name, Node: "node1"}, nil).Once()
+				Return(&proxmox.ClusterResource{VMID: 123, Type: "qemu", Name: name, Node: "node1"}, nil).Once()
 			proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
 			// no DeleteVM expectation: a destroy call fails the test
 
@@ -157,7 +177,7 @@ func TestDeleteVM_DestroysOwnVMFoundClusterWide(t *testing.T) {
 
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
 	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
-		Return(&proxmox.ClusterResource{VMID: 123, Name: "test", Node: "node2"}, nil).Once()
+		Return(&proxmox.ClusterResource{VMID: 123, Type: "qemu", Name: "test", Node: "node2"}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.TODO(), "node2", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node2", int64(123)).Return(nil, nil).Once()
 

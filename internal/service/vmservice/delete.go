@@ -69,9 +69,9 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 // locateOwnedVM returns the node that hosts the machine's VM.
 // Proxmox hands a freed VMID to the next clone within seconds, so a stale
 // record can point at another machine's VM. It returns errVMNotOwned if vmID
-// is free or holds another VM, and ErrVMNotInitialized while a clone is in
-// progress. Any other error means the state could not be read: the caller
-// must never destroy a VM it failed to confirm.
+// is free or holds another VM or a container, and ErrVMNotInitialized while a
+// clone is in progress. Any other error means the state could not be read:
+// the caller must never destroy a VM it failed to confirm.
 func locateOwnedVM(ctx context.Context, machineScope *scope.MachineScope, vmID int64) (string, error) {
 	proxmoxClient := machineScope.InfraCluster.ProxmoxClient
 
@@ -86,6 +86,12 @@ func locateOwnedVM(ctx context.Context, machineScope *scope.MachineScope, vmID i
 	res, err := proxmoxClient.FindVMResource(ctx, uint64(vmID))
 	if err != nil {
 		return "", err
+	}
+
+	// LXC containers share the VMID space, and GetVM reads only qemu VMs.
+	if res.Type != "qemu" {
+		machineScope.Info("VMID belongs to a container, skipping destroy", "vmID", vmID, "type", res.Type)
+		return "", errVMNotOwned
 	}
 
 	// /cluster/resources takes the name from RRD data that pvestatd refreshes
