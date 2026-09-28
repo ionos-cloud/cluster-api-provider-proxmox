@@ -37,7 +37,6 @@ func TestDeleteVM_SuccessNotFound(t *testing.T) {
 		Node:    "node1",
 	}, false)
 
-	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("vm does not exist")).Once()
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(true, nil).Once()
 	// no DeleteVM expectation: a destroy call fails the test
 
@@ -58,6 +57,9 @@ func TestDeleteVM_SkipsVMWithAnotherName(t *testing.T) {
 		Node:    "node1",
 	}, false)
 
+	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
+	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
+		Return(&proxmox.ClusterResource{VMID: 123, Name: "someone-else", Node: "node1"}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
 	// no DeleteVM expectation: a destroy call fails the test
 
@@ -71,31 +73,63 @@ func TestDeleteVM_DestroysOwnVM(t *testing.T) {
 	vm := newRunningVM()
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 
+	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
+	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
+		Return(&proxmox.ClusterResource{VMID: 123, Name: "test", Node: "node1"}, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
 	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, nil).Once()
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 }
 
-// A lookup failure on the recorded node proves nothing. The VM may sit on
-// another node, or the ID may already belong to another machine.
-func TestDeleteVM_SkipsForeignVMOnAnotherNode(t *testing.T) {
+// Just after a VMID is reused, /cluster/resources can still show the name of
+// the previous holder. Only the VM config decides.
+func TestDeleteVM_SkipsReusedVMIDWithStaleResourceName(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+	vm := newRunningVM()
+	vm.Name = "someone-else"
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
 	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
 		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
 		Node:    "node1",
 	}, false)
 
-	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("cannot find vm with id 123")).Once()
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
 	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
-		Return(&proxmox.ClusterResource{VMID: 123, Name: "someone-else", Node: "node2"}, nil).Once()
+		Return(&proxmox.ClusterResource{VMID: 123, Name: "test", Node: "node2"}, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node2", int64(123)).Return(vm, nil).Once()
 	// no DeleteVM expectation: a destroy call fails the test
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
 	require.Empty(t, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+}
+
+// A clone in progress has no name yet. It can be this machine's clone or the
+// clone of another machine on a reused VMID, so wait until it has a name.
+func TestDeleteVM_RequeuesWhileCloning(t *testing.T) {
+	for _, name := range []string{"", "VM 123"} {
+		t.Run(name, func(t *testing.T) {
+			machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+			vm := newRunningVM()
+			vm.Name = name
+			machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+			machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+				Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+				Node:    "node1",
+			}, false)
+
+			proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
+			proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
+				Return(&proxmox.ClusterResource{VMID: 123, Name: name, Node: "node1"}, nil).Once()
+			proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(vm, nil).Once()
+			// no DeleteVM expectation: a destroy call fails the test
+
+			require.ErrorIs(t, DeleteVM(context.TODO(), machineScope), ErrVMNotInitialized)
+			require.NotEmpty(t, machineScope.ProxmoxMachine.Finalizers)
+			require.NotEmpty(t, machineScope.InfraCluster.ProxmoxCluster.GetNode(machineScope.Name(), false))
+		})
+	}
 }
 
 // An unreadable cluster is not proof of anything. Requeue, keep the finalizer,
@@ -104,7 +138,6 @@ func TestDeleteVM_RequeuesWhenOwnershipIsUnknown(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
 
-	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("500 Internal Server Error")).Once()
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, errors.New("cannot get cluster")).Once()
 	// no DeleteVM expectation: a destroy call fails the test
 
@@ -112,16 +145,21 @@ func TestDeleteVM_RequeuesWhenOwnershipIsUnknown(t *testing.T) {
 	require.NotEmpty(t, machineScope.ProxmoxMachine.Finalizers)
 }
 
-// Our own VM found on another node still gets destroyed.
+// Our own VM found on another node gets destroyed on that node.
 func TestDeleteVM_DestroysOwnVMFoundClusterWide(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
-	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+	vm := newRunningVM()
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(vm.VMID))
+	machineScope.InfraCluster.ProxmoxCluster.AddNodeLocation(infrav1.NodeLocation{
+		Machine: corev1.LocalObjectReference{Name: machineScope.Name()},
+		Node:    "node1",
+	}, false)
 
-	proxmoxClient.EXPECT().GetVM(context.TODO(), "node1", int64(123)).Return(nil, errors.New("cannot find vm with id 123")).Once()
 	proxmoxClient.EXPECT().CheckID(context.TODO(), int64(123)).Return(false, nil).Once()
 	proxmoxClient.EXPECT().FindVMResource(context.TODO(), uint64(123)).
 		Return(&proxmox.ClusterResource{VMID: 123, Name: "test", Node: "node2"}, nil).Once()
-	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", int64(123)).Return(nil, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.TODO(), "node2", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node2", int64(123)).Return(nil, nil).Once()
 
 	require.NoError(t, DeleteVM(context.TODO(), machineScope))
 }
