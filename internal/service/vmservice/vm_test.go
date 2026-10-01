@@ -24,6 +24,7 @@ import (
 	lutherproxmox "github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -559,6 +560,76 @@ func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, requeue)
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+func TestReconcileVirtualMachineConfig_CPUUnitsAndLimit(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.CPUUnits = new(int32(250))
+	machineScope.ProxmoxMachine.Spec.CPULimit = new(resource.MustParse("1500m"))
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	task := newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions := []any{
+		proxmox.VirtualMachineOption{Name: optionCPUUnits, Value: int32(250)},
+		proxmox.VirtualMachineOption{Name: optionCPULimit, Value: "1.5"},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_CPUUnitsAndLimitAlreadySet(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.CPUUnits = new(int32(250))
+	machineScope.ProxmoxMachine.Spec.CPULimit = new(resource.MustParse("1500m"))
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	vm.VirtualMachineConfig.CPUUnits = new(250)
+	vm.VirtualMachineConfig.CPULimit = new(lutherproxmox.StringOrFloat64(1.5))
+	machineScope.SetVirtualMachine(vm)
+
+	// ConfigureVM is not expected: the mock fails the test if it is called.
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_CPULimitZeroOnUnlimitedVM(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.CPULimit = new(resource.MustParse("0"))
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	machineScope.SetVirtualMachine(vm)
+
+	// A template without cpulimit is already unlimited, so "0" changes nothing.
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_CPULimitZeroClearsTemplateLimit(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.CPULimit = new(resource.MustParse("0"))
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	vm.VirtualMachineConfig.CPULimit = new(lutherproxmox.StringOrFloat64(2))
+	task := newTask()
+	machineScope.SetVirtualMachine(vm)
+
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm,
+		proxmox.VirtualMachineOption{Name: optionCPULimit, Value: "0"}).Return(task, nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
 }
 
 func TestReconcileVirtualMachineConfigTags(t *testing.T) {

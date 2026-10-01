@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -412,6 +413,47 @@ var _ = Describe("ProxmoxMachine Test", func() {
 			}
 
 			Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed())
+		})
+	})
+
+	Context("CPU weight and limit", func() {
+		It("Should not allow cpuUnits less than 1", func() {
+			dm := defaultMachine()
+			dm.Spec.CPUUnits = new(int32(0))
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be greater than or equal to 1")))
+		})
+
+		It("Should not allow cpuUnits greater than 262144", func() {
+			dm := defaultMachine()
+			dm.Spec.CPUUnits = new(int32(262145))
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("should be less than or equal to 262144")))
+		})
+
+		It("Should not allow a negative cpuLimit", func() {
+			dm := defaultMachine()
+			dm.Spec.CPULimit = new(resource.MustParse("-500m"))
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("cpuLimit must be between 0 and 128")))
+		})
+
+		It("Should not allow cpuLimit greater than 128", func() {
+			dm := defaultMachine()
+			dm.Spec.CPULimit = new(resource.MustParse("129"))
+
+			Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("cpuLimit must be between 0 and 128")))
+		})
+
+		It("Should allow cpuUnits and cpuLimit within range", func() {
+			for _, limit := range []string{"0", "500m", "1.5", "128"} {
+				dm := defaultMachine()
+				dm.Spec.CPUUnits = new(int32(100))
+				dm.Spec.CPULimit = new(resource.MustParse(limit))
+
+				Expect(k8sClient.Create(context.Background(), dm)).Should(Succeed(), "cpuLimit %s", limit)
+				Expect(k8sClient.Delete(context.Background(), dm)).Should(Succeed())
+			}
 		})
 	})
 

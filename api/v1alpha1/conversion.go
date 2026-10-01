@@ -145,6 +145,12 @@ func Convert_v1alpha2_InterfaceConfig_To_v1alpha1_InterfaceConfig(in *v1alpha2.I
 	return autoConvert_v1alpha2_InterfaceConfig_To_v1alpha1_InterfaceConfig(in, out, s)
 }
 
+// Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec drops cpuUnits and cpuLimit,
+// which v1alpha1 lacks; the ConvertFrom annotation carries them back up.
+func Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, out *ProxmoxMachineSpec, s conversion.Scope) error {
+	return autoConvert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in, out, s)
+}
+
 func Convert_v1alpha2_RouteSpec_To_v1alpha1_RouteSpec(in *v1alpha2.RouteSpec, out *RouteSpec, s conversion.Scope) error {
 	if in == nil {
 		return nil

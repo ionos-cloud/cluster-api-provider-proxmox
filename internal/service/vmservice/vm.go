@@ -19,6 +19,7 @@ package vmservice
 
 import (
 	"context"
+	"math"
 	"slices"
 	"strings"
 
@@ -46,6 +47,8 @@ const (
 	optionSockets     = "sockets"
 	optionCores       = "cores"
 	optionMemory      = "memory"
+	optionCPUUnits    = "cpuunits"
+	optionCPULimit    = "cpulimit"
 	optionTags        = "tags"
 	optionDescription = "description"
 )
@@ -343,6 +346,14 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	}
 	if memory > 0 && int(vmConfig.Memory) != int(memory) {
 		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionMemory, Value: memory})
+	}
+	if cpuUnits := machineScope.ProxmoxMachine.Spec.CPUUnits; cpuUnits != nil && ptr.Deref(vmConfig.CPUUnits, 0) != int(*cpuUnits) {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCPUUnits, Value: *cpuUnits})
+	}
+	// An unset cpulimit reads back as 0, which is also how Proxmox spells no limit.
+	if cpuLimit := machineScope.ProxmoxMachine.Spec.CPULimit; cpuLimit != nil &&
+		int64(math.Round(float64(ptr.Deref(vmConfig.CPULimit, 0))*1000)) != cpuLimit.MilliValue() {
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionCPULimit, Value: formatCPULimit(*cpuLimit)})
 	}
 
 	// Description

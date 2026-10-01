@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
@@ -662,6 +663,24 @@ func TestToFIBRuleData(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.expect, got)
+		})
+	}
+}
+
+func TestFormatCPULimit(t *testing.T) {
+	cases := map[string]string{
+		"0":     "0",
+		"10m":   "0.01",
+		"500m":  "0.5",
+		"1":     "1",
+		"1500m": "1.5",
+		"2.25":  "2.25",
+		"128":   "128",
+	}
+
+	for in, want := range cases {
+		t.Run(in, func(t *testing.T) {
+			require.Equal(t, want, formatCPULimit(resource.MustParse(in)))
 		})
 	}
 }
