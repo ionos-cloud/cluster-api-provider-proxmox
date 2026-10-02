@@ -166,7 +166,7 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 			if running {
 				return true, nil
 			}
-			if errors.Is(goproxmox.ErrCloudInitFailed, err) {
+			if errors.Is(err, goproxmox.ErrCloudInitFailed) {
 				conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,
