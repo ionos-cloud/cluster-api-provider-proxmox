@@ -185,6 +185,32 @@ type SchedulerHints struct {
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MemoryAdjustment *int64 `json:"memoryAdjustment,omitempty"`
+
+	// cpuAdjustment allows to adjust a node's CPU capacity by a given percentage.
+	// For example, setting it to 300 allows allocating 300% of a host's CPU cores for VMs (3:1 overcommit),
+	// and setting it to 95 limits CPU allocation to 95% of the physical core count.
+	// Setting it to 0 entirely disables scheduling CPU constraints (default).
+	// When set to a non-zero value, CPU becomes a hard-fit constraint and a scoring
+	// dimension alongside memory; see memoryTolerance and cpuTolerance for tuning.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	CPUAdjustment *int64 `json:"cpuAdjustment,omitempty"`
+
+	// memoryTolerance expresses how acceptable it is to saturate memory on a node,
+	// in [0, 100]. Lower values make the scheduler more protective of memory.
+	// Only used when cpuAdjustment > 0. Defaults to 0.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
+	// +optional
+	MemoryTolerance *int64 `json:"memoryTolerance,omitempty"`
+
+	// cpuTolerance expresses how acceptable it is to saturate CPU on a node,
+	// in [0, 100]. Lower values make the scheduler more protective of CPU.
+	// Only used when cpuAdjustment > 0. Defaults to 100.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
+	// +optional
+	CPUTolerance *int64 `json:"cpuTolerance,omitempty"`
 }
 
 // GetMemoryAdjustment returns the memory adjustment percentage to use within the scheduler.
@@ -196,6 +222,43 @@ func (sh *SchedulerHints) GetMemoryAdjustment() int64 {
 	}
 
 	return memoryAdjustment
+}
+
+// GetCPUAdjustment returns the CPU adjustment percentage to use within the scheduler.
+// Returns 0 by default, which disables CPU-aware scheduling (backward compatible).
+func (sh *SchedulerHints) GetCPUAdjustment() int64 {
+	cpuAdjustment := int64(0)
+
+	if sh != nil {
+		cpuAdjustment = ptr.Deref(sh.CPUAdjustment, 0)
+	}
+
+	return cpuAdjustment
+}
+
+// GetMemoryTolerance returns the memory saturation tolerance (0..100) used by the
+// tolerance-weighted scheduler. Defaults to 0, i.e. memory is fully protected.
+func (sh *SchedulerHints) GetMemoryTolerance() int64 {
+	memoryTolerance := int64(0)
+
+	if sh != nil {
+		memoryTolerance = ptr.Deref(sh.MemoryTolerance, 0)
+	}
+
+	return memoryTolerance
+}
+
+// GetCPUTolerance returns the CPU saturation tolerance (0..100) used by the
+// tolerance-weighted scheduler. Defaults to 100, i.e. CPU is only a hard-fit
+// constraint and does not influence scoring unless the operator opts in.
+func (sh *SchedulerHints) GetCPUTolerance() int64 {
+	cpuTolerance := int64(100)
+
+	if sh != nil {
+		cpuTolerance = ptr.Deref(sh.CPUTolerance, 100)
+	}
+
+	return cpuTolerance
 }
 
 // ProxmoxClusterStatus defines the observed state of a ProxmoxCluster.
