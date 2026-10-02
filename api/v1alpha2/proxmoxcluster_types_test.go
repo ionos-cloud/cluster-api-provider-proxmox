@@ -239,3 +239,34 @@ func TestSetInClusterIPPoolRef(t *testing.T) {
 	cl.SetInClusterIPPoolRef(pool)
 	require.Equal(t, cl.Status.InClusterIPPoolRef[0].Name, pool.GetName())
 }
+
+func TestAddInClusterZoneRef(t *testing.T) {
+	cl := defaultCluster()
+
+	newPool := func(name, family, zone string) *ipamicv1.InClusterIPPool {
+		pool := &ipamicv1.InClusterIPPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        name,
+				Namespace:   metav1.NamespaceDefault,
+				Annotations: map[string]string{ProxmoxIPFamilyAnnotation: family},
+			},
+		}
+		if zone != "" {
+			pool.Labels = map[string]string{ProxmoxZoneLabel: zone}
+		}
+		return pool
+	}
+
+	cl.AddInClusterZoneRef(newPool("default-v4", IPv4Type, ""))
+	cl.AddInClusterZoneRef(newPool("zone1-v4", IPv4Type, "zone1"))
+	cl.AddInClusterZoneRef(newPool("zone1-v6", IPv6Type, "zone1"))
+
+	require.Len(t, cl.Status.InClusterZoneRef, 2)
+
+	require.Equal(t, "default", *cl.Status.InClusterZoneRef[0].Zone)
+	require.Equal(t, "default-v4", cl.Status.InClusterZoneRef[0].InClusterIPPoolRefV4.Name)
+
+	require.Equal(t, "zone1", *cl.Status.InClusterZoneRef[1].Zone)
+	require.Equal(t, "zone1-v4", cl.Status.InClusterZoneRef[1].InClusterIPPoolRefV4.Name)
+	require.Equal(t, "zone1-v6", cl.Status.InClusterZoneRef[1].InClusterIPPoolRefV6.Name)
+}
