@@ -240,6 +240,7 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 	prefix := int32(ip.Bits())
 	var gateway string
 	var poolRef ipamv1.IPPoolReference
+	var addressOwnerReferences []metav1.OwnerReference
 
 	if pool != nil {
 		poolRef = ipamv1.IPPoolReference{
@@ -252,17 +253,22 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 				APIVersion: "ipam.cluster.x-k8s.io/v1beta2",
 			},
 			ObjectMeta: metav1.ObjectMeta{
+				UID: k8stypes.UID(name + "-claim-uid"),
 				Annotations: map[string]string{
 					infrav1.ProxmoxPoolOffsetAnnotation:     fmt.Sprintf("%d", offset),
 					infrav1.ProxmoxDefaultGatewayAnnotation: fmt.Sprintf("%t", isDefaultPool(machineScope, *pool)),
 				},
 				Name:      name,
 				Namespace: machineScope.Namespace(),
+				Labels: map[string]string{
+					clusterv1.ClusterNameLabel: machineScope.Cluster.Name,
+				},
 				OwnerReferences: []metav1.OwnerReference{{
 					APIVersion: machineScope.ProxmoxMachine.APIVersion,
 					Kind:       "ProxmoxMachine",
 					Name:       machineScope.Name(),
 					UID:        machineScope.ProxmoxMachine.UID,
+					Controller: new(true),
 				}},
 			},
 			Spec: ipamv1.IPAddressClaimSpec{
@@ -273,6 +279,13 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 			},
 		}
 		require.NoError(t, c.Create(context.Background(), ipAddrClaim))
+		addressOwnerReferences = []metav1.OwnerReference{{
+			APIVersion: ipamv1.GroupVersion.String(),
+			Kind:       "IPAddressClaim",
+			Name:       ipAddrClaim.Name,
+			UID:        ipAddrClaim.UID,
+			Controller: new(true),
+		}}
 
 		poolSpec := getPoolSpec(t, getIPAddressPool(t, machineScope, *pool))
 		if poolSpec.prefix != 0 {
@@ -288,6 +301,10 @@ func createIPAddressResource(t *testing.T, c client.Client, name string, machine
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: machineScope.Namespace(),
+			Labels: map[string]string{
+				clusterv1.ClusterNameLabel: machineScope.Cluster.Name,
+			},
+			OwnerReferences: addressOwnerReferences,
 		},
 		Spec: ipamv1.IPAddressSpec{
 			ClaimRef: ipamv1.IPAddressClaimReference{
