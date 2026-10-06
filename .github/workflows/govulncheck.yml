@@ -92,10 +92,11 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: govulncheck.sarif
-      - name: Fix duplicate SARIF tags
+      - name: Fix duplicate SARIF tags and stacks
         run: |
-          jq '.runs[].tool.driver.rules |= map(if .properties != null and .properties.tags != null then .properties.tags |= unique else . end)' \
+          jq '.runs[].tool.driver.rules |= map(if .properties != null and .properties.tags != null then .properties.tags |= unique else . end)
+            | .runs[].results |= map(if .stacks != null then .stacks |= unique else . end)' \
             govulncheck.sarif >govulncheck-fixed.sarif
-      - uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+      - uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           sarif_file: govulncheck-fixed.sarif
