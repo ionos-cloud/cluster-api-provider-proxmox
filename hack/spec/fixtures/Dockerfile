@@ -1,4 +1,4 @@
-FROM golang:1.25 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25 AS builder
 WORKDIR /workspace
 COPY . .
 RUN go build -o manager .
