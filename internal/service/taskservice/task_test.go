@@ -329,3 +329,117 @@ func TestReconcileInFlightTask_UnknownState(t *testing.T) {
 	var requeueErr *RequeueError
 	require.ErrorAs(t, err, &requeueErr)
 }
+
+func TestInFlight_NoTaskRef(t *testing.T) {
+	machineScope, _ := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = nil
+
+	inFlight, err := InFlight(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, inFlight)
+}
+
+func TestInFlight_TaskRunning(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
+
+	task := &proxmox.Task{UPID: "UPID:node1:001", IsRunning: true, Status: "running", Type: "qmdestroy"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(task, nil).Once()
+
+	inFlight, err := InFlight(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, inFlight)
+	// The ref is kept so the next pass keeps waiting on the same task.
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+func TestInFlight_TaskCompletedClearsRef(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
+
+	task := &proxmox.Task{UPID: "UPID:node1:001", IsCompleted: true, Status: "stopped", Type: "qmdestroy"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(task, nil).Once()
+
+	inFlight, err := InFlight(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, inFlight)
+	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+func TestInFlight_NilTaskClearsRef(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
+
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(nil, nil).Once()
+
+	inFlight, err := InFlight(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, inFlight)
+	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+// A ref pointing at a task Proxmox no longer knows about must be dropped, so
+// deletion can make progress instead of requeueing on it forever.
+func TestInFlight_UnknownTaskDropsRef(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
+
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").
+		Return(nil, errors.New("boom")).Once()
+
+	inFlight, err := InFlight(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, inFlight)
+	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+func TestAdoptActiveTask_NoVMID(t *testing.T) {
+	machineScope, _ := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = nil
+
+	adopted, err := AdoptActiveTask(context.Background(), machineScope, "qmstart")
+	require.NoError(t, err)
+	require.False(t, adopted)
+}
+
+func TestAdoptActiveTask_ClientError(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+
+	mockClient.EXPECT().
+		GetVMActiveTask(context.Background(), machineScope.LocateProxmoxNode(), int64(123), "qmstart").
+		Return(nil, errors.New("boom")).Once()
+
+	adopted, err := AdoptActiveTask(context.Background(), machineScope, "qmstart")
+	require.Error(t, err)
+	require.False(t, adopted)
+}
+
+func TestAdoptActiveTask_NoActiveTask(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+
+	mockClient.EXPECT().
+		GetVMActiveTask(context.Background(), machineScope.LocateProxmoxNode(), int64(123), "qmstart").
+		Return(nil, nil).Once()
+
+	adopted, err := AdoptActiveTask(context.Background(), machineScope, "qmstart")
+	require.NoError(t, err)
+	require.False(t, adopted)
+	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
+func TestAdoptActiveTask_AdoptsUPID(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(123))
+
+	task := &proxmox.Task{UPID: "UPID:node1:0001:qmstart:123:root@pam:", Status: "RUNNING"}
+	mockClient.EXPECT().
+		GetVMActiveTask(context.Background(), machineScope.LocateProxmoxNode(), int64(123), "qmstart").
+		Return(task, nil).Once()
+
+	adopted, err := AdoptActiveTask(context.Background(), machineScope, "qmstart")
+	require.NoError(t, err)
+	require.True(t, adopted)
+	require.Equal(t, string(task.UPID), *machineScope.ProxmoxMachine.Status.TaskRef)
+}

@@ -166,8 +166,18 @@ func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineS
 		Reason: clusterv1.DeletingReason,
 	})
 
-	err := vmservice.DeleteVM(ctx, machineScope)
+	// Wait for a stop/destroy task started by an earlier pass instead of issuing
+	// another one. The deletion path is re-entered on every Machine and
+	// ProxmoxMachine event, not just on the requeue timer (#96).
+	inFlight, err := taskservice.InFlight(ctx, machineScope)
 	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if inFlight {
+		return reconcile.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
+	}
+
+	if _, err := vmservice.DeleteVM(ctx, machineScope); err != nil {
 		return reconcile.Result{}, err
 	}
 	// VM is being deleted

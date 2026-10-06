@@ -24,8 +24,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cluster-api/util/conditions"
 
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
+
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -36,6 +39,22 @@ func reconcilePowerState(ctx context.Context, machineScope *scope.MachineScope) 
 	}
 
 	machineScope.V(4).Info("ensuring machine is started")
+
+	// Only a VM that still looks stopped is a duplicate-start candidate, and
+	// asking Proxmox costs a round trip, so the check is scoped to that case.
+	//
+	// Status.TaskRef is read through the controller-runtime cache. A pass that
+	// runs before the previous pass's status write has propagated sees no task
+	// ref, while the VM has not finished booting yet - so every local guard
+	// misses and a second qmstart is issued, which Proxmox rejects with "VM
+	// already running". Proxmox is the only reliable source for "did I already
+	// start this?".
+	if vm := machineScope.VirtualMachine; vm.IsStopped() || vm.IsHibernated() {
+		adopted, err := taskservice.AdoptActiveTask(ctx, machineScope, goproxmox.TaskTypeStartVM)
+		if err != nil || adopted {
+			return adopted, err
+		}
+	}
 
 	t, err := startVirtualMachine(ctx, machineScope.InfraCluster.ProxmoxClient, machineScope.VirtualMachine)
 	if err != nil {
