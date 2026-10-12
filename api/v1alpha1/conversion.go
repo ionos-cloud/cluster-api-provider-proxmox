@@ -484,6 +484,13 @@ func Convert_v1alpha1_ProxmoxMachineTemplateResource_To_v1alpha2_ProxmoxMachineT
 	return Convert_v1alpha1_ProxmoxMachineSpec_To_v1alpha2_ProxmoxMachineSpec(&in.Spec, &out.Spec, s)
 }
 
+// Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec converts a v1alpha2 ProxmoxMachineSpec
+// to v1alpha1. PCIDevices has no equivalent in v1alpha1 and is intentionally dropped here;
+// it is preserved via the round-trip annotation and restored in restoreProxmoxMachineSpec.
+func Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, out *ProxmoxMachineSpec, s conversion.Scope) error {
+	return autoConvert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in, out, s)
+}
+
 func Convert_v1alpha2_ProxmoxMachineTemplateResource_To_v1alpha1_ProxmoxMachineTemplateResource(in *v1alpha2.ProxmoxMachineTemplateResource, out *ProxmoxMachineTemplateResource, s conversion.Scope) error {
 	out.ObjectMeta = clusterv1beta1.ObjectMeta{
 		Labels:      in.ObjectMeta.Labels,
