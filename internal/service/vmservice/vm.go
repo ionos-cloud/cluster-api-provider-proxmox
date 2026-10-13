@@ -361,6 +361,14 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	}
 
 	if len(vmOptions) == 0 {
+		// Nothing left to configure: the VM already matches, for instance because the status
+		// update recording an earlier configure task was lost. The state machine must still move
+		// on, or every later step is skipped and the VM is reported ready without being started.
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason,
+		})
 		return false, nil
 	}
 
