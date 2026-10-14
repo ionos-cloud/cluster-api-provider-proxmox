@@ -96,13 +96,14 @@ type ProxmoxMachineSpec struct {
 	// +optional
 	MemoryMiB *int32 `json:"memoryMiB,omitempty"`
 
-	// cpuType is the Proxmox CPU type, set as the "cpu" option on the virtual machine.
+	// cpuModel is the Proxmox CPU model, set as the "cpu" option on the virtual machine.
 	// Accepts any value the Proxmox "cpu" option accepts, such as "host",
-	// "x86-64-v2-AES,flags=+aes" or "custom-<name>" for a custom CPU model.
+	// "x86-64-v2-AES,flags=+aes" or "custom-mymodel" for a custom CPU model.
+	// Proxmox validates the model and the options.
 	// Defaults to the property value in the template from which the virtual machine is cloned.
-	// +kubebuilder:validation:Pattern=`^([A-Za-z0-9_.-]+|[a-z-]+=[^,]+)(,[a-z-]+=[^,]+)*$`
+	// +kubebuilder:validation:Pattern=`^(([a-z-]+=[^,]+|\s*),)*([A-Za-z0-9_.-]+|cputype=[^,]+)(,([a-z-]+=[^,]+|\s*))*$`
 	// +optional
-	CPUType *string `json:"cpuType,omitempty"`
+	CPUModel *string `json:"cpuModel,omitempty"`
 
 	// disks contains a set of disk configuration options,
 	// which will be applied before the first startup.

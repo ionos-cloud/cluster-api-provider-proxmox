@@ -373,9 +373,9 @@ spec:
             defaultIPv4: true
 ```
 
-## CPU type
+## CPU model
 
-`cpuType` sets the Proxmox `cpu` option on the virtual machine, replacing the value inherited from the VM template. It accepts any value the option accepts, for example `host`, a named model with flags, or a custom model referenced as `custom-<name>`. See the Proxmox `qm` manual for the format and the permitted flags.
+`cpuModel` sets the Proxmox `cpu` option on the virtual machine, replacing the value inherited from the VM template. It accepts any value the option accepts, for example `host`, a named model with flags, or a custom model from [`/etc/pve/virtual-guest/cpu-models.conf`](https://pve.proxmox.com/wiki/Manual:_cpu-models.conf) with the `custom-` prefix, such as `custom-mymodel`. See the Proxmox `qm` manual for the format and the permitted flags.
 
 ```diff
 kind: ProxmoxMachineTemplate
@@ -390,7 +390,7 @@ spec:
       numSockets: 1
       numCores: 4
       memoryMiB: 8192
-+     cpuType: "host"
++     cpuModel: "host"
 ```
 
 The option is applied before the machine first starts.

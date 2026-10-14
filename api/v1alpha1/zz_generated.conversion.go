@@ -1229,7 +1229,7 @@ func autoConvert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in *
 	if err := v1.Convert_Pointer_int32_To_int32(&in.MemoryMiB, &out.MemoryMiB, s); err != nil {
 		return err
 	}
-	// WARNING: in.CPUType requires manual conversion: does not exist in peer-type
+	// WARNING: in.CPUModel requires manual conversion: does not exist in peer-type
 	out.Disks = (*Storage)(unsafe.Pointer(in.Disks))
 	if in.Network != nil {
 		in, out := &in.Network, &out.Network

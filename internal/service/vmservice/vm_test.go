@@ -570,9 +570,9 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
 }
 
-func TestReconcileVirtualMachineConfig_CPUTypeUnchanged(t *testing.T) {
+func TestReconcileVirtualMachineConfig_CPUModelUnchanged(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
-	machineScope.ProxmoxMachine.Spec.CPUType = new("host")
+	machineScope.ProxmoxMachine.Spec.CPUModel = new("host")
 
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.CPU = "host"
@@ -584,7 +584,7 @@ func TestReconcileVirtualMachineConfig_CPUTypeUnchanged(t *testing.T) {
 	require.False(t, requeue)
 }
 
-func TestReconcileVirtualMachineConfig_CPUTypeUnset(t *testing.T) {
+func TestReconcileVirtualMachineConfig_CPUModelUnset(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 
 	vm := newStoppedVM()
@@ -597,9 +597,9 @@ func TestReconcileVirtualMachineConfig_CPUTypeUnset(t *testing.T) {
 	require.False(t, requeue)
 }
 
-func TestReconcileVirtualMachineConfig_CPUTypeApplied(t *testing.T) {
+func TestReconcileVirtualMachineConfig_CPUModelApplied(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
-	machineScope.ProxmoxMachine.Spec.CPUType = new("kvm64,flags=+aes")
+	machineScope.ProxmoxMachine.Spec.CPUModel = new("kvm64,flags=+aes")
 
 	vm := newStoppedVM()
 	vm.VirtualMachineConfig.CPU = "kvm64"

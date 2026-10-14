@@ -220,7 +220,7 @@ func Convert_v1alpha2_ProxmoxClusterStatus_To_v1alpha1_ProxmoxClusterStatus(in *
 }
 
 func Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, out *ProxmoxMachineSpec, s conversion.Scope) error {
-	// CPUType has no v1alpha1 peer; restoreProxmoxMachineSpec restores it from the annotation
+	// CPUModel has no v1alpha1 peer; restoreProxmoxMachineSpec restores it from the annotation
 	return autoConvert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in, out, s)
 }
 

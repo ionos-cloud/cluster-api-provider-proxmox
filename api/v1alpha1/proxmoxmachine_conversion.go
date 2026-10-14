@@ -94,7 +94,7 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 	}
 
 	// restore fields that don't exist in v1alpha1
-	dst.CPUType = restored.CPUType
+	dst.CPUModel = restored.CPUModel
 
 	if dst.Network != nil && restored.Network != nil {
 		dst.Network.Zone = restored.Network.Zone
