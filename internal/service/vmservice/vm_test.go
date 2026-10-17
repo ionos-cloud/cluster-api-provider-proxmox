@@ -571,7 +571,7 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 }
 
 func TestReconcileDisks_RunningVM(t *testing.T) {
-	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason)
 	machineScope.ProxmoxMachine.Spec.Disks = &infrav1.Storage{
 		BootVolume: &infrav1.DiskSize{Disk: "ide0", SizeGB: 100},
 	}
@@ -599,6 +599,22 @@ func TestReconcileDisks_ResizeDisk(t *testing.T) {
 	require.Equal(t, string(task.UPID), *machineScope.ProxmoxMachine.Status.TaskRef)
 	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
 		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+}
+
+func TestReconcileDisks_ResizeDiskFailed(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason)
+	machineScope.ProxmoxMachine.Spec.Disks = &infrav1.Storage{
+		BootVolume: &infrav1.DiskSize{Disk: "ide0", SizeGB: 100},
+	}
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "ide0", machineScope.ProxmoxMachine.Spec.Disks.BootVolume.FormatSize()).Return(nil, fmt.Errorf("resize failed"))
+
+	requeue, err := reconcileDisks(context.Background(), machineScope)
+	require.Error(t, err)
+	require.False(t, requeue)
+	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
 }
 
 func TestReconcileMachineAddresses_IPv4(t *testing.T) {
@@ -907,12 +923,29 @@ func TestReconcileVM_StateMachine(t *testing.T) {
 		),
 	)
 
-	// Round 2: ConfigureVM task has completed; reconcileDisks resizes the boot volume,
-	// then reconcileIPAddresses advances the state to WaitingForBootstrapData.
-	// We're not mocking the entirety of a network setup.
+	// Round 2: ConfigureVM task has completed; reconcileDisks starts the boot volume resize
+	// and requeues, so reconcileIPAddresses waits for the resize task.
 	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(task, nil).Once()
 	proxmoxClient.EXPECT().GetVM(context.Background(), "node2", int64(123)).Return(vm, nil).Once()
-	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "scsi0", "50G").Return(nil, nil).Once()
+	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "scsi0", "50G").Return(task, nil).Once()
+
+	result, err = ReconcileVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, infrav1.VirtualMachineStatePending, result.State)
+	require.Equal(t, string(task.UPID), *machineScope.ProxmoxMachine.Status.TaskRef)
+	require.Equal(
+		t,
+		infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
+		conditions.GetReason(
+			machineScope.ProxmoxMachine,
+			infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		),
+	)
+
+	// Once the resize task has completed, reconcileIPAddresses advances the state to
+	// WaitingForBootstrapData. We're not mocking the entirety of a network setup.
+	proxmoxClient.EXPECT().GetTask(context.Background(), "result").Return(task, nil).Once()
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node2", int64(123)).Return(vm, nil).Once()
 
 	result, err = ReconcileVM(context.Background(), machineScope)
 	require.NoError(t, err)
