@@ -577,7 +577,9 @@ func TestReconcileDisks_RunningVM(t *testing.T) {
 	}
 	machineScope.SetVirtualMachine(newRunningVM())
 
-	require.NoError(t, reconcileDisks(context.Background(), machineScope))
+	requeue, err := reconcileDisks(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
 }
 
 func TestReconcileDisks_ResizeDisk(t *testing.T) {
@@ -591,7 +593,12 @@ func TestReconcileDisks_ResizeDisk(t *testing.T) {
 	task := newTask()
 	proxmoxClient.EXPECT().ResizeDisk(context.Background(), vm, "ide0", machineScope.ProxmoxMachine.Spec.Disks.BootVolume.FormatSize()).Return(task, nil)
 
-	require.NoError(t, reconcileDisks(context.Background(), machineScope))
+	requeue, err := reconcileDisks(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Equal(t, string(task.UPID), *machineScope.ProxmoxMachine.Status.TaskRef)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 }
 
 func TestReconcileMachineAddresses_IPv4(t *testing.T) {
