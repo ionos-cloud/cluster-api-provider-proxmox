@@ -296,13 +296,14 @@ func TestReconcileBootstrapData_ISOError(t *testing.T) {
 	createIPPools(t, kubeClient, machineScope)
 	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
 
+	errUpload := errors.New("500 Internal Server Error")
 	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
-		return FakeISOInjector{Error: inject.ISOError{Err: errors.New("500 Internal Server Error")}}
+		return FakeISOInjector{Error: inject.ISOError{Err: errUpload}}
 	}
 	t.Cleanup(func() { getISOInjector = defaultISOInjector })
 
 	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
-	require.Error(t, err)
+	require.ErrorIs(t, err, errUpload)
 	require.False(t, requeue)
 	require.False(t, machineScope.HasFailed())
 	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,

@@ -18,6 +18,7 @@ package inject
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -182,7 +183,7 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestISOInjectorInjectCloudInit_ISOError(t *testing.T) {
+func TestISOInjectorInject_ISOError(t *testing.T) {
 	client := newTestClient(t)
 
 	vm := &proxmox.VirtualMachine{
@@ -192,7 +193,7 @@ func TestISOInjectorInjectCloudInit_ISOError(t *testing.T) {
 	}
 
 	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/status`, "pve"),
-		newJSONResponder(200, proxmox.Node{Name: "pve"}, 2))
+		newJSONResponder(200, proxmox.Node{Name: "pve"}, 3))
 
 	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/status/current`, "pve", 100),
 		newJSONResponder(200, vm, 1))
@@ -217,16 +218,37 @@ func TestISOInjectorInjectCloudInit_ISOError(t *testing.T) {
 				Routes:     []network.RoutingData{{To: netip.MustParsePrefix("0.0.0.0/0")}},
 			},
 		}),
+		IgnitionEnricher: &ignition.Enricher{
+			BootstrapData: []byte(bootstrapData),
+			Hostname:      "my-custom-vm",
+			InstanceID:    "xxxx-xxx",
+			ProviderID:    "proxmox://xxxx-xxx",
+			Network: []network.ConfigData{
+				{
+					Name:       "eth0",
+					IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+					DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					Routes: []network.RoutingData{{
+						To:  netip.MustParsePrefix("0.0.0.0/0"),
+						Via: netip.MustParseAddr("10.1.1.1"),
+					}},
+				},
+			},
+		},
 	}
 
 	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/storage`, "pve"),
-		newJSONResponder(200, &proxmox.Storages{{Name: "iso", Content: "iso", Enabled: 1}}, 1))
+		newJSONResponder(200, &proxmox.Storages{{Name: "iso", Content: "iso", Enabled: 1}}, 2))
 
 	httpmock.RegisterResponder(http.MethodPost, fmt.Sprintf(`=~/nodes/%s/storage/iso/upload`, "pve"),
 		httpmock.NewStringResponder(http.StatusInternalServerError, ""))
 
-	err = injector.Inject(context.Background(), "cloud-config")
-	require.ErrorAs(t, err, &ISOError{})
+	for _, format := range []BootstrapDataFormat{CloudConfigFormat, IgnitionFormat} {
+		err = injector.Inject(context.Background(), format)
+		require.ErrorAs(t, err, &ISOError{}, format)
+		require.ErrorContains(t, err, "unable to inject", format)
+		require.Error(t, errors.Unwrap(err), format)
+	}
 }
 
 func TestISOInjectorInjectIgnition(t *testing.T) {

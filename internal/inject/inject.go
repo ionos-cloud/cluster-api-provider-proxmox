@@ -40,6 +40,8 @@ type ISOError struct {
 
 func (e ISOError) Error() string { return e.Err.Error() }
 
+func (e ISOError) Unwrap() error { return e.Err }
+
 // ISOInjector used to Inject cloudinit userdata, metadata and network-config into a Proxmox VirtualMachine.
 type ISOInjector struct {
 	VirtualMachine *proxmox.VirtualMachine
