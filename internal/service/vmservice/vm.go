@@ -230,6 +230,15 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 			return false, err
 		}
 
+		// Cloning from a stale copy would leave a second VM behind.
+		started, err := machineScope.VirtualMachineCloneStarted(ctx)
+		if err != nil {
+			return false, err
+		}
+		if started {
+			return true, nil
+		}
+
 		// Create the VM.
 		resp, err := createVM(ctx, machineScope)
 		if err != nil {
