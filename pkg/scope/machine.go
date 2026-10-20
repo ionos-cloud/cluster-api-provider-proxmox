@@ -47,12 +47,15 @@ type MachineScopeParams struct {
 	InfraCluster   *ClusterScope
 	ProxmoxMachine *infrav1.ProxmoxMachine
 	IPAMHelper     *ipam.Helper
+	// APIReader reads from the API server instead of the cache. Defaults to Client.
+	APIReader client.Reader
 }
 
 // MachineScope defines a scope defined around a machine and its cluster.
 type MachineScope struct {
 	*logr.Logger
 	client      client.Client
+	apiReader   client.Reader
 	patchHelper *patch.Helper
 
 	Cluster        *clusterv1.Cluster
@@ -89,6 +92,10 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 		params.Logger = &logger
 	}
 
+	if params.APIReader == nil {
+		params.APIReader = params.Client
+	}
+
 	helper, err := patch.NewHelper(params.ProxmoxMachine, params.Client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init patch helper")
@@ -96,6 +103,7 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 	return &MachineScope{
 		Logger:      params.Logger,
 		client:      params.Client,
+		apiReader:   params.APIReader,
 		patchHelper: helper,
 
 		Cluster:        params.Cluster,
@@ -151,6 +159,17 @@ func (m *MachineScope) GetProviderID() string {
 // GetVirtualMachineID returns the ProxmoxMachine vmid from the spec.
 func (m *MachineScope) GetVirtualMachineID() int64 {
 	return m.ProxmoxMachine.GetVirtualMachineID()
+}
+
+// VirtualMachineCloneStarted reports whether the ProxmoxMachine in the API server already has a
+// VM ID or a clone task. The cache can still return it as it was before the previous reconcile
+// started a clone.
+func (m *MachineScope) VirtualMachineCloneStarted(ctx context.Context) (bool, error) {
+	stored := &infrav1.ProxmoxMachine{}
+	if err := m.apiReader.Get(ctx, client.ObjectKeyFromObject(m.ProxmoxMachine), stored); err != nil {
+		return false, errors.Wrap(err, "failed to read ProxmoxMachine")
+	}
+	return stored.GetVirtualMachineID() > 0 || stored.Status.TaskRef != nil, nil
 }
 
 // SetProviderID sets the ProxmoxMachine providerID in spec.

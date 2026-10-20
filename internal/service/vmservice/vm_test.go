@@ -28,6 +28,7 @@ import (
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
@@ -145,6 +146,23 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	require.Equal(t, "true", machineScope.ProxmoxMachine.Annotations[vmIDAllocatedByControllerAnnotation])
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+}
+
+func TestEnsureVirtualMachine_CreateVM_CloneAlreadyStarted(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+
+	// The stored ProxmoxMachine has the previous reconcile's clone, the scope's copy predates it.
+	stored := &infrav1.ProxmoxMachine{}
+	require.NoError(t, kubeClient.Get(context.Background(), client.ObjectKeyFromObject(machineScope.ProxmoxMachine), stored))
+	stored.Spec.VirtualMachineID = new(int64(123))
+	require.NoError(t, kubeClient.Update(context.Background(), stored))
+	stored.Status.TaskRef = new("UPID:node1:00000001:00000001:00000001:qmclone:123:root@pam:")
+	require.NoError(t, kubeClient.Status().Update(context.Background(), stored))
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Nil(t, machineScope.ProxmoxMachine.Status.TaskRef)
 }
 
 func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T) {
