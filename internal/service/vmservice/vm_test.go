@@ -488,6 +488,26 @@ func TestReconcileVirtualMachineConfig_NoConfig(t *testing.T) {
 	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+}
+
+// A VM that needs no configuration, such as one whose configure task's status update was lost,
+// must go on to be started rather than be reported ready.
+func TestReconcileVM_NoConfigChangeIsNotReady(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	vm := newStoppedVM()
+	vm.VMID = 123
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	machineScope.SetVirtualMachineID(int64(vm.VMID))
+
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil)
+
+	result, err := ReconcileVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.NotEqual(t, infrav1.VirtualMachineStateReady, result.State)
+	require.NotEqual(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 }
 
 func TestReconcileVirtualMachineConfig_ApplyConfig(t *testing.T) {
