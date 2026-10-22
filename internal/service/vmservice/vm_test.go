@@ -612,6 +612,23 @@ func TestReconcileVM_WaitsForActiveTask(t *testing.T) {
 		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 }
 
+func TestReconcileVM_WaitsForCloneLock(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Status.TaskRef = nil
+	vm := newStoppedVM()
+	vm.Lock = "clone"
+	machineScope.SetVirtualMachineID(123)
+
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().HasActiveTask(context.Background(), vm).Return(false, nil).Maybe()
+
+	result, err := ReconcileVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, infrav1.VirtualMachineStatePending, result.State)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+}
+
 func TestReconcileVM_ActiveTaskError(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason)
 	vm := newStoppedVM()
