@@ -120,7 +120,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 	network := cloudinit.NewNetworkConfig(nicData)
 
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: new(false)}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(buildMetadataInput(machineScope, biosUUID, kubernetesVersion, nicData))
 
 	injector := getISOInjector(machineScope.VirtualMachine, bootstrapData, metadata, network)
 	return injector.Inject(ctx, inject.CloudConfigFormat)
@@ -128,7 +128,7 @@ func injectCloudInit(ctx context.Context, machineScope *scope.MachineScope, boot
 
 func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, bootstrapData []byte, biosUUID string, nicData []network.ConfigData, kubernetesVersion string) error {
 	// create metadata renderer
-	metadata := cloudinit.NewMetadata(biosUUID, machineScope.Name(), kubernetesVersion, *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: new(false)}).ProviderIDInjection)
+	metadata := cloudinit.NewMetadata(buildMetadataInput(machineScope, biosUUID, kubernetesVersion, nicData))
 
 	// create an enricher
 	enricher := &ignition.Enricher{
@@ -141,6 +141,17 @@ func injectIgnition(ctx context.Context, machineScope *scope.MachineScope, boots
 
 	injector := getIgnitionISOInjector(machineScope.VirtualMachine, metadata, enricher)
 	return injector.Inject(ctx, inject.IgnitionFormat)
+}
+
+func buildMetadataInput(machineScope *scope.MachineScope, biosUUID, kubernetesVersion string, nicData []network.ConfigData) cloudinit.MetadataInput {
+	in := cloudinit.MetadataInput{
+		InstanceID:          biosUUID,
+		Hostname:            machineScope.Name(),
+		KubernetesVersion:   kubernetesVersion,
+		ProviderIDInjection: *ptr.Deref(machineScope.ProxmoxMachine.Spec.MetadataSettings, infrav1.MetadataSettings{ProviderIDInjection: new(false)}).ProviderIDInjection,
+	}
+	in.PopulateNetworkAddresses(nicData)
+	return in
 }
 
 type isoInjector interface {
