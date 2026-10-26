@@ -96,8 +96,8 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 		return vm, err
 	} // VirtualMachineProvisioned reason is WaitingForDiskReconciliation
 
-	if err := reconcileDisks(ctx, scope); err != nil {
-		scope.Logger.V(4).Info("after reconcileDisks", "machineName", scope.ProxmoxMachine.GetName(), "err", err)
+	if requeue, err := reconcileDisks(ctx, scope); err != nil || requeue {
+		scope.Logger.V(4).Info("after reconcileDisks", "machineName", scope.ProxmoxMachine.GetName(), "requeue", requeue, "err", err)
 		return vm, err
 	} // VirtualMachineProvisioned reason is WaitingForStaticIPAllocation
 
@@ -298,10 +298,10 @@ func hasActiveTask(ctx context.Context, machineScope *scope.MachineScope) (bool,
 	return busy, nil
 }
 
-func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) error {
+func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
 	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) != infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason {
 		// Machine is in the wrong state to reconcile, we only reconcile Cloning VMs
-		return nil
+		return false, nil
 	}
 
 	machineScope.V(4).Info("reconciling disks")
@@ -311,13 +311,21 @@ func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) error
 		vm := machineScope.VirtualMachine
 		if vm.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Initialization.Provisioned, false) {
 			// We only want to do this before the machine was started or is ready
-			return nil
+			return false, nil
 		}
 
 		if bv := disks.BootVolume; bv != nil {
-			if _, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize()); err != nil {
+			task, err := machineScope.InfraCluster.ProxmoxClient.ResizeDisk(ctx, vm, bv.Disk, bv.FormatSize())
+			if err != nil {
 				machineScope.Error(err, "unable to set disk size", "vm", machineScope.VirtualMachine.VMID)
-				return err
+				return false, err
+			}
+			// The resize holds the VM's config lock while it runs. A config change started before
+			// it ends (the IP tag, the bootstrap ISO's attach) waits on that lock and can time out,
+			// so the next step waits for the task, as it does for the clone and the config.
+			if task != nil {
+				machineScope.ProxmoxMachine.Status.TaskRef = new(string(task.UPID))
+				requeue = true
 			}
 		}
 	}
@@ -328,7 +336,7 @@ func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) error
 		Status: metav1.ConditionFalse,
 		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
 	})
-	return nil
+	return requeue, nil
 }
 
 func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
@@ -392,6 +400,14 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 	}
 
 	if len(vmOptions) == 0 {
+		// Nothing left to configure: the VM already matches, for instance because the status
+		// update recording an earlier configure task was lost. The state machine must still move
+		// on, or every later step is skipped and the VM is reported ready without being started.
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason,
+		})
 		return false, nil
 	}
 
