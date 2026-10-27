@@ -220,6 +220,9 @@ setup_storage() {
   ensure 'pvesm status --storage ceph-vm >/dev/null 2>&1' pveceph pool create ceph-vm --pg_num 32 --add_storages 1
   ensure 'pvesm status --storage cephfs >/dev/null 2>&1' pveceph fs create --name cephfs --pg_num 32 --add-storage 1
   retry pvesm set cephfs --content iso,vztmpl,backup,snippets
+  # shared qcow2-capable storage: CAPMOX's e2e cluster templates clone disks as qcow2, which RBD cannot hold
+  ensure 'pvesm status --storage cephfs-images >/dev/null 2>&1' pvesm add dir cephfs-images \
+    --path /mnt/pve/cephfs/images --shared 1 --content images --is_mountpoint /mnt/pve/cephfs
 }
 
 setup_guest_network() {
@@ -247,7 +250,8 @@ create_capmox_token() {
   [ ! -f "$STATE/capmox-token.json" ] || return 0
   pveum user list --output-format json | jq -e 'any(.[]; .userid == "capmox@pve")' >/dev/null ||
     pveum user add capmox@pve
-  pveum acl modify / --users capmox@pve --roles PVEVMAdmin,PVEDatastoreUser,PVESDNUser,PVEAuditor
+  # PVEDatastoreAdmin: uploading the bootstrap ISO needs Datastore.AllocateTemplate
+  pveum acl modify / --users capmox@pve --roles PVEVMAdmin,PVEDatastoreAdmin,PVESDNUser,PVEAuditor
   (umask 077 && pveum user token add capmox@pve capi --privsep 0 --output-format json >"$STATE/capmox-token.json.tmp")
   jq -e '.value' "$STATE/capmox-token.json.tmp" >/dev/null
   mv "$STATE/capmox-token.json.tmp" "$STATE/capmox-token.json"
