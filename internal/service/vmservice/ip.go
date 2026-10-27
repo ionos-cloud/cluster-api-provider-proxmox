@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/record"
@@ -107,12 +108,10 @@ func writeIPAddressStatus(pm *infrav1.ProxmoxMachine, netPoolAddresses map[infra
 
 // reconcileAddressRecovery republishes ProxmoxMachine IP/address status for an
 // already-running machine (e.g. one restored from a backup) whose status was
-// lost. It is read-only with respect to both Proxmox and the IPAM objects: it
-// never creates claims, mutates the VM, or changes the provisioning condition.
-// It is a no-op unless the VM is running and status.ipAddresses is empty, and it
-// only republishes when every expected IPAddressClaim resolves cleanly. Orphaned
-// or conflicting IPAM objects are deliberately left to the regular provisioning
-// path.
+// lost. It may recover CAPMOX ownership of a fully validated claim chain, but it
+// never mutates an IPAddress or the VM. It is a no-op unless the VM is running
+// and status.ipAddresses is empty, and only republishes when every expected
+// IPAddressClaim resolves cleanly.
 func reconcileAddressRecovery(ctx context.Context, machineScope *scope.MachineScope) error {
 	pm := machineScope.ProxmoxMachine
 
@@ -156,17 +155,27 @@ func reconcileAddressRecovery(ctx context.Context, machineScope *scope.MachineSc
 	return nil
 }
 
-// resolveExistingIPAddress is the read-only resolver used by the status-recovery
-// path. It returns the resolved address only when the expected IPAddressClaim is
-// fully resolved; for any other state it returns no address (and never creates,
-// mutates, or sets conditions), which causes recovery to be skipped.
+// resolveExistingIPAddress is the conservative resolver used by the
+// status-recovery path. It may adopt a validated ownerless claim when a durable
+// address already exists. It never creates a claim or mutates an IPAddress.
 func resolveExistingIPAddress(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error) {
 	resolution, err := machineScope.IPAMHelper.ResolveIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
 	if err != nil {
 		return nil, err
 	}
+	if resolution.Status == ipam.ClaimAdoptable && resolution.Address != nil {
+		resolution, err = adoptIPAddressClaim(ctx, machineScope, ipClaimDef)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if resolution.Status == ipam.ClaimResolved {
 		return []ipamv1.IPAddress{*resolution.Address}, nil
+	}
+	if resolution.Status == ipam.ClaimConflict {
+		// Recovery must not change the condition reason: it also controls the
+		// provisioning steps that ReconcileVM executes immediately afterward.
+		reportIPAddressClaimConflict(machineScope, resolution, ipClaimDef)
 	}
 	machineScope.Logger.V(4).Info("address recovery: IPAddressClaim not resolved",
 		"claim", resolution.ClaimName, "status", resolution.Status, "device", ipClaimDef.Device)
@@ -229,25 +238,30 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 	if err != nil {
 		return []ipamv1.IPAddress{}, err
 	}
+	if resolution.Status == ipam.ClaimAdoptable {
+		resolution, err = adoptIPAddressClaim(ctx, machineScope, ipClaimDef)
+		if err != nil {
+			return []ipamv1.IPAddress{}, err
+		}
+	}
 
 	switch resolution.Status {
 	case ipam.ClaimMissing:
-		if resolution.OrphanedAddressName != "" {
-			record.Warnf(machineScope.ProxmoxMachine, "OrphanedIPAddress",
-				"Found deterministic IPAddress %q without expected IPAddressClaim %q; ignoring orphaned address until claim exists",
-				resolution.OrphanedAddressName, resolution.ClaimName,
-			)
-			machineScope.Logger.Info("found deterministic IPAddress without expected IPAddressClaim; ignoring orphaned address until claim exists",
-				"claim", resolution.ClaimName,
-				"address", resolution.OrphanedAddressName,
-				"device", device,
-			)
+		if resolution.OrphanedAddress != nil {
+			machineScope.Logger.V(4).Info("validated deterministic IPAddress for missing claim",
+				"claim", resolution.ClaimName, "address", resolution.OrphanedAddress.Name, "device", device)
 		}
 		machineScope.Logger.V(4).Info("IPAddress not found, creating it.", "device", device)
 		// IP address not yet created.
-		err = machineScope.IPAMHelper.CreateIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
+		created, err := machineScope.IPAMHelper.CreateIPAddressClaimIfMissing(ctx, machineScope.ProxmoxMachine, ipClaimDef)
 		if err != nil {
 			return []ipamv1.IPAddress{}, errors.Wrapf(err, "unable to create IP address claim for machine %s", machineScope.Name())
+		}
+		if created && resolution.OrphanedAddress != nil {
+			record.Eventf(machineScope.ProxmoxMachine, "RecoveredIPAddressClaim",
+				"Recreated IPAddressClaim %q for validated existing IPAddress %q", resolution.ClaimName, resolution.OrphanedAddress.Name)
+			machineScope.Logger.Info("recreated IPAddressClaim for validated existing IPAddress",
+				"claim", resolution.ClaimName, "address", resolution.OrphanedAddress.Name, "device", device)
 		}
 
 		// send the machine to requeue so ipaddresses can be created
@@ -259,28 +273,91 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 		machineScope.Logger.V(4).Info("IPAddresses found.", "ip", resolution.Address, "device", device)
 		return []ipamv1.IPAddress{*resolution.Address}, nil
 	case ipam.ClaimConflict:
-		var message string
-		if resolution.ConflictReason == ipam.ConflictAddressMissing {
-			message = fmt.Sprintf("Static IP claim %q references a missing IPAddress %q; delete the stale IPAddressClaim to allow recovery.", resolution.ClaimName, resolution.Claim.Status.AddressRef.Name)
-		} else {
-			message = fmt.Sprintf("Static IP claim %q is conflicting (%s); inspect the IPAddressClaim ownership, poolRef, and referenced IPAddress before provisioning can continue.", resolution.ClaimName, resolution.ConflictReason)
-		}
-		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
-			Message: message,
-		})
-		machineScope.Logger.Info("IPAddressClaim conflict blocks static IP allocation", "claim", resolution.ClaimName, "reason", resolution.ConflictReason, "device", device)
+		setIPAddressClaimConflict(machineScope, resolution, ipClaimDef)
 		return []ipamv1.IPAddress{}, nil
 	default:
 		return []ipamv1.IPAddress{}, errors.Errorf("unknown IPAddressClaim resolution status %q", resolution.Status)
 	}
 }
 
+func adoptIPAddressClaim(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) (ipam.IPAddressClaimResolution, error) {
+	resolution, adopted, err := machineScope.IPAMHelper.AdoptIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
+	if err != nil {
+		return resolution, errors.Wrapf(err, "unable to adopt IPAddressClaim %q", resolution.ClaimName)
+	}
+	if adopted {
+		record.Eventf(machineScope.ProxmoxMachine, "AdoptedIPAddressClaim",
+			"Adopted validated ownerless IPAddressClaim %q", resolution.ClaimName)
+		machineScope.Logger.Info("adopted validated ownerless IPAddressClaim",
+			"claim", resolution.ClaimName, "device", ipClaimDef.Device)
+	}
+	return resolution, nil
+}
+
+func setIPAddressClaimConflict(machineScope *scope.MachineScope, resolution ipam.IPAddressClaimResolution, ipClaimDef ipam.IPClaimDef) {
+	message := reportIPAddressClaimConflict(machineScope, resolution, ipClaimDef)
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status:  metav1.ConditionFalse,
+		Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
+		Message: message,
+	})
+}
+
+func reportIPAddressClaimConflict(machineScope *scope.MachineScope, resolution ipam.IPAddressClaimResolution, ipClaimDef ipam.IPClaimDef) string {
+	message := fmt.Sprintf("Static IP claim %q is conflicting (%s): %s", resolution.ClaimName, resolution.ConflictReason, ipAddressClaimConflictDetail(machineScope, resolution, ipClaimDef))
+	record.Warnf(machineScope.ProxmoxMachine, "IPAddressClaimConflict", "%s", message)
+	machineScope.Logger.Info("IPAddressClaim conflict blocks static IP allocation", "claim", resolution.ClaimName, "reason", resolution.ConflictReason, "device", ipClaimDef.Device)
+	return message
+}
+
+func ipAddressClaimConflictDetail(machineScope *scope.MachineScope, resolution ipam.IPAddressClaimResolution, ipClaimDef ipam.IPClaimDef) string {
+	expectedCluster := machineScope.Cluster.Name
+	switch resolution.ConflictReason {
+	case ipam.ConflictClaimDeleting:
+		return "expected an active IPAddressClaim, but deletion is in progress and its allocation may be released; wait for IPAM cleanup and inspect the allocation before recovery."
+	case ipam.ConflictOwnerMismatch:
+		return fmt.Sprintf("expected controller owner %s/%s with UID %q, actual ownerReferences are %v; inspect the restored IPAddressClaim before provisioning can continue.", infrav1.ProxmoxMachineKind, machineScope.Name(), machineScope.ProxmoxMachine.UID, resolution.Claim.OwnerReferences)
+	case ipam.ConflictPoolMismatch:
+		return fmt.Sprintf("expected poolRef %s/%s %q, actual poolRef is %s/%s %q; inspect the restored IPAddressClaim before provisioning can continue.", ptr.Deref(ipClaimDef.PoolRef.APIGroup, ""), ipClaimDef.PoolRef.Kind, ipClaimDef.PoolRef.Name, resolution.Claim.Spec.PoolRef.APIGroup, resolution.Claim.Spec.PoolRef.Kind, resolution.Claim.Spec.PoolRef.Name)
+	case ipam.ConflictClaimCluster:
+		return fmt.Sprintf("expected claim cluster label %q, actual value is %q; inspect the restored IPAddressClaim before provisioning can continue.", expectedCluster, resolution.Claim.Labels[clusterv1.ClusterNameLabel])
+	case ipam.ConflictClaimAnnotations:
+		return fmt.Sprintf("expected CAPMOX annotations %v, actual annotations are %v; inspect the restored IPAddressClaim before provisioning can continue.", ipClaimDef.Annotations, resolution.Claim.Annotations)
+	case ipam.ConflictAddressMissing:
+		return fmt.Sprintf("expected referenced IPAddress %q to exist; inspect the restored IPAM objects before provisioning can continue.", resolution.Claim.Status.AddressRef.Name)
+	case ipam.ConflictAddressRef:
+		return fmt.Sprintf("expected claim addressRef %q, actual value is %q; inspect the restored IPAddressClaim before provisioning can continue.", resolution.ClaimName, resolution.Claim.Status.AddressRef.Name)
+	case ipam.ConflictAddressClaimRef:
+		return fmt.Sprintf("expected IPAddress claimRef %q, actual value is %q; inspect the restored IPAddress before provisioning can continue.", resolution.ClaimName, conflictingAddress(resolution).Spec.ClaimRef.Name)
+	case ipam.ConflictAddressPoolRef:
+		actual := conflictingAddress(resolution).Spec.PoolRef
+		return fmt.Sprintf("expected IPAddress poolRef %s/%s %q, actual poolRef is %s/%s %q; inspect the restored IPAddress before provisioning can continue.", ptr.Deref(ipClaimDef.PoolRef.APIGroup, ""), ipClaimDef.PoolRef.Kind, ipClaimDef.PoolRef.Name, actual.APIGroup, actual.Kind, actual.Name)
+	case ipam.ConflictAddressCluster:
+		return fmt.Sprintf("expected IPAddress cluster label %q, actual value is %q; inspect the restored IPAddress before provisioning can continue.", expectedCluster, conflictingAddress(resolution).Labels[clusterv1.ClusterNameLabel])
+	case ipam.ConflictAddressOwner:
+		return fmt.Sprintf("expected no conflicting IPAddress controller owner, actual ownerReferences are %v; inspect the restored IPAddress before provisioning can continue.", conflictingAddress(resolution).OwnerReferences)
+	default:
+		return "inspect the restored IPAddressClaim and IPAddress before provisioning can continue."
+	}
+}
+
+func conflictingAddress(resolution ipam.IPAddressClaimResolution) *ipamv1.IPAddress {
+	if resolution.ConflictingAddress != nil {
+		return resolution.ConflictingAddress
+	}
+	if resolution.Address != nil {
+		return resolution.Address
+	}
+	if resolution.OrphanedAddress != nil {
+		return resolution.OrphanedAddress
+	}
+	return &ipamv1.IPAddress{}
+}
+
 // ipAddressResolver resolves the IPAddress(es) for a single device/pool claim
 // definition. handleDevices uses the create-capable handleIPAddresses; the
-// read-only status-recovery path uses resolveExistingIPAddress.
+// conservative status-recovery path uses resolveExistingIPAddress.
 type ipAddressResolver func(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error)
 
 func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (bool, error) {
