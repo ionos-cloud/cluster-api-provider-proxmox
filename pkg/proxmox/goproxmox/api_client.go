@@ -198,7 +198,11 @@ NEXT_VM:
 			if distance > bestDistance {
 				continue NEXT_VM
 			}
-			bestDistance = distance
+			if distance < bestDistance {
+				// a strictly better match invalidates all previous matches.
+				bestDistance = distance
+				matches = 0
+			}
 		}
 
 		matches++
