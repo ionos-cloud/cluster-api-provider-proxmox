@@ -50,6 +50,7 @@ import (
 // ProxmoxMachineReconciler reconciles a ProxmoxMachine object.
 type ProxmoxMachineReconciler struct {
 	client.Client
+	APIReader     client.Reader
 	Scheme        *runtime.Scheme
 	Recorder      record.EventRecorder
 	ProxmoxClient proxmox.Client
@@ -132,6 +133,7 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Create the machine scope
 	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
 		Client:         r.Client,
+		APIReader:      r.APIReader,
 		Cluster:        cluster,
 		Machine:        machine,
 		InfraCluster:   infraCluster,

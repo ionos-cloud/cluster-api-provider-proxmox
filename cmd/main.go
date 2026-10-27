@@ -200,6 +200,7 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager, proxmoxClient capmo
 	}
 	if err := (&controller.ProxmoxMachineReconciler{
 		Client:        mgr.GetClient(),
+		APIReader:     mgr.GetAPIReader(),
 		Scheme:        mgr.GetScheme(),
 		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"),
 		ProxmoxClient: proxmoxClient,
