@@ -9,11 +9,14 @@ errfile=$(mktemp)
 trap 'rm -f "$errfile"' EXIT
 
 ssh_node() {
+  local host=$1
+  local command=$2
   ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes \
-    -o BatchMode=yes -o ConnectTimeout=10 "root@$1" "$2"
+    -o BatchMode=yes -o ConnectTimeout=10 "root@$host" "$command"
+  return $?
 }
 
-while [ -n "$pending" ]; do
+while [[ -n "$pending" ]]; do
   still_pending=""
   for host in $pending; do
     if ! state=$(ssh_node "$host" 'if [ -f /root/pve-bootstrap/failed ]; then echo failed; elif [ -f /root/pve-bootstrap/done ]; then echo done; fi' 2>"$errfile"); then
@@ -32,10 +35,10 @@ while [ -n "$pending" ]; do
     esac
   done
   pending=$still_pending
-  [ -n "$pending" ] || break
-  if [ "$SECONDS" -ge "$deadline" ]; then
+  [[ -n "$pending" ]] || break
+  if [[ "$SECONDS" -ge "$deadline" ]]; then
     echo "timed out waiting for:$pending" >&2
-    [ -z "$last_error" ] || echo "last ssh error: $last_error" >&2
+    [[ -z "$last_error" ]] || echo "last ssh error: $last_error" >&2
     exit 1
   fi
   sleep 20
