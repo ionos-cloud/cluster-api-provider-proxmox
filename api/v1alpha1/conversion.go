@@ -193,6 +193,14 @@ func Convert_v1alpha2_ProxmoxClusterSpec_To_v1alpha1_ProxmoxClusterSpec(in *v1al
 	return nil
 }
 
+// Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec converts a
+// v1alpha2 ProxmoxMachineSpec to v1alpha1. HighAvailability has no v1alpha1
+// equivalent, so it is dropped here; ConvertFrom stores it in the Hub-data
+// annotation and ConvertTo restores it, keeping round-trips lossless.
+func Convert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in *v1alpha2.ProxmoxMachineSpec, out *ProxmoxMachineSpec, s conversion.Scope) error {
+	return autoConvert_v1alpha2_ProxmoxMachineSpec_To_v1alpha1_ProxmoxMachineSpec(in, out, s)
+}
+
 func Convert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in *ProxmoxClusterStatus, out *v1alpha2.ProxmoxClusterStatus, s conversion.Scope) error {
 	if err := autoConvert_v1alpha1_ProxmoxClusterStatus_To_v1alpha2_ProxmoxClusterStatus(in, out, s); err != nil {
 		return err
