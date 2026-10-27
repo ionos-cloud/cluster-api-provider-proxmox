@@ -11,8 +11,9 @@ It installs Proxmox on Debian 13 cloud images with cloud-init, so no custom imag
 * A Proxmox cluster with Ceph: one mon, mgr, MDS and OSD per node. Storage:
   * `ceph-vm`: RBD, for VM disks.
   * `cephfs`: CephFS, for ISO, snippets, templates and backups.
-* An SDN VXLAN VNet (`guest_bridge`, default `vmbr1`) for guests across all nodes. Node 1 is the gateway (first address of `guest_cidr`) and SNATs guest traffic out of its public NIC. Guest NICs need MTU 1450.
-* A `capmox@pve` API token for CAPMOX.
+  * `cephfs-images`: a shared directory on CephFS for qcow2 VM disks. The CAPMOX e2e cluster templates clone as qcow2, which RBD can't hold.
+* An SDN VXLAN VNet (`guest_bridge`, default `vmbr1`) for guests across all nodes. Node 1 is the gateway (first address of `guest_cidr`) and SNATs guest traffic out of its public NIC. The VNet MTU is 1450; virtio guests pick it up automatically (`host_mtu`).
+* A `capmox@pve` API token for CAPMOX, with the roles `PVEVMAdmin`, `PVEDatastoreAdmin`, `PVESDNUser` and `PVEAuditor` on `/`.
 
 ## Usage
 
