@@ -52,3 +52,11 @@ e2e-env*.yaml
 # ShellSpec coverage output
 hack/spec/coverage/
 
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
