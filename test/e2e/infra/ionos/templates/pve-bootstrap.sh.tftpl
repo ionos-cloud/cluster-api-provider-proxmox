@@ -1,0 +1,286 @@
+#!/bin/bash
+# Phase 1 (cloud-init): network, Proxmox VE + Ceph packages, reboot.
+# Phase 2 (systemd unit): cluster join, Ceph, SDN, CAPMOX token.
+set -Eeuo pipefail
+exec >>/var/log/pve-bootstrap.log 2>&1
+
+STATE=/root/pve-bootstrap
+INDEX=${index}
+NODE_COUNT=${node_count}
+NODE_NAME=${node_name}
+DOMAIN=${domain}
+PRIVATE_IP=${private_ip}
+PRIVATE_CIDR=${private_cidr}
+PRIVATE_PREFIX=${private_prefix}
+PRIMARY_IP=${primary_ip}
+PEER_IPS=${peer_ips}
+CLUSTER_NAME=${cluster_name}
+ROOT_PASSWORD='${root_password}'
+GUEST_BRIDGE=${guest_bridge}
+GUEST_CIDR=${guest_cidr}
+GUEST_PREFIX=${guest_prefix}
+GUEST_GATEWAY=${guest_gateway}
+VXLAN_TAG=${vxlan_tag}
+DNS_SERVERS="${dns_servers}"
+
+export DEBIAN_FRONTEND=noninteractive
+apt_get() { apt-get -y -o Dpkg::Options::=--force-confold "$@"; }
+
+install -d -m 0700 "$STATE"
+rm -f "$STATE/failed"
+trap 'echo "failed at line $LINENO"; touch "$STATE/failed"' ERR
+
+log() { echo "$(date -Is) $*"; }
+
+# runs the action until the check passes; pmxcfs writes fail transiently while other nodes change ceph.conf
+ensure() {
+  check=$1
+  shift
+  n=0
+  until eval "$check"; do
+    "$@" || true
+    n=$((n + 1))
+    [ "$n" -lt 30 ] || return 1
+    sleep 10
+  done
+}
+
+# 120 x 10s = 20 minutes
+retry() {
+  n=0
+  until "$@"; do
+    n=$((n + 1))
+    [ "$n" -lt 120 ] || return 1
+    sleep 10
+  done
+}
+
+physical_nics() {
+  for d in /sys/class/net/*/device; do basename "$(dirname "$d")"; done
+}
+
+nics_ready() {
+  [ "$(physical_nics | wc -l)" -ge 2 ] && ip -o route get 1.1.1.1 >/dev/null 2>&1
+}
+
+# proxmox-ve adds subscription-only repos that 401 without a subscription key
+remove_enterprise_repos() {
+  rm -f /etc/apt/sources.list.d/pve-enterprise.* /etc/apt/sources.list.d/ceph.*
+}
+
+# a standalone node reports itself online too, so count members only once a cluster exists
+# shellcheck disable=SC2016
+ONLINE_MEMBERS='(if $wrapped then .data else . end) as $s
+  | if any($s[]; .type == "cluster") then [$s[] | select(.type == "node" and .online == 1)] | length else 0 end'
+
+phase1() {
+  log "phase 1"
+  retry nics_ready
+  public_if=$(ip -o route get 1.1.1.1 | sed -n 's/.* dev \([^ ]*\).*/\1/p')
+  private_if=$(physical_nics | grep -vx "$public_if" | head -n1)
+  echo "$public_if" >"$STATE/public_if"
+
+  # systemd-resolved loses its DHCP upstreams once ifupdown2 takes over the NICs
+  systemctl disable --now systemd-resolved.service || true
+  rm -f /etc/resolv.conf
+  # shellcheck disable=SC2086
+  printf 'nameserver %s\n' $DNS_SERVERS >/etc/resolv.conf
+
+  echo 'Acquire::Retries "10";' >/etc/apt/apt.conf.d/80-retries
+  curl -fsSL --retry 10 https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg \
+    -o /usr/share/keyrings/proxmox-archive-keyring.gpg
+  cat >/etc/apt/sources.list.d/proxmox.sources <<EOF
+Types: deb
+URIs: http://download.proxmox.com/debian/pve
+Suites: trixie
+Components: pve-no-subscription
+Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+
+Types: deb
+URIs: http://download.proxmox.com/debian/ceph-squid
+Suites: trixie
+Components: no-subscription
+Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+EOF
+  root_disk=/dev/$(lsblk -no PKNAME "$(findmnt -no SOURCE /)")
+  debconf-set-selections <<EOF
+postfix postfix/main_mailer_type select Local only
+postfix postfix/mailname string $NODE_NAME.$DOMAIN
+grub-pc grub-pc/install_devices multiselect $root_disk
+EOF
+
+  remove_enterprise_repos
+  # Debian's CDN resets connections mid-download often enough that apt's own retries aren't sufficient
+  retry apt-get update
+  retry apt_get full-upgrade
+  retry apt_get install proxmox-ve postfix open-iscsi chrony isc-dhcp-client jq \
+    ceph ceph-common ceph-fuse ceph-mds ceph-volume gdisk nvme-cli
+  remove_enterprise_repos
+  # shellcheck disable=SC2046
+  apt_get purge os-prober netplan.io systemd-resolved $(dpkg -l 'linux-image-*' | awk '/^ii/ {print $2}' | grep -v -e pve -e proxmox)
+  update-grub
+
+  # switch to ifupdown2 only now: dropping netplan earlier stops DHCP renewal mid-install
+  cat >/etc/network/interfaces <<EOF
+auto lo
+iface lo inet loopback
+
+auto $public_if
+iface $public_if inet dhcp
+
+auto $private_if
+iface $private_if inet static
+	address $PRIVATE_IP/$PRIVATE_PREFIX
+
+source /etc/network/interfaces.d/*
+EOF
+  # pvenetcommit.service would replace the file above with the all-manual interfaces.new generated during install
+  rm -f /etc/network/interfaces.new /etc/network/interfaces.d/* /etc/netplan/*.yaml
+  echo 'network: {config: disabled}' >/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+  systemctl disable systemd-networkd.service systemd-networkd.socket systemd-networkd-wait-online.service || true
+
+  touch "$STATE/phase1"
+  systemctl enable pve-bootstrap.service
+  systemctl --no-block reboot
+}
+
+primary_has_nodes() {
+  ticket=$(curl -sfk --data-urlencode username=root@pam --data-urlencode "password=$ROOT_PASSWORD" \
+    "https://$PRIMARY_IP:8006/api2/json/access/ticket" | jq -r .data.ticket) || return 1
+  count=$(curl -sfk -b "PVEAuthCookie=$ticket" "https://$PRIMARY_IP:8006/api2/json/cluster/status" |
+    jq "$ONLINE_MEMBERS" --argjson wrapped true) || return 1
+  [ "$count" -ge "$1" ]
+}
+
+# the primary's certificate is regenerated by pvecm create, so fetch the fingerprint per attempt
+join_primary() {
+  fingerprint=$(openssl s_client -connect "$PRIMARY_IP:8006" </dev/null 2>/dev/null |
+    openssl x509 -noout -fingerprint -sha256 | cut -d= -f2)
+  pvesh create /cluster/config/join --hostname "$PRIMARY_IP" --fingerprint "$fingerprint" \
+    --password "$ROOT_PASSWORD" --link0 "$PRIVATE_IP"
+}
+
+join_cluster() {
+  [ ! -f /etc/pve/corosync.conf ] || return 0
+  if [ "$INDEX" -eq 0 ]; then
+    pvecm create "$CLUSTER_NAME" --link0 "$PRIVATE_IP"
+    return
+  fi
+  # joins are serialized by node index; a join must wait until the previous node is an online member
+  retry primary_has_nodes "$INDEX"
+  # pvesh exits 0 even when the join task aborts
+  ensure '[ -f /etc/pve/corosync.conf ]' join_primary
+  retry pvecm status >/dev/null
+}
+
+online_nodes() {
+  pvesh get /cluster/status --output-format json | jq "$ONLINE_MEMBERS" --argjson wrapped false
+}
+
+all_nodes_joined() {
+  [ "$(online_nodes)" -ge "$NODE_COUNT" ]
+}
+
+mons_at_least() {
+  [ "$(timeout 30 ceph mon dump -f json 2>/dev/null | jq '.mons | length')" -ge "$1" ]
+}
+
+osds_up() {
+  [ "$(timeout 30 ceph osd stat -f json | jq .num_up_osds)" -ge "$1" ]
+}
+
+osd_disk() {
+  for disk in $(lsblk -dnpo NAME,TYPE | awk '$2 == "disk" {print $1}'); do
+    if [ "$(lsblk -no NAME "$disk" | wc -l)" -eq 1 ] && [ -z "$(lsblk -dno FSTYPE "$disk")" ]; then
+      echo "$disk"
+      return
+    fi
+  done
+  return 1
+}
+
+setup_ceph() {
+  [ "$INDEX" -ne 0 ] || ensure '[ -f /etc/pve/ceph.conf ]' pveceph init --network "$PRIVATE_CIDR"
+  retry test -f /etc/pve/ceph.conf
+  ln -sfn /etc/pve/ceph.conf /etc/ceph/ceph.conf
+  # monitors are added one at a time by node index
+  [ "$INDEX" -eq 0 ] || retry mons_at_least "$INDEX"
+  ensure "systemctl is-active -q ceph-mon@$NODE_NAME" pveceph mon create
+  ensure "systemctl is-active -q ceph-mgr@$NODE_NAME" pveceph mgr create
+  if [ ! -f "$STATE/osd" ]; then
+    osd_dev=$(osd_disk)
+    ensure "ceph-volume lvm list $osd_dev >/dev/null 2>&1" pveceph osd create "$osd_dev"
+    touch "$STATE/osd"
+  fi
+  ensure "systemctl is-active -q ceph-mds@$NODE_NAME" pveceph mds create
+}
+
+setup_storage() {
+  retry osds_up "$NODE_COUNT"
+  ensure 'pvesm status --storage ceph-vm >/dev/null 2>&1' pveceph pool create ceph-vm --pg_num 32 --add_storages 1
+  ensure 'pvesm status --storage cephfs >/dev/null 2>&1' pveceph fs create --name cephfs --pg_num 32 --add-storage 1
+  retry pvesm set cephfs --content iso,vztmpl,backup,snippets
+}
+
+setup_guest_network() {
+  public_if=$(cat "$STATE/public_if")
+  pvesh get /cluster/sdn/zones/e2e >/dev/null 2>&1 ||
+    pvesh create /cluster/sdn/zones --zone e2e --type vxlan --peers "$PEER_IPS" --mtu 1450
+  pvesh get "/cluster/sdn/vnets/$GUEST_BRIDGE" >/dev/null 2>&1 ||
+    pvesh create /cluster/sdn/vnets --vnet "$GUEST_BRIDGE" --zone e2e --tag "$VXLAN_TAG"
+  pvesh set /cluster/sdn
+  retry test -d "/sys/class/net/$GUEST_BRIDGE"
+
+  # shortcut: the guest gateway and SNAT live only on the primary node; use an EVPN zone with exit nodes if that becomes a bottleneck
+  echo 'net.ipv4.ip_forward = 1' >/etc/sysctl.d/90-guest-nat.conf
+  sysctl -p /etc/sysctl.d/90-guest-nat.conf
+  grep -q "^iface $GUEST_BRIDGE " /etc/network/interfaces || cat >>/etc/network/interfaces <<EOF
+
+iface $GUEST_BRIDGE inet static
+	address $GUEST_GATEWAY/$GUEST_PREFIX
+	post-up iptables -t nat -C POSTROUTING -s $GUEST_CIDR -o $public_if -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s $GUEST_CIDR -o $public_if -j MASQUERADE
+EOF
+  ifreload -a
+}
+
+create_capmox_token() {
+  [ ! -f "$STATE/capmox-token.json" ] || return 0
+  pveum user list --output-format json | jq -e 'any(.[]; .userid == "capmox@pve")' >/dev/null ||
+    pveum user add capmox@pve
+  pveum acl modify / --users capmox@pve --roles PVEVMAdmin,PVEDatastoreUser,PVESDNUser,PVEAuditor
+  (umask 077 && pveum user token add capmox@pve capi --privsep 0 --output-format json >"$STATE/capmox-token.json.tmp")
+  jq -e '.value' "$STATE/capmox-token.json.tmp" >/dev/null
+  mv "$STATE/capmox-token.json.tmp" "$STATE/capmox-token.json"
+}
+
+write_outputs() {
+  fsid=$(ceph fsid)
+  key=$(ceph auth get-key client.admin)
+  token_id=$(jq -er '."full-tokenid"' "$STATE/capmox-token.json")
+  token_secret=$(jq -er .value "$STATE/capmox-token.json")
+  [ -n "$fsid" ]
+  [ -n "$key" ]
+  (umask 077 && jq -n --arg fsid "$fsid" --arg key "$key" --arg token_id "$token_id" --arg token_secret "$token_secret" \
+    '{ceph_fsid: $fsid, ceph_admin_key: $key, capmox_token_id: $token_id, capmox_token_secret: $token_secret}' \
+    >"$STATE/outputs.json.tmp")
+  mv "$STATE/outputs.json.tmp" "$STATE/outputs.json"
+}
+
+phase2() {
+  log "phase 2"
+  retry pvesh get /version >/dev/null
+  join_cluster
+  retry all_nodes_joined
+  setup_ceph
+  if [ "$INDEX" -eq 0 ]; then
+    setup_storage
+    setup_guest_network
+    create_capmox_token
+    write_outputs
+  fi
+  systemctl disable pve-bootstrap.service
+  touch "$STATE/done"
+  log "done"
+}
+
+if [ -f "$STATE/phase1" ]; then phase2; else phase1; fi
