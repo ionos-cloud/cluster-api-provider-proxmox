@@ -79,6 +79,10 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 		return vm, err
 	} // VirtualMachineProvisioned reason is Cloning
 
+	if busy, err := hasActiveTask(ctx, scope); err != nil || busy {
+		return vm, err
+	}
+
 	// Recover IP/address status for already-running machines (e.g. restored from
 	// backup) whose status was lost. This is read-only and a no-op during normal
 	// provisioning; it does not advance the provisioning state machine below.
@@ -265,6 +269,33 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 
 	// at this point the VM is found, so err must be nil
 	return false, nil
+}
+
+// hasActiveTask checks whether a task is still running for the VM before it is started.
+// Such a task holds the VM's config lock, and a change made meanwhile waits on the lock
+// and can time out. TaskRef alone does not catch this: a reconcile that read the
+// ProxmoxMachine before TaskRef was written clears it when its own task completes.
+// A clone runs as a task of the source template, so for the new VM only its clone lock shows it.
+func hasActiveTask(ctx context.Context, machineScope *scope.MachineScope) (bool, error) {
+	vm := machineScope.VirtualMachine
+	if vm.IsRunning() || ptr.Deref(machineScope.ProxmoxMachine.Status.Initialization.Provisioned, false) {
+		return false, nil
+	}
+
+	if vm.Lock == "clone" {
+		machineScope.V(4).Info("waiting for the clone of the vm to finish", "vm", vm.VMID)
+		return true, nil
+	}
+
+	busy, err := machineScope.InfraCluster.ProxmoxClient.HasActiveTask(ctx, vm)
+	if err != nil {
+		return false, err
+	}
+	if busy {
+		machineScope.V(4).Info("waiting for an active task on the vm", "vm", vm.VMID)
+	}
+
+	return busy, nil
 }
 
 func reconcileDisks(ctx context.Context, machineScope *scope.MachineScope) (requeue bool, err error) {
