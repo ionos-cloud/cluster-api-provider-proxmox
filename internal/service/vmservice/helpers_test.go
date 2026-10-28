@@ -73,8 +73,8 @@ func (f FakeIgnitionISOInjector) Inject(_ context.Context, _ inject.BootstrapDat
 }
 
 // setupReconcilerTestWithCondition sets up a reconciler test with a condition for the proxmoxmachiens statemachine.
-func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
-	machineScope, mockClient, client := setupReconcilerTest(t)
+func setupReconcilerTestWithCondition(t *testing.T, condition string, mods ...testScopeMod) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
+	machineScope, mockClient, client := setupReconcilerTest(t, mods...)
 
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
@@ -85,8 +85,14 @@ func setupReconcilerTestWithCondition(t *testing.T, condition string) (*scope.Ma
 	return machineScope, mockClient, client
 }
 
+// testScopeMod mutates the test fixture objects before the MachineScope is
+// built. Placement (allowed nodes, failure domain, zones) is resolved once at
+// scope construction, so tests must shape those specs here rather than on the
+// returned scope.
+type testScopeMod func(machine *clusterv1.Machine, infraCluster *infrav1.ProxmoxCluster, infraMachine *infrav1.ProxmoxMachine)
+
 // setupReconcilerTest initializes a MachineScope with a mock Proxmox client and a fake controller-runtime client.
-func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
+func setupReconcilerTest(t *testing.T, mods ...testScopeMod) (*scope.MachineScope, *proxmoxtest.MockClient, client.Client) {
 	cluster := &clusterv1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -164,6 +170,10 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 				},
 			},
 		},
+	}
+
+	for _, mod := range mods {
+		mod(machine, infraCluster, infraMachine)
 	}
 
 	scheme := runtime.NewScheme()
@@ -334,7 +344,7 @@ func createNetworkSpecForMachine(t *testing.T, c client.Client, machineScope *sc
 	// Can't hurt to create ippools here
 	createIPPools(t, c, machineScope)
 
-	defaultPools, _ := machineScope.IPAMHelper.GetInClusterPools(context.Background(), machineScope.ProxmoxMachine)
+	defaultPools, _ := machineScope.IPAMHelper.GetInClusterPools(context.Background(), machineScope.ProxmoxMachine, machineScope.Zone())
 	i := 0 // counter for ipPrefix variadic argument
 	// Create the pools sequentially by ref
 	for _, device := range ptr.Deref(machineScope.ProxmoxMachine.Spec.Network, infrav1.NetworkSpec{}).NetworkDevices {
@@ -429,7 +439,7 @@ func isDefaultPool(machineScope *scope.MachineScope, pool corev1.TypedLocalObjec
 func getDefaultPoolRefs(machineScope *scope.MachineScope) infrav1.InClusterZoneRef {
 	cluster := machineScope.InfraCluster.ProxmoxCluster
 
-	zone := ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.Zone, "default")
+	zone := ptr.Deref(machineScope.Zone(), "default")
 	zoneIndex := slices.IndexFunc(cluster.Status.InClusterZoneRef, func(z infrav1.InClusterZoneRef) bool {
 		return zone == *z.Zone
 	})

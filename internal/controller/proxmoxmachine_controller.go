@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -213,6 +214,19 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		}
 	}
 
+	// Placement is resolved once at scope construction; do not provision
+	// until the referenced failure domain exists in the ProxmoxCluster zones.
+	if err := machineScope.FailureDomainError(); err != nil {
+		machineScope.Logger.Error(err, "failure domain not found", "failureDomain", machineScope.Machine.Spec.FailureDomain)
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status:  metav1.ConditionFalse,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedFailureDomainNotReadyReason,
+			Message: err.Error(),
+		})
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
 	// find the vm
 	// Get or create the VM.
 	vm, err := vmservice.ReconcileVM(ctx, machineScope)
@@ -238,7 +252,7 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	// Set proxmox deployment zone for label selectors.
 	labels := machineScope.ProxmoxMachine.GetLabels()
 	labels[infrav1.ProxmoxZoneLabel] =
-		ptr.Deref(machineScope.ProxmoxMachine.Spec.Network.Zone, "default")
+		ptr.Deref(machineScope.Zone(), "default")
 	machineScope.ProxmoxMachine.SetLabels(labels)
 
 	machineScope.SetReady()
