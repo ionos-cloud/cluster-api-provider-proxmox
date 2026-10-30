@@ -510,23 +510,9 @@ func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.Machi
 }
 
 func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) {
-	vmid, err := getVMID(ctx, scope)
-	if err != nil {
-		if errors.Is(err, ErrNoVMIDInRangeFree) {
-			conditions.Set(scope.ProxmoxMachine, metav1.Condition{
-				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-				Message: err.Error(),
-			})
-		}
-		return proxmox.VMCloneResponse{}, err
-	}
-
 	options := proxmox.VMCloneRequest{
-		Node:  scope.ProxmoxMachine.GetSourceNode(),
-		NewID: int(vmid),
-		Name:  scope.ProxmoxMachine.GetName(),
+		Node: scope.ProxmoxMachine.GetSourceNode(),
+		Name: scope.ProxmoxMachine.GetName(),
 	}
 
 	if scope.ProxmoxMachine.Spec.Description != nil {
@@ -571,6 +557,25 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		return proxmox.VMCloneResponse{}, err
 	}
 
+	// Allocate the VMID only after the target node is known, so that the ID is
+	// checked against the Proxmox cluster that will actually own the VM. When
+	// the scheduler picks a node in a zone with dedicated credentials, the
+	// default cluster would disagree about which IDs are free, and a
+	// controller-allocated ID could collide in the owning cluster forever.
+	vmid, err := getVMID(ctx, scope, pmoxClient)
+	if err != nil {
+		if errors.Is(err, ErrNoVMIDInRangeFree) {
+			conditions.Set(scope.ProxmoxMachine, metav1.Condition{
+				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+				Message: err.Error(),
+			})
+		}
+		return proxmox.VMCloneResponse{}, err
+	}
+	options.NewID = int(vmid)
+
 	templateID := scope.ProxmoxMachine.GetTemplateID()
 	if templateID == -1 {
 		var err error
@@ -613,24 +618,20 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	return res, scope.InfraCluster.PatchObject()
 }
 
-func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
+func getVMID(ctx context.Context, scope *scope.MachineScope, pmoxClient proxmox.Client) (int64, error) {
 	if scope.ProxmoxMachine.Spec.VMIDRange != nil {
 		vmIDRangeStart := scope.ProxmoxMachine.Spec.VMIDRange.Start
 		vmIDRangeEnd := scope.ProxmoxMachine.Spec.VMIDRange.End
 		if vmIDRangeStart != 0 && vmIDRangeEnd != 0 {
-			return getNextFreeVMIDfromRange(ctx, scope, vmIDRangeStart, vmIDRangeEnd)
+			return getNextFreeVMIDfromRange(ctx, scope, pmoxClient, vmIDRangeStart, vmIDRangeEnd)
 		}
 	}
 	// If VMIDRange is not defined, return 0 to let luthermonson/go-proxmox get the next free id.
 	return 0, nil
 }
 
-func getNextFreeVMIDfromRange(ctx context.Context, scope *scope.MachineScope, vmIDRangeStart int64, vmIDRangeEnd int64) (int64, error) {
+func getNextFreeVMIDfromRange(ctx context.Context, scope *scope.MachineScope, pmoxClient proxmox.Client, vmIDRangeStart int64, vmIDRangeEnd int64) (int64, error) {
 	usedVMIDs, err := getUsedVMIDs(ctx, scope)
-	if err != nil {
-		return 0, err
-	}
-	pmoxClient, err := scope.ProxmoxClient(ctx)
 	if err != nil {
 		return 0, err
 	}

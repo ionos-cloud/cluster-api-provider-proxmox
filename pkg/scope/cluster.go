@@ -215,6 +215,17 @@ func availabilityZoneByName(azs []infrav1.AvailabilityZoneSpec, name string) *in
 	return nil
 }
 
+// SetZoneProxmoxClient overrides the Proxmox client cached for the given
+// availability zone. It is a dependency-injection seam, mainly used by tests
+// to substitute a mock for the client that would otherwise be built from the
+// zone's credentialsRef.
+func (s *ClusterScope) SetZoneProxmoxClient(zone string, pmoxClient capmox.Client) {
+	if s.zoneProxmoxClients == nil {
+		s.zoneProxmoxClients = make(map[string]capmox.Client)
+	}
+	s.zoneProxmoxClients[zone] = pmoxClient
+}
+
 // GetProxmoxClientForNode returns the Proxmox client responsible for the given Proxmox VE
 // node, resolving the availability zone (if any) that the node belongs to. This should be
 // preferred over GetProxmoxClient when the target node is already known (e.g. once a Machine
