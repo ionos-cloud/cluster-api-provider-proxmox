@@ -590,6 +590,54 @@ func TestReconcileVirtualMachineConfigTags(t *testing.T) {
 	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
 }
 
+func TestReconcileVirtualMachineConfig_CPUModelUnchanged(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.CPUModel = new("host")
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.CPU = "host"
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	machineScope.SetVirtualMachine(vm)
+
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_CPUModelUnset(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.CPU = "kvm64"
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	machineScope.SetVirtualMachine(vm)
+
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
+}
+
+func TestReconcileVirtualMachineConfig_CPUModelApplied(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.CPUModel = new("kvm64,flags=+aes")
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.CPU = "kvm64"
+	vm.VirtualMachineConfig.Description = machineScope.ProxmoxMachine.GetName()
+	task := newTask()
+	machineScope.SetVirtualMachine(vm)
+	expectedOptions := []any{
+		proxmox.VirtualMachineOption{Name: optionCPU, Value: "kvm64,flags=+aes"},
+	}
+
+	proxmoxClient.EXPECT().ConfigureVM(context.Background(), vm, expectedOptions...).Return(task, nil).Once()
+
+	requeue, err := reconcileVirtualMachineConfig(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.EqualValues(t, task.UPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+}
+
 func TestReconcileDisks_RunningVM(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason)
 	machineScope.ProxmoxMachine.Spec.Disks = &infrav1.Storage{
