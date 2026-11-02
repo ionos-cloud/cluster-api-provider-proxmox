@@ -66,6 +66,7 @@ func TestIPAddressClaimConflictDiagnostics(t *testing.T) {
 		reason ipam.IPAddressClaimConflictReason
 		want   []string
 	}{
+		{ipam.ConflictAddressDeleting, []string{"active IPAddress", "deletion is in progress", "allocation may be released"}},
 		{ipam.ConflictClaimDeleting, []string{"deletion is in progress", "allocation may be released", "wait for IPAM cleanup"}},
 		{ipam.ConflictOwnerMismatch, []string{machineScope.Name(), string(machineScope.ProxmoxMachine.UID), "old-machine", "old-machine-uid"}},
 		{ipam.ConflictPoolMismatch, []string{"expected.example/ExpectedPool", "expected-pool", "other.example/OtherPool", "other-pool"}},
@@ -76,7 +77,7 @@ func TestIPAddressClaimConflictDiagnostics(t *testing.T) {
 		{ipam.ConflictAddressClaimRef, []string{"expected IPAddress claimRef \"expected-claim\"", "actual value is \"other-claim\""}},
 		{ipam.ConflictAddressPoolRef, []string{"expected.example/ExpectedPool", "expected-pool", "address.example/AddressPool", "address-pool"}},
 		{ipam.ConflictAddressCluster, []string{machineScope.Cluster.Name, "address-cluster", "IPAddress cluster label"}},
-		{ipam.ConflictAddressOwner, []string{"IPAddress controller owner", "old-claim", "old-claim-uid"}},
+		{ipam.ConflictAddressOwner, []string{"IPAddress owner", "old-claim", "old-claim-uid"}},
 		{"UnknownConflict", []string{"inspect the restored IPAddressClaim and IPAddress"}},
 	}
 	for _, tt := range tests {
@@ -229,4 +230,24 @@ func (c *claimFailureClient) Update(ctx context.Context, obj client.Object, opts
 		return c.updateErr
 	}
 	return c.Client.Update(ctx, obj, opts...)
+}
+
+func TestConflictMessagesAreStableAcrossDeepCopies(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTest(t)
+	refs := []metav1.OwnerReference{{APIVersion: ipamv1.GroupVersion.String(), Kind: "IPAddressClaim", Name: "old-claim", UID: "old-uid", Controller: new(true), BlockOwnerDeletion: new(false)}}
+	for _, reason := range []ipam.IPAddressClaimConflictReason{ipam.ConflictOwnerMismatch, ipam.ConflictAddressOwner} {
+		t.Run(string(reason), func(t *testing.T) {
+			resolution := ipam.IPAddressClaimResolution{
+				ConflictReason:     reason,
+				Claim:              &ipamv1.IPAddressClaim{ObjectMeta: metav1.ObjectMeta{OwnerReferences: refs}},
+				ConflictingAddress: &ipamv1.IPAddress{ObjectMeta: metav1.ObjectMeta{OwnerReferences: refs}},
+			}
+			message := ipAddressClaimConflictDetail(machineScope, resolution, ipam.IPClaimDef{})
+			resolution.Claim = resolution.Claim.DeepCopy()
+			resolution.ConflictingAddress = resolution.ConflictingAddress.DeepCopy()
+			require.Equal(t, message, ipAddressClaimConflictDetail(machineScope, resolution, ipam.IPClaimDef{}))
+			require.Contains(t, message, "controller=true")
+			require.Contains(t, message, "blockOwnerDeletion=false")
+		})
+	}
 }

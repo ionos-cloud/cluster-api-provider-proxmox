@@ -30,6 +30,8 @@ import (
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	ipam "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
@@ -450,4 +452,42 @@ func TestReconcileAddressRecovery_SkipsWhenClaimMissing(t *testing.T) {
 	require.Empty(t, machineScope.ProxmoxMachine.GetIPAddresses())
 	require.Empty(t, machineScope.ProxmoxMachine.Status.Addresses)
 	require.Empty(t, getIPAddressClaims(t, kubeClient, machineScope))
+}
+
+func TestResolveExistingIPAddressDoesNotAdoptClaimThatBecomesPending(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTest(t)
+	ctx := context.Background()
+	pool := corev1.TypedLocalObjectReference{APIGroup: new(ipamicv1.GroupVersion.Group), Kind: "InClusterIPPool", Name: getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name}
+	createIPPools(t, kubeClient, machineScope)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &pool)
+	name := ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)
+	claim := &ipamv1.IPAddressClaim{}
+	require.NoError(t, kubeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: machineScope.Namespace()}, claim))
+	claim.OwnerReferences = nil
+	address := &ipamv1.IPAddress{}
+	require.NoError(t, kubeClient.Get(ctx, client.ObjectKey{Name: name, Namespace: machineScope.Namespace()}, address))
+	reads := 0
+	cl := fake.NewClientBuilder().WithScheme(kubeClient.Scheme()).WithObjects(machineScope.Cluster, claim, address).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, cl client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if err := cl.Get(ctx, key, obj, opts...); err != nil {
+					return err
+				}
+				if current, ok := obj.(*ipamv1.IPAddressClaim); ok {
+					reads++
+					if reads == 2 {
+						current.Status.AddressRef.Name = ""
+						return cl.Update(ctx, current)
+					}
+				}
+				return nil
+			},
+		}).Build()
+	machineScope.IPAMHelper = ipam.NewHelper(cl, machineScope.InfraCluster.ProxmoxCluster)
+	addresses, err := resolveExistingIPAddress(ctx, machineScope, ipam.IPClaimDef{Device: infrav1.DefaultNetworkDevice, PoolRef: pool, Annotations: claim.Annotations})
+	require.NoError(t, err)
+	require.Empty(t, addresses)
+	require.NoError(t, cl.Get(ctx, client.ObjectKeyFromObject(claim), claim))
+	require.Empty(t, claim.OwnerReferences)
+	require.Empty(t, claim.Status.AddressRef.Name)
 }

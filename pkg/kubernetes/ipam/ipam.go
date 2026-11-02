@@ -475,7 +475,9 @@ const (
 	ConflictAddressClaimRef IPAddressClaimConflictReason = "AddressClaimRef"
 	// ConflictAddressCluster means the IPAddress belongs to a different cluster.
 	ConflictAddressCluster IPAddressClaimConflictReason = "AddressCluster"
-	// ConflictAddressOwner means the IPAddress has a conflicting controller owner.
+	// ConflictAddressDeleting means an IPAddress allocation is being released.
+	ConflictAddressDeleting IPAddressClaimConflictReason = "AddressDeleting"
+	// ConflictAddressOwner means the IPAddress has a conflicting controller or claim owner.
 	ConflictAddressOwner IPAddressClaimConflictReason = "AddressOwner"
 )
 
@@ -555,7 +557,8 @@ func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.Proxmo
 		if err != nil {
 			return result, err
 		}
-		if !hasExpectedClusterLabel(claim, expectedClusterName) {
+		if !hasExpectedClusterLabel(claim, expectedClusterName) ||
+			(claim.Spec.ClusterName != "" && claim.Spec.ClusterName != expectedClusterName) {
 			result.Status = ClaimConflict
 			result.ConflictReason = ConflictClaimCluster
 			return result, nil
@@ -598,6 +601,11 @@ func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.Proxmo
 		return result, err
 	}
 	result.ConflictingAddress = addr
+	if !addr.DeletionTimestamp.IsZero() {
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressDeleting
+		return result, nil
+	}
 
 	if !matchesPoolRef(*addr, ipClaimRef.PoolRef) {
 		result.Status = ClaimConflict
@@ -609,7 +617,7 @@ func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.Proxmo
 		result.ConflictReason = ConflictAddressClaimRef
 		return result, nil
 	}
-	if !hasSafeAddressControllerReference(addr.OwnerReferences, claim) {
+	if !hasSafeAddressOwnerReferences(addr.OwnerReferences, claim) {
 		result.Status = ClaimConflict
 		result.ConflictReason = ConflictAddressOwner
 		return result, nil
@@ -637,6 +645,7 @@ func (h *Helper) ResolveIPAddressClaim(ctx context.Context, moxm *infrav1.Proxmo
 	// Claim annotations are the capmox source of truth for provisioning metadata
 	// such as offset/default-gateway, so they intentionally override address
 	// annotations in the in-memory result returned to callers.
+	delete(annotations, infrav1.ProxmoxDefaultGatewayAnnotation)
 	maps.Insert(annotations, maps.All(claim.GetAnnotations()))
 	addr.SetAnnotations(annotations)
 
@@ -664,6 +673,9 @@ func (h *Helper) resolveMissingIPAddressClaim(ctx context.Context, moxm *infrav1
 	}
 	result.OrphanedAddress = orphanedAddress
 	switch {
+	case !orphanedAddress.DeletionTimestamp.IsZero():
+		result.Status = ClaimConflict
+		result.ConflictReason = ConflictAddressDeleting
 	case !matchesPoolRef(*orphanedAddress, ipClaimRef.PoolRef):
 		result.Status = ClaimConflict
 		result.ConflictReason = ConflictAddressPoolRef
@@ -673,7 +685,7 @@ func (h *Helper) resolveMissingIPAddressClaim(ctx context.Context, moxm *infrav1
 	case !hasExpectedClusterLabel(orphanedAddress, expectedClusterName):
 		result.Status = ClaimConflict
 		result.ConflictReason = ConflictAddressCluster
-	case !hasNoControllerOwnerReference(orphanedAddress.OwnerReferences):
+	case !hasNoClaimOrControllerOwnerReference(orphanedAddress.OwnerReferences):
 		result.Status = ClaimConflict
 		result.ConflictReason = ConflictAddressOwner
 	}
@@ -683,10 +695,12 @@ func (h *Helper) resolveMissingIPAddressClaim(ctx context.Context, moxm *infrav1
 // AdoptIPAddressClaim sets the ProxmoxMachine controller owner reference on an
 // ownerless claim after re-resolving and validating it. No claim fields other
 // than ownerReferences are changed, and the referenced IPAddress is never
-// mutated. The returned bool reports whether this call performed the adoption.
-func (h *Helper) AdoptIPAddressClaim(ctx context.Context, moxm *infrav1.ProxmoxMachine, ipClaimRef IPClaimDef) (IPAddressClaimResolution, bool, error) {
+// mutated. requireResolved prevents adoption of pending claims during running-VM
+// recovery, including when the claim changes before revalidation. The returned
+// bool reports whether this call performed the adoption.
+func (h *Helper) AdoptIPAddressClaim(ctx context.Context, moxm *infrav1.ProxmoxMachine, ipClaimRef IPClaimDef, requireResolved bool) (IPAddressClaimResolution, bool, error) {
 	result, err := h.ResolveIPAddressClaim(ctx, moxm, ipClaimRef)
-	if err != nil || result.Status != ClaimAdoptable {
+	if err != nil || result.Status != ClaimAdoptable || (requireResolved && result.Address == nil) {
 		return result, false, err
 	}
 
@@ -916,29 +930,30 @@ func hasExpectedAnnotations(actual, expected map[string]string) bool {
 	return true
 }
 
-func hasNoControllerOwnerReference(ownerReferences []metav1.OwnerReference) bool {
+func hasNoClaimOrControllerOwnerReference(ownerReferences []metav1.OwnerReference) bool {
 	for _, ownerReference := range ownerReferences {
-		if ptr.Deref(ownerReference.Controller, false) {
+		if ptr.Deref(ownerReference.Controller, false) || isClaimOwnerReference(ownerReference) {
 			return false
 		}
 	}
 	return true
 }
 
-func hasSafeAddressControllerReference(ownerReferences []metav1.OwnerReference, claim *ipamv1.IPAddressClaim) bool {
+func isClaimOwnerReference(ref metav1.OwnerReference) bool {
+	return ref.Kind == "IPAddressClaim" && normalizedAPIGroup(ref.APIVersion) == ipamv1.GroupVersion.Group
+}
+
+func hasSafeAddressOwnerReferences(ownerReferences []metav1.OwnerReference, claim *ipamv1.IPAddressClaim) bool {
 	foundController := false
-	for _, ownerReference := range ownerReferences {
-		if !ptr.Deref(ownerReference.Controller, false) {
+	for _, ref := range ownerReferences {
+		controller := ptr.Deref(ref.Controller, false)
+		if !controller && !isClaimOwnerReference(ref) {
 			continue
 		}
-		if foundController ||
-			ownerReference.UID != claim.UID ||
-			ownerReference.Name != claim.Name ||
-			ownerReference.Kind != "IPAddressClaim" ||
-			normalizedAPIGroup(ownerReference.APIVersion) != ipamv1.GroupVersion.Group {
+		if (controller && foundController) || !isClaimOwnerReference(ref) || ref.UID != claim.UID || ref.Name != claim.Name {
 			return false
 		}
-		foundController = true
+		foundController = foundController || controller
 	}
 	return true
 }

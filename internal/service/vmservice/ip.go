@@ -164,7 +164,7 @@ func resolveExistingIPAddress(ctx context.Context, machineScope *scope.MachineSc
 		return nil, err
 	}
 	if resolution.Status == ipam.ClaimAdoptable && resolution.Address != nil {
-		resolution, err = adoptIPAddressClaim(ctx, machineScope, ipClaimDef)
+		resolution, err = adoptIPAddressClaim(ctx, machineScope, ipClaimDef, true)
 		if err != nil {
 			return nil, err
 		}
@@ -239,7 +239,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 		return []ipamv1.IPAddress{}, err
 	}
 	if resolution.Status == ipam.ClaimAdoptable {
-		resolution, err = adoptIPAddressClaim(ctx, machineScope, ipClaimDef)
+		resolution, err = adoptIPAddressClaim(ctx, machineScope, ipClaimDef, false)
 		if err != nil {
 			return []ipamv1.IPAddress{}, err
 		}
@@ -280,8 +280,8 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 	}
 }
 
-func adoptIPAddressClaim(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) (ipam.IPAddressClaimResolution, error) {
-	resolution, adopted, err := machineScope.IPAMHelper.AdoptIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef)
+func adoptIPAddressClaim(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef, requireResolved bool) (ipam.IPAddressClaimResolution, error) {
+	resolution, adopted, err := machineScope.IPAMHelper.AdoptIPAddressClaim(ctx, machineScope.ProxmoxMachine, ipClaimDef, requireResolved)
 	if err != nil {
 		return resolution, errors.Wrapf(err, "unable to adopt IPAddressClaim %q", resolution.ClaimName)
 	}
@@ -314,14 +314,16 @@ func reportIPAddressClaimConflict(machineScope *scope.MachineScope, resolution i
 func ipAddressClaimConflictDetail(machineScope *scope.MachineScope, resolution ipam.IPAddressClaimResolution, ipClaimDef ipam.IPClaimDef) string {
 	expectedCluster := machineScope.Cluster.Name
 	switch resolution.ConflictReason {
+	case ipam.ConflictAddressDeleting:
+		return "expected an active IPAddress, but deletion is in progress and its allocation may be released; wait for IPAM cleanup and inspect the allocation before recovery."
 	case ipam.ConflictClaimDeleting:
 		return "expected an active IPAddressClaim, but deletion is in progress and its allocation may be released; wait for IPAM cleanup and inspect the allocation before recovery."
 	case ipam.ConflictOwnerMismatch:
-		return fmt.Sprintf("expected controller owner %s/%s with UID %q, actual ownerReferences are %v; inspect the restored IPAddressClaim before provisioning can continue.", infrav1.ProxmoxMachineKind, machineScope.Name(), machineScope.ProxmoxMachine.UID, resolution.Claim.OwnerReferences)
+		return fmt.Sprintf("expected controller owner %s/%s with UID %q, actual ownerReferences are %v; inspect the restored IPAddressClaim before provisioning can continue.", infrav1.ProxmoxMachineKind, machineScope.Name(), machineScope.ProxmoxMachine.UID, stableOwnerReferences(resolution.Claim.OwnerReferences))
 	case ipam.ConflictPoolMismatch:
 		return fmt.Sprintf("expected poolRef %s/%s %q, actual poolRef is %s/%s %q; inspect the restored IPAddressClaim before provisioning can continue.", ptr.Deref(ipClaimDef.PoolRef.APIGroup, ""), ipClaimDef.PoolRef.Kind, ipClaimDef.PoolRef.Name, resolution.Claim.Spec.PoolRef.APIGroup, resolution.Claim.Spec.PoolRef.Kind, resolution.Claim.Spec.PoolRef.Name)
 	case ipam.ConflictClaimCluster:
-		return fmt.Sprintf("expected claim cluster label %q, actual value is %q; inspect the restored IPAddressClaim before provisioning can continue.", expectedCluster, resolution.Claim.Labels[clusterv1.ClusterNameLabel])
+		return fmt.Sprintf("expected claim cluster label %q, actual value is %q and spec.clusterName is %q; inspect the restored IPAddressClaim before provisioning can continue.", expectedCluster, resolution.Claim.Labels[clusterv1.ClusterNameLabel], resolution.Claim.Spec.ClusterName)
 	case ipam.ConflictClaimAnnotations:
 		return fmt.Sprintf("expected CAPMOX annotations %v, actual annotations are %v; inspect the restored IPAddressClaim before provisioning can continue.", ipClaimDef.Annotations, resolution.Claim.Annotations)
 	case ipam.ConflictAddressMissing:
@@ -336,10 +338,20 @@ func ipAddressClaimConflictDetail(machineScope *scope.MachineScope, resolution i
 	case ipam.ConflictAddressCluster:
 		return fmt.Sprintf("expected IPAddress cluster label %q, actual value is %q; inspect the restored IPAddress before provisioning can continue.", expectedCluster, conflictingAddress(resolution).Labels[clusterv1.ClusterNameLabel])
 	case ipam.ConflictAddressOwner:
-		return fmt.Sprintf("expected no conflicting IPAddress controller owner, actual ownerReferences are %v; inspect the restored IPAddress before provisioning can continue.", conflictingAddress(resolution).OwnerReferences)
+		return fmt.Sprintf("expected no conflicting IPAddress owner, actual ownerReferences are %v; inspect the restored IPAddress before provisioning can continue.", stableOwnerReferences(conflictingAddress(resolution).OwnerReferences))
 	default:
 		return "inspect the restored IPAddressClaim and IPAddress before provisioning can continue."
 	}
+}
+
+// stableOwnerReferences avoids pointer addresses in persisted condition messages.
+func stableOwnerReferences(refs []metav1.OwnerReference) []string {
+	result := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		result = append(result, fmt.Sprintf("apiVersion=%q kind=%q name=%q uid=%q controller=%t blockOwnerDeletion=%t",
+			ref.APIVersion, ref.Kind, ref.Name, ref.UID, ptr.Deref(ref.Controller, false), ptr.Deref(ref.BlockOwnerDeletion, false)))
+	}
+	return result
 }
 
 func conflictingAddress(resolution ipam.IPAddressClaimResolution) *ipamv1.IPAddress {

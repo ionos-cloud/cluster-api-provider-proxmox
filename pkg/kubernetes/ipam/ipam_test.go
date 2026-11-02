@@ -960,7 +960,7 @@ func (s *IPAMTestSuite) Test_AdoptPendingClaimValidatesExistingAddress() {
 			claimBefore := claim.DeepCopy()
 			addressBefore := address.DeepCopy()
 
-			result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, def)
+			result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, def, false)
 			s.NoError(err)
 			s.NoError(s.cl.Get(s.ctx, client.ObjectKeyFromObject(claim), claim))
 			s.NoError(s.cl.Get(s.ctx, client.ObjectKeyFromObject(address), address))
@@ -1022,7 +1022,7 @@ func (s *IPAMTestSuite) Test_ResolveAndAdoptIPAddressClaimRejectsTerminatingClai
 				s.Equal(ConflictClaimDeleting, result.ConflictReason)
 				s.Nil(result.Address)
 
-				result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, def)
+				result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, def, false)
 				s.NoError(err)
 				s.False(adopted)
 				s.Equal(ClaimConflict, result.Status)
@@ -1050,7 +1050,7 @@ func (s *IPAMTestSuite) Test_AdoptIPAddressClaimOnlyChangesOwnerReferencesAndIsI
 
 	before := claim.DeepCopy()
 	addressBefore := address.DeepCopy()
-	result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, ipClaimDef)
+	result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, ipClaimDef, false)
 
 	s.NoError(err)
 	s.True(adopted)
@@ -1070,7 +1070,7 @@ func (s *IPAMTestSuite) Test_AdoptIPAddressClaimOnlyChangesOwnerReferencesAndIsI
 	s.NoError(s.cl.Get(s.ctx, client.ObjectKeyFromObject(address), &addressAfter))
 	s.Equal(addressBefore, &addressAfter)
 
-	result, adopted, err = s.helper.AdoptIPAddressClaim(s.ctx, machine, ipClaimDef)
+	result, adopted, err = s.helper.AdoptIPAddressClaim(s.ctx, machine, ipClaimDef, false)
 	s.NoError(err)
 	s.False(adopted)
 	s.Equal(ClaimResolved, result.Status)
@@ -1116,7 +1116,7 @@ func (s *IPAMTestSuite) Test_AdoptIPAddressClaimPropagatesReadFailures() {
 				builder.WithObjects(claim)
 			}
 			cl := builder.Build()
-			result, adopted, err := NewHelper(cl, s.cluster).AdoptIPAddressClaim(s.ctx, machine, def)
+			result, adopted, err := NewHelper(cl, s.cluster).AdoptIPAddressClaim(s.ctx, machine, def, false)
 			s.ErrorIs(err, lookupErr)
 			s.False(adopted)
 			s.Nil(result.Address)
@@ -1153,7 +1153,7 @@ func (s *IPAMTestSuite) Test_AdoptIPAddressClaimRejectsConcurrentUpdate() {
 			},
 		}).Build()
 
-	_, adopted, err := NewHelper(cl, s.cluster).AdoptIPAddressClaim(s.ctx, machine, def)
+	_, adopted, err := NewHelper(cl, s.cluster).AdoptIPAddressClaim(s.ctx, machine, def, false)
 	s.True(apierrors.IsConflict(err), "expected resource-version conflict, got %v", err)
 	s.False(adopted)
 	actual := &ipamv1.IPAddressClaim{}
@@ -1177,7 +1177,7 @@ func (s *IPAMTestSuite) Test_RecoveryRequiresOwningCluster() {
 			s.NoError(s.cl.Create(s.ctx, s.testIPAddress(claim.Namespace, claim.Name, def.PoolRef.Name)))
 			cluster := s.cluster.DeepCopy()
 			cluster.OwnerReferences = nil
-			result, adopted, err := NewHelper(s.cl, cluster).AdoptIPAddressClaim(s.ctx, machine, def)
+			result, adopted, err := NewHelper(s.cl, cluster).AdoptIPAddressClaim(s.ctx, machine, def, false)
 			s.EqualError(err, "ProxmoxCluster with OwnerReference but Cluster does not exist")
 			s.False(adopted)
 			s.Nil(result.Address)
@@ -1703,4 +1703,137 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 			Gateway: "10.10.10.1",
 		},
 	}
+}
+
+func (s *IPAMTestSuite) Test_RecoveryRejectsConflictingClusterName() {
+	for i, clusterName := range []string{"", "test-cluster", otherClusterName} {
+		def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, fmt.Sprint(i), "test-cluster-v4-icip")
+		machine := s.testMachine()
+		claim := s.testIPAddressClaim(machine, def, "")
+		claim.OwnerReferences = nil
+		claim.Spec.ClusterName = clusterName
+		s.NoError(s.cl.Create(s.ctx, claim))
+		result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, def, false)
+		s.NoError(err)
+		if clusterName == otherClusterName {
+			s.False(adopted)
+			s.Equal(ConflictClaimCluster, result.ConflictReason)
+		} else {
+			s.True(adopted)
+		}
+	}
+}
+
+func (s *IPAMTestSuite) Test_RecoveryClearsStaleDefaultGateway() {
+	machine := s.testMachine()
+	def := s.testIPClaimDef("net1", "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, def, "")
+	claim.OwnerReferences = nil
+	claim.Status.AddressRef.Name = claim.Name
+	address := s.testIPAddress(claim.Namespace, claim.Name, def.PoolRef.Name)
+	address.Annotations = map[string]string{infrav1.ProxmoxDefaultGatewayAnnotation: "true", "preserved": "value"}
+	s.NoError(s.cl.Create(s.ctx, claim))
+	s.NoError(s.cl.Create(s.ctx, address))
+	result, adopted, err := s.helper.AdoptIPAddressClaim(s.ctx, machine, def, false)
+	s.NoError(err)
+	s.True(adopted)
+	s.NotContains(result.Address.Annotations, infrav1.ProxmoxDefaultGatewayAnnotation)
+	s.Equal("value", result.Address.Annotations["preserved"])
+	stored := &ipamv1.IPAddress{}
+	s.NoError(s.cl.Get(s.ctx, client.ObjectKeyFromObject(address), stored))
+	s.Equal(address, stored, "address metadata must only change in the returned copy")
+}
+
+func (s *IPAMTestSuite) Test_RecoveryRejectsUnsafeAddresses() {
+	for _, state := range []string{"missing", "pending", "resolved"} {
+		for _, problem := range []string{"deleting", "stale-uid", "wrong-name"} {
+			for _, controller := range []*bool{nil, new(false), new(true)} {
+				s.Run(fmt.Sprintf("%s/%s/controller=%v", state, problem, controller), func() {
+					machine := s.testMachine()
+					def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+					claim := s.testIPAddressClaim(machine, def, "")
+					claim.UID = "current-claim"
+					claim.OwnerReferences = nil
+					if state == "resolved" {
+						claim.Status.AddressRef.Name = claim.Name
+					}
+					address := s.testIPAddress(claim.Namespace, claim.Name, def.PoolRef.Name)
+					reason := ConflictAddressOwner
+					if problem == "deleting" {
+						now := metav1.Now()
+						address.DeletionTimestamp = &now
+						address.Finalizers = []string{"test.example/retain"}
+						reason = ConflictAddressDeleting
+					} else {
+						ref := metav1.OwnerReference{APIVersion: ipamv1.GroupVersion.String(), Kind: "IPAddressClaim", Name: claim.Name, UID: claim.UID, Controller: controller}
+						if problem == "stale-uid" {
+							ref.UID = "stale-uid"
+						} else {
+							ref.Name = otherClaimName
+						}
+						address.OwnerReferences = []metav1.OwnerReference{ref}
+					}
+					builder := fake.NewClientBuilder().WithScheme(s.cl.Scheme()).WithObjects(s.capiCluster, address)
+					if state != "missing" {
+						builder.WithObjects(claim)
+					}
+					cl := builder.Build()
+					result, adopted, err := NewHelper(cl, s.cluster).AdoptIPAddressClaim(s.ctx, machine, def, false)
+					s.NoError(err)
+					s.False(adopted)
+					s.Equal(ClaimConflict, result.Status)
+					s.Equal(reason, result.ConflictReason)
+					s.Nil(result.Address)
+				})
+			}
+		}
+	}
+}
+
+func (s *IPAMTestSuite) Test_AddressOwnersAllowMatchingClaimsAndUnrelatedNonControllers() {
+	claim := &ipamv1.IPAddressClaim{ObjectMeta: metav1.ObjectMeta{Name: "claim", UID: "claim-uid"}}
+	for _, controller := range []*bool{nil, new(false), new(true)} {
+		refs := []metav1.OwnerReference{
+			{APIVersion: ipamv1.GroupVersion.String(), Kind: "IPAddressClaim", Name: claim.Name, UID: claim.UID, Controller: controller},
+			{APIVersion: "ipam.cluster.x-k8s.io/v1alpha2", Kind: "InClusterIPPool", Name: "pool", UID: "pool-uid"},
+		}
+		s.True(hasSafeAddressOwnerReferences(refs, claim))
+		s.False(hasNoClaimOrControllerOwnerReference(refs))
+	}
+}
+
+func (s *IPAMTestSuite) Test_AdoptionRevalidatesResolvedRequirement() {
+	machine := s.testMachine()
+	def := s.testIPClaimDef(infrav1.DefaultNetworkDevice, "0", "test-cluster-v4-icip")
+	claim := s.testIPAddressClaim(machine, def, "")
+	claim.OwnerReferences = nil
+	claim.Status.AddressRef.Name = claim.Name
+	address := s.testIPAddress(claim.Namespace, claim.Name, def.PoolRef.Name)
+	reads := 0
+	cl := fake.NewClientBuilder().WithScheme(s.cl.Scheme()).WithObjects(s.capiCluster, claim, address).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, cl client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if err := cl.Get(ctx, key, obj, opts...); err != nil {
+					return err
+				}
+				if current, ok := obj.(*ipamv1.IPAddressClaim); ok {
+					reads++
+					if reads > 1 {
+						current.Status.AddressRef.Name = ""
+					}
+				}
+				return nil
+			},
+		}).Build()
+	helper := NewHelper(cl, s.cluster)
+	initial, err := helper.ResolveIPAddressClaim(s.ctx, machine, def)
+	s.NoError(err)
+	s.NotNil(initial.Address)
+	result, adopted, err := helper.AdoptIPAddressClaim(s.ctx, machine, def, true)
+	s.NoError(err)
+	s.False(adopted)
+	s.Nil(result.Address)
+	stored := &ipamv1.IPAddressClaim{}
+	s.NoError(cl.Get(s.ctx, client.ObjectKeyFromObject(claim), stored))
+	s.Empty(stored.OwnerReferences)
 }
