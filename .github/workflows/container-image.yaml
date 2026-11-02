@@ -1,11 +1,13 @@
 name: container-image
 
 on:
-  push:
-    tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
-
   pull_request:
+  # Tag builds are started by release.yml, which pins the release manifest to the image digest.
+  workflow_call:
+    outputs:
+      digest:
+        description: Digest of the pushed image index
+        value: ${{ jobs.image.outputs.digest }}
 
 permissions:
   contents: read
@@ -19,6 +21,8 @@ jobs:
       packages: write # push on tag; PR runs never log in
       id-token: write # Sigstore keyless signing and GitHub attestations
       attestations: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     env:
       PUSH: ${{ github.event_name != 'pull_request' }}
     steps:

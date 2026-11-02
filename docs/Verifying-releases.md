@@ -28,3 +28,17 @@ Inspect the SBOM and provenance that buildx attached:
 docker buildx imagetools inspect ghcr.io/ionos-cloud/cluster-api-provider-proxmox:v0.10.0 --format '{{ json .SBOM }}'
 docker buildx imagetools inspect ghcr.io/ionos-cloud/cluster-api-provider-proxmox:v0.10.0 --format '{{ json .Provenance }}'
 ```
+
+## Release assets
+
+The manifests attached to a GitHub release (`infrastructure-components.yaml`,
+`metadata.yaml`, `cluster-template*.yaml`) ship with a `SHA256SUMS` file and a
+GitHub provenance attestation:
+
+```sh
+sha256sum --ignore-missing -c SHA256SUMS
+gh attestation verify infrastructure-components.yaml --owner ionos-cloud
+```
+
+`infrastructure-components.yaml` references the controller image by tag and
+digest, so `clusterctl init` pulls exactly the image that was attested.

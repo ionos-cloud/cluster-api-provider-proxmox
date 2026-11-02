@@ -7,12 +7,25 @@ on:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 permissions:
-  contents: write # Allow to create a release.
+  contents: read
 
 jobs:
+  image:
+    uses: ./.github/workflows/container-image.yaml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
   build:
     name: create draft release
+    needs: image
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Allow to create a release.
+      id-token: write # Sigstore keyless attestation of the release assets.
+      attestations: write
     steps:
       - name: Set env
         run:  echo "RELEASE_TAG=${GITHUB_REF##refs/tags/}" >> "$GITHUB_ENV"
@@ -20,16 +33,26 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
+          persist-credentials: false
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: generate release artifacts
+        env:
+          IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
         run: |
-          make release-manifests "RELEASE_VERSION=$RELEASE_TAG"
+          test -n "$IMAGE_DIGEST" # the manifest must pin the attested image
+          make release-manifests "RELEASE_VERSION=$RELEASE_TAG" "IMAGE_DIGEST=$IMAGE_DIGEST"
       - name: generate release templates
         run: |
           make release-templates
+      - name: checksums
+        run: cd out && sha256sum -- *.yaml > SHA256SUMS
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: out/*
       - name: Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
