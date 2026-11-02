@@ -243,6 +243,13 @@ dockerfile_get_go() {
     return
 }
 
+# dockerfile_get_go_tag returns the full builder image tag from the
+# Dockerfile, without the digest (e.g. "1.26.4-trixie").
+dockerfile_get_go_tag() {
+    awk '/^FROM golang:/{sub(/^FROM golang:/, ""); sub(/[@ ].*/, ""); print; exit}' "${REPO_ROOT}/Dockerfile"
+    return
+}
+
 # golangcikal_get_go returns the Go major.minor from the run.go field in
 # .golangci-kal.yml (e.g. "1.25"). Returns empty string if the file does
 # not exist.
@@ -319,12 +326,21 @@ makefile_get_envtest() {
 # Each function updates a version in a file, prints "file: Updated … old to new"
 # when a change is made, and stays silent on no-op.
 
-# dockerfile_set_go updates the Go major.minor in the Dockerfile base image.
-dockerfile_set_go() {
-    local new="$1" old
-    old=$(dockerfile_get_go)
-    if sedi "s/^(FROM golang:)[0-9]+\.[0-9]+(.*)/\1${new}\2/" "${REPO_ROOT}/Dockerfile"; then
-        echo "Dockerfile: Updated golang:${old} to golang:${new}"
+# dockerfile_set_go_image pins the Dockerfile builder image to
+# golang:<version><suffix>@sha256:<digest>, keeping the tag suffix of the
+# current image (e.g. "-trixie"). Resolves the digest unless one is given.
+dockerfile_set_go_image() {
+    local new="$1" given_digest="${2:-}" old_tag suffix new_tag new_digest
+    old_tag=$(dockerfile_get_go_tag)
+    suffix=$(echo "${old_tag}" | sed -E 's/^[0-9]+\.[0-9]+(\.[0-9]+)?//')
+    new_tag="${new}${suffix}"
+    if [[ -n "${given_digest}" ]]; then
+        new_digest="${given_digest#sha256:}"
+    else
+        new_digest=$(docker_resolve_digest "golang:${new_tag}")
+    fi
+    if sedi "s/^(FROM golang:)[^ ]+/\1${new_tag}@sha256:${new_digest}/" "${REPO_ROOT}/Dockerfile"; then
+        echo "Dockerfile: Updated golang:${old_tag} to golang:${new_tag}@sha256:${new_digest}"
     fi
     return
 }

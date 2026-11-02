@@ -1,4 +1,4 @@
-FROM golang:1.25 AS builder
+FROM golang:1.25.0-trixie@sha256:abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd AS builder
 WORKDIR /workspace
 COPY . .
 RUN go build -o manager .

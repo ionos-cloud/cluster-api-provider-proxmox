@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # bump-go.sh bumps the Go version in all places it is referenced:
 #   - go.mod
-#   - Dockerfile
+#   - Dockerfile (pinned builder image)
 #   - .golangci-kal.yml (run.go)
 #   - .github/workflows/test.yml (pinned Go container image)
 #
@@ -29,7 +29,7 @@ if [[ -n "${DIGEST}" ]]; then validate_sha256 "${DIGEST}"; fi
 NEW_MINOR=$(echo "${NEW}" | cut -d. -f1-2)
 
 gomod_set_go "${NEW}"
-dockerfile_set_go "${NEW_MINOR}"
+dockerfile_set_go_image "${NEW}" "${DIGEST}"
 golangcikal_set_go "${NEW_MINOR}"
 testworkflow_set_go_image "${NEW}" "${DIGEST}"
 

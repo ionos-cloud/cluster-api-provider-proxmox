@@ -28,3 +28,13 @@ updates:
     interval: "daily"
   cooldown:
     default-days: 5
+
+- package-ecosystem: "docker"
+  directory: "/"
+  schedule:
+    interval: "daily"
+  cooldown:
+    default-days: 5
+  ignore:
+    # go.mod is the source of truth for the Go version; hack/bump-go.sh pins the builder image.
+    - dependency-name: "golang"
