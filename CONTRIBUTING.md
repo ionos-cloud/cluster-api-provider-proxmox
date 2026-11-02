@@ -50,6 +50,12 @@ We use labels to control which e2e test contexts are run:
 
 The codeowner approving the run must make sure that the correct e2e labels are set.
 
+## Developer Certificate of Origin
+
+Every commit must be signed off to certify the
+[Developer Certificate of Origin](https://developercertificate.org/): you wrote the change or have the right to submit it under the project licence.
+Add the sign-off with `git commit -s`, which appends a `Signed-off-by: Your Name <you@example.com>` trailer using your git identity.
+
 ## Development guide
 
 For more in depth development documentation please check [our development guide](./docs/Development.md)
