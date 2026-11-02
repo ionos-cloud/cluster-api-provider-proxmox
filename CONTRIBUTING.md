@@ -50,6 +50,9 @@ We use labels to control which e2e test contexts are run:
 
 The codeowner approving the run must make sure that the correct e2e labels are set.
 
+Pushes to `main` and internal PRs run e2e in the `e2e-trusted` GitHub environment and start without approval.
+Fork PRs run in the `e2e` environment, which requires a codeowner to approve the run, because the PR code executes with the Proxmox credentials.
+
 ## Development guide
 
 For more in depth development documentation please check [our development guide](./docs/Development.md)

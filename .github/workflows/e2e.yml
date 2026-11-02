@@ -6,6 +6,12 @@ on:
       event_name:
         required: true
         type: string
+      environment:
+        # `e2e` requires reviewer approval and is used for fork PRs, whose code runs with the Proxmox
+        # credentials. `e2e-trusted` holds the same secrets without an approval gate, for pushes to
+        # main and internal PRs.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -13,7 +19,7 @@ permissions:
 jobs:
   e2e:
     runs-on: capmox-e2e
-    environment: e2e
+    environment: ${{ inputs.environment }}
     concurrency:
       group: e2e-${{ github.event.pull_request.number || github.sha }}
       cancel-in-progress: true
