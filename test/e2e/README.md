@@ -19,6 +19,7 @@ The first step to running the e2e tests is setting up the required environment v
 | `PROXMOX_URL`       | The Proxmox host                         |
 | `PROXMOX_TOKEN`  | The Proxmox token                        |
 | `PROXMOX_SECRET`           | The secret associated with the token     |
+| `KUBERNETES_VERSION_UPGRADE_TO` | Kubernetes version of `TEMPLATEID_UPGRADE_TO`; needed by the upstream CAPI upgrade specs (`GINKGO_FOCUS="K8s-Upgrade"`) |
 
 
 ### Running e2e test
