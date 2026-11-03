@@ -60,3 +60,4 @@ See what the community is doing with CAPMOX on the [In the media page](./docs/me
 
 We take security seriously.
 Please read our [security policy](SECURITY.md) for information on how to report security issues.
+Release images are signed and attested, see [Verifying releases](./docs/Verifying-releases.md).
