@@ -260,6 +260,17 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		}
 		machineScope.Logger.V(4).Info("Task created", "taskID", resp.Task.ID)
 
+		// A failed attempt left CloningFailed behind. Every later step only runs
+		// from the reason the step before it sets, so without Cloning here the VM
+		// would stay unconfigured and stopped.
+		if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason {
+			conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+				Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status: metav1.ConditionFalse,
+				Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+			})
+		}
+
 		// make sure spec.VirtualMachineID is always set.
 		machineScope.ProxmoxMachine.Status.TaskRef = new(string(resp.Task.UPID))
 		machineScope.SetVirtualMachineID(resp.NewID)
@@ -496,16 +507,10 @@ func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.Machi
 }
 
 func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) {
+	// A full vmIDRange is not terminal: VMIDs free up as other machines are
+	// deleted, so the caller marks it CloningFailed and the machine is retried.
 	vmid, err := getVMID(ctx, scope)
 	if err != nil {
-		if errors.Is(err, ErrNoVMIDInRangeFree) {
-			conditions.Set(scope.ProxmoxMachine, metav1.Condition{
-				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-				Status:  metav1.ConditionFalse,
-				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-				Message: err.Error(),
-			})
-		}
 		return proxmox.VMCloneResponse{}, err
 	}
 

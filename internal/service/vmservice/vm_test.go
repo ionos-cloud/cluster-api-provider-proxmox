@@ -334,6 +334,23 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
+func TestEnsureVirtualMachine_CreateVM_AfterCloningFailed(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason)
+
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Full: true}
+	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	// The next steps run only from Cloning.
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.Empty(t, conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition).Message)
+}
+
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 	machineScope.ProxmoxMachine.Spec.VMIDRange = &infrav1.VMIDRange{
@@ -346,9 +363,13 @@ func TestEnsureVirtualMachine_CreateVM_VMIDRangeExhausted(t *testing.T) {
 	proxmoxClient.Mock.On("CheckID", context.Background(), int64(1002)).Return(false, nil)
 
 	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
-	require.Error(t, err, ErrNoVMIDInRangeFree)
+	require.ErrorIs(t, err, ErrNoVMIDInRangeFree)
 	require.False(t, requeue)
 	require.Equal(t, int64(-1), machineScope.ProxmoxMachine.GetVirtualMachineID())
+	// Retried, not failed for good: VMIDs free up as other machines go.
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.False(t, machineScope.HasFailed())
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRangeCheckExisting(t *testing.T) {
