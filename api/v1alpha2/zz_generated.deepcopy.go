@@ -740,6 +740,16 @@ func (in *ProxmoxMachineSpec) DeepCopyInto(out *ProxmoxMachineSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.CPUUnits != nil {
+		in, out := &in.CPUUnits, &out.CPUUnits
+		*out = new(int32)
+		**out = **in
+	}
+	if in.CPULimit != nil {
+		in, out := &in.CPULimit, &out.CPULimit
+		x := (*in).DeepCopy()
+		*out = &x
+	}
 	if in.Disks != nil {
 		in, out := &in.Disks, &out.Disks
 		*out = new(Storage)

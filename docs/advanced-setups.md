@@ -373,6 +373,34 @@ spec:
             defaultIPv4: true
 ```
 
+## CPU weight and limit
+
+`numSockets` and `numCores` set how many CPUs the guest sees. Two further fields set how much host CPU the
+virtual machine gets, and map to the Proxmox VE `cpuunits` and `cpulimit` options:
+
+* `cpuUnits` is the VM's weight in the host's fair scheduler, relative to the other VMs on the same node. It only
+  matters while they compete for CPU. Proxmox VE defaults to 100 on cgroup v2 hosts and clamps values above 10000.
+* `cpuLimit` caps the CPU time of the whole QEMU process, as a CPU quantity such as `500m` or `2`. `0` removes the
+  limit. Proxmox VE accepts up to `128` and enforces the cap in steps of `10m`.
+
+They play the roles a CPU request and a CPU limit play for a Kubernetes Pod: a worker can see four vCPUs while it
+is weighted like one CPU and never uses more than two.
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha2
+kind: ProxmoxMachineTemplate
+spec:
+  template:
+    spec:
+      numSockets: 1
+      numCores: 4
+      cpuUnits: 100
+      cpuLimit: "2"
+```
+
+Both default to whatever the VM template carries, and are applied while the VM is configured after cloning, like
+`numCores`.
+
 ## Notes
 
 * Clusters with IPV6 only is supported.

@@ -27,6 +27,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -229,6 +230,12 @@ func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32, queues *
 	}
 
 	return strings.Join(components, ",")
+}
+
+// formatCPULimit formats a CPU quantity as the decimal number of CPUs the
+// cpulimit option takes, e.g. 1500m becomes '1.5'.
+func formatCPULimit(limit resource.Quantity) string {
+	return strconv.FormatFloat(float64(limit.MilliValue())/1000, 'f', -1, 64)
 }
 
 // extractMACAddress returns the macaddress out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1.

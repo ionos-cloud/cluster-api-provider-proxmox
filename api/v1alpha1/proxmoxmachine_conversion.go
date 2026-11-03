@@ -87,6 +87,10 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 	clusterv1.Convert_int32_To_Pointer_int32(src.NumSockets, ok, restored.NumSockets, &dst.NumSockets)
 	clusterv1.Convert_int32_To_Pointer_int32(src.MemoryMiB, ok, restored.MemoryMiB, &dst.MemoryMiB)
 
+	// cpuUnits and cpuLimit do not exist in v1alpha1.
+	dst.CPUUnits = restored.CPUUnits
+	dst.CPULimit = restored.CPULimit
+
 	// Turn ProxmoxMachineSpec.Target into allowedNodes. in v1alpha1, target will
 	// ignore AllowedNodes, so we can literally overwrite these.
 	if src.Target != nil {

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -95,6 +96,28 @@ type ProxmoxMachineSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MemoryMiB *int32 `json:"memoryMiB,omitempty"`
+
+	// cpuUnits is the CPU weight of the virtual machine in the host's fair
+	// scheduler, the Proxmox VE cpuunits option. The weight is relative to the
+	// other virtual machines running on the same node, so it only matters while
+	// they compete for CPU. Proxmox VE defaults to 100 on cgroup v2 hosts and
+	// clamps values above 10000 there.
+	// Defaults to the property value in the template from which the virtual machine is cloned.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=262144
+	// +optional
+	CPUUnits *int32 `json:"cpuUnits,omitempty"`
+
+	// cpuLimit caps the host CPU time of the virtual machine, the Proxmox VE
+	// cpulimit option, as a CPU quantity such as "500m" or "2". The cap covers
+	// the whole QEMU process, so the vCPU, emulator and I/O threads share it,
+	// and it is independent of numSockets and numCores, which set the CPUs the
+	// guest sees. "0" means no limit. Proxmox VE accepts up to 128 and enforces
+	// the limit in steps of 10m.
+	// Defaults to the property value in the template from which the virtual machine is cloned.
+	// +kubebuilder:validation:XValidation:rule="quantity(string(self)).compareTo(quantity('0')) >= 0 && quantity(string(self)).compareTo(quantity('128')) <= 0",message="cpuLimit must be between 0 and 128"
+	// +optional
+	CPULimit *resource.Quantity `json:"cpuLimit,omitempty"`
 
 	// disks contains a set of disk configuration options,
 	// which will be applied before the first startup.
