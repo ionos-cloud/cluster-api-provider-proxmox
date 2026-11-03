@@ -132,19 +132,22 @@ func TestMachineScope_VirtualMachineCloneStarted_NotFound(t *testing.T) {
 	require.Error(t, err)
 }
 
-// newCloneStartedScope returns a scope whose ProxmoxMachine has nothing set, as a stale cache
-// would return it, and whose client holds the stored objects.
+// newCloneStartedScope returns a scope whose ProxmoxMachine has nothing set, in the scope and in
+// the client, as a stale cache would return it, and whose API reader holds the stored objects.
 func newCloneStartedScope(t *testing.T, stored ...client.Object) *MachineScope {
 	scheme := runtime.NewScheme()
 	require.NoError(t, infrav1.AddToScheme(scheme))
-	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(stored...).Build()
+	stale := &infrav1.ProxmoxMachine{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: metav1.NamespaceDefault}}
+	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(stale.DeepCopy()).Build()
+	apiReader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(stored...).Build()
 
 	scope, err := NewMachineScope(MachineScopeParams{
 		Client:         kubeClient,
+		APIReader:      apiReader,
 		Cluster:        &clusterv1.Cluster{},
 		Machine:        &clusterv1.Machine{},
 		InfraCluster:   &ClusterScope{},
-		ProxmoxMachine: &infrav1.ProxmoxMachine{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: metav1.NamespaceDefault}},
+		ProxmoxMachine: stale,
 		IPAMHelper:     &ipam.Helper{},
 	})
 	require.NoError(t, err)
