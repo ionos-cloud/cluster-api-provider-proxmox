@@ -855,6 +855,35 @@ spec:
                           This is always done when you clone a normal VM.
                           Defaults to true when not specified, creating a full clone by default.
                         type: boolean
+                      highAvailability:
+                        description: |-
+                          highAvailability configures Proxmox High Availability (HA) for the VM
+                          backing this machine. When enabled, the VM is registered as a Proxmox HA
+                          resource once it has been provisioned, so the cluster fences and restarts
+                          it on node failure. The HA resource is removed when the machine is
+                          deleted (the VM is deleted with purge=1).
+
+                          This field is also honoured on ProxmoxMachineTemplate, so a whole
+                          MachineDeployment / control plane can opt into HA.
+                        properties:
+                          enabled:
+                            default: false
+                            description: |-
+                              enabled registers the VM as a Proxmox HA resource once it is provisioned.
+                              Defaults to false when not specified.
+                            type: boolean
+                          state:
+                            default: started
+                            description: |-
+                              state is the requested HA state for the resource, mapped to the Proxmox
+                              HA resource "state" (request state). Defaults to "started".
+                            enum:
+                            - started
+                            - stopped
+                            - disabled
+                            - ignored
+                            type: string
+                        type: object
                       memoryMiB:
                         description: |-
                           memoryMiB is the size of a virtual machine's memory, in MiB.

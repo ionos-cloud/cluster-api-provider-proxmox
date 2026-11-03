@@ -139,6 +139,51 @@ type ProxmoxMachineSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:items:Pattern=`^(?i)[a-z0-9_][a-z0-9_\-\+\.]*$`
 	Tags []string `json:"tags,omitempty"`
+
+	// highAvailability configures Proxmox High Availability (HA) for the VM
+	// backing this machine. When enabled, the VM is registered as a Proxmox HA
+	// resource once it has been provisioned, so the cluster fences and restarts
+	// it on node failure. The HA resource is removed when the machine is
+	// deleted (the VM is deleted with purge=1).
+	//
+	// This field is also honoured on ProxmoxMachineTemplate, so a whole
+	// MachineDeployment / control plane can opt into HA.
+	// +optional
+	HighAvailability *HighAvailabilitySpec `json:"highAvailability,omitempty"`
+}
+
+// HighAvailabilityState is the requested state of a Proxmox HA resource.
+// +kubebuilder:validation:Enum=started;stopped;disabled;ignored
+type HighAvailabilityState string
+
+const (
+	// HighAvailabilityStateStarted requests that Proxmox keeps the VM running.
+	HighAvailabilityStateStarted HighAvailabilityState = "started"
+
+	// HighAvailabilityStateStopped requests that Proxmox keeps the VM stopped.
+	HighAvailabilityStateStopped HighAvailabilityState = "stopped"
+
+	// HighAvailabilityStateDisabled stops the VM and disables its HA management.
+	HighAvailabilityStateDisabled HighAvailabilityState = "disabled"
+
+	// HighAvailabilityStateIgnored leaves the VM out of HA management while
+	// keeping the resource registered.
+	HighAvailabilityStateIgnored HighAvailabilityState = "ignored"
+)
+
+// HighAvailabilitySpec configures Proxmox High Availability for a VM.
+type HighAvailabilitySpec struct {
+	// enabled registers the VM as a Proxmox HA resource once it is provisioned.
+	// Defaults to false when not specified.
+	// +kubebuilder:default=false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// state is the requested HA state for the resource, mapped to the Proxmox
+	// HA resource "state" (request state). Defaults to "started".
+	// +kubebuilder:default=started
+	// +optional
+	State HighAvailabilityState `json:"state,omitempty"`
 }
 
 // Storage is the physical storage on the node.
