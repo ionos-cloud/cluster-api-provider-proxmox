@@ -149,11 +149,6 @@ func (m *MachineScope) ProxmoxClientForTarget(ctx context.Context, node string) 
 	return m.ProxmoxClient(ctx)
 }
 
-// IsControlPlane returns true if the machine is a control plane.
-func (m *MachineScope) IsControlPlane() bool {
-	return util.IsControlPlaneMachine(m.Machine)
-}
-
 // Role returns the machine role from the labels.
 func (m *MachineScope) Role() string {
 	if util.IsControlPlaneMachine(m.Machine) {
