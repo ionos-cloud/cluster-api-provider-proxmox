@@ -231,6 +231,27 @@ func formatNetworkDevice(model, bridge string, mtu *int32, vlan *int32, queues *
 	return strings.Join(components, ",")
 }
 
+// formatPCIDevice formats a PCI device passthrough config string for the Proxmox API,
+// e.g. "0000:01:00,pcie=1,x-vga=1".
+func formatPCIDevice(dev infrav1.PCIDevice) string {
+	var sb strings.Builder
+	sb.WriteString(strings.Join(dev.DeviceIDs, ";"))
+	if ptr.Deref(dev.PCIe, false) {
+		sb.WriteString(",pcie=1")
+	}
+	if dev.ROMBar != nil {
+		if *dev.ROMBar {
+			sb.WriteString(",rombar=1")
+		} else {
+			sb.WriteString(",rombar=0")
+		}
+	}
+	if ptr.Deref(dev.PrimaryGPU, false) {
+		sb.WriteString(",x-vga=1")
+	}
+	return sb.String()
+}
+
 // extractMACAddress returns the macaddress out of net device input e.g. virtio=A6:23:64:4D:84:CB,bridge=vmbr1.
 func extractMACAddress(input string) string {
 	re := regexp.MustCompile(`=([^,]+),bridge`)

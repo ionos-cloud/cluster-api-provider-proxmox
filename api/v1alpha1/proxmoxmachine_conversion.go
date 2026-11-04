@@ -189,6 +189,11 @@ func restoreProxmoxMachineSpec(src *ProxmoxMachineSpec, dst *v1alpha2.ProxmoxMac
 		}
 	}
 
+	// PCIDevices does not exist in v1alpha1; restore it from the annotation.
+	if ok {
+		dst.PCIDevices = restored.PCIDevices
+	}
+
 	// NetworkSpec is required, therefore a default interface must be added.
 	// Push a dummy interface as a default device.
 	if dst.Network == nil {
