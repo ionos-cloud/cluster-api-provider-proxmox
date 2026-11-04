@@ -334,3 +334,81 @@ func setupClient() client.Client {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 	return fakeClient
 }
+
+func TestScheduleVM_FailureDomainPinsZoneCandidates(t *testing.T) {
+	// A machine whose CAPI failure domain is set must only be scheduled on the
+	// nodes of that availability zone, whatever the cluster's allowed nodes.
+	// The strict mock makes any query to a node outside the zone fail the test.
+	ctrlClient := setupClient()
+
+	ipamHelper := &ipam.Helper{}
+
+	proxmoxCluster := infrav1.ProxmoxCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "bar",
+		},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"pve1", "pve2", "pve3"},
+			AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1"}},
+				{Name: "az-2", Nodes: []string{"pve2"}},
+			},
+		},
+		Status: infrav1.ProxmoxClusterStatus{
+			NodeLocations: &infrav1.NodeLocations{
+				ControlPlane: []infrav1.NodeLocation{},
+				Workers:      []infrav1.NodeLocation{},
+			},
+		},
+	}
+	err := ctrlClient.Create(context.Background(), &proxmoxCluster)
+	require.NoError(t, err)
+
+	proxmoxMachine := &infrav1.ProxmoxMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo-machine",
+			Labels: map[string]string{
+				"cluster.x-k8s.io/cluster-name": "bar",
+			},
+		},
+		Spec: infrav1.ProxmoxMachineSpec{
+			MemoryMiB: new(int32(10)),
+		},
+	}
+
+	fakeProxmoxClient := proxmoxtest.NewMockClient(t)
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "bar",
+			Namespace: "default",
+		},
+	}
+	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
+		Client: ctrlClient,
+		Machine: &clusterv1.Machine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo-machine",
+				Namespace: "default",
+			},
+			Spec: clusterv1.MachineSpec{
+				FailureDomain: "az-1",
+			},
+		},
+		Cluster: cluster,
+		InfraCluster: &scope.ClusterScope{
+			Cluster:        cluster,
+			ProxmoxCluster: &proxmoxCluster,
+			ProxmoxClient:  fakeProxmoxClient,
+		},
+		ProxmoxMachine: proxmoxMachine,
+		IPAMHelper:     ipamHelper,
+	})
+	require.NoError(t, err)
+
+	// Only az-1's node is a candidate: pve1 is the only node queried.
+	fakeProxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "pve1", int64(100)).Return(miBytes(50), nil)
+
+	node, err := ScheduleVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, "pve1", node)
+}
