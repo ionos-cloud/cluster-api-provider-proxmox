@@ -641,6 +641,37 @@ func TestProxmoxAPIClient_GetTask(t *testing.T) {
 	}
 }
 
+func TestProxmoxAPIClient_HasActiveTask(t *testing.T) {
+	upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:resize:101:root@pam:"
+	tests := []struct {
+		name   string
+		status int
+		tasks  []*proxmox.Task
+		active bool
+		err    string
+	}{
+		{name: "active", status: 200, tasks: []*proxmox.Task{{UPID: proxmox.UPID(upid)}}, active: true},
+		{name: "none", status: 200, tasks: []*proxmox.Task{}, active: false},
+		{name: "list fails", status: 501, err: "cannot list active tasks for vm 101: 501 Not Implemented"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+
+			httpmock.RegisterResponderWithQuery(http.MethodGet, testBaseURL+"api2/json/nodes/test/tasks", "source=active&vmid=101",
+				newJSONResponder(test.status, test.tasks))
+
+			active, err := client.HasActiveTask(context.Background(), &proxmox.VirtualMachine{Node: "test", VMID: 101})
+			if test.err != "" {
+				require.EqualError(t, err, test.err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, test.active, active)
+		})
+	}
+}
+
 func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
 	tests := []struct {
 		name     string
