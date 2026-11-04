@@ -16,4 +16,5 @@ jobs:
     uses: ./.github/workflows/e2e.yml
     with:
       event_name: ${{ github.event_name }}
+      environment: e2e
     secrets: inherit

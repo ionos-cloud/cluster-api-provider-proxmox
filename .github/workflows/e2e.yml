@@ -6,6 +6,17 @@ on:
       event_name:
         required: true
         type: string
+      environment:
+        # `e2e` requires reviewer approval and is used for fork PRs, whose code runs with the Proxmox
+        # credentials. `e2e-trusted` holds the same secrets without an approval gate, for pushes to
+        # main and internal PRs.
+        required: true
+        type: string
+      focus:
+        description: Ginkgo focus regexp. PRs run the capmox specs; the nightly run adds the upstream CAPI specs.
+        required: false
+        type: string
+        default: Workload cluster creation
 
 permissions:
   contents: read
@@ -13,7 +24,7 @@ permissions:
 jobs:
   e2e:
     runs-on: capmox-e2e
-    environment: e2e
+    environment: ${{ inputs.environment }}
     concurrency:
       group: e2e-${{ github.event.pull_request.number || github.sha }}
       cancel-in-progress: true
@@ -21,6 +32,8 @@ jobs:
       PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
       PROXMOX_TOKEN: ${{ secrets.PROXMOX_TOKEN }}
       PROXMOX_SECRET: ${{ secrets.PROXMOX_SECRET }}
+      # Kubernetes version baked into TEMPLATEID_UPGRADE_TO, set as an environment variable in the lab.
+      KUBERNETES_VERSION_UPGRADE_TO: ${{ vars.KUBERNETES_VERSION_UPGRADE_TO }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -34,10 +47,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - run: make test-e2e "GINKGO_SKIP=$SKIP_E2E"
+      - run: make test-e2e "GINKGO_SKIP=$SKIP_E2E" "GINKGO_FOCUS=$FOCUS"
         env:
-          # Skip Flatcar unless it's a push to main or the e2e/flatcar label is set.
-          SKIP_E2E: ${{ (inputs.event_name != 'push' && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
+          FOCUS: ${{ inputs.focus }}
+          # Skip Flatcar on PRs unless the e2e/flatcar label is set; pushes to main and the nightly run include it.
+          SKIP_E2E: ${{ (startsWith(inputs.event_name, 'pull_request') && !contains(github.event.pull_request.labels.*.name, 'e2e/flatcar')) && 'Flatcar' || '' }}
 
       - name: Upload logs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

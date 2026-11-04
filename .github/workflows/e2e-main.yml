@@ -3,6 +3,8 @@ name: "e2e (main/PR)"
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "0 2 * * *" # nightly: capmox specs plus the upstream CAPI quick-start and K8s upgrade specs
   pull_request:
     types: ["opened", "synchronize", "reopened", "labeled", "unlabeled"]
 
@@ -13,10 +15,13 @@ jobs:
   e2e:
     if: >-
       github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
       (!github.event.pull_request.head.repo.fork &&
        github.event.pull_request.user.login != 'dependabot[bot]' &&
        !contains(github.event.pull_request.labels.*.name, 'e2e/none'))
     uses: ./.github/workflows/e2e.yml
     with:
       event_name: ${{ github.event_name }}
+      environment: e2e-trusted
+      focus: ${{ github.event_name == 'schedule' && 'Workload cluster creation|quick-start|K8s-Upgrade' || 'Workload cluster creation' }}
     secrets: inherit
