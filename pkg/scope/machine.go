@@ -124,11 +124,6 @@ func (m *MachineScope) Namespace() string {
 	return m.ProxmoxMachine.Namespace
 }
 
-// IsControlPlane returns true if the machine is a control plane.
-func (m *MachineScope) IsControlPlane() bool {
-	return util.IsControlPlaneMachine(m.Machine)
-}
-
 // Role returns the machine role from the labels.
 func (m *MachineScope) Role() string {
 	if util.IsControlPlaneMachine(m.Machine) {

@@ -72,6 +72,11 @@ func (*ProxmoxClusterTemplate) ValidateCreate(_ context.Context, obj runtime.Obj
 		return warnings, err
 	}
 
+	if err := validateAvailabilityZones(&cluster.Spec.Template.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster template %s", cluster.GetName()))
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
@@ -88,6 +93,11 @@ func (*ProxmoxClusterTemplate) ValidateUpdate(_ context.Context, _ runtime.Objec
 	}
 
 	if err := validateControlPlaneEndpoint(&newCluster.Spec.Template.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
+		return warnings, err
+	}
+
+	if err := validateAvailabilityZones(&newCluster.Spec.Template.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
