@@ -53,17 +53,17 @@ func TestSelectNodeBalancesAcrossAvailabilityZones(t *testing.T) {
 	// only looked at per-node counts, leaving az-2 empty.
 	allowedNodes := []string{"pve1a", "pve1b", "pve2"}
 	nodeZone := map[string]string{"pve1a": "az-1", "pve1b": "az-1", "pve2": "az-2"}
-	var locations []infrav1.NodeLocation
+
+	// Expect the second VM to land in az-2 (on pve2) instead of stacking with the first VM's
+	// zone (az-1), even though pve1b is a distinct, equally-available node.
+	expectedZones := []string{"az-1", "az-2", "az-1"}
+	locations := make([]infrav1.NodeLocation, 0, len(expectedZones))
 	requestMiB := int32(8)
 	availableMem := map[string]uint64{
 		"pve1a": miBytes(100),
 		"pve1b": miBytes(100),
 		"pve2":  miBytes(100),
 	}
-
-	// Expect the second VM to land in az-2 (on pve2) instead of stacking with the first VM's
-	// zone (az-1), even though pve1b is a distinct, equally-available node.
-	expectedZones := []string{"az-1", "az-2", "az-1"}
 
 	for i, expectedZone := range expectedZones {
 		proxmoxMachine := &infrav1.ProxmoxMachine{

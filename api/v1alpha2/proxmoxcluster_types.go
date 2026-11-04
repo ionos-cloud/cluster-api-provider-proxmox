@@ -140,12 +140,14 @@ type AvailabilityZoneSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`
+	//nolint:kubeapilinter // required field must not use omitempty, else controller-gen marks it optional
 	Name string `json:"name"`
 
 	// nodes lists the Proxmox nodes belonging to this availability zone.
 	// +required
 	// +listType=set
 	// +kubebuilder:validation:MinItems=1
+	//nolint:kubeapilinter // required field must not use omitempty, else controller-gen marks it optional
 	Nodes []string `json:"nodes"`
 }
 

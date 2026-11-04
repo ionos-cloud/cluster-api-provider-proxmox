@@ -19,7 +19,6 @@ package vmservice
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
@@ -176,15 +175,4 @@ func recoverFromVMIDCollision(s *scope.MachineScope, cause error) error {
 	})
 
 	return cause
-}
-
-// zoneForNode returns the name of the availability zone that contains the given Proxmox node,
-// or "" if the node is not listed in any availability zone.
-func zoneForNode(azs []infrav1.AvailabilityZoneSpec, node string) string {
-	for _, az := range azs {
-		if slices.Contains(az.Nodes, node) {
-			return az.Name
-		}
-	}
-	return ""
 }
