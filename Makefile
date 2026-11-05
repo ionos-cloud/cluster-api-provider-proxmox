@@ -239,6 +239,8 @@ crs-metallb: ## Generates crs manifests for MetalLB.
 REPOSITORY ?= ghcr.io/ionos-cloud/cluster-api-provider-proxmox
 RELEASE_DIR ?= out
 RELEASE_VERSION ?= v0.0.1
+# sha256:… of the release image; when set, the manifest pins the image by tag and digest.
+IMAGE_DIGEST ?=
 
 .PHONY: release-manifests
 RELEASE_MANIFEST_SOURCE_BASE ?= config/default
@@ -246,7 +248,7 @@ release-manifests: ## Create kustomized release manifest in $RELEASE_DIR (defaul
 	@mkdir -p $(RELEASE_DIR)
 	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
 	## change the image tag to the release version
-	cd $(RELEASE_MANIFEST_SOURCE_BASE) && go tool kustomize edit set image $(REPOSITORY):$(RELEASE_VERSION)
+	cd $(RELEASE_MANIFEST_SOURCE_BASE) && go tool kustomize edit set image $(REPOSITORY):$(RELEASE_VERSION)$(if $(IMAGE_DIGEST),@$(IMAGE_DIGEST))
 	## generate the release manifest
 	go tool kustomize build $(RELEASE_MANIFEST_SOURCE_BASE) > $(RELEASE_DIR)/infrastructure-components.yaml
 
