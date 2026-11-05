@@ -635,7 +635,7 @@ func newVMWithNets(def string, additional ...string) *proxmox.VirtualMachine {
 }
 
 // requireConditionIsFalse asserts that the given conditions exists and has status "False".
-func requireConditionIsFalse(t *testing.T, getter conditions.Getter, cond clusterv1.ConditionType) {
+func requireConditionIsFalse(t *testing.T, getter conditions.Getter, cond clusterv1.ConditionType) { //nolint:staticcheck // the helper still reads conditions through the v1beta1-compatible conditions package
 	t.Helper()
 	require.Truef(t, conditions.Has(getter, string(cond)),
 		"%T does not have condition %v", getter, cond)
