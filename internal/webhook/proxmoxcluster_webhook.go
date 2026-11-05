@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"go4.org/netipx"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
@@ -37,7 +36,10 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 )
 
-var _ admission.CustomValidator = &ProxmoxCluster{}
+var (
+	_ admission.Validator[*infrav1.ProxmoxCluster] = &ProxmoxCluster{}
+	_ admission.Defaulter[*infrav1.ProxmoxCluster] = &ProxmoxCluster{}
+)
 
 // ProxmoxCluster is a type that implements
 // the interfaces from the admission package.
@@ -46,8 +48,7 @@ type ProxmoxCluster struct{}
 // SetupWebhookWithManager sets up the webhook with the
 // custom interfaces.
 func (p *ProxmoxCluster) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&infrav1.ProxmoxCluster{}).
+	return ctrl.NewWebhookManagedBy(mgr, &infrav1.ProxmoxCluster{}).
 		WithValidator(p).
 		WithDefaulter(p).
 		Complete()
@@ -57,17 +58,12 @@ func (p *ProxmoxCluster) SetupWebhookWithManager(mgr ctrl.Manager) error {
 // +kubebuilder:webhook:verbs=create;update,path=/mutate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxcluster,mutating=true,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,versions=v1alpha2,name=default.proxmoxcluster.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // Default implements the defaulting (mutating) webhook for ProxmoxCluster.
-func (p *ProxmoxCluster) Default(_ context.Context, _ runtime.Object) error {
+func (p *ProxmoxCluster) Default(_ context.Context, _ *infrav1.ProxmoxCluster) error {
 	return nil
 }
 
 // ValidateCreate implements the creation validation function.
-func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	cluster, ok := obj.(*infrav1.ProxmoxCluster)
-	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", obj))
-	}
-
+func (*ProxmoxCluster) ValidateCreate(_ context.Context, cluster *infrav1.ProxmoxCluster) (warnings admission.Warnings, err error) {
 	if hasNoIPPoolConfig(&cluster.Spec) {
 		err = errors.New("proxmox cluster must define at least one IP pool config")
 		warnings = append(warnings, fmt.Sprintf("proxmox cluster must define at least one IP pool config %s", cluster.GetName()))
@@ -83,17 +79,12 @@ func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (wa
 }
 
 // ValidateDelete implements the deletion validation function.
-func (*ProxmoxCluster) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+func (*ProxmoxCluster) ValidateDelete(_ context.Context, _ *infrav1.ProxmoxCluster) (admission.Warnings, error) {
 	return nil, nil
 }
 
 // ValidateUpdate implements the update validation function.
-func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
-	newCluster, ok := newObj.(*infrav1.ProxmoxCluster)
-	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
-	}
-
+func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _, newCluster *infrav1.ProxmoxCluster) (warnings admission.Warnings, err error) {
 	if err := validateControlPlaneEndpoint(&newCluster.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
