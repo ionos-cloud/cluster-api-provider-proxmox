@@ -200,9 +200,14 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 	// Initialize the state machine for proxmox machine deployment.
 	// NOTE: We are setting this condition only in case it does not exist, so we avoid to get flickering LastConditionTime
 	// in case of cloning errors or powering on errors.
+	// InsufficientMemory is included in the resettable reasons so a machine that
+	// ran out of schedulable memory resumes the normal Cloning flow once memory
+	// becomes available, instead of being stuck at a reason no reconcile step
+	// accepts.
 	if !conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) ||
 		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == clusterv1.WaitingForClusterInfrastructureReadyReason ||
-		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == clusterv1.WaitingForBootstrapDataReason {
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == clusterv1.WaitingForBootstrapDataReason ||
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == infrav1.ProxmoxMachineVirtualMachineProvisionedInsufficientMemoryReason {
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status: metav1.ConditionFalse,
@@ -246,9 +251,11 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		// Create the VM.
 		resp, err := createVM(ctx, machineScope)
 		if err != nil {
-			// Only set CloningFailed if createVM didn't already set a terminal
-			// failure reason (e.g. VMProvisionFailed for insufficient resources).
-			if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) != infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason {
+			// Only set CloningFailed if createVM didn't already set a more
+			// specific reason: VMProvisionFailed for terminal failures, or
+			// InsufficientMemory for the transient scheduling shortage.
+			if reason := conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition); reason != infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason &&
+				reason != infrav1.ProxmoxMachineVirtualMachineProvisionedInsufficientMemoryReason {
 				conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,
@@ -541,10 +548,16 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 		options.Target, err = selectNextNode(ctx, scope)
 		if err != nil {
 			if errors.As(err, &scheduler.InsufficientMemoryError{}) {
+				// Insufficient memory is transient: the situation usually changes
+				// as machines are created or deleted elsewhere, so the machine
+				// must keep retrying. VMProvisionFailed is terminal - the
+				// controller stops reconciling a machine carrying it - and
+				// latching a scheduling shortage into it permanently stalls
+				// rollouts (#864).
 				conditions.Set(scope.ProxmoxMachine, metav1.Condition{
 					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 					Status:  metav1.ConditionFalse,
-					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedInsufficientMemoryReason,
 					Message: err.Error(),
 				})
 			}
