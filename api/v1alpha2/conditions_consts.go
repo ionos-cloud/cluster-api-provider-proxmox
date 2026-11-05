@@ -100,8 +100,16 @@ const (
 	ProxmoxMachineVirtualMachineProvisionedWaitingForClusterAPIMachineAddressesReason = "WaitingForClusterAPIMachineAddresses"
 
 	// ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason documents a failure
-	// during virtual machine provisioning.
+	// during virtual machine provisioning. It is terminal: the controller stops
+	// reconciling a ProxmoxMachine carrying it.
 	ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason = "VMProvisionFailed"
+
+	// ProxmoxMachineVirtualMachineProvisionedInsufficientMemoryReason documents a
+	// ProxmoxMachine that could not be scheduled because no allowed node has enough
+	// free memory. It is transient by nature: the memory situation changes as other
+	// machines are created or deleted, so the controller automatically retries
+	// instead of latching the machine as terminally failed.
+	ProxmoxMachineVirtualMachineProvisionedInsufficientMemoryReason = "InsufficientMemory"
 
 	// ProxmoxMachineVirtualMachineProvisionedTaskFailedReason documents a Proxmox task
 	// failure; the controller will automatically retry, but user intervention might

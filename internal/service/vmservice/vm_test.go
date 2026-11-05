@@ -309,7 +309,49 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_InsufficientMemory(t *testing.
 
 	require.False(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
-	require.True(t, machineScope.HasFailed())
+
+	// Insufficient memory is transient: the machine must not be latched as
+	// terminally failed (the controller skips reconciliation of a failed
+	// machine forever, #864), and the reason must be the retryable one.
+	require.False(t, machineScope.HasFailed())
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedInsufficientMemoryReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+}
+
+func TestEnsureVirtualMachine_CreateVM_InsufficientMemoryRecovers(t *testing.T) {
+	// Regression test for #864: a machine that ran out of schedulable memory
+	// must resume the normal cloning flow once memory becomes available, not
+	// stay stuck on a reason no reconcile step accepts.
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AllowedNodes = []string{"node1"}
+
+	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
+		return "", fmt.Errorf("error: %w", scheduler.InsufficientMemoryError{})
+	}
+
+	// First attempt: not enough memory.
+	_, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.Error(t, err)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedInsufficientMemoryReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+
+	// Second attempt: memory was freed elsewhere, scheduling succeeds and the
+	// machine re-enters the Cloning flow.
+	selectNextNode = func(context.Context, *scope.MachineScope) (string, error) {
+		return "node1", nil
+	}
+	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
+
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Target: "node1", Name: "test", Full: true}
+	response := proxmox.VMCloneResponse{Task: newTask(), NewID: int64(105)}
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.True(t, machineScope.InfraCluster.ProxmoxCluster.HasMachine(machineScope.Name(), false))
 }
 
 func TestEnsureVirtualMachine_CreateVM_VMIDRange(t *testing.T) {
