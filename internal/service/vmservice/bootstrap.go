@@ -93,11 +93,17 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 		err = injectCloudInit(ctx, machineScope, bootstrapData, biosUUID, nicData, kubernetesVersion)
 	}
 	if err != nil {
+		// Proxmox VE failing to take the ISO can be transient, so keep waiting and retry.
+		reason := infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason
+		var isoErr inject.ISOError
+		if errors.As(err, &isoErr) {
+			reason = infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason
+		}
 		// Todo: test this (colliding default gateways for example)
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+			Reason:  reason,
 			Message: err.Error(),
 		})
 		machineScope.Logger.V(0).Error(err, "nicData", "json", func() string { ret, _ := json.Marshal(nicData); return string(ret) }())

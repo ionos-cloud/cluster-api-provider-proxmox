@@ -198,7 +198,11 @@ NEXT_VM:
 			if distance > bestDistance {
 				continue NEXT_VM
 			}
-			bestDistance = distance
+			if distance < bestDistance {
+				// a strictly better match invalidates all previous matches.
+				bestDistance = distance
+				matches = 0
+			}
 		}
 
 		matches++
@@ -275,6 +279,18 @@ func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, er
 	}
 
 	return task, nil
+}
+
+// HasActiveTask checks whether any task is still running for the VM.
+func (c *APIClient) HasActiveTask(ctx context.Context, vm *proxmox.VirtualMachine) (bool, error) {
+	node := (&proxmox.Node{}).New(c.Client, vm.Node)
+
+	tasks, err := node.Tasks(ctx, &proxmox.NodeTasksOptions{Source: "active", VMID: int(vm.VMID)})
+	if err != nil {
+		return false, fmt.Errorf("cannot list active tasks for vm %d: %w", vm.VMID, err)
+	}
+
+	return len(tasks) > 0, nil
 }
 
 // GetReservableMemoryBytes returns the memory that can be reserved by a new VM, in bytes.

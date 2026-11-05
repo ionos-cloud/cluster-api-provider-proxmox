@@ -387,6 +387,8 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 		&proxmox.ClusterResource{VMID: 402, Name: "flatcar-k8s-v1.33.9", Node: "capmox03", Tags: "capmox;flatcar;staging;v1.33.9", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 403, Name: "flatcar-k8s-v1.34.5", Node: "capmox03", Tags: "capic;flatcar;devel;v1.34.5", Template: uint64(1)},
 		&proxmox.ClusterResource{VMID: 404, Name: "flatcar-k8s-v1.35.2", Node: "capmox03", Tags: "capmox;flatcar;devel;v1.35.1", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 501, Name: "rocky-k8s-v1.33.0-staging", Node: "capmox03", Tags: "rocky;r9;staging;v1.33.0", Template: uint64(1)},
+		&proxmox.ClusterResource{VMID: 502, Name: "rocky-k8s-v1.33.0", Node: "capmox03", Tags: "rocky;r9;v1.33.0", Template: uint64(1)},
 	}
 	tests := []struct {
 		name           string
@@ -426,7 +428,7 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			vmTags:         nil,
 			matchPolicy:    infrav1.TemplateMatchPolicySubset,
 			fails:          true,
-			err:            "VM template not found: found 9 VM templates with tags \"\"",
+			err:            "VM template not found: found 11 VM templates with tags \"\"",
 			vmTemplateNode: "capmox01",
 			vmTemplateID:   201,
 		},
@@ -500,6 +502,16 @@ func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 			err:            "",
 			vmTemplateNode: "capmox03",
 			vmTemplateID:   401,
+		},
+		{
+			name:           "find-template-best-subset-worse-match-first",
+			http:           []int{200, 200},
+			vmTags:         []string{"rocky", "r9"},
+			matchPolicy:    infrav1.TemplateMatchPolicyBest,
+			fails:          false,
+			err:            "",
+			vmTemplateNode: "capmox03",
+			vmTemplateID:   502,
 		},
 		{
 			name:           "find-multiple-templates-best-subset",
@@ -625,6 +637,37 @@ func TestProxmoxAPIClient_GetTask(t *testing.T) {
 				require.Equal(t, upid, string(task.UPID))
 				require.Equal(t, "101", task.ID)
 			}
+		})
+	}
+}
+
+func TestProxmoxAPIClient_HasActiveTask(t *testing.T) {
+	upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:resize:101:root@pam:"
+	tests := []struct {
+		name   string
+		status int
+		tasks  []*proxmox.Task
+		active bool
+		err    string
+	}{
+		{name: "active", status: 200, tasks: []*proxmox.Task{{UPID: proxmox.UPID(upid)}}, active: true},
+		{name: "none", status: 200, tasks: []*proxmox.Task{}, active: false},
+		{name: "list fails", status: 501, err: "cannot list active tasks for vm 101: 501 Not Implemented"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+
+			httpmock.RegisterResponderWithQuery(http.MethodGet, testBaseURL+"api2/json/nodes/test/tasks", "source=active&vmid=101",
+				newJSONResponder(test.status, test.tasks))
+
+			active, err := client.HasActiveTask(context.Background(), &proxmox.VirtualMachine{Node: "test", VMID: 101})
+			if test.err != "" {
+				require.EqualError(t, err, test.err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, test.active, active)
 		})
 	}
 }

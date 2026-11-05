@@ -18,6 +18,7 @@ package inject
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -180,6 +181,74 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 	injector.NetworkRenderer = cloudinit.NewNetworkConfig(nil)
 	err = injector.Inject(context.Background(), "cloudinit")
 	require.Error(t, err)
+}
+
+func TestISOInjectorInject_ISOError(t *testing.T) {
+	client := newTestClient(t)
+
+	vm := &proxmox.VirtualMachine{
+		Node:                 "pve",
+		VMID:                 proxmox.StringOrUint64(100),
+		VirtualMachineConfig: &proxmox.VirtualMachineConfig{},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/status`, "pve"),
+		newJSONResponder(200, proxmox.Node{Name: "pve"}, 3))
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/status/current`, "pve", 100),
+		newJSONResponder(200, vm, 1))
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/config`, "pve", 100),
+		newJSONResponder(200, vm.VirtualMachineConfig, 1))
+
+	vm, err := client.GetVM(context.Background(), "pve", 100)
+	require.NoError(t, err)
+
+	injector := &ISOInjector{
+		VirtualMachine: vm,
+		BootstrapData:  []byte(""),
+		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", true),
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
+			{
+				Type:       "ethernet",
+				Name:       "eth0",
+				MacAddress: "aa:bb:cc:dd:ee:ff",
+				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+				Routes:     []network.RoutingData{{To: netip.MustParsePrefix("0.0.0.0/0")}},
+			},
+		}),
+		IgnitionEnricher: &ignition.Enricher{
+			BootstrapData: []byte(bootstrapData),
+			Hostname:      "my-custom-vm",
+			InstanceID:    "xxxx-xxx",
+			ProviderID:    "proxmox://xxxx-xxx",
+			Network: []network.ConfigData{
+				{
+					Name:       "eth0",
+					IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+					DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+					Routes: []network.RoutingData{{
+						To:  netip.MustParsePrefix("0.0.0.0/0"),
+						Via: netip.MustParseAddr("10.1.1.1"),
+					}},
+				},
+			},
+		},
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/storage`, "pve"),
+		newJSONResponder(200, &proxmox.Storages{{Name: "iso", Content: "iso", Enabled: 1}}, 2))
+
+	httpmock.RegisterResponder(http.MethodPost, fmt.Sprintf(`=~/nodes/%s/storage/iso/upload`, "pve"),
+		httpmock.NewStringResponder(http.StatusInternalServerError, ""))
+
+	for _, format := range []BootstrapDataFormat{CloudConfigFormat, IgnitionFormat} {
+		err = injector.Inject(context.Background(), format)
+		require.ErrorAs(t, err, &ISOError{}, format)
+		require.ErrorContains(t, err, "unable to inject", format)
+		require.Error(t, errors.Unwrap(err), format)
+	}
 }
 
 func TestISOInjectorInjectIgnition(t *testing.T) {

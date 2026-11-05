@@ -279,6 +279,35 @@ func TestReconcileBootstrapData_BadInjector(t *testing.T) {
 	require.Contains(t, err.Error(), "failed to inject bootstrap data: bad FakeISOInjector")
 	require.False(t, requeue)
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+	require.True(t, machineScope.HasFailed())
+	require.Nil(t, machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
+}
+
+// TestReconcileBootstrapData_ISOError keeps the machine waiting when Proxmox VE fails to take the ISO,
+// so the next reconcile tries again.
+func TestReconcileBootstrapData_ISOError(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason)
+	setupVMWithMetadata(machineScope)
+	createBootstrapSecret(t, kubeClient, machineScope, cloudinit.FormatCloudConfig)
+
+	// NetworkSetup
+	defaultPool := addDefaultIPPool(machineScope)
+
+	createIPPools(t, kubeClient, machineScope)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.10.10.10", 0, &defaultPool)
+
+	errUpload := errors.New("500 Internal Server Error")
+	getISOInjector = func(_ *proxmox.VirtualMachine, _ []byte, _, _ cloudinit.Renderer) isoInjector {
+		return FakeISOInjector{Error: inject.ISOError{Err: errUpload}}
+	}
+	t.Cleanup(func() { getISOInjector = defaultISOInjector })
+
+	requeue, err := reconcileBootstrapData(context.Background(), machineScope)
+	require.ErrorIs(t, err, errUpload)
+	require.False(t, requeue)
+	require.False(t, machineScope.HasFailed())
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.Nil(t, machineScope.ProxmoxMachine.Status.BootstrapDataProvided)
 }
 

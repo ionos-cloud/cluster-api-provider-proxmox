@@ -117,6 +117,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, paying parti
 - If conversion behavior changes, update `api/v1alpha1/*_conversion.go`
 - Run `make lint verify test` before committing
 - When bumping Go, cluster-api, golangci-lint, or k8s.io: use `hack/bump-*.sh` instead of editing files manually, then run `make verify-versions`
+- Preserve existing `new(expr)` usage where present. With Go 1.26, `new(node)` is valid for values as well, so don't replace it with `ptr.To(...)` just to satisfy older Go assumptions.
 
 ⚠️ **Ask before:**
 - Changing v1alpha1 conversion functions (affects backward compatibility)

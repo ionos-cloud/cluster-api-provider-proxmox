@@ -108,6 +108,18 @@ func b2i(b *bool) int {
 	return 0
 }
 
+// anyDefaultSet reports whether any network device expresses an explicit
+// opinion about a default IP family. An explicit false is an opinion: it means
+// "do not attach the host network to this interface".
+func anyDefaultSet(devices []infrav1.NetworkDevice, get func(infrav1.NetworkDevice) *bool) bool {
+	for _, device := range devices {
+		if get(device) != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func validateNetworks(machine *infrav1.ProxmoxMachine) error {
 	if machine.Spec.Network == nil {
 		return nil
@@ -334,21 +346,17 @@ func (p *ProxmoxMachine) Default(_ context.Context, obj runtime.Object) error {
 		return nil
 	}
 
-	// Patch default networks if they are unset.
-	defaultIPv4Count := 0
-	defaultIPv6Count := 0
-
-	for _, networkDevice := range machine.Spec.Network.NetworkDevices {
-		defaultIPv4Count += b2i(networkDevice.DefaultIPv4)
-		defaultIPv6Count += b2i(networkDevice.DefaultIPv6)
-	}
+	// Patch default networks if they are unset. Setting defaultIPv4/defaultIPv6
+	// to false on every device opts out of the cluster default pool entirely,
+	// so only default when no device sets the field at all.
+	devices := machine.Spec.Network.NetworkDevices
 
 	// We guarantee that DefaultNetworkDevice is a valid proxmox network device.
 	offset, _ := vmservice.NetNameToOffset(infrav1.DefaultNetworkDevice)
-	if defaultIPv4Count == 0 {
+	if !anyDefaultSet(devices, func(d infrav1.NetworkDevice) *bool { return d.DefaultIPv4 }) {
 		machine.Spec.Network.NetworkDevices[offset].DefaultIPv4 = new(true)
 	}
-	if defaultIPv6Count == 0 {
+	if !anyDefaultSet(devices, func(d infrav1.NetworkDevice) *bool { return d.DefaultIPv6 }) {
 		machine.Spec.Network.NetworkDevices[offset].DefaultIPv6 = new(true)
 	}
 
