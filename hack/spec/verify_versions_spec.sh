@@ -12,7 +12,7 @@ Describe 'verify-versions.sh'
   End
 
   It 'detects Go version mismatch in Dockerfile'
-    dockerfile_set_go '1.24' >/dev/null
+    dockerfile_set_go_image '1.24.0' >/dev/null
     When run script ../verify-versions.sh
     The status should be failure
     The error should include 'Go version mismatch'

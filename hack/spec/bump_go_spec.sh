@@ -10,7 +10,7 @@ Describe 'bump-go.sh'
     When run script ../bump-go.sh 1.26.0
     The status should be success
     The output should include 'go.mod: Updated go 1.25.0 to 1.26.0'
-    The output should include 'Dockerfile: Updated golang:1.25 to golang:1.26'
+    The output should include 'Dockerfile: Updated golang:1.25.0-trixie to golang:1.26.0-trixie@sha256:cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe'
     The output should include '.golangci-kal.yml: Updated Go 1.25 to 1.26'
   End
 
@@ -67,5 +67,6 @@ Describe 'bump-go.sh'
     When run script ../bump-go.sh 1.25.3 sha256:1234123412341234123412341234123412341234123412341234123412341234
     The status should be success
     The output should include 'to golang@sha256:1234123412341234123412341234123412341234123412341234123412341234'
+    The output should include 'Dockerfile: Updated golang:1.25.0-trixie to golang:1.25.3-trixie@sha256:1234123412341234123412341234123412341234123412341234123412341234'
   End
 End

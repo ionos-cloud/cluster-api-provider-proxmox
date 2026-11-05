@@ -13,16 +13,29 @@ Describe 'helpers.sh — file version functions'
     End
   End
 
-  Describe 'dockerfile_set_go'
-    It 'updates the Dockerfile Go version'
-      When call dockerfile_set_go '1.26'
-      The output should include 'Updated golang:1.25 to golang:1.26'
+  Describe 'dockerfile_get_go_tag'
+    It 'returns the builder image tag without the digest'
+      When call dockerfile_get_go_tag
+      The output should equal '1.25.0-trixie'
+    End
+  End
+
+  Describe 'dockerfile_set_go_image'
+    It 'resolves the digest and pins the builder image'
+      When call dockerfile_set_go_image '1.26.0'
+      The output should include 'Dockerfile: Updated golang:1.25.0-trixie to golang:1.26.0-trixie@sha256:cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe'
     End
 
     It 'writes the new version to the file'
-      dockerfile_set_go '1.26' >/dev/null
+      dockerfile_set_go_image '1.26.0' >/dev/null
       When call dockerfile_get_go
       The output should equal '1.26'
+    End
+
+    It 'uses a given digest directly'
+      dockerfile_set_go_image '1.25.3' sha256:1234123412341234123412341234123412341234123412341234123412341234 >/dev/null
+      When call grep -c 'FROM golang:1.25.3-trixie@sha256:1234123412341234123412341234123412341234123412341234123412341234 AS builder' "${REPO_ROOT}/Dockerfile"
+      The output should equal '1'
     End
   End
 
