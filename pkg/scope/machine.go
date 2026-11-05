@@ -36,6 +36,7 @@ import (
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 )
 
 // MachineScopeParams defines the input parameters used to create a new MachineScope.
@@ -124,9 +125,28 @@ func (m *MachineScope) Namespace() string {
 	return m.ProxmoxMachine.Namespace
 }
 
-// IsControlPlane returns true if the machine is a control plane.
-func (m *MachineScope) IsControlPlane() bool {
-	return util.IsControlPlaneMachine(m.Machine)
+// ProxmoxClient returns the Proxmox client to use for this machine. If the machine has
+// already been assigned a Proxmox node, the client is resolved from the availability zone
+// that node belongs to. Otherwise, if CAPI assigned an availability zone (failure domain)
+// to the machine, the client for that zone is used. If neither is known, the ProxmoxCluster's
+// default client is used.
+func (m *MachineScope) ProxmoxClient(ctx context.Context) (capmox.Client, error) {
+	if m.ProxmoxMachine != nil {
+		if node := ptr.Deref(m.ProxmoxMachine.Status.ProxmoxNode, ""); node != "" {
+			return m.InfraCluster.GetProxmoxClientForNode(ctx, node)
+		}
+	}
+	return m.InfraCluster.GetProxmoxClient(ctx, m.Machine.Spec.FailureDomain)
+}
+
+// ProxmoxClientForTarget returns the Proxmox client to use for this machine when the
+// destination Proxmox VE node is already known (e.g. after scheduling picked a target
+// node for VM creation). It falls back to ProxmoxClient when node is empty.
+func (m *MachineScope) ProxmoxClientForTarget(ctx context.Context, node string) (capmox.Client, error) {
+	if node != "" {
+		return m.InfraCluster.GetProxmoxClientForNode(ctx, node)
+	}
+	return m.ProxmoxClient(ctx)
 }
 
 // Role returns the machine role from the labels.

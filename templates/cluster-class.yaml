@@ -41,6 +41,10 @@ spec:
         valueFrom:
           variable: allowedNodes
       - op: add
+        path: /spec/template/spec/availabilityZones
+        valueFrom:
+          variable: availabilityZones
+      - op: add
         path: /spec/template/spec/controlPlaneEndpoint/host
         valueFrom:
           variable: controlPlaneEndpoint.host
@@ -657,6 +661,31 @@ spec:
         - pve3
         items:
           type: string
+        type: array
+  - name: availabilityZones
+    required: false
+    schema:
+      openAPIV3Schema:
+        example:
+        - name: az-1
+          nodes:
+          - pve1
+        - name: az-2
+          nodes:
+          - pve2
+        items:
+          properties:
+            name:
+              type: string
+            nodes:
+              items:
+                type: string
+              minItems: 1
+              type: array
+          required:
+          - name
+          - nodes
+          type: object
         type: array
   - name: kubeProxy
     required: false
