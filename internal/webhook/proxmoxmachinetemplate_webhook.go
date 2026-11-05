@@ -23,13 +23,17 @@ import (
 	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/cluster-api/util/topology"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+)
+
+var (
+	_ admission.Validator[*infrav1.ProxmoxMachineTemplate] = &ProxmoxMachineTemplate{}
+	_ admission.Defaulter[*infrav1.ProxmoxMachineTemplate] = &ProxmoxMachineTemplate{}
 )
 
 // ProxmoxMachineTemplate is a type that implements
@@ -39,8 +43,7 @@ type ProxmoxMachineTemplate struct{}
 // SetupWebhookWithManager sets up the webhook with the
 // custom interfaces.
 func (p *ProxmoxMachineTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&infrav1.ProxmoxMachineTemplate{}).
+	return ctrl.NewWebhookManagedBy(mgr, &infrav1.ProxmoxMachineTemplate{}).
 		WithDefaulter(p).
 		WithValidator(p).
 		Complete()
@@ -50,13 +53,8 @@ func (p *ProxmoxMachineTemplate) SetupWebhookWithManager(mgr ctrl.Manager) error
 // +kubebuilder:webhook:verbs=create;update,path=/mutate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachinetemplate,mutating=true,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachinetemplates,versions=v1alpha2,name=default.proxmoxmachinetemplate.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // ValidateCreate implements the creation validation function.
-func (p *ProxmoxMachineTemplate) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
+func (p *ProxmoxMachineTemplate) ValidateCreate(_ context.Context, machine *infrav1.ProxmoxMachineTemplate) (warnings admission.Warnings, err error) {
 	var allErrs field.ErrorList
-
-	machine, ok := obj.(*infrav1.ProxmoxMachineTemplate)
-	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", obj))
-	}
 
 	if machine.Spec.Template.Spec.ProviderID != "" {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "template", "spec", "providerID"), "cannot be set in templates"))
@@ -70,18 +68,8 @@ func (p *ProxmoxMachineTemplate) ValidateCreate(_ context.Context, obj runtime.O
 }
 
 // ValidateUpdate implements the update validation function.
-func (p *ProxmoxMachineTemplate) ValidateUpdate(ctx context.Context, old, newObj runtime.Object) (warnings admission.Warnings, err error) {
+func (p *ProxmoxMachineTemplate) ValidateUpdate(ctx context.Context, oldMachineTemplate, newMachineTemplate *infrav1.ProxmoxMachineTemplate) (warnings admission.Warnings, err error) {
 	var allErrs field.ErrorList
-
-	oldMachineTemplate, ok := old.(*infrav1.ProxmoxMachineTemplate)
-	if !ok {
-		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected an ProxmoxMachineTemplate old object but got a %T", old))
-	}
-
-	newMachineTemplate, ok := newObj.(*infrav1.ProxmoxMachineTemplate)
-	if !ok {
-		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected an ProxmoxMachineTemplate new object but got a %T", newObj))
-	}
 
 	req, err := admission.RequestFromContext(ctx)
 	if err != nil {
@@ -107,11 +95,11 @@ func (p *ProxmoxMachineTemplate) ValidateUpdate(ctx context.Context, old, newObj
 }
 
 // ValidateDelete implements the deletion validation function.
-func (p *ProxmoxMachineTemplate) ValidateDelete(_ context.Context, _ runtime.Object) (warnings admission.Warnings, err error) {
+func (p *ProxmoxMachineTemplate) ValidateDelete(_ context.Context, _ *infrav1.ProxmoxMachineTemplate) (warnings admission.Warnings, err error) {
 	return nil, nil
 }
 
 // Default implements the defaulting (mutating) webhook for ProxmoxMachineTemplates.
-func (p *ProxmoxMachineTemplate) Default(_ context.Context, _ runtime.Object) error {
+func (p *ProxmoxMachineTemplate) Default(_ context.Context, _ *infrav1.ProxmoxMachineTemplate) error {
 	return nil
 }

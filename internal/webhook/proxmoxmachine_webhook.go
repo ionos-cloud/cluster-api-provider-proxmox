@@ -25,7 +25,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -35,6 +34,11 @@ import (
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/network"
 )
 
+var (
+	_ admission.Validator[*infrav1.ProxmoxMachine] = &ProxmoxMachine{}
+	_ admission.Defaulter[*infrav1.ProxmoxMachine] = &ProxmoxMachine{}
+)
+
 // ProxmoxMachine is a type that implements
 // the interfaces from the admission package.
 type ProxmoxMachine struct{}
@@ -42,8 +46,7 @@ type ProxmoxMachine struct{}
 // SetupWebhookWithManager sets up the webhook with the
 // custom interfaces.
 func (p *ProxmoxMachine) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&infrav1.ProxmoxMachine{}).
+	return ctrl.NewWebhookManagedBy(mgr, &infrav1.ProxmoxMachine{}).
 		WithDefaulter(p).
 		WithValidator(p).
 		Complete()
@@ -53,12 +56,7 @@ func (p *ProxmoxMachine) SetupWebhookWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:webhook:verbs=create;update,path=/mutate-infrastructure-cluster-x-k8s-io-v1alpha2-proxmoxmachine,mutating=true,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,versions=v1alpha2,name=default.proxmoxmachine.infrastructure.cluster.x-k8s.io,admissionReviewVersions=v1
 
 // ValidateCreate implements the creation validation function.
-func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	machine, ok := obj.(*infrav1.ProxmoxMachine)
-	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", obj))
-	}
-
+func (p *ProxmoxMachine) ValidateCreate(_ context.Context, machine *infrav1.ProxmoxMachine) (warnings admission.Warnings, err error) {
 	err = validateNetworks(machine)
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot create proxmox machine %s", machine.GetName()))
@@ -69,16 +67,7 @@ func (p *ProxmoxMachine) ValidateCreate(_ context.Context, obj runtime.Object) (
 }
 
 // ValidateUpdate implements the update validation function.
-func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, old, newObj runtime.Object) (warnings admission.Warnings, err error) {
-	newMachine, ok := newObj.(*infrav1.ProxmoxMachine)
-	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", newObj))
-	}
-
-	oldMachine, ok := old.(*infrav1.ProxmoxMachine)
-	if !ok {
-		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", old))
-	}
+func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, oldMachine, newMachine *infrav1.ProxmoxMachine) (warnings admission.Warnings, err error) {
 	// tags are immutable
 	if !cmp.Equal(newMachine.Spec.Tags, oldMachine.Spec.Tags) {
 		return warnings, apierrors.NewBadRequest("tags are immutable")
@@ -94,7 +83,7 @@ func (p *ProxmoxMachine) ValidateUpdate(_ context.Context, old, newObj runtime.O
 }
 
 // ValidateDelete implements the deletion validation function.
-func (p *ProxmoxMachine) ValidateDelete(_ context.Context, _ runtime.Object) (warnings admission.Warnings, err error) {
+func (p *ProxmoxMachine) ValidateDelete(_ context.Context, _ *infrav1.ProxmoxMachine) (warnings admission.Warnings, err error) {
 	return nil, nil
 }
 
@@ -336,12 +325,7 @@ func validateNetworkDeviceMTU(device *infrav1.NetworkDevice) error {
 }
 
 // Default implements the defaulting (mutating) webhook for ProxmoxMachines.
-func (p *ProxmoxMachine) Default(_ context.Context, obj runtime.Object) error {
-	machine, ok := obj.(*infrav1.ProxmoxMachine)
-	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxMachine but got %T", obj))
-	}
-
+func (p *ProxmoxMachine) Default(_ context.Context, machine *infrav1.ProxmoxMachine) error {
 	if len(machine.Spec.Network.NetworkDevices) == 0 {
 		return nil
 	}

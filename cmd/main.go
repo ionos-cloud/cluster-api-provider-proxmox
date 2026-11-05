@@ -136,7 +136,7 @@ func main() {
 	}
 
 	// Initialize event recorder.
-	record.InitFromRecorder(mgr.GetEventRecorderFor("proxmox-controller"))
+	record.InitFromRecorder(mgr.GetEventRecorderFor("proxmox-controller")) //nolint:staticcheck // cluster-api v1.13 record.InitFromRecorder still takes the old client-go recorder
 
 	setupLog.Info(fmt.Sprintf("feature gates: %+v\n", feature.Gates))
 
@@ -193,7 +193,7 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager, proxmoxClient capmo
 	if err := (&controller.ProxmoxClusterReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
+		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"), //nolint:staticcheck // controller fields are still client-go record.EventRecorder
 		ProxmoxClient: proxmoxClient,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxCluster controller: %w", err)
@@ -202,7 +202,7 @@ func setupReconcilers(ctx context.Context, mgr ctrl.Manager, proxmoxClient capmo
 		Client:        mgr.GetClient(),
 		APIReader:     mgr.GetAPIReader(),
 		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"),
+		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"), //nolint:staticcheck // controller fields are still client-go record.EventRecorder
 		ProxmoxClient: proxmoxClient,
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxMachine controller: %w", err)
