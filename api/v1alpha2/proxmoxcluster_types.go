@@ -225,8 +225,12 @@ type ProxmoxClusterStatus struct {
 	//nolint:kubeapilinter
 	InClusterZoneRef []InClusterZoneRef `json:"inClusterZoneRef,omitempty"`
 	// justification: InClusterZoneRef legitimately consists of optional fields.
-	// It has an AtLeastOneOf validation rule but that's not enough to pay the linter.
-	// We should come up with a better data structure but for now, nolint.
+	// An AtLeastOneOf rule on the type is not available either: controller-tools
+	// v0.20.1 finally emits such a marker, and the apiserver then refuses the CRD
+	// with "estimated rule cost exceeds budget by factor of 5.6x", because the
+	// rule touches two unbounded corev1.LocalObjectReference names (envtest).
+	// We should come up with a better data structure, but for now the directive
+	// above stays.
 
 	// nodeLocations keeps track of which nodes have been selected
 	// for different machines.
@@ -244,7 +248,6 @@ type ProxmoxClusterInitializationStatus struct {
 }
 
 // InClusterZoneRef holds the InClusterIPPools associated with a zone.
-// +kubebuilder:validation:AtLeastOneOf=InClusterIPPoolRefV4,InClusterIPPoolRefV6
 type InClusterZoneRef struct {
 	// zone defines the deployment proxmox-zone.
 	// +default="default"
