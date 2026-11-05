@@ -29,6 +29,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -60,11 +61,44 @@ type ProxmoxMachineReconciler struct {
 func (r *ProxmoxMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.ProxmoxMachine{}).
+		Owns(&ipamv1.IPAddressClaim{}).
+		Watches(&ipamv1.IPAddressClaim{}, handler.EnqueueRequestsFromMapFunc(r.ownerlessClaimToMachines)).
+		Watches(&ipamv1.IPAddress{}, handler.EnqueueRequestsFromMapFunc(r.incompleteRecoveryMachines)).
 		Watches(
 			&clusterv1.Machine{},
 			handler.EnqueueRequestsFromMapFunc(util.MachineToInfrastructureMapFunc(infrav1.GroupVersion.WithKind(infrav1.ProxmoxMachineKind))),
 		).
 		Complete(r)
+}
+
+// ownerlessClaimToMachines retries incomplete recovery when claims arrive after
+// their machines during restore. Normal owned-claim events are handled by Owns.
+func (r *ProxmoxMachineReconciler) ownerlessClaimToMachines(ctx context.Context, obj client.Object) []reconcile.Request {
+	if len(obj.GetOwnerReferences()) != 0 {
+		return nil
+	}
+	return r.incompleteRecoveryMachines(ctx, obj)
+}
+
+// incompleteRecoveryMachines also handles addresses restored after their claims.
+// Address owner references belong to claims and must not suppress these events.
+func (r *ProxmoxMachineReconciler) incompleteRecoveryMachines(ctx context.Context, obj client.Object) []reconcile.Request {
+	clusterName := obj.GetLabels()[clusterv1.ClusterNameLabel]
+	if clusterName == "" {
+		return nil
+	}
+	machines := &infrav1.ProxmoxMachineList{}
+	if err := r.List(ctx, machines, client.InNamespace(obj.GetNamespace()), client.MatchingLabels{clusterv1.ClusterNameLabel: clusterName}); err != nil {
+		log.FromContext(ctx).Error(err, "unable to find machines for restored IPAM object")
+		return nil
+	}
+	var requests []reconcile.Request
+	for _, machine := range machines.Items {
+		if machine.DeletionTimestamp.IsZero() && len(machine.Status.IPAddresses) == 0 && machine.Spec.Network != nil {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&machine)})
+		}
+	}
+	return requests
 }
 
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,verbs=get;list;watch;create;update;patch;delete
