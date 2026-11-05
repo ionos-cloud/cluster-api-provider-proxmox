@@ -740,6 +740,11 @@ func (in *ProxmoxMachineSpec) DeepCopyInto(out *ProxmoxMachineSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.CPUModel != nil {
+		in, out := &in.CPUModel, &out.CPUModel
+		*out = new(string)
+		**out = **in
+	}
 	if in.Disks != nil {
 		in, out := &in.Disks, &out.Disks
 		*out = new(Storage)

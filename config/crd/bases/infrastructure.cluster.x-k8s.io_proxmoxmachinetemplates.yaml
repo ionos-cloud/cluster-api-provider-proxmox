@@ -802,6 +802,15 @@ spec:
                               Systems like TalOS
                             type: boolean
                         type: object
+                      cpuModel:
+                        description: |-
+                          cpuModel is the Proxmox CPU model, set as the "cpu" option on the virtual machine.
+                          Accepts any value the Proxmox "cpu" option accepts, such as "host",
+                          "x86-64-v2-AES,flags=+aes" or "custom-mymodel" for a custom CPU model.
+                          Proxmox validates the model and the options.
+                          Defaults to the property value in the template from which the virtual machine is cloned.
+                        pattern: ^(([a-z-]+=[^,]+|\s*),)*([A-Za-z0-9_.-]+|cputype=[^,]+)(,([a-z-]+=[^,]+|\s*))*$
+                        type: string
                       description:
                         description: description for the new VM.
                         type: string

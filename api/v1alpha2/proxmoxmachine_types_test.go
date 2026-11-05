@@ -482,6 +482,28 @@ var _ = Describe("ProxmoxMachine Test", func() {
 		})
 	})
 
+	Context("CPUModel", func() {
+		It("Should allow valid cpu option values", func() {
+			for _, model := range []string{
+				"host", "x86-64-v2-AES,flags=+aes", "custom-mymodel", "cputype=host,flags=+pcid;+aes",
+				"flags=+aes,host", "flags=+aes,cputype=host", "host,", "host, ,flags=+aes",
+			} {
+				dm := defaultMachine()
+				dm.Spec.CPUModel = new(model)
+				Expect(k8sClient.Create(context.Background(), dm)).To(Succeed())
+				Expect(k8sClient.Delete(context.Background(), dm)).To(Succeed())
+			}
+		})
+
+		It("Should disallow invalid cpu option values", func() {
+			for _, model := range []string{"", " ", "custom-<name>", "host flags", "flags=+aes", "host,flags", "host,kvm64"} {
+				dm := defaultMachine()
+				dm.Spec.CPUModel = new(model)
+				Expect(k8sClient.Create(context.Background(), dm)).Should(MatchError(ContainSubstring("spec.cpuModel in body should match")))
+			}
+		})
+	})
+
 	Context("TemplateMatchPolicy", func() {
 		It("defaults to exact when TemplateSelector is nil", func() {
 			dm := defaultMachine()
