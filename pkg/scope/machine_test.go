@@ -46,8 +46,14 @@ func TestNewMachineScope_MissingParams(t *testing.T) {
 		{"missing proxmox machine", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, IPAMHelper: &ipam.Helper{}}},
 		{"missing proxmox cluster", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, ProxmoxMachine: &infrav1.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
 		{"missing ipam helper", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1.ProxmoxMachine{}}},
-		{"missing scheme", MachineScopeParams{Client: client, Cluster: &clusterv1.Cluster{}, Machine: &clusterv1.Machine{}, InfraCluster: &ClusterScope{}, ProxmoxMachine: &infrav1.ProxmoxMachine{}, IPAMHelper: &ipam.Helper{}}},
 	}
+
+	// There is deliberately no "missing scheme" case. MachineScopeParams has no
+	// Scheme field, and the old case only passed because cluster-api v1.12's
+	// patch.NewHelper eagerly resolved the object GVK against client.Scheme() at
+	// construction time; v1.13 moved that lookup into Patch. With all required
+	// parameters set, NewMachineScope now legitimately returns nil. The six
+	// cases above cover every field NewMachineScope requires.
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
