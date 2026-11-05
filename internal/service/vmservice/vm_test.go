@@ -1170,3 +1170,53 @@ func TestReconcileVM_StateMachine(t *testing.T) {
 	require.Equal(t, "192.0.2.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 	require.Equal(t, "2001:db8::2", machineScope.ProxmoxMachine.Status.Addresses[2].Address)
 }
+
+func TestHasActiveTask_NoDefaultClientMultiZoneSetup(t *testing.T) {
+	// Regression test for a nil-pointer panic: in a multi-cluster setup where
+	// every availability zone carries its own credentialsRef, NewClusterScope
+	// leaves the default client nil. hasActiveTask used to call it directly and
+	// panicked on every reconcile of a machine whose VM exists; the fix
+	// resolves the owning zone's client instead.
+	machineScope, _, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxClient = nil
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+		{Name: "az-2", Nodes: []string{"node1"}, CredentialsRef: &corev1.SecretReference{Name: "az-2-secret", Namespace: metav1.NamespaceDefault}},
+	}
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node1")
+
+	zoneClient := proxmoxtest.NewMockClient(t)
+	machineScope.InfraCluster.SetZoneProxmoxClient("az-2", zoneClient)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	zoneClient.Mock.On("HasActiveTask", context.Background(), vm).Return(true, nil).Once()
+
+	busy, err := hasActiveTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, busy)
+}
+
+func TestHasActiveTask_UsesZoneClientNotDefault(t *testing.T) {
+	// Even when a default client exists, the VM's tasks must be queried on the
+	// owning zone's cluster: the task belongs to the VM's Proxmox cluster, and
+	// machine names/VMIDs are only unique within one cluster. The default
+	// client's strict mock fails the test if it is consulted.
+	machineScope, _, _ := setupReconcilerTest(t)
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+		{Name: "az-2", Nodes: []string{"node1"}, CredentialsRef: &corev1.SecretReference{Name: "az-2-secret", Namespace: metav1.NamespaceDefault}},
+	}
+	machineScope.ProxmoxMachine.Status.ProxmoxNode = new("node1")
+
+	zoneClient := proxmoxtest.NewMockClient(t)
+	machineScope.InfraCluster.SetZoneProxmoxClient("az-2", zoneClient)
+
+	vm := newStoppedVM()
+	machineScope.SetVirtualMachine(vm)
+
+	zoneClient.Mock.On("HasActiveTask", context.Background(), vm).Return(false, nil).Once()
+
+	busy, err := hasActiveTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, busy)
+}

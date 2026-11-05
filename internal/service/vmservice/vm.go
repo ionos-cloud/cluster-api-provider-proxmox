@@ -301,7 +301,16 @@ func hasActiveTask(ctx context.Context, machineScope *scope.MachineScope) (bool,
 		return true, nil
 	}
 
-	busy, err := machineScope.InfraCluster.ProxmoxClient.HasActiveTask(ctx, vm)
+	// Resolve the client through the machine's scope rather than
+	// InfraCluster.ProxmoxClient: in a multi-cluster setup where every
+	// availability zone carries its own credentialsRef there is no default
+	// client (the field is nil), and the VM's tasks can only be queried on the
+	// Proxmox cluster that owns it.
+	pmoxClient, err := machineScope.ProxmoxClient(ctx)
+	if err != nil {
+		return false, err
+	}
+	busy, err := pmoxClient.HasActiveTask(ctx, vm)
 	if err != nil {
 		return false, err
 	}
