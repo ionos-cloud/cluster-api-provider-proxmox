@@ -11,6 +11,12 @@ Describe 'helpers.sh — file version functions'
       When call dockerfile_get_go
       The output should equal '1.25'
     End
+
+    It 'returns the Go major.minor when FROM has no --platform flag'
+      sedi 's/^FROM --platform=[^ ]+ golang:/FROM golang:/' "${REPO_ROOT}/Dockerfile"
+      When call dockerfile_get_go
+      The output should equal '1.25'
+    End
   End
 
   Describe 'dockerfile_set_go'
@@ -23,6 +29,17 @@ Describe 'helpers.sh — file version functions'
       dockerfile_set_go '1.26' >/dev/null
       When call dockerfile_get_go
       The output should equal '1.26'
+    End
+
+    It 'preserves the --platform flag'
+      dockerfile_set_go '1.26' >/dev/null
+      The contents of file "${REPO_ROOT}/Dockerfile" should include 'FROM --platform=$BUILDPLATFORM golang:1.26 AS builder'
+    End
+
+    It 'updates a FROM line without --platform flag'
+      sedi 's/^FROM --platform=[^ ]+ golang:/FROM golang:/' "${REPO_ROOT}/Dockerfile"
+      dockerfile_set_go '1.26' >/dev/null
+      The contents of file "${REPO_ROOT}/Dockerfile" should include 'FROM golang:1.26 AS builder'
     End
   End
 

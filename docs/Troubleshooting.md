@@ -54,6 +54,34 @@ A fix is to create this directory, then start Docker.
 ## Kind/Podman
 TODO
 
+## capmox-controller-manager in CrashLoopBackOff with `exec format error`
+If the capmox pod never becomes ready and its logs contain only
+```
+exec /manager: exec format error
+```
+the controller image does not match the CPU architecture of the node it runs on.
+This is typical for a kind management cluster on an arm64 host, e.g. Apple Silicon
+Macs running Docker Desktop, Colima or Podman with the Apple Virtualization
+framework (`vz`) and Rosetta disabled, where the kind node is a native linux/arm64
+container and cannot run an amd64-only binary.
+
+Release images published from this repository since the multi-arch build are
+manifest lists containing `linux/amd64` and `linux/arm64`. Check what a given tag
+provides with
+```
+docker manifest inspect ghcr.io/ionos-cloud/cluster-api-provider-proxmox:<tag> | grep architecture
+```
+If the tag you need is amd64-only, either use a newer release, or build and load a
+native image into your kind cluster yourself:
+```
+make docker-build IMG=ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev
+kind load docker-image --name <kind-cluster> ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev
+kubectl -n capmox-system set image deployment/capmox-controller-manager manager=ghcr.io/ionos-cloud/cluster-api-provider-proxmox:dev
+```
+`docker build` without `--platform` produces an image for the host architecture, so
+on an arm64 host this yields a linux/arm64 image. A multi-arch image for a registry
+you control can be built and pushed with `make docker-buildx IMG=<registry>/<image>:<tag>`.
+
 ## Kind/cluster-api incompatibility
 If you encounter errors like
 * `missing MachineDeployment strategy` on your `MachineDeployment`
