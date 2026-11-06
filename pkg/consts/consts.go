@@ -35,10 +35,12 @@ func GetInClusterIPPoolKind() string {
 	return reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name()
 }
 
-// GetIPAMInClusterAPIGroup returns a pointer to APIGroupVersion as required by
-// typedlocalobjectreferences.
+// GetIPAMInClusterAPIGroup returns a pointer to the IPAM in-cluster API group as
+// required by TypedLocalObjectReference.APIGroup, which by the Kubernetes API
+// contract holds only the group (e.g. "ipam.cluster.x-k8s.io"), not the
+// group/version string.
 func GetIPAMInClusterAPIGroup() *string {
-	return new(ipamicv1.GroupVersion.String())
+	return new(ipamicv1.GroupVersion.Group)
 }
 
 // GetIPAMInClusterAPIVersion returns the APIGroup as required for TypeMeta.
