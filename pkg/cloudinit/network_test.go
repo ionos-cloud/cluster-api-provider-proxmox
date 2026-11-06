@@ -37,14 +37,15 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigWithLinkMTU = `network:
   version: 2
   renderer: networkd
@@ -55,15 +56,16 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
       mtu: 9001`
-
 	expectedValidNetworkConfigWithoutDNS = `network:
   version: 2
   renderer: networkd
@@ -74,10 +76,11 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }`
-
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100`
 	expectedValidNetworkConfigMultipleNics = `network:
   version: 2
   renderer: networkd
@@ -88,27 +91,30 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
       dhcp4: false
       dhcp6: false
       addresses:
-        - '192.168.100.124/24'
+        - 192.168.100.124/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "192.168.100.254",  "metric": 200, }
+        - to: 0.0.0.0/0
+          via: 192.168.100.254
+          metric: 200
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigDualStack = `network:
   version: 2
   renderer: networkd
@@ -119,16 +125,19 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
-        - '2001:db8::1/64'
+        - 10.10.10.12/24
+        - 2001:db8::1/64
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
-        - { "to": "::/0",  "via": "2001:db8::1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
+        - to: ::/0
+          via: 2001:db8::1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigMultipleNetsOneGateway = `network:
   version: 2
   renderer: networkd
@@ -139,26 +148,27 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
-        - '2001:db8::1/64'
+        - 10.10.10.12/24
+        - 2001:db8::1/64
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
     eth1:
       match:
         macaddress: 92:60:a0:5b:22:c3
       dhcp4: false
       dhcp6: false
       addresses:
-        - '2001:db8::1/64'
+        - 2001:db8::1/64
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigIPv6 = `network:
   version: 2
   renderer: networkd
@@ -169,14 +179,15 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '2001:db8::1/64'
+        - 2001:db8::1/64
       routes:
-        - { "to": "::/0",  "via": "2001:db8::1",  "metric": 100, }
+        - to: ::/0
+          via: 2001:db8::1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigDHCP = `network:
   version: 2
   renderer: networkd
@@ -188,9 +199,8 @@ const (
       dhcp6: true
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigDHCP4 = `network:
   version: 2
   renderer: networkd
@@ -202,9 +212,8 @@ const (
       dhcp6: false
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigDHCP6 = `network:
   version: 2
   renderer: networkd
@@ -216,9 +225,8 @@ const (
       dhcp6: true
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigWithDHCP = `network:
   version: 2
   renderer: networkd
@@ -229,14 +237,15 @@ const (
       dhcp4: false
       dhcp6: true
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigIPAndDHCP = `network:
   version: 2
   renderer: networkd
@@ -247,14 +256,15 @@ const (
       dhcp4: true
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'`
-
+          - 8.8.8.8
+          - 8.8.4.4`
 	expectedValidNetworkConfigWithRoutes = `network:
   version: 2
   renderer: networkd
@@ -265,25 +275,31 @@ const (
       dhcp4: false
       dhcp6: true
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
     eth1:
       match:
         macaddress: 92:60:a0:5b:22:c3
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.11.12/24'
+        - 10.10.11.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.11.1",  "metric": 200, }
-        - { "to": "172.16.24.1/24",  "via": "10.10.10.254",  "metric": 50, }
-        - { "to": "2002::/64",  "via": "2001:db8::1", }`
-
+        - to: 0.0.0.0/0
+          via: 10.10.11.1
+          metric: 200
+        - to: 172.16.24.1/24
+          via: 10.10.10.254
+          metric: 50
+        - to: 2002::/64
+          via: 2001:db8::1`
 	expectedValidNetworkConfigWithFIBRules = `network:
   version: 2
   renderer: networkd
@@ -294,25 +310,31 @@ const (
       dhcp4: false
       dhcp6: true
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
     eth1:
       match:
         macaddress: 92:60:a0:5b:22:c3
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.11.12/24'
+        - 10.10.11.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.11.1",  "metric": 200, }
+        - to: 0.0.0.0/0
+          via: 10.10.11.1
+          metric: 200
       routing-policy:
-        - { "to": "0.0.0.0/0",  "from": "192.168.178.1/24",  "priority": 999,  "table": 100, }`
-
+        - to: 0.0.0.0/0
+          from: 192.168.178.1/24
+          priority: 999
+          table: 100`
 	expectedValidNetworkConfigMultipleNicsVRF = `network:
   version: 2
   renderer: networkd
@@ -323,38 +345,49 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
       dhcp4: false
       dhcp6: false
       addresses:
-        - '192.168.100.124/24'
+        - 192.168.100.124/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "192.168.100.254",  "metric": 200, }
+        - to: 0.0.0.0/0
+          via: 192.168.100.254
+          metric: 200
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
   vrfs:
     vrf-blue:
       table: 500
       routes:
-        - { "to": "0.0.0.0/0",  "via": "192.168.178.1",  "metric": 100,  "table": 100, }
-        - { "to": "10.10.10.0/24",  "via": "192.168.178.254",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 192.168.178.1
+          metric: 100
+          table: 100
+        - to: 10.10.10.0/24
+          via: 192.168.178.254
+          metric: 100
       routing-policy:
-        - { "to": "0.0.0.0/0",  "from": "192.168.178.1/24",  "priority": 999,  "table": 100, }
+        - to: 0.0.0.0/0
+          from: 192.168.178.1/24
+          priority: 999
+          table: 100
       interfaces:
-        - 'eth0'
-        - 'eth1'`
-
+        - eth0
+        - eth1`
 	expectedValidNetworkConfigMultipleNicsMultipleVRF = `network:
   version: 2
   renderer: networkd
@@ -365,43 +398,57 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
     eth1:
       match:
         macaddress: b4:87:18:bf:a3:60
       dhcp4: false
       dhcp6: false
       addresses:
-        - '192.168.100.124/24'
+        - 192.168.100.124/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "192.168.100.254",  "metric": 200, }
+        - to: 0.0.0.0/0
+          via: 192.168.100.254
+          metric: 200
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
   vrfs:
     vrf-blue:
       table: 500
       routes:
-        - { "to": "0.0.0.0/0",  "via": "192.168.178.1",  "metric": 100,  "table": 100, }
-        - { "to": "10.10.10.0/24",  "via": "192.168.178.254",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 192.168.178.1
+          metric: 100
+          table: 100
+        - to: 10.10.10.0/24
+          via: 192.168.178.254
+          metric: 100
       routing-policy:
-        - { "to": "0.0.0.0/0",  "from": "192.168.178.1/24",  "priority": 999,  "table": 100, }
+        - to: 0.0.0.0/0
+          from: 192.168.178.1/24
+          priority: 999
+          table: 100
       interfaces:
-        - 'eth0'
+        - eth0
     vrf-red:
       table: 501
       routing-policy:
-        - { "to": "0.0.0.0/0",  "from": "192.168.100.0/24",  "priority": 999,  "table": 101, }
+        - to: 0.0.0.0/0
+          from: 192.168.100.0/24
+          priority: 999
+          table: 101
       interfaces:
-        - 'eth1'`
-
+        - eth1`
 	expectedYamlEdgeCases = `network:
   version: 2
   renderer: networkd
@@ -412,36 +459,40 @@ const (
       dhcp4: false
       dhcp6: false
       addresses:
-        - '10.10.10.12/24'
+        - 10.10.10.12/24
       routes:
-        - { "to": "0.0.0.0/0",  "via": "10.10.10.1",  "metric": 100, }
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
       nameservers:
         addresses:
-          - '8.8.8.8'
-          - '8.8.4.4'
+          - 8.8.8.8
+          - 8.8.4.4
     asdf !.tag:
       match:
         macaddress: b4:87:18:bf:a3:60
       dhcp4: false
       dhcp6: false
       addresses:
-        - '2001:db8::ffff:0/64'
+        - 2001:db8::ffff:0/64
       routes:
-        - { "to": "::/0",  "via": "2001:db8::",  "metric": 200, }
+        - to: ::/0
+          via: '2001:db8::'
+          metric: 200
       nameservers:
         addresses:
-          - '22:22'
+          - "22:22"
           - '::'
           - '[::]'
   vrfs:
     vrf-blue:
       table: 500
       routes:
-        - { "to": "::/128",  "via": "192.168.178.1", }
+        - to: ::/128
+          via: 192.168.178.1
       interfaces:
-        - 'NO &anchor'
-        - 'asdf !.tag'`
-
+        - NO &anchor
+        - asdf !.tag`
 	expectedValidNetworkConfigValidFIBRule = `network:
   version: 2
   renderer: networkd
@@ -455,7 +506,7 @@ const (
     vrf-blue:
       table: 500
       routing-policy:
-        - { "from": "10.10.0.0/16", }`
+        - from: 10.10.0.0/16`
 )
 
 func TestNetworkConfig_Render(t *testing.T) {
