@@ -287,6 +287,18 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 	// setting the VirtualMachine object for completing the reconciliation.
 	machineScope.SetVirtualMachine(vmRef)
 
+	// The VM exists, so a CloningFailed left behind is stale: a clone whose
+	// request failed but still created the VM, or a machine that got stuck on it
+	// before. Every later step only runs from the reason the step before it sets,
+	// so resume from Cloning; the steps are safe to run again.
+	if conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason {
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		})
+	}
+
 	// at this point the VM is found, so err must be nil
 	return false, nil
 }
