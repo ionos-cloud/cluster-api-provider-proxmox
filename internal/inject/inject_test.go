@@ -110,7 +110,12 @@ func TestISOInjectorInjectCloudInit(t *testing.T) {
 	injector := &ISOInjector{
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
-		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", true),
+		MetaRenderer: cloudinit.NewMetadata(cloudinit.MetadataInput{
+			InstanceID:          "xxx-xxxx",
+			Hostname:            "my-custom-vm",
+			KubernetesVersion:   "1.2.3",
+			ProviderIDInjection: true,
+		}),
 		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
@@ -156,7 +161,11 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 	injector := &ISOInjector{
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
-		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "", true),
+		MetaRenderer: cloudinit.NewMetadata(cloudinit.MetadataInput{
+			InstanceID:          "xxx-xxxx",
+			Hostname:            "",
+			ProviderIDInjection: true,
+		}),
 		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
@@ -177,7 +186,11 @@ func TestISOInjectorInjectCloudInit_Errors(t *testing.T) {
 	require.Error(t, err)
 
 	// missing network
-	injector.MetaRenderer = cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", false)
+	injector.MetaRenderer = cloudinit.NewMetadata(cloudinit.MetadataInput{
+		InstanceID:        "xxx-xxxx",
+		Hostname:          "my-custom-vm",
+		KubernetesVersion: "1.2.3",
+	})
 	injector.NetworkRenderer = cloudinit.NewNetworkConfig(nil)
 	err = injector.Inject(context.Background(), "cloudinit")
 	require.Error(t, err)
@@ -295,9 +308,13 @@ func TestISOInjectorInjectIgnition(t *testing.T) {
 	}
 
 	injector := &ISOInjector{
-		VirtualMachine:   vm,
-		BootstrapData:    []byte(bootstrapData),
-		MetaRenderer:     cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", false),
+		VirtualMachine: vm,
+		BootstrapData:  []byte(bootstrapData),
+		MetaRenderer: cloudinit.NewMetadata(cloudinit.MetadataInput{
+			InstanceID:        "xxx-xxxx",
+			Hostname:          "my-custom-vm",
+			KubernetesVersion: "1.2.3",
+		}),
 		IgnitionEnricher: enricher,
 	}
 
@@ -360,14 +377,23 @@ func TestISOInjectorInjectIgnition_Errors(t *testing.T) {
 	require.Error(t, err)
 
 	// missing hostname
-	injector.MetaRenderer = cloudinit.NewMetadata("xxxx-xxxxx", "", "1.2.3", false)
+	injector.MetaRenderer = cloudinit.NewMetadata(cloudinit.MetadataInput{
+		InstanceID:        "xxxx-xxxxx",
+		Hostname:          "",
+		KubernetesVersion: "1.2.3",
+	})
 	e.BootstrapData = []byte(bootstrapData)
 	err = injector.Inject(context.Background(), "ignition")
 	require.Error(t, err)
 
 	// no bootstrapdata
 	e.BootstrapData = nil
-	injector.MetaRenderer = cloudinit.NewMetadata("xxxx-xxxxx", "my-custom-vm", "1.2.3", true)
+	injector.MetaRenderer = cloudinit.NewMetadata(cloudinit.MetadataInput{
+		InstanceID:          "xxxx-xxxxx",
+		Hostname:            "my-custom-vm",
+		KubernetesVersion:   "1.2.3",
+		ProviderIDInjection: true,
+	})
 	injector.BootstrapData = []byte("invalid")
 	err = injector.Inject(context.Background(), "ignition")
 	require.Error(t, err)
@@ -392,7 +418,11 @@ func TestISOInjectorInject_Unsupported(t *testing.T) {
 	injector := &ISOInjector{
 		VirtualMachine: vm,
 		BootstrapData:  []byte(""),
-		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "", "1.2.3", false),
+		MetaRenderer: cloudinit.NewMetadata(cloudinit.MetadataInput{
+			InstanceID:        "xxx-xxxx",
+			Hostname:          "",
+			KubernetesVersion: "1.2.3",
+		}),
 		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
 			{
 				Type:       "ethernet",
