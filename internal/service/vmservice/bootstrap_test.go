@@ -716,7 +716,9 @@ func TestReconcileBootstrapDataMissingSecret(t *testing.T) {
 	require.False(t, requeue)
 	require.True(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 	require.True(t, conditions.IsFalse(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
-	require.True(t, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition) == infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason)
+	// Retried from the same step, not stuck on a reason no step runs from.
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 }
 
 func TestReconcileBootstrapDataMissingNetworkConfig(t *testing.T) {

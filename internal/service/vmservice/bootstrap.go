@@ -59,10 +59,12 @@ func reconcileBootstrapData(ctx context.Context, machineScope *scope.MachineScop
 	// Get the bootstrap data.
 	bootstrapData, format, err := getBootstrapData(ctx, machineScope)
 	if err != nil {
+		// Keep the reason this step runs from, so it is retried. The VM exists by
+		// now, so CloningFailed would never be reset and every later step would skip.
 		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 			Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 			Status:  metav1.ConditionFalse,
-			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedCloningFailedReason,
+			Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapDataReconciliationReason,
 			Message: err.Error(),
 		})
 		return false, err
