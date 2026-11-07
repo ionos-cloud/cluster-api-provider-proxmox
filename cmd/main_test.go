@@ -19,12 +19,17 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -34,6 +39,8 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ipamv1 "sigs.k8s.io/cluster-api/api/ipam/v1beta2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
@@ -58,6 +65,43 @@ func TestSetupReconcilers(t *testing.T) {
 
 	err = setupReconcilers(context.Background(), mgr, proxmoxClient)
 	require.NoError(t, err)
+}
+
+func TestClientOptionsReadSecretsUncached(t *testing.T) {
+	requests := make(chan string, 2)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.URL.Path
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	s := runtime.NewScheme()
+	require.NoError(t, clientgoscheme.AddToScheme(s))
+
+	mapper := meta.NewDefaultRESTMapper(nil)
+	mapper.Add(corev1.SchemeGroupVersion.WithKind("Secret"), meta.RESTScopeNamespace)
+	mapper.Add(corev1.SchemeGroupVersion.WithKind("ConfigMap"), meta.RESTScopeNamespace)
+
+	mgr, err := ctrl.NewManager(&rest.Config{Host: srv.URL}, ctrl.Options{
+		Scheme: s,
+		Client: clientOptions(),
+		MapperProvider: func(*rest.Config, *http.Client) (meta.RESTMapper, error) {
+			return mapper, nil
+		},
+	})
+	require.NoError(t, err)
+
+	key := client.ObjectKey{Namespace: "default", Name: "bootstrap-data"}
+
+	// The cache is not started, so a cached read fails without reaching the API server.
+	err = mgr.GetClient().Get(context.Background(), key, &corev1.ConfigMap{})
+	require.ErrorAs(t, err, new(*cache.ErrCacheNotStarted))
+
+	err = mgr.GetClient().Get(context.Background(), key, &corev1.Secret{})
+	require.True(t, apierrors.IsNotFound(err), "expected NotFound from the API server, got %v", err)
+
+	require.Len(t, requests, 1)
+	require.Equal(t, "/api/v1/namespaces/default/secrets/bootstrap-data", <-requests)
 }
 
 func mockGetConfig(s *runtime.Scheme) *rest.Config {

@@ -29,6 +29,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
@@ -108,6 +109,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:  scheme,
+		Client:  clientOptions(),
 		Metrics: *metricsOptions,
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
 			Port: 9443,
@@ -186,6 +188,17 @@ func main() {
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
+	}
+}
+
+// clientOptions makes the manager's client read Secrets from the API server.
+// A cached read of one Secret would start an informer that holds every Secret
+// in the cluster in memory.
+func clientOptions() client.Options {
+	return client.Options{
+		Cache: &client.CacheOptions{
+			DisableFor: []client.Object{&corev1.Secret{}},
+		},
 	}
 }
 
