@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/go-logr/logr/funcr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -28,6 +29,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ipamicv1 "sigs.k8s.io/cluster-api-ipam-provider-in-cluster/api/v1alpha2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -35,6 +37,7 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -310,6 +313,59 @@ var _ = Describe("External Credentials Tests", func() {
 		deleteCapiCluster(capiCluster)
 		deleteProxmoxCluster(proxmoxCluster)
 		assertProxmoxClusterIsDeleted(proxmoxCluster)
+	})
+
+	Context("ProxmoxCluster deleted before its Cluster", func() {
+		var (
+			proxmoxCluster *infrav1.ProxmoxCluster
+			capiCluster    *clusterv1.Cluster
+		)
+
+		BeforeEach(func() {
+			proxmoxCluster = createProxmoxCluster()
+			setRandomCredentialsRefOnProxmoxCluster(proxmoxCluster)
+			capiCluster = createOwnerCluster(proxmoxCluster)
+			proxmoxCluster = refreshCluster(proxmoxCluster)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
+			assertProxmoxClusterHasFinalizer(proxmoxCluster, infrav1.ClusterFinalizer)
+
+			By("deleting the ProxmoxCluster first")
+			deleteProxmoxCluster(proxmoxCluster)
+		})
+
+		It("is deleted once the Cluster is deleted", func() {
+			key := client.ObjectKeyFromObject(proxmoxCluster)
+			Consistently(func() error {
+				return testEnv.Get(testEnv.GetContext(), key, &infrav1.ProxmoxCluster{})
+			}).WithTimeout(3 * time.Second).Should(Succeed())
+
+			By("deleting the Cluster")
+			deleteCapiCluster(capiCluster)
+			Eventually(func() bool {
+				return apierrors.IsNotFound(testEnv.Get(testEnv.GetContext(), key, &infrav1.ProxmoxCluster{}))
+			}).WithTimeout(2 * infrav1.DefaultReconcilerRequeue).WithPolling(time.Second).Should(BeTrue())
+		})
+
+		It("waits for the Cluster with an info message", func() {
+			var logged []string
+			logger := funcr.NewJSON(func(obj string) { logged = append(logged, obj) }, funcr.Options{})
+			reconciler := ProxmoxClusterReconciler{
+				Client:        k8sClient,
+				Scheme:        testEnv.GetScheme(),
+				Recorder:      &record.FakeRecorder{},
+				ProxmoxClient: testEnv.ProxmoxClient,
+			}
+
+			result, err := reconciler.Reconcile(ctrl.LoggerInto(testEnv.GetContext(), logger),
+				ctrl.Request{NamespacedName: client.ObjectKeyFromObject(proxmoxCluster)})
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(infrav1.DefaultReconcilerRequeue))
+			Expect(logged).To(ContainElement(ContainSubstring(`"msg":"waiting for the owning cluster to be deleted"`)))
+			Expect(logged).NotTo(ContainElement(ContainSubstring(`"error":`)))
+
+			deleteCapiCluster(capiCluster)
+		})
 	})
 })
 
