@@ -25,6 +25,11 @@ import (
 
 // Client Global Proxmox client interface.
 type Client interface {
+	// GetURL returns the Proxmox API endpoint the client connects to, without
+	// the api2/json path suffix. Used for reporting which datacenter a
+	// ProxmoxCluster actually talks to.
+	GetURL() string
+
 	CloneVM(ctx context.Context, templateID int, clone VMCloneRequest) (VMCloneResponse, error)
 
 	ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine, options ...VirtualMachineOption) (*proxmox.Task, error)

@@ -229,10 +229,27 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		return reconcile.Result{}, err
 	}
 
+	// Report the endpoint this cluster actually connects to and which
+	// credentials won, so a cluster provisioned against the wrong
+	// datacenter is visible on the resource (#954). When the controller is
+	// running with its own credentials, NewClusterScope keeps the
+	// controller's client and a cluster-level credentialsRef is never
+	// read - warn about it instead of ignoring it silently.
+	if clusterScope.ProxmoxCluster.Spec.CredentialsRef != nil && r.ProxmoxClient != nil {
+		r.Recorder.Eventf(clusterScope.ProxmoxCluster, corev1.EventTypeWarning, "CredentialsRefIgnored",
+			"spec.credentialsRef %s/%s is present but ignored: the controller is running with its own credentials; this cluster connects to %s",
+			clusterScope.ProxmoxCluster.Namespace, clusterScope.ProxmoxCluster.Name, clusterScope.ProxmoxClient.GetURL())
+	}
+
+	credentialsSource := "spec.credentialsRef"
+	if r.ProxmoxClient != nil {
+		credentialsSource = "the controller's credentials"
+	}
 	conditions.Set(clusterScope.ProxmoxCluster, metav1.Condition{
-		Type:   infrav1.ProxmoxClusterProxmoxAvailableCondition,
-		Status: metav1.ConditionTrue,
-		Reason: clusterv1.ProvisionedReason,
+		Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  clusterv1.ProvisionedReason,
+		Message: fmt.Sprintf("connected to %s using %s", clusterScope.ProxmoxClient.GetURL(), credentialsSource),
 	})
 
 	clusterScope.SetReady()
