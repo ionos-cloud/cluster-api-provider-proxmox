@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"reflect"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -240,6 +241,47 @@ var _ = Describe("External Credentials Tests", func() {
 			assertSecretHasOwnerRef(secret, proxmoxCluster.Name)
 			assertSecretHasFinalizer(secret, infrav1.SecretFinalizer)
 
+			cleanup(proxmoxCluster, capiCluster, secret)
+		})
+
+		It("reports the endpoint in use and warns when a credentialsRef is ignored", func() {
+			secret := createSecret()
+			proxmoxCluster := createProxmoxCluster()
+			setCredentialsRefOnProxmoxCluster(proxmoxCluster, secret)
+			capiCluster := createOwnerCluster(proxmoxCluster)
+			proxmoxCluster = refreshCluster(proxmoxCluster)
+			setCapiClusterOwnerRefOnProxmoxCluster(proxmoxCluster, capiCluster)
+			assertProxmoxClusterIsReady(proxmoxCluster)
+
+			// The controller is running with its own credentials, so the
+			// cluster's credentialsRef is ignored. The ProxmoxAvailable
+			// condition reports the endpoint actually in use, and a warning
+			// event makes the ignored reference visible instead of silent (#954).
+			proxmoxCluster = refreshCluster(proxmoxCluster)
+			cond := conditions.Get(proxmoxCluster, infrav1.ProxmoxClusterProxmoxAvailableCondition)
+			Expect(cond).NotTo(BeNil())
+			Expect(cond.Message).To(ContainSubstring("https://proxmox.local.test:8006"))
+			Expect(cond.Message).To(ContainSubstring("the controller's credentials"))
+
+			// The event carries the namespace/name of the cluster it refers
+			// to, so drain the recorder channel and match on both (#954).
+			Eventually(func() bool {
+				for {
+					select {
+					case event := <-proxmoxClusterRecorder.Events:
+						if strings.Contains(event, "CredentialsRefIgnored") &&
+							strings.Contains(event, proxmoxCluster.Namespace+"/"+proxmoxCluster.Name) {
+							return true
+						}
+					default:
+						return false
+					}
+				}
+			}).WithTimeout(10*time.Second).WithPolling(time.Second).Should(BeTrue(),
+				"expected a CredentialsRefIgnored warning event for "+proxmoxCluster.Namespace+"/"+proxmoxCluster.Name)
+
+			deleteCapiCluster(capiCluster)
+			deleteProxmoxCluster(proxmoxCluster)
 			cleanup(proxmoxCluster, capiCluster, secret)
 		})
 

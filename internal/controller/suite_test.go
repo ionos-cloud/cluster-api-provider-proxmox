@@ -46,6 +46,8 @@ var (
 
 	k8sClient     client.Client
 	proxmoxClient *proxmoxtest.MockClient
+
+	proxmoxClusterRecorder *record.FakeRecorder
 )
 
 func TestAPIs(t *testing.T) {
@@ -58,6 +60,10 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	proxmoxClient = proxmoxtest.NewMockClient(GinkgoT())
+	// The cluster controller reports the endpoint each ProxmoxCluster connects
+	// to in the ProxmoxAvailable condition (#954); optional because not every
+	// spec reconciles a ProxmoxCluster that reaches the ready state.
+	proxmoxClient.Mock.On("GetURL").Return("https://proxmox.local.test:8006").Maybe()
 	testEnv = helpers.NewTestEnvironment(managerCtx, false, proxmoxClient)
 	// TODO: do I need this?
 	cache := testEnv.GetCache()
@@ -80,10 +86,11 @@ var _ = BeforeSuite(func() {
 
 	k8sClient = cachingClient
 
+	proxmoxClusterRecorder = record.NewFakeRecorder(64)
 	proxmoxClusterReconciler := ProxmoxClusterReconciler{
 		Client:        k8sClient,
 		Scheme:        testEnv.GetScheme(),
-		Recorder:      &record.FakeRecorder{},
+		Recorder:      proxmoxClusterRecorder,
 		ProxmoxClient: testEnv.ProxmoxClient,
 	}
 	Expect(proxmoxClusterReconciler.SetupWithManager(testEnv.GetContext(), testEnv.Manager)).To(Succeed())

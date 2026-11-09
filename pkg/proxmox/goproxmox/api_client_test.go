@@ -50,6 +50,14 @@ func newJSONResponder(status int, data any) httpmock.Responder {
 	return httpmock.NewJsonResponderOrPanic(status, map[string]any{"data": data}).Once()
 }
 
+func TestProxmoxAPIClient_GetURL(t *testing.T) {
+	client := newTestClient(t)
+
+	// The endpoint is reported as given, without the api2/json path suffix,
+	// so callers can surface which datacenter a ProxmoxCluster connects to (#954).
+	require.Equal(t, testBaseURL, client.GetURL())
+}
+
 func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 	tests := []struct {
 		name                 string

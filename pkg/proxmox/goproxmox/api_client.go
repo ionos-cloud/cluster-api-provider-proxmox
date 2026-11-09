@@ -42,7 +42,8 @@ var ErrVMIDFree = errors.New("VMID is free")
 // APIClient Proxmox API client object.
 type APIClient struct {
 	*proxmox.Client
-	logger logr.Logger
+	logger  logr.Logger
+	baseURL string
 }
 
 // NewAPIClient initializes a Proxmox API client. If the client is misconfigured, an error is returned.
@@ -62,9 +63,15 @@ func NewAPIClient(ctx context.Context, logger logr.Logger, baseURL string, optio
 	logger.Info("Proxmox server", "version", version.Release)
 
 	return &APIClient{
-		Client: upstreamClient,
-		logger: logger,
+		Client:  upstreamClient,
+		logger:  logger,
+		baseURL: baseURL,
 	}, nil
+}
+
+// GetURL returns the Proxmox API endpoint the client connects to.
+func (c *APIClient) GetURL() string {
+	return c.baseURL
 }
 
 // CloneVM clones a VM based on templateID and VMCloneRequest.
