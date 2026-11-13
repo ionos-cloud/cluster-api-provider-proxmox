@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -68,6 +69,7 @@ var (
 	leaderElectionRetryPeriod   time.Duration
 	enableWebhooks              bool
 	probeAddr                   string
+	concurrentReconciles        int
 	managerOptions              = flags.ManagerOptions{}
 
 	// ProxmoxURL env variable that defines the Proxmox host.
@@ -118,6 +120,9 @@ func main() {
 		RenewDeadline:          &leaderElectionRenewDeadline,
 		RetryPeriod:            &leaderElectionRetryPeriod,
 		LeaderElectionID:       "controller-leader-elect-capmox",
+		Controller: ctrlconfig.Controller{
+			MaxConcurrentReconciles: concurrentReconciles,
+		},
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -279,6 +284,8 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 		"Duration the LeaderElector clients should wait between tries of actions (duration string)")
 	fs.BoolVar(&enableWebhooks, "enable-webhooks", true,
 		"If true, run webhook server alongside manager")
+	fs.IntVar(&concurrentReconciles, "concurrent-reconciles", 1,
+		"Number of objects reconciled at the same time by each controller")
 
 	flags.AddManagerOptions(fs, &managerOptions)
 

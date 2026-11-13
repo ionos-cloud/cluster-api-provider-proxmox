@@ -149,3 +149,20 @@ To fix deletion deadlocks in such cases:
  - Delete the `machine`
 
 After these steps, VMs may linger in proxmox. Carefully remove those.
+
+## Slow storage and concurrent clones
+
+Each controller reconciles one object at a time by default, and the cluster and machine controllers issue
+clones independently, so a cluster that creates many workers at once can still have several clones in
+flight. On storage where cloning a template is slow, those clones contend for the same lock
+(`LV ... is in use`). The `--concurrent-reconciles` flag sets how many objects one controller reconciles at
+the same time; serialising the clones themselves is what
+[#938](https://github.com/ionos-cloud/cluster-api-provider-proxmox/issues/938) tracks.
+
+```yaml
+containers:
+  - name: manager
+    args:
+      - --leader-elect
+      - --concurrent-reconciles=1
+```
