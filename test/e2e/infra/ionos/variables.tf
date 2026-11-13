@@ -29,14 +29,9 @@ variable "domain" {
 }
 
 variable "node_count" {
-  description = "Number of Proxmox nodes."
+  description = "Number of Proxmox nodes (at least 3)."
   type        = number
   default     = 3
-
-  validation {
-    condition     = var.node_count >= 3
-    error_message = "Ceph with size=3 pools needs at least 3 nodes."
-  }
 }
 
 variable "cores" {

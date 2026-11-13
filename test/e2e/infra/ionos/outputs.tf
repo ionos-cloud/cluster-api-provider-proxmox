@@ -12,7 +12,7 @@ output "nodes" {
 
 output "root_password" {
   description = "Password for root@pam (web UI and API). SSH is key-only."
-  value       = random_password.root.result
+  value       = module.pve.root_password
   sensitive   = true
 }
 
@@ -24,7 +24,7 @@ output "ssh_private_key_file" {
 output "capmox" {
   description = "Proxmox API endpoint and token for CAPMOX (PROXMOX_URL, PROXMOX_TOKEN, PROXMOX_SECRET)."
   value = {
-    url          = "https://${ionoscloud_server.node[local.primary].primary_ip}:8006"
+    url          = "https://${ionoscloud_server.node[module.pve.primary].primary_ip}:8006"
     token_id     = local.bootstrap.capmox_token_id
     token_secret = local.bootstrap.capmox_token_secret
     bridge       = var.guest_bridge

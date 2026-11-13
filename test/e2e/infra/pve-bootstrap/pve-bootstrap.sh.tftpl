@@ -55,13 +55,8 @@ retry() {
   done
 }
 
-physical_nics() {
-  for d in /sys/class/net/*/device; do basename "$(dirname "$d")"; done
-}
-
-nics_ready() {
-  [ "$(physical_nics | wc -l)" -ge 2 ] && ip -o route get 1.1.1.1 >/dev/null 2>&1
-}
+# provider hook: defines network_detect and network_interfaces
+${network_hook}
 
 # proxmox-ve adds subscription-only repos that 401 without a subscription key
 remove_enterprise_repos() {
@@ -76,14 +71,12 @@ ONLINE_MEMBERS='(if $wrapped then .data else . end) as $s
 phase1() {
   log "phase 1"
   if ! grep -qwE 'vmx|svm' /proc/cpuinfo; then
-    log "CPU has no VMX/SVM, nested virtualization is unavailable; choose another cpu_family"
+    log "CPU has no VMX/SVM, nested virtualization is unavailable; choose a CPU type that exposes it"
     touch "$STATE/failed"
     exit 1
   fi
-  retry nics_ready
-  public_if=$(ip -o route get 1.1.1.1 | sed -n 's/.* dev \([^ ]*\).*/\1/p')
-  private_if=$(physical_nics | grep -vx "$public_if" | head -n1)
-  echo "$public_if" >"$STATE/public_if"
+  network_detect
+  [ -s "$STATE/public_if" ]
 
   # systemd-resolved loses its DHCP upstreams once ifupdown2 takes over the NICs
   systemctl disable --now systemd-resolved.service || true
@@ -126,19 +119,11 @@ EOF
   update-grub
 
   # switch to ifupdown2 only now: dropping netplan earlier stops DHCP renewal mid-install
-  cat >/etc/network/interfaces <<EOF
-auto lo
-iface lo inet loopback
-
-auto $public_if
-iface $public_if inet dhcp
-
-auto $private_if
-iface $private_if inet static
-	address $PRIVATE_IP/$PRIVATE_PREFIX
-
-source /etc/network/interfaces.d/*
-EOF
+  {
+    printf 'auto lo\niface lo inet loopback\n\n'
+    network_interfaces
+    printf '\nsource /etc/network/interfaces.d/*\n'
+  } >/etc/network/interfaces
   # pvenetcommit.service would replace the file above with the all-manual interfaces.new generated during install
   rm -f /etc/network/interfaces.new /etc/network/interfaces.d/* /etc/netplan/*.yaml
   echo 'network: {config: disabled}' >/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg

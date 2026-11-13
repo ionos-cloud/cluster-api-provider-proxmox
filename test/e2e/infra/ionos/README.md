@@ -8,13 +8,7 @@ It installs Proxmox on Debian 13 cloud images with cloud-init, so no custom imag
 * `node_count` (default 3) dedicated-core servers. Each has one public NIC, one private NIC, a root volume and a Ceph OSD volume.
 * A private LAN that carries corosync, Ceph public/cluster traffic and VXLAN.
 * Public NICs reachable only on TCP 22 and 8006 from `allowed_source_ips` (required; single IPv4 addresses, or `0.0.0.0/0` for any), plus ICMP from anywhere.
-* A Proxmox cluster with Ceph: one mon, mgr, MDS and OSD per node. Storage:
-  * `ceph-vm`: RBD, for VM disks.
-  * `cephfs`: CephFS, for ISO, snippets, templates and backups. It's the only storage that accepts ISOs, so CAPMOX's cloud-init ISOs always land there.
-  * `cephfs-images`: a shared directory on CephFS for qcow2 VM disks. The CAPMOX e2e cluster templates clone as qcow2, which RBD can't hold.
-* An SDN VXLAN VNet (`guest_bridge`, default `vmbr1`) for guests across all nodes. Node 1 is the gateway (first address of `guest_cidr`) and SNATs guest traffic out of its public NIC. The VNet MTU is 1450; virtio guests pick it up automatically (`host_mtu`).
-  Guests can reach only the Proxmox API (8006) and ICMP on node 1, and nothing on the private LAN.
-* A `capmox@pve` API token for CAPMOX with the least-privilege ACLs from [docs/advanced-setups.md](../../../../docs/advanced-setups.md#proxmox-rbac-with-least-privileges). `PVEVMAdmin` sits on `/vms` instead of on pools, because the e2e cluster templates don't set `pool`.
+* The Proxmox VE cluster, Ceph storage, guest network and CAPMOX token from [`../pve-bootstrap`](../pve-bootstrap/README.md). [`network.sh`](network.sh) is the IONOS network hook: the NIC with the default route is public (DHCP), the other one is private.
 
 ## Usage
 
@@ -42,25 +36,16 @@ terraform output -json capmox           # PROXMOX_URL, token id/secret, bridge, 
 
 ## Troubleshooting
 
-Each node logs its bootstrap to `/var/log/pve-bootstrap.log`. State markers live in `/root/pve-bootstrap/`:
-
-* `phase1`: packages installed and the node rebooted.
-* `done`: the node finished its bootstrap.
-* `failed`: the last bootstrap run stopped on an error. Re-running `/usr/local/sbin/pve-bootstrap` clears it.
-
+See [`../pve-bootstrap`](../pve-bootstrap/README.md#troubleshooting) for the bootstrap log and state markers.
 If a node fails, `terraform apply` prints the last 50 lines of that node's log.
 
-Changes to the bootstrap template don't touch existing nodes, because the bootstrap only runs on first boot.
-Rebuilding a single node isn't supported: a replaced node 1 would start a new cluster, and a replaced node 2 or 3 would collide with its old cluster membership.
 To rebuild, run `terraform destroy` and `terraform apply` for the whole cluster.
 
 ## Notes
 
-* `cpu_family` defaults to the first family the VDC offers. Nested virtualization needs VMX/SVM, which was verified on `INTEL_XEON` (de/fra) and `INTEL_SKYLAKE` (de/txl). Without it, the bootstrap fails at the start of phase 1.
-* During package installation, nodes use static resolvers from `dns_servers`, because systemd-resolved loses its DHCP upstreams once ifupdown2 takes over the NICs. After the reboot, dhclient writes the IONOS resolvers to `/etc/resolv.conf`.
+* `cpu_family` defaults to the first family the VDC offers. Nested virtualization needs VMX/SVM, which was verified on `INTEL_XEON` (de/fra) and `INTEL_SKYLAKE` (de/txl).
+* After the reboot, dhclient writes the IONOS resolvers to `/etc/resolv.conf`; `dns_servers` only applies during package installation.
 * IONOS can refuse resources with `VDC-5-601 not enough physical resources` when a location is out of capacity. Use a VDC in another location.
 * The root password, the SSH host private keys and the bootstrap script go into the servers' cloud-init user data. Anyone with read access to the VDC can see them.
 * `terraform.tfstate` holds the root password and the CAPMOX token secret.
-* The guest gateway runs only on node 1. If node 1 is down, guests lose egress.
 * Guest addresses in `guest_cidr` are reachable only from the nodes, not from the internet.
-* The e2e cluster templates full-clone as qcow2 without setting `storage`, so clones land on the template's storage. Put the templates (`TEMPLATE_VMID`, `TEMPLATE_VMID_FLATCAR`, `TEMPLATEID_UPGRADE_TO` in `test/e2e/config/proxmox-ci.yaml`) on `cephfs-images`.

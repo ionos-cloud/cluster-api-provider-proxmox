@@ -10,7 +10,7 @@ In order to run the e2e tests the following requirements must be met:
 * Proxmox VE Cluster
 * A Kubernetes cluster running on Proxmox VE
 
-A throwaway Proxmox VE cluster with Ceph can be provisioned on IONOS Cloud with the Terraform module in [`infra/ionos`](infra/ionos/README.md).
+A throwaway Proxmox VE cluster with Ceph can be provisioned on IONOS Cloud with the Terraform module in [`infra/ionos`](infra/ionos/README.md). It wraps the provider-neutral bootstrap in [`infra/pve-bootstrap`](infra/pve-bootstrap/README.md), which other providers can reuse.
 
 ### Environment variables
 
