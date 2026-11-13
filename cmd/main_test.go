@@ -97,3 +97,14 @@ func TestInitFlagsAndEnv(t *testing.T) {
 	require.Equal(t, "root@pam", ProxmoxTokenID)
 	require.Equal(t, "password", ProxmoxSecret)
 }
+
+func TestConcurrentReconcilesFlag(t *testing.T) {
+	// klog registers its flags on the global set, so give it a fresh one.
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs := pflag.NewFlagSet(os.Args[0], pflag.ContinueOnError)
+	initFlagsAndEnv(fs)
+	require.Equal(t, 1, concurrentReconciles, "the default is one object at a time")
+
+	require.NoError(t, fs.Parse([]string{"--concurrent-reconciles=4"}))
+	require.Equal(t, 4, concurrentReconciles)
+}
