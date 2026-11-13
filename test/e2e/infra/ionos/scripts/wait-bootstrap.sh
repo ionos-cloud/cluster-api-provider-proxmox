@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Waits until every node in $HOSTS reports a finished bootstrap; fails as soon as any node reports an error.
+# Then copies the primary's bootstrap outputs to $OUTPUTS_FILE.
 set -euo pipefail
 
 deadline=$((SECONDS + ${BOOTSTRAP_TIMEOUT:-3600}))
@@ -11,7 +12,8 @@ trap 'rm -f "$errfile"' EXIT
 ssh_node() {
   local host=$1
   local command=$2
-  ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes \
+  # ignore the operator's ssh config: a ProxyJump would connect from an address the firewall doesn't allow
+  ssh -F /dev/null -i "$SSH_KEY" -o IdentitiesOnly=yes -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes \
     -o BatchMode=yes -o ConnectTimeout=10 "root@$host" "$command"
   return $?
 }
@@ -43,3 +45,7 @@ while [[ -n "$pending" ]]; do
   fi
   sleep 20
 done
+
+(umask 077 && ssh_node "$PRIMARY" 'cat /root/pve-bootstrap/outputs.json' >"$OUTPUTS_FILE.tmp")
+jq -e '.capmox_token_secret' "$OUTPUTS_FILE.tmp" >/dev/null
+mv "$OUTPUTS_FILE.tmp" "$OUTPUTS_FILE"

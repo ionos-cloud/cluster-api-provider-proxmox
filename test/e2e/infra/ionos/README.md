@@ -7,13 +7,14 @@ It installs Proxmox on Debian 13 cloud images with cloud-init, so no custom imag
 
 * `node_count` (default 3) dedicated-core servers. Each has one public NIC, one private NIC, a root volume and a Ceph OSD volume.
 * A private LAN that carries corosync, Ceph public/cluster traffic and VXLAN.
-* Public NICs reachable only on TCP 22 and 8006 from `allowed_source_ips` (single IPv4 addresses; default: any), plus ICMP from anywhere.
+* Public NICs reachable only on TCP 22 and 8006 from `allowed_source_ips` (required; single IPv4 addresses, or `0.0.0.0/0` for any), plus ICMP from anywhere.
 * A Proxmox cluster with Ceph: one mon, mgr, MDS and OSD per node. Storage:
   * `ceph-vm`: RBD, for VM disks.
-  * `cephfs`: CephFS, for ISO, snippets, templates and backups.
+  * `cephfs`: CephFS, for ISO, snippets, templates and backups. It's the only storage that accepts ISOs, so CAPMOX's cloud-init ISOs always land there.
   * `cephfs-images`: a shared directory on CephFS for qcow2 VM disks. The CAPMOX e2e cluster templates clone as qcow2, which RBD can't hold.
 * An SDN VXLAN VNet (`guest_bridge`, default `vmbr1`) for guests across all nodes. Node 1 is the gateway (first address of `guest_cidr`) and SNATs guest traffic out of its public NIC. The VNet MTU is 1450; virtio guests pick it up automatically (`host_mtu`).
-* A `capmox@pve` API token for CAPMOX, with the roles `PVEVMAdmin`, `PVEDatastoreAdmin`, `PVESDNUser` and `PVEAuditor` on `/`.
+  Guests can reach only the Proxmox API (8006) and ICMP on node 1, and nothing on the private LAN.
+* A `capmox@pve` API token for CAPMOX with the least-privilege ACLs from [docs/advanced-setups.md](../../../../docs/advanced-setups.md#proxmox-rbac-with-least-privileges). `PVEVMAdmin` sits on `/vms` instead of on pools, because the e2e cluster templates don't set `pool`.
 
 ## Usage
 
@@ -25,17 +26,17 @@ terraform apply -var datacenter_id=<vdc-id> \
   -var 'allowed_source_ips=["203.0.113.10"]'
 ```
 
-A full apply takes about 20–30 minutes. Most of that is package installation and the reboot into the Proxmox kernel.
+A full apply takes about 15–20 minutes. Most of that is package installation and the reboot into the Proxmox kernel. `bootstrap_timeout_seconds` (default 60 minutes) bounds the wait.
 
 Terraform always generates an SSH key pair for itself and writes it to `out/id_ed25519`, along with `out/known_hosts` for the pinned host keys.
 Keys from `ssh_public_keys` are authorized as well.
+Once the bootstrap finishes, Terraform copies the CAPMOX token to `out/bootstrap.json`. Plan, refresh and destroy read that file and never connect to the nodes, so keep `out/` with the state.
 
 ## Outputs
 
 ```sh
 terraform output nodes                  # public/private IPs, UI URL, ssh command
 terraform output -raw root_password     # root@pam (UI/API); SSH is key-only
-terraform output -json ceph             # fsid, mon hosts, client.admin key/keyring
 terraform output -json capmox           # PROXMOX_URL, token id/secret, bridge, gateway
 ```
 
@@ -55,10 +56,11 @@ To rebuild, run `terraform destroy` and `terraform apply` for the whole cluster.
 
 ## Notes
 
-* `cpu_family` defaults to the first family the VDC offers. Nested virtualization needs VMX/SVM, which was verified on `INTEL_XEON` (de/fra) and `INTEL_SKYLAKE` (de/txl).
+* `cpu_family` defaults to the first family the VDC offers. Nested virtualization needs VMX/SVM, which was verified on `INTEL_XEON` (de/fra) and `INTEL_SKYLAKE` (de/txl). Without it, the bootstrap fails at the start of phase 1.
 * During package installation, nodes use static resolvers from `dns_servers`, because systemd-resolved loses its DHCP upstreams once ifupdown2 takes over the NICs. After the reboot, dhclient writes the IONOS resolvers to `/etc/resolv.conf`.
 * IONOS can refuse resources with `VDC-5-601 not enough physical resources` when a location is out of capacity. Use a VDC in another location.
 * The root password, the SSH host private keys and the bootstrap script go into the servers' cloud-init user data. Anyone with read access to the VDC can see them.
-* `terraform.tfstate` holds the root password, the Ceph admin key and the CAPMOX token secret.
+* `terraform.tfstate` holds the root password and the CAPMOX token secret.
 * The guest gateway runs only on node 1. If node 1 is down, guests lose egress.
 * Guest addresses in `guest_cidr` are reachable only from the nodes, not from the internet.
+* The e2e cluster templates full-clone as qcow2 without setting `storage`, so clones land on the template's storage. Put the templates (`TEMPLATE_VMID`, `TEMPLATE_VMID_FLATCAR`, `TEMPLATEID_UPGRADE_TO` in `test/e2e/config/proxmox-ci.yaml`) on `cephfs-images`.

@@ -10,6 +10,8 @@ locals {
   output_dir      = coalesce(var.output_dir, "${path.module}/out")
   ssh_key_file    = abspath("${local.output_dir}/id_ed25519")
   known_hosts     = abspath("${local.output_dir}/known_hosts")
+  outputs_file    = abspath("${local.output_dir}/bootstrap.json")
+  bootstrap       = jsondecode(data.local_sensitive_file.bootstrap.content)
 
   etc_hosts = join("\n", concat(
     ["127.0.0.1 localhost", "::1 localhost ip6-localhost ip6-loopback"],
@@ -132,7 +134,7 @@ resource "ionoscloud_server" "node" {
     firewall_type   = "INGRESS"
   }
 
-  # bootstrap only runs on first boot; rebuild nodes explicitly with -replace
+  # bootstrap only runs on first boot; single nodes can't be rebuilt, recreate the whole cluster
   lifecycle {
     ignore_changes = [volume[0].user_data]
   }
@@ -216,6 +218,8 @@ resource "terraform_data" "bootstrap" {
     command = "${path.module}/scripts/wait-bootstrap.sh"
     environment = {
       HOSTS             = join(" ", [for s in ionoscloud_server.node : s.primary_ip])
+      PRIMARY           = ionoscloud_server.node[local.primary].primary_ip
+      OUTPUTS_FILE      = local.outputs_file
       SSH_KEY           = local.ssh_key_file
       KNOWN_HOSTS       = local.known_hosts
       BOOTSTRAP_TIMEOUT = var.bootstrap_timeout_seconds
@@ -223,15 +227,8 @@ resource "terraform_data" "bootstrap" {
   }
 }
 
-data "external" "bootstrap" {
+# read from disk so plan, refresh and destroy work without reaching the nodes
+data "local_sensitive_file" "bootstrap" {
   depends_on = [terraform_data.bootstrap]
-
-  program = [
-    "ssh", "-i", local.ssh_key_file,
-    "-o", "UserKnownHostsFile=${local.known_hosts}",
-    "-o", "StrictHostKeyChecking=yes",
-    "-o", "BatchMode=yes",
-    "root@${ionoscloud_server.node[local.primary].primary_ip}",
-    "cat /root/pve-bootstrap/outputs.json",
-  ]
+  filename   = local.outputs_file
 }

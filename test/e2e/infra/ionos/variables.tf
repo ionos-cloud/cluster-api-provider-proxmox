@@ -90,12 +90,11 @@ variable "ssh_public_keys" {
 variable "allowed_source_ips" {
   description = "Source IPv4 addresses allowed to reach SSH (22) and the Proxmox UI/API (8006) on the public NICs. \"0.0.0.0/0\" allows any source."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
 
   validation {
     # IONOS firewall rules match a single source address, not a CIDR
-    condition     = alltrue([for ip in var.allowed_source_ips : ip == "0.0.0.0/0" || can(regex("^\\d{1,3}(\\.\\d{1,3}){3}$", ip))])
-    error_message = "Each entry must be a single IPv4 address or \"0.0.0.0/0\"."
+    condition     = length(var.allowed_source_ips) > 0 && alltrue([for ip in var.allowed_source_ips : ip == "0.0.0.0/0" || can(cidrhost("${ip}/32", 0))])
+    error_message = "Provide at least one entry; each must be a single IPv4 address or \"0.0.0.0/0\"."
   }
 }
 
