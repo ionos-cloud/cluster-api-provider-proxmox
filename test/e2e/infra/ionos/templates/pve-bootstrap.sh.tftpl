@@ -75,6 +75,8 @@ ONLINE_MEMBERS='(if $wrapped then .data else . end) as $s
 
 phase1() {
   log "phase 1"
+  # cloud-init only installs the pinned ed25519 host key, but pvecm create/join reads the RSA one
+  [ -f /etc/ssh/ssh_host_rsa_key ] || ssh-keygen -q -t rsa -b 4096 -N '' -f /etc/ssh/ssh_host_rsa_key
   # without VMX/SVM the cluster still builds, but every e2e guest would crawl under TCG
   if ! grep -qE 'vmx|svm' /proc/cpuinfo; then
     log "no VMX/SVM: nested virtualization is unavailable on this CPU"

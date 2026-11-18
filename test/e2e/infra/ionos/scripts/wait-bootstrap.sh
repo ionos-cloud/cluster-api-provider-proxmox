@@ -11,7 +11,7 @@ trap 'rm -f "$errfile"' EXIT
 ssh_node() {
   local host=$1
   local command=$2
-  ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes \
+  ssh -i "$SSH_KEY" -o IdentitiesOnly=yes -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes \
     -o BatchMode=yes -o ConnectTimeout=10 "root@$host" "$command"
   return $?
 }
