@@ -75,6 +75,11 @@ ONLINE_MEMBERS='(if $wrapped then .data else . end) as $s
 
 phase1() {
   log "phase 1"
+  # without VMX/SVM the cluster still builds, but every e2e guest would crawl under TCG
+  if ! grep -qE 'vmx|svm' /proc/cpuinfo; then
+    log "no VMX/SVM: nested virtualization is unavailable on this CPU"
+    false
+  fi
   retry nics_ready
   public_if=$(ip -o route get 1.1.1.1 | sed -n 's/.* dev \([^ ]*\).*/\1/p')
   private_if=$(physical_nics | grep -vx "$public_if" | head -n1)
@@ -220,6 +225,9 @@ setup_storage() {
   ensure 'pvesm status --storage ceph-vm >/dev/null 2>&1' pveceph pool create ceph-vm --pg_num 32 --add_storages 1
   ensure 'pvesm status --storage cephfs >/dev/null 2>&1' pveceph fs create --name cephfs --pg_num 32 --add-storage 1
   retry pvesm set cephfs --content iso,vztmpl,backup,snippets
+  # CAPMOX uploads the bootstrap ISO to the first iso-capable storage, so keep it off the node-local one
+  content=$(pvesh get /storage/local --output-format json | jq -r '.content | split(",") - ["iso"] | join(",")')
+  retry pvesm set local --content "$content"
   # shared qcow2-capable storage: CAPMOX's e2e cluster templates clone disks as qcow2, which RBD cannot hold
   ensure 'pvesm status --storage cephfs-images >/dev/null 2>&1' pvesm add dir cephfs-images \
     --path /mnt/pve/cephfs/images --shared 1 --content images --is_mountpoint /mnt/pve/cephfs
@@ -242,6 +250,13 @@ setup_guest_network() {
 iface $GUEST_BRIDGE inet static
 	address $GUEST_GATEWAY/$GUEST_PREFIX
 	post-up iptables -t nat -C POSTROUTING -s $GUEST_CIDR -o $public_if -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s $GUEST_CIDR -o $public_if -j MASQUERADE
+	post-up iptables -N GUEST-IN 2>/dev/null || iptables -F GUEST-IN
+	post-up iptables -A GUEST-IN -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+	post-up iptables -A GUEST-IN -p icmp -j ACCEPT
+	post-up iptables -A GUEST-IN -p tcp --dport 8006 -j ACCEPT
+	post-up iptables -A GUEST-IN -j DROP
+	post-up iptables -C INPUT -i $GUEST_BRIDGE -j GUEST-IN 2>/dev/null || iptables -I INPUT -i $GUEST_BRIDGE -j GUEST-IN
+	post-up iptables -C FORWARD -i $GUEST_BRIDGE -d $PRIVATE_CIDR -j DROP 2>/dev/null || iptables -I FORWARD -i $GUEST_BRIDGE -d $PRIVATE_CIDR -j DROP
 EOF
   ifreload -a
 }
@@ -250,24 +265,23 @@ create_capmox_token() {
   [ ! -f "$STATE/capmox-token.json" ] || return 0
   pveum user list --output-format json | jq -e 'any(.[]; .userid == "capmox@pve")' >/dev/null ||
     pveum user add capmox@pve
-  # PVEDatastoreAdmin: uploading the bootstrap ISO needs Datastore.AllocateTemplate
-  pveum acl modify / --users capmox@pve --roles PVEVMAdmin,PVEDatastoreAdmin,PVESDNUser,PVEAuditor
+  # least privileges per docs/advanced-setups.md, except that VMs are not pool-scoped yet:
+  # the e2e cluster templates do not set a pool, so PVEVMAdmin sits on /vms
+  pveum role list --output-format json | jq -e 'any(.[]; .roleid == "Sys.Audit")' >/dev/null ||
+    pveum role add Sys.Audit --privs Sys.Audit
+  pveum role list --output-format json | jq -e 'any(.[]; .roleid == "Datastore.AllocateSpace")' >/dev/null ||
+    pveum role add Datastore.AllocateSpace --privs Datastore.AllocateSpace
+  pveum acl modify / --users capmox@pve --roles Sys.Audit --propagate 0
+  pveum acl modify /nodes --users capmox@pve --roles Sys.Audit
+  pveum acl modify /vms --users capmox@pve --roles PVEVMAdmin
+  pveum acl modify "/sdn/zones/e2e/$GUEST_BRIDGE" --users capmox@pve --roles PVESDNUser --propagate 0
+  # PVEDatastoreAdmin: uploading and deleting the bootstrap ISO needs Datastore.AllocateTemplate and Datastore.Allocate
+  pveum acl modify /storage/cephfs --users capmox@pve --roles PVEDatastoreAdmin --propagate 0
+  pveum acl modify /storage/cephfs-images --users capmox@pve --roles Datastore.AllocateSpace --propagate 0
+  pveum acl modify /storage/ceph-vm --users capmox@pve --roles Datastore.AllocateSpace --propagate 0
   (umask 077 && pveum user token add capmox@pve capi --privsep 0 --output-format json >"$STATE/capmox-token.json.tmp")
   jq -e '.value' "$STATE/capmox-token.json.tmp" >/dev/null
   mv "$STATE/capmox-token.json.tmp" "$STATE/capmox-token.json"
-}
-
-write_outputs() {
-  fsid=$(ceph fsid)
-  key=$(ceph auth get-key client.admin)
-  token_id=$(jq -er '."full-tokenid"' "$STATE/capmox-token.json")
-  token_secret=$(jq -er .value "$STATE/capmox-token.json")
-  [ -n "$fsid" ]
-  [ -n "$key" ]
-  (umask 077 && jq -n --arg fsid "$fsid" --arg key "$key" --arg token_id "$token_id" --arg token_secret "$token_secret" \
-    '{ceph_fsid: $fsid, ceph_admin_key: $key, capmox_token_id: $token_id, capmox_token_secret: $token_secret}' \
-    >"$STATE/outputs.json.tmp")
-  mv "$STATE/outputs.json.tmp" "$STATE/outputs.json"
 }
 
 phase2() {
@@ -280,7 +294,6 @@ phase2() {
     setup_storage
     setup_guest_network
     create_capmox_token
-    write_outputs
   fi
   systemctl disable pve-bootstrap.service
   touch "$STATE/done"
