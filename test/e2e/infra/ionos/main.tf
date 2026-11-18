@@ -10,6 +10,19 @@ locals {
   output_dir      = coalesce(var.output_dir, "${path.module}/out")
   ssh_key_file    = abspath("${local.output_dir}/id_ed25519")
   known_hosts     = abspath("${local.output_dir}/known_hosts")
+  env_file        = abspath("${local.output_dir}/capmox.env")
+
+  # non-secret settings for make test-e2e; wait-bootstrap.sh adds the token to the same file
+  e2e_env = {
+    PROXMOX_URL               = "https://${ionoscloud_server.node[local.primary].primary_ip}:8006"
+    PROXMOX_SOURCENODE        = local.primary
+    ALLOWED_NODES             = "[${join(",", keys(local.nodes))}]"
+    BRIDGE                    = var.guest_bridge
+    GATEWAY                   = cidrhost(var.guest_cidr, 1)
+    IP_PREFIX                 = split("/", var.guest_cidr)[1]
+    CONTROL_PLANE_ENDPOINT_IP = cidrhost(var.guest_cidr, 10)
+    NODE_IP_RANGES            = "[${cidrhost(var.guest_cidr, 20)}-${cidrhost(var.guest_cidr, 250)}]"
+  }
 
   etc_hosts = join("\n", concat(
     ["127.0.0.1 localhost", "::1 localhost ip6-localhost ip6-loopback"],
@@ -132,7 +145,7 @@ resource "ionoscloud_server" "node" {
     firewall_type   = "INGRESS"
   }
 
-  # bootstrap only runs on first boot; rebuild nodes explicitly with -replace
+  # bootstrap only runs on first boot; rebuild the whole cluster instead (see README)
   lifecycle {
     ignore_changes = [volume[0].user_data]
   }
@@ -219,19 +232,8 @@ resource "terraform_data" "bootstrap" {
       SSH_KEY           = local.ssh_key_file
       KNOWN_HOSTS       = local.known_hosts
       BOOTSTRAP_TIMEOUT = var.bootstrap_timeout_seconds
+      ENV_FILE          = local.env_file
+      E2E_ENV           = join("\n", [for k, v in local.e2e_env : "${k}=${v}"])
     }
   }
-}
-
-data "external" "bootstrap" {
-  depends_on = [terraform_data.bootstrap]
-
-  program = [
-    "ssh", "-i", local.ssh_key_file,
-    "-o", "UserKnownHostsFile=${local.known_hosts}",
-    "-o", "StrictHostKeyChecking=yes",
-    "-o", "BatchMode=yes",
-    "root@${ionoscloud_server.node[local.primary].primary_ip}",
-    "cat /root/pve-bootstrap/outputs.json",
-  ]
 }

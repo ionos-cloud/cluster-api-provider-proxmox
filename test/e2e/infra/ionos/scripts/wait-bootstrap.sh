@@ -43,3 +43,16 @@ while [[ -n "$pending" ]]; do
   fi
   sleep 20
 done
+
+# fetch the CAPMOX token once, so plan and destroy never need SSH access to the nodes
+primary=${HOSTS%% *}
+token=$(ssh_node "$primary" 'cat /root/pve-bootstrap/capmox-token.json')
+(
+  umask 077
+  {
+    printf '%s\n' "$E2E_ENV"
+    jq -r '"PROXMOX_TOKEN=\(."full-tokenid")", "PROXMOX_SECRET=\(.value)"' <<<"$token"
+  } >"$ENV_FILE.tmp"
+)
+mv "$ENV_FILE.tmp" "$ENV_FILE"
+echo "wrote $ENV_FILE"
