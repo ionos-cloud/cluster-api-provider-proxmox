@@ -1,0 +1,12 @@
+[Unit]
+Description=Proxmox VE cluster and Ceph bootstrap
+Wants=network-online.target
+After=network-online.target pve-cluster.service pveproxy.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pve-bootstrap
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
