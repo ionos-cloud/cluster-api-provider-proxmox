@@ -298,6 +298,10 @@ func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName strin
 	node := (&proxmox.Node{}).New(c.Client, nodeName)
 
 	if err := node.Status(ctx); err != nil {
+		if nodes, listErr := c.Nodes(ctx); listErr == nil &&
+			slices.ContainsFunc(nodes, func(n *proxmox.NodeStatus) bool { return n.Node == nodeName && n.Status == "offline" }) {
+			return 0, fmt.Errorf("%w: %s: %w", ErrNodeOffline, nodeName, err)
+		}
 		return 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
