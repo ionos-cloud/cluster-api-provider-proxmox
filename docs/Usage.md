@@ -163,7 +163,7 @@ For templates using `CNI`s you're required to create `ConfigMaps` to make `Clust
 
 We provide the following templates:
 
-| Flavor              | Tepmlate File                                        | CRS File                                                  |
+| Flavor              | Template File                                        | CRS File                                                  |
 |---------------------|------------------------------------------------------|-----------------------------------------------------------|
 | cilium              | templates/cluster-template-cilium.yaml               | templates/crs/cni/cilium.yaml                             |
 | calico              | templates/cluster-template-calico.yaml               | templates/crs/cni/calico.yaml                             |
