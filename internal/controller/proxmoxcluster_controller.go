@@ -191,6 +191,12 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
+	// Publish the failure domains before any early return (missing control plane
+	// endpoint, IPAM requeue, credentials error...): CAPI reads them to pin
+	// machine placement, and machines can be created while the cluster is still
+	// waiting on other cluster-level infrastructure to become ready.
+	reconcileFailureDomains(clusterScope)
+
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.IsZero() {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
@@ -234,8 +240,6 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 		Status: metav1.ConditionTrue,
 		Reason: clusterv1.ProvisionedReason,
 	})
-
-	reconcileFailureDomains(clusterScope)
 
 	clusterScope.SetReady()
 
