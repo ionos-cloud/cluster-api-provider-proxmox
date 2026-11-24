@@ -76,6 +76,8 @@ clusterctl requires the following variables, which should be set in `~/.cluster-
 PROXMOX_URL: "https://pve.example:8006"                       # The Proxmox VE host.
 PROXMOX_TOKEN: "root@pam!capi"                                # The Proxmox VE TokenID for authentication.
 PROXMOX_SECRET: "REDACTED"                                    # The secret associated with the TokenID.
+PROXMOX_ADDITIONAL_URLS: "https://pve2:8006,https://pve3:8006"  # Optional. Further API URLs of the same cluster, used when the PROXMOX_URL node cannot serve a request.
+PROXMOX_ENDPOINT_DISCOVERY: "true"                            # Optional. Add every online cluster node (from /cluster/status) as such an endpoint; needs Sys.Audit on /.
 
 
 ## -- Required workload cluster default settings -- ##
@@ -208,6 +210,10 @@ stringData:
   secret: ${PROXMOX_SECRET}
   token: ${PROXMOX_TOKEN}
   url: ${PROXMOX_URL}
+  # Optional: further API URLs of the same cluster, and/or discovery of every online
+  # node from /cluster/status, used when the url node cannot serve a request.
+  # additional_urls: "https://pve2:8006,https://pve3:8006"
+  # endpoint_discovery: "true"
 kind: Secret
 metadata:
   name: my-cluster-proxmox-credentials
