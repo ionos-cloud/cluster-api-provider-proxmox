@@ -47,7 +47,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 	pm := machineScope.ProxmoxMachine
 
 	// TODO: This datastructure is less bad, but still bad
-	netPoolAddresses := make(map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+	netPoolAddresses := make(map[infrav1.NetName]map[ipam.PoolKey][]ipamv1.IPAddress)
 
 	if pm.Spec.Network != nil {
 		if requeue, err = handleDevices(ctx, machineScope, netPoolAddresses); err != nil || requeue {
@@ -83,7 +83,7 @@ func reconcileIPAddresses(ctx context.Context, machineScope *scope.MachineScope)
 // writeIPAddressStatus republishes ProxmoxMachine.status.ipAddresses from the
 // resolved per-net/pool addresses. Within each net the addresses are ordered by
 // their pool-offset annotation and split into IPv4/IPv6 before being stored.
-func writeIPAddressStatus(pm *infrav1.ProxmoxMachine, netPoolAddresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) {
+func writeIPAddressStatus(pm *infrav1.ProxmoxMachine, netPoolAddresses map[infrav1.NetName]map[ipam.PoolKey][]ipamv1.IPAddress) {
 	for net, pools := range netPoolAddresses {
 		addresses := slices.Concat(slices.Collect(maps.Values(pools))...)
 		slices.SortFunc(addresses, func(a, b ipamv1.IPAddress) int {
@@ -126,7 +126,7 @@ func reconcileAddressRecovery(ctx context.Context, machineScope *scope.MachineSc
 
 	machineScope.Logger.V(4).Info("attempting IP/address status recovery for running machine with empty status")
 
-	netPoolAddresses := make(map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+	netPoolAddresses := make(map[infrav1.NetName]map[ipam.PoolKey][]ipamv1.IPAddress)
 	incomplete, err := collectDeviceAddresses(ctx, machineScope, netPoolAddresses, resolveExistingIPAddress)
 	if err != nil {
 		return errors.Wrap(err, "resolving existing IPAddressClaims for status recovery")
@@ -283,7 +283,7 @@ func handleIPAddresses(ctx context.Context, machineScope *scope.MachineScope, ip
 // read-only status-recovery path uses resolveExistingIPAddress.
 type ipAddressResolver func(ctx context.Context, machineScope *scope.MachineScope, ipClaimDef ipam.IPClaimDef) ([]ipamv1.IPAddress, error)
 
-func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress) (bool, error) {
+func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[ipam.PoolKey][]ipamv1.IPAddress) (bool, error) {
 	return collectDeviceAddresses(ctx, machineScope, addresses, handleIPAddresses)
 }
 
@@ -291,7 +291,7 @@ func handleDevices(ctx context.Context, machineScope *scope.MachineScope, addres
 // each device/pool claim via the supplied resolver, and groups the resulting
 // addresses into the per-net/pool map (including the synthetic "default" net).
 // It returns requeue=true when any claim did not resolve to an address.
-func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress, resolve ipAddressResolver) (bool, error) {
+func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScope, addresses map[infrav1.NetName]map[ipam.PoolKey][]ipamv1.IPAddress, resolve ipAddressResolver) (bool, error) {
 	// paranoidly handle callers handing us an empty map
 	if addresses == nil {
 		return false, errors.New("collectDeviceAddresses called without a map")
@@ -304,7 +304,18 @@ func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScop
 		return false, err
 	}
 
-	defaultPoolMap := make(map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+	defaultPoolMap := make(map[ipam.PoolKey][]ipamv1.IPAddress)
+
+	// Pools are compared and keyed by value (ipam.PoolKey): a TypedLocalObjectReference
+	// carries its APIGroup as a pointer, so two deserialized references to one pool
+	// would otherwise be two map entries that compare unequal.
+	var defaultV4, defaultV6 *ipam.PoolKey
+	if poolsRef.IPv4 != nil {
+		defaultV4 = ptr.To(ipam.PoolKeyFor(*poolsRef.IPv4))
+	}
+	if poolsRef.IPv6 != nil {
+		defaultV6 = ptr.To(ipam.PoolKeyFor(*poolsRef.IPv6))
+	}
 
 	requeue := false
 	for _, net := range networkSpec.NetworkDevices {
@@ -313,14 +324,15 @@ func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScop
 		// append default pools in front if they exist.
 		if ptr.Deref(net.DefaultIPv4, false) && poolsRef.IPv4 != nil {
 			pools = append(pools, *poolsRef.IPv4)
-			defaultPoolMap[*poolsRef.IPv4] = []ipamv1.IPAddress{}
+			defaultPoolMap[*defaultV4] = []ipamv1.IPAddress{}
 		}
 		if ptr.Deref(net.DefaultIPv6, false) && poolsRef.IPv6 != nil {
 			pools = append(pools, *poolsRef.IPv6)
-			defaultPoolMap[*poolsRef.IPv6] = []ipamv1.IPAddress{}
+			defaultPoolMap[*defaultV6] = []ipamv1.IPAddress{}
 		}
 
 		for i, ipPool := range slices.Concat(pools, net.InterfaceConfig.IPPoolRef) {
+			key := ipam.PoolKeyFor(ipPool)
 			ipClaimDef := ipam.IPClaimDef{
 				PoolRef: ipPool,
 				Device:  net.Name,
@@ -329,10 +341,8 @@ func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScop
 				},
 			}
 			// TODO: I hate this default pool logic
-			if ptr.Deref(net.DefaultIPv4, false) &&
-				ipPool == ptr.Deref(poolsRef.IPv4, corev1.TypedLocalObjectReference{}) ||
-				ptr.Deref(net.DefaultIPv6, false) &&
-					ipPool == ptr.Deref(poolsRef.IPv6, corev1.TypedLocalObjectReference{}) {
+			if ptr.Deref(net.DefaultIPv4, false) && defaultV4 != nil && key == *defaultV4 ||
+				ptr.Deref(net.DefaultIPv6, false) && defaultV6 != nil && key == *defaultV6 {
 				ipClaimDef.Annotations[infrav1.ProxmoxDefaultGatewayAnnotation] = "true"
 			}
 
@@ -348,15 +358,15 @@ func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScop
 
 			poolMap := addresses[net.Name]
 			if poolMap == nil {
-				poolMap = make(map[corev1.TypedLocalObjectReference][]ipamv1.IPAddress)
+				poolMap = make(map[ipam.PoolKey][]ipamv1.IPAddress)
 			}
 
-			poolMap[ipPool] = append(poolMap[ipPool], ipAddresses...)
+			poolMap[key] = append(poolMap[key], ipAddresses...)
 			addresses[net.Name] = poolMap
 
 			// append default pool addresses to map
-			if _, exists := defaultPoolMap[ipPool]; exists && (ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false)) {
-				defaultPoolMap[ipPool] = append(defaultPoolMap[ipPool], ipAddresses...)
+			if _, exists := defaultPoolMap[key]; exists && (ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false)) {
+				defaultPoolMap[key] = append(defaultPoolMap[key], ipAddresses...)
 			}
 		}
 		addresses["default"] = defaultPoolMap

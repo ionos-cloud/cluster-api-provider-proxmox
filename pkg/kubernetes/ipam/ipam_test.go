@@ -1092,3 +1092,54 @@ func (s *IPAMTestSuite) dummyIPAddress(owner client.Object, poolName string) *ip
 		},
 	}
 }
+
+func (s *IPAMTestSuite) Test_PoolKeyForComparesByValueAndNormalisesGroup() {
+	current := corev1.TypedLocalObjectReference{
+		APIGroup: GetIPAMInClusterAPIGroup(),
+		Kind:     GetInClusterIPPoolKind(),
+		Name:     "test-cluster-v4-icip",
+	}
+	legacy := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     GetInClusterIPPoolKind(),
+		Name:     "test-cluster-v4-icip",
+	}
+	copied := corev1.TypedLocalObjectReference{
+		APIGroup: new(*current.APIGroup),
+		Kind:     current.Kind,
+		Name:     current.Name,
+	}
+
+	// The references compare unequal with == because APIGroup is a pointer.
+	s.False(current == copied)
+	s.False(current == legacy)
+
+	want := PoolKey{APIGroup: "ipam.cluster.x-k8s.io", Kind: GetInClusterIPPoolKind(), Name: "test-cluster-v4-icip"}
+	s.Equal(want, PoolKeyFor(current))
+	s.Equal(want, PoolKeyFor(copied))
+	s.Equal(want, PoolKeyFor(legacy), "the older group/version form keys the same pool")
+
+	s.NotEqual(want, PoolKeyFor(corev1.TypedLocalObjectReference{APIGroup: new("other.ipam.example.com"), Kind: GetInClusterIPPoolKind(), Name: "test-cluster-v4-icip"}))
+	s.NotEqual(want, PoolKeyFor(corev1.TypedLocalObjectReference{APIGroup: GetIPAMInClusterAPIGroup(), Kind: GetGlobalInClusterIPPoolKind(), Name: "test-cluster-v4-icip"}))
+	s.NotEqual(want, PoolKeyFor(corev1.TypedLocalObjectReference{APIGroup: GetIPAMInClusterAPIGroup(), Kind: GetInClusterIPPoolKind(), Name: "other"}))
+	s.Equal(PoolKey{Kind: GetInClusterIPPoolKind(), Name: "x"}, PoolKeyFor(corev1.TypedLocalObjectReference{Kind: GetInClusterIPPoolKind(), Name: "x"}), "nil APIGroup is the empty group")
+}
+
+func (s *IPAMTestSuite) Test_GetInClusterPoolsReturnsBareAPIGroup() {
+	s.NoError(s.helper.CreateOrUpdateInClusterIPPool(s.ctx))
+	s.cluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: &corev1.LocalObjectReference{Name: InClusterPoolFormat(s.cluster, nil, infrav1.IPv4Format)},
+	}}
+	machine := s.testMachine()
+	machine.Spec.Network = &infrav1.NetworkSpec{}
+	pools, err := s.helper.GetInClusterPools(s.ctx, machine)
+	s.NoError(err)
+	s.NotNil(pools.IPv4)
+	s.Equal("ipam.cluster.x-k8s.io", *pools.IPv4.PoolRef.APIGroup)
+	s.Equal(PoolKeyFor(pools.IPv4.PoolRef), PoolKeyFor(corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     pools.IPv4.PoolRef.Kind,
+		Name:     pools.IPv4.PoolRef.Name,
+	}))
+}

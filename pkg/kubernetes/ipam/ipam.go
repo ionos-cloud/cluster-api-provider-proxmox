@@ -207,7 +207,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		}
 		poolSpec.Pool = pool
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
-			APIGroup: new(ipamicv1.GroupVersion.String()),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Name:     pool.Name,
 			Kind:     GetInClusterIPPoolKind(),
 		}
@@ -230,7 +230,7 @@ func (h *Helper) GetInClusterPools(ctx context.Context, moxm *infrav1.ProxmoxMac
 		}
 		poolSpec.Pool = pool
 		poolSpec.PoolRef = corev1.TypedLocalObjectReference{
-			APIGroup: new(ipamicv1.GroupVersion.String()),
+			APIGroup: GetIPAMInClusterAPIGroup(),
 			Name:     pool.Name,
 			Kind:     GetInClusterIPPoolKind(),
 		}
@@ -680,6 +680,27 @@ func (h *Helper) GetIPAddressByPool(ctx context.Context, poolRef corev1.TypedLoc
 	})
 
 	return addresses.Items, nil
+}
+
+// PoolKey identifies an IP pool by value, for use as a map key and in comparisons. A
+// corev1.TypedLocalObjectReference holds its APIGroup as a *string, so two references
+// to one pool that were deserialized separately are different map keys and compare
+// unequal with ==, although they name the same pool. The group is normalised, so a
+// reference written as "group/version" by older versions of this provider keys the same
+// pool as one written with the group alone.
+type PoolKey struct {
+	APIGroup string
+	Kind     string
+	Name     string
+}
+
+// PoolKeyFor returns the PoolKey of ref.
+func PoolKeyFor(ref corev1.TypedLocalObjectReference) PoolKey {
+	return PoolKey{
+		APIGroup: normalizedAPIGroup(ptr.Deref(ref.APIGroup, "")),
+		Kind:     ref.Kind,
+		Name:     ref.Name,
+	}
 }
 
 func matchesPoolRef(address ipamv1.IPAddress, poolRef corev1.TypedLocalObjectReference) bool {

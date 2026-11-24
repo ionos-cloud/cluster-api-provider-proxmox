@@ -18,6 +18,8 @@ package vmservice
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -33,6 +35,7 @@ import (
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	. "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/consts"
 	ipam "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
 const ipTag = "ip_net0_10.10.10.10"
@@ -700,4 +703,63 @@ func TestReconcileIPAddresses_MachineIPPoolRef(t *testing.T) {
 	)
 
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+}
+
+// TestCollectDeviceAddresses_SamePoolByValueAccumulates covers pool references that name
+// one pool but are distinct Go values: the cluster's default pool reference and the same
+// pool listed again under ipPoolRef, deserialized separately and written in the older
+// "group/version" form. Keyed by pointer identity they were two entries, and only the
+// first was recognised as the default pool.
+func TestCollectDeviceAddresses_SamePoolByValueAccumulates(t *testing.T) {
+	machineScope, _, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
+
+	defaultPoolName := getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name
+	legacyRef := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()), // "ipam.cluster.x-k8s.io/v1alpha2", as older versions wrote it
+		Kind:     InClusterIPPool,
+		Name:     defaultPoolName,
+	}
+	// A JSON round trip gives a reference whose APIGroup pointer is its own.
+	raw, err := json.Marshal(legacyRef)
+	require.NoError(t, err)
+	var deserialized corev1.TypedLocalObjectReference
+	require.NoError(t, json.Unmarshal(raw, &deserialized))
+	require.NotSame(t, legacyRef.APIGroup, deserialized.APIGroup)
+
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{{
+			Name:        infrav1.DefaultNetworkDevice,
+			DefaultIPv4: new(true),
+			InterfaceConfig: infrav1.InterfaceConfig{
+				IPPoolRef: []corev1.TypedLocalObjectReference{deserialized},
+			},
+		}},
+	}
+
+	var claims []ipam.IPClaimDef
+	resolve := func(_ context.Context, _ *scope.MachineScope, def ipam.IPClaimDef) ([]ipamv1.IPAddress, error) {
+		claims = append(claims, def)
+		offset := def.Annotations[infrav1.ProxmoxPoolOffsetAnnotation]
+		return []ipamv1.IPAddress{{
+			ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("%s-%s", def.Device, offset), Annotations: def.Annotations},
+			Spec:       ipamv1.IPAddressSpec{Address: "10.10.10.1" + offset, Prefix: new(int32(24))},
+		}}, nil
+	}
+
+	addresses := make(map[infrav1.NetName]map[ipam.PoolKey][]ipamv1.IPAddress)
+	requeue, err := collectDeviceAddresses(context.Background(), machineScope, addresses, resolve)
+	require.NoError(t, err)
+	require.False(t, requeue)
+
+	require.Len(t, claims, 2)
+	for _, claim := range claims {
+		require.Equal(t, "true", claim.Annotations[infrav1.ProxmoxDefaultGatewayAnnotation], "both references name the default pool")
+	}
+
+	key := ipam.PoolKeyFor(legacyRef)
+	require.Equal(t, ipam.PoolKey{APIGroup: "ipam.cluster.x-k8s.io", Kind: InClusterIPPool, Name: defaultPoolName}, key)
+	require.Len(t, addresses[infrav1.DefaultNetworkDevice], 1, "one pool, one entry")
+	require.Len(t, addresses[infrav1.DefaultNetworkDevice][key], 2)
+	require.Len(t, addresses["default"], 1)
+	require.Len(t, addresses["default"][key], 2, "both addresses belong to the default pool")
 }
