@@ -1130,3 +1130,57 @@ func TestReconcileVM_StateMachine(t *testing.T) {
 	require.Equal(t, "192.0.2.10", machineScope.ProxmoxMachine.Status.Addresses[1].Address)
 	require.Equal(t, "2001:db8::2", machineScope.ProxmoxMachine.Status.Addresses[2].Address)
 }
+
+func TestCloudInitISODevice(t *testing.T) {
+	iso := "local:iso/user-data-123.iso,media=cdrom"
+	tests := []struct {
+		name string
+		cfg  *lutherproxmox.VirtualMachineConfig
+		want string
+	}{
+		{"no config", nil, "ide0"},
+		{"x86 without ISO falls back to ide0", &lutherproxmox.VirtualMachineConfig{SCSIs: map[string]string{"scsi0": "local-lvm:vm-123-disk-0,size=20G"}}, "ide0"},
+		{"ISO on ide0", &lutherproxmox.VirtualMachineConfig{IDEs: map[string]string{"ide0": iso}}, "ide0"},
+		{"ISO on ide2", &lutherproxmox.VirtualMachineConfig{IDEs: map[string]string{"ide2": iso}, SCSIs: map[string]string{"scsi0": "local-lvm:vm-123-disk-0,size=20G"}}, "ide2"},
+		{"ISO on scsi1 of an aarch64 VM", &lutherproxmox.VirtualMachineConfig{Machine: "virt", SCSIs: map[string]string{"scsi0": "local-lvm:vm-123-disk-0,size=20G", "scsi1": iso}}, "scsi1"},
+		{"ISO on sata0", &lutherproxmox.VirtualMachineConfig{SATAs: map[string]string{"sata0": "nfs:iso/user-data-123.iso,media=cdrom,size=4M"}}, "sata0"},
+		{"another VM's ISO does not count", &lutherproxmox.VirtualMachineConfig{IDEs: map[string]string{"ide2": "local:iso/user-data-1234.iso,media=cdrom"}, SCSIs: map[string]string{"scsi1": iso}}, "scsi1"},
+		{"a cloud-init drive is not the ISO", &lutherproxmox.VirtualMachineConfig{IDEs: map[string]string{"ide2": "local-lvm:vm-123-cloudinit,media=cdrom"}}, "ide0"},
+		{"aarch64 without ISO falls back to the injector's slot", &lutherproxmox.VirtualMachineConfig{Machine: "virt", SCSIs: map[string]string{"scsi0": "local-lvm:vm-123-disk-0,size=20G"}}, "scsi1"},
+		{"lowest device wins on several matches", &lutherproxmox.VirtualMachineConfig{IDEs: map[string]string{"ide2": iso}, SCSIs: map[string]string{"scsi1": iso}}, "ide2"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			vm := &lutherproxmox.VirtualMachine{VMID: 123, VirtualMachineConfig: tc.cfg}
+			require.Equal(t, tc.want, cloudInitISODevice(vm))
+		})
+	}
+	require.Equal(t, "ide0", cloudInitISODevice(nil))
+}
+
+func TestReconcileDisks_UnmountCloudInitISO_FindsDevice(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		setup  func(cfg *lutherproxmox.VirtualMachineConfig)
+		device string
+	}{
+		{"scsi1 on aarch64", func(cfg *lutherproxmox.VirtualMachineConfig) {
+			cfg.Machine = "virt"
+			cfg.SCSIs = map[string]string{"scsi0": "local-lvm:vm-123-disk-0,size=20G", "scsi1": "local:iso/user-data-123.iso,media=cdrom"}
+		}, "scsi1"},
+		{"ide2 on x86", func(cfg *lutherproxmox.VirtualMachineConfig) {
+			cfg.IDEs = map[string]string{"ide2": "local:iso/user-data-123.iso,media=cdrom"}
+		}, "ide2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason)
+			vm := newRunningVM()
+			tc.setup(vm.VirtualMachineConfig)
+			machineScope.SetVirtualMachine(vm)
+
+			proxmoxClient.EXPECT().UnmountCloudInitISO(context.Background(), vm, tc.device).Return(nil)
+
+			require.NoError(t, unmountCloudInitISO(context.Background(), machineScope))
+		})
+	}
+}

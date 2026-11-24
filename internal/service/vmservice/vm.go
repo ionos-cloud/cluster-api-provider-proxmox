@@ -19,9 +19,12 @@ package vmservice
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
+	lutherproxmox "github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -643,5 +646,40 @@ func getUsedVMIDs(ctx context.Context, scope *scope.MachineScope) ([]int64, erro
 var selectNextNode = scheduler.ScheduleVM
 
 func unmountCloudInitISO(ctx context.Context, machineScope *scope.MachineScope) error {
-	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, machineScope.VirtualMachine, inject.CloudInitISODevice)
+	vm := machineScope.VirtualMachine
+	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, vm, cloudInitISODevice(vm))
+}
+
+// cloudInitISODevice returns the drive of the VM that carries its cloud-init ISO,
+// "user-data-<vmid>.iso", wherever the injector attached it (ide0 on x86, a scsiN slot on
+// aarch64). Several matches are resolved to the lowest device name. When no drive carries
+// the ISO the device the injector would pick for this VM is returned, so an unmount still
+// targets the slot the ISO would have been on.
+func cloudInitISODevice(vm *lutherproxmox.VirtualMachine) string {
+	if vm == nil {
+		return inject.CloudInitISODevice
+	}
+	if drives := drivesWithVolume(vm.VirtualMachineConfig, fmt.Sprintf(lutherproxmox.UserDataISOFormat, vm.VMID)); len(drives) > 0 {
+		return drives[0]
+	}
+	return inject.CloudInitISODeviceFor(vm.VirtualMachineConfig)
+}
+
+// drivesWithVolume lists the drives of cfg whose value names the given volume file
+// ("local:iso/user-data-123.iso,media=cdrom" for "user-data-123.iso"), sorted by device.
+func drivesWithVolume(cfg *lutherproxmox.VirtualMachineConfig, file string) []string {
+	if cfg == nil {
+		return nil
+	}
+	pattern := regexp.MustCompile(`(^|[:/])` + regexp.QuoteMeta(file) + `(,|$)`)
+	var out []string
+	for _, m := range []map[string]string{cfg.IDEs, cfg.SCSIs, cfg.SATAs, cfg.VirtIOs} {
+		for dev, value := range m {
+			if pattern.MatchString(value) {
+				out = append(out, dev)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
 }
