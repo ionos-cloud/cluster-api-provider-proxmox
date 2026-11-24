@@ -125,6 +125,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node2"}
 	expectedOptions := proxmox.VMCloneRequest{
 		Node:        "node1",
+		NewID:       100,
 		Name:        "test",
 		Description: "test vm",
 		Format:      "raw",
@@ -186,6 +187,7 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions_TemplateSelector(t *testing.T
 	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node1", "node2"}
 	expectedOptions := proxmox.VMCloneRequest{
 		Node:        "node1",
+		NewID:       100,
 		Name:        "test",
 		Description: "test vm",
 		Format:      "raw",
@@ -259,7 +261,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode(t *testing.T) {
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node3", Full: true}
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 100, Name: "test", Target: "node3", Full: true}
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 
@@ -282,7 +284,7 @@ func TestEnsureVirtualMachine_CreateVM_SelectNode_MachineAllowedNodes(t *testing
 	}
 	t.Cleanup(func() { selectNextNode = scheduler.ScheduleVM })
 
-	expectedOptions := proxmox.VMCloneRequest{Node: "node1", Name: "test", Target: "node2", Full: true}
+	expectedOptions := proxmox.VMCloneRequest{Node: "node1", NewID: 100, Name: "test", Target: "node2", Full: true}
 	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
 
@@ -962,6 +964,7 @@ func TestReconcileVM_StateMachine(t *testing.T) {
 	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
 	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, proxmox.VMCloneRequest{
 		Node:        "node1",
+		NewID:       100,
 		Name:        "test",
 		Description: "test vm",
 		Format:      "raw",
