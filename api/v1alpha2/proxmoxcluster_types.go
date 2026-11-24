@@ -132,6 +132,14 @@ func (v APIEndpoint) String() string {
 	return net.JoinHostPort(v.Host, fmt.Sprintf("%d", v.Port))
 }
 
+// TODO: AvailabilityZoneSpec will eventually carry its own credentialsRef so a single
+// Cluster can span several independent Proxmox VE clusters, one per zone. This depends on
+// a ClusterClass variable for spec.availabilityZones so templates can define the zone
+// layout without patching the infrastructure cluster at runtime.
+//
+// The block below is deliberately not part of the type's doc comment: controller-gen
+// feeds doc comments into the generated CRD descriptions.
+
 // AvailabilityZoneSpec defines a named group of Proxmox nodes representing an availability zone.
 // ProxmoxMachines reference availability zones by name to constrain VM placement.
 type AvailabilityZoneSpec struct {
