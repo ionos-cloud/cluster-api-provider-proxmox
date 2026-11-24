@@ -48,10 +48,15 @@ const (
 	optionMemory      = "memory"
 	optionTags        = "tags"
 	optionDescription = "description"
+	// optionDelete names config keys to remove, comma separated.
+	optionDelete = "delete"
 )
 
 // ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmIDRange.
 var ErrNoVMIDInRangeFree = errors.New("No free vmid found in vmIDRange")
+
+// ErrNoVMIDFree is returned if no free VMID is found above the cluster's next free one.
+var ErrNoVMIDFree = errors.New("No free vmid found in the cluster")
 
 // ReconcileVM makes sure that the VM is in the desired state by:
 //  1. Creating the VM if it does not exist, then...
@@ -141,6 +146,15 @@ func ReconcileVM(ctx context.Context, scope *scope.MachineScope) (infrav1.Virtua
 		}
 	} // State Machine is finished
 	scope.Logger.V(4).Info("condition", "condition", conditions.GetReason(scope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+
+	// A machine that was never provisioned gets here only when every step above ran, and the
+	// last of them starts the VM. A stopped VM means the steps were skipped because the
+	// condition carried a reason none of them handles, so do not report it ready: that would
+	// hand Cluster API a node that never boots.
+	if !ptr.Deref(scope.ProxmoxMachine.Status.Initialization.Provisioned, false) && !scope.VirtualMachine.IsRunning() {
+		reason := conditions.GetReason(scope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+		return vm, errors.Errorf("vm %s is not running although provisioning finished (condition reason %q); not reporting it ready", scope.Name(), reason)
+	}
 
 	vm.State = infrav1.VirtualMachineStateReady
 	return vm, nil
@@ -265,9 +279,23 @@ func ensureVirtualMachine(ctx context.Context, machineScope *scope.MachineScope)
 		machineScope.SetVirtualMachineID(resp.NewID)
 		machineScope.SetAnnotation(vmIDAllocatedByControllerAnnotation, "true")
 
+		// The clone is running, so the machine is Cloning whatever an earlier attempt left in
+		// the condition. A transient clone failure sets CloningFailed; without this reset the
+		// retried clone would succeed but every later step, each gated on its own reason, would
+		// skip, and the machine would be reported ready with a stopped, unconfigured VM.
+		conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+			Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+			Status: metav1.ConditionFalse,
+			Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason,
+		})
+
 		// requeue until cloning is finished
 		return true, nil
 	}
+
+	// The VM exists under its own name, so its VMID is taken in Proxmox and the reservation
+	// made for the clone is no longer needed.
+	releaseVMID(machineScope.GetVirtualMachineID())
 
 	// make sure spec.providerID is always set.
 	biosUUID := extractUUID(vmRef.VirtualMachineConfig.SMBios1)
@@ -394,6 +422,16 @@ func reconcileVirtualMachineConfig(ctx context.Context, machineScope *scope.Mach
 		}
 	}
 
+	// A template built with a Proxmox cloud-init drive ("ide2: <storage>:vm-<id>-cloudinit")
+	// hands a copy of that drive to every clone. The provider attaches its own cloud-init ISO
+	// on another device, so the guest sees two NoCloud datasources and may take the template's:
+	// no address, no bootstrap data, a machine that never joins. Detach the inherited drive
+	// before the VM is first started; Proxmox frees the volume with it.
+	if drives := cloudInitDrives(vmConfig); len(drives) > 0 {
+		machineScope.V(4).Info("removing cloud-init drives inherited from the template", "drives", drives)
+		vmOptions = append(vmOptions, proxmox.VirtualMachineOption{Name: optionDelete, Value: strings.Join(drives, ",")})
+	}
+
 	// custom tags
 	if machineScope.ProxmoxMachine.Spec.Tags != nil {
 		machineScope.VirtualMachine.SplitTags()
@@ -498,7 +536,7 @@ func getClusterAPIMachineAddresses(scope *scope.MachineScope) ([]clusterv1.Machi
 func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneResponse, error) {
 	vmid, err := getVMID(ctx, scope)
 	if err != nil {
-		if errors.Is(err, ErrNoVMIDInRangeFree) {
+		if errors.Is(err, ErrNoVMIDInRangeFree) || errors.Is(err, ErrNoVMIDFree) {
 			conditions.Set(scope.ProxmoxMachine, metav1.Condition{
 				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 				Status:  metav1.ConditionFalse,
@@ -573,6 +611,8 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 	res, err := scope.InfraCluster.ProxmoxClient.CloneVM(ctx, int(templateID), options)
 	if err != nil {
+		// No clone was issued, so the ID is still free for the next machine.
+		releaseVMID(vmid)
 		return res, err
 	}
 
@@ -591,38 +631,6 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}, util.IsControlPlaneMachine(scope.Machine))
 
 	return res, scope.InfraCluster.PatchObject()
-}
-
-func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
-	if scope.ProxmoxMachine.Spec.VMIDRange != nil {
-		vmIDRangeStart := scope.ProxmoxMachine.Spec.VMIDRange.Start
-		vmIDRangeEnd := scope.ProxmoxMachine.Spec.VMIDRange.End
-		if vmIDRangeStart != 0 && vmIDRangeEnd != 0 {
-			return getNextFreeVMIDfromRange(ctx, scope, vmIDRangeStart, vmIDRangeEnd)
-		}
-	}
-	// If VMIDRange is not defined, return 0 to let luthermonson/go-proxmox get the next free id.
-	return 0, nil
-}
-
-func getNextFreeVMIDfromRange(ctx context.Context, scope *scope.MachineScope, vmIDRangeStart int64, vmIDRangeEnd int64) (int64, error) {
-	usedVMIDs, err := getUsedVMIDs(ctx, scope)
-	if err != nil {
-		return 0, err
-	}
-	// Get next free vmid from the range
-	for i := vmIDRangeStart; i <= vmIDRangeEnd; i++ {
-		if slices.Contains(usedVMIDs, i) {
-			continue
-		}
-		if vmidFree, err := scope.InfraCluster.ProxmoxClient.CheckID(ctx, i); err == nil && vmidFree {
-			return i, nil
-		} else if err != nil {
-			return 0, err
-		}
-	}
-	// Fail if we can't find a free vmid in the range.
-	return 0, ErrNoVMIDInRangeFree
 }
 
 func getUsedVMIDs(ctx context.Context, scope *scope.MachineScope) ([]int64, error) {

@@ -783,3 +783,29 @@ func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestProxmoxAPIClient_NextID(t *testing.T) {
+	t.Run("returns the cluster's next free id", func(t *testing.T) {
+		client := newTestClient(t)
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/status`,
+			newJSONResponder(200, proxmox.NodeStatuses{{Name: "test"}}))
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
+			newJSONResponder(200, "101"))
+
+		id, err := client.NextID(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, int64(101), id)
+	})
+
+	t.Run("fails when the cluster cannot answer", func(t *testing.T) {
+		client := newTestClient(t)
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/status`,
+			newJSONResponder(200, proxmox.NodeStatuses{{Name: "test"}}))
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
+			newJSONResponder(500, nil))
+
+		_, err := client.NextID(context.Background())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "next free vmid")
+	})
+}
