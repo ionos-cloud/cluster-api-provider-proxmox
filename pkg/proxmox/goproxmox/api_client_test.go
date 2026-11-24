@@ -569,8 +569,14 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 			// "UPID:$node:$pid:$pstart:$startime:$dtype:$id:$user"
 			upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:qmdestroy:101:root@pam:"
 
+			// go-proxmox's CheckID reads the taken ID from the "errors.vmid" field of a 400
+			// (both "already exists" and the 9.2.31+ "already in use" wording), so the delete
+			// proceeds instead of erroring (upstream #972).
 			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
-				newJSONResponder(400, fmt.Sprintf("VM %d already exists", test.vmID)))
+				httpmock.NewJsonResponderOrPanic(400, map[string]any{
+					"data":   nil,
+					"errors": map[string]any{"vmid": fmt.Sprintf("VM %d already exists", test.vmID)},
+				}).Once())
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
 				newJSONResponder(200, proxmox.Node{Name: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/enoent/status`,

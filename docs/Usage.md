@@ -78,6 +78,8 @@ PROXMOX_TOKEN: "root@pam!capi"                                # The Proxmox VE T
 PROXMOX_SECRET: "REDACTED"                                    # The secret associated with the TokenID.
 PROXMOX_ADDITIONAL_URLS: "https://pve2:8006,https://pve3:8006"  # Optional. Further API URLs of the same cluster, used when the PROXMOX_URL node cannot serve a request.
 PROXMOX_ENDPOINT_DISCOVERY: "true"                            # Optional. Add every online cluster node (from /cluster/status) as such an endpoint; needs Sys.Audit on /.
+PROXMOX_INSECURE: "true"                                      # Optional. Skip TLS verification of the Proxmox API (default true). true/false, yes/no, on/off, 1/0 in any case; anything else stops the controller.
+PROXMOX_REQUEST_TIMEOUT: "2m"                                 # Optional. Upper bound for one Proxmox API request (default 2m, 0 disables). Connect, TLS handshake and response-header timeouts apply regardless.
 
 
 ## -- Required workload cluster default settings -- ##
@@ -214,6 +216,13 @@ stringData:
   # node from /cluster/status, used when the url node cannot serve a request.
   # additional_urls: "https://pve2:8006,https://pve3:8006"
   # endpoint_discovery: "true"
+  # Optional: TLS settings. "insecure" defaults to true when absent and takes the same
+  # values as PROXMOX_INSECURE; "root_ca" is a PEM bundle added to the system roots.
+  # A value that does not parse sets ProxmoxAvailable=False with reason CredentialsInvalid.
+  # insecure: "false"
+  # root_ca: |
+  #   -----BEGIN CERTIFICATE-----
+  #   ...
 kind: Secret
 metadata:
   name: my-cluster-proxmox-credentials

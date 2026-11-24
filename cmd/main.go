@@ -19,11 +19,11 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -81,9 +81,28 @@ var (
 	// ProxmoxEndpointDiscovery env variable that adds every online cluster node as an API endpoint.
 	ProxmoxEndpointDiscovery bool
 
-	proxmoxInsecure     bool
-	proxmoxRootCertFile string
+	proxmoxInsecure       bool
+	proxmoxRootCertFile   string
+	proxmoxRequestTimeout time.Duration
 )
+
+// boolValue is a pflag.Value for a boolean flag that accepts the same spellings as the
+// environment variables and the credentials Secret (goproxmox.ParseBool), instead of
+// pflag's strconv.ParseBool, so "--proxmox-insecure=yes" and PROXMOX_INSECURE=yes agree.
+type boolValue bool
+
+func (b *boolValue) Set(s string) error {
+	v, err := goproxmox.ParseBool(s)
+	if err != nil {
+		return err
+	}
+	*b = boolValue(v)
+	return nil
+}
+
+func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
+
+func (b *boolValue) Type() string { return "bool" }
 
 func init() {
 	_ = clusterv1.AddToScheme(scheme)
@@ -100,9 +119,13 @@ func main() {
 	ctrl.SetLogger(klog.Background())
 
 	setupLog.Info("starting capmox")
-	initFlagsAndEnv(pflag.CommandLine)
+	if err := initFlagsAndEnv(pflag.CommandLine); err != nil {
+		setupLog.Error(err, "Unable to start manager: invalid environment")
+		os.Exit(1)
+	}
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
+	goproxmox.RequestTimeout = proxmoxRequestTimeout
 
 	_, metricsOptions, err := flags.GetManagerOptions(managerOptions)
 	if err != nil {
@@ -228,14 +251,11 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 		return nil, fmt.Errorf("loading cert pool: %w", err)
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: proxmoxInsecure, // #nosec:G402 // Default retained, user can enable cert checking
-			RootCAs:            rootCerts,
-		},
-	}
-
-	httpClient := &http.Client{Transport: tr}
+	httpClient := goproxmox.NewHTTPClient(goproxmox.HTTPClientConfig{
+		InsecureSkipVerify: proxmoxInsecure,
+		RootCAs:            rootCerts,
+		Timeouts:           goproxmox.DefaultTimeouts(),
+	})
 	endpoints := goproxmox.Endpoints{
 		Additional: goproxmox.ParseEndpointList(ProxmoxAdditionalURLs),
 		Discover:   ProxmoxEndpointDiscovery,
@@ -262,20 +282,36 @@ func setupWebhooks(mgr ctrl.Manager) error {
 	return nil
 }
 
-func initFlagsAndEnv(fs *pflag.FlagSet) {
+// initFlagsAndEnv registers the flags and reads the environment. A variable that does not
+// parse is an error naming it; the manager must not start with a setting it guessed.
+func initFlagsAndEnv(fs *pflag.FlagSet) error {
 	klog.InitFlags(nil)
 
 	ProxmoxURL = env.GetString("PROXMOX_URL", "")
 	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
 	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
 	ProxmoxAdditionalURLs = env.GetString("PROXMOX_ADDITIONAL_URLS", "")
-	ProxmoxEndpointDiscovery = env.GetString("PROXMOX_ENDPOINT_DISCOVERY", "false") == "true"
 
-	fs.BoolVar(&proxmoxInsecure, "proxmox-insecure",
-		env.GetString("PROXMOX_INSECURE", "true") == "true",
-		"Skip TLS verification when connecting to Proxmox")
+	var err error
+	if ProxmoxEndpointDiscovery, err = envBool("PROXMOX_ENDPOINT_DISCOVERY", false); err != nil {
+		return err
+	}
+	if proxmoxInsecure, err = envBool("PROXMOX_INSECURE", true); err != nil {
+		return err
+	}
+	if proxmoxRequestTimeout, err = envDuration("PROXMOX_REQUEST_TIMEOUT", goproxmox.RequestTimeout); err != nil {
+		return err
+	}
+
+	fs.Var((*boolValue)(&proxmoxInsecure), "proxmox-insecure",
+		"Skip TLS verification when connecting to Proxmox (default from PROXMOX_INSECURE, true when unset)")
+	// A bare --proxmox-insecure means true, as for pflag's own bool flags.
+	fs.Lookup("proxmox-insecure").NoOptDefVal = "true"
 	fs.StringVar(&proxmoxRootCertFile, "proxmox-root-cert-file", "",
 		"Root-Certificate to use to verify server TLS certificate")
+	fs.DurationVar(&proxmoxRequestTimeout, "proxmox-request-timeout", proxmoxRequestTimeout,
+		"Upper bound for one request to the Proxmox API, body included; 0 disables it. "+
+			"Connection, TLS handshake and response-header timeouts apply regardless (default from PROXMOX_REQUEST_TIMEOUT)")
 
 	fs.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	fs.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -293,4 +329,34 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	flags.AddManagerOptions(fs, &managerOptions)
 
 	feature.MutableGates.AddFlag(fs)
+	return nil
+}
+
+// envBool reads a boolean environment variable with goproxmox.ParseBool; unset means def.
+func envBool(name string, def bool) (bool, error) {
+	raw, set := os.LookupEnv(name)
+	if !set {
+		return def, nil
+	}
+	v, err := goproxmox.ParseBool(raw)
+	if err != nil {
+		return false, fmt.Errorf("environment variable %s: %w", name, err)
+	}
+	return v, nil
+}
+
+// envDuration reads a duration environment variable ("30s", "2m"); unset means def.
+func envDuration(name string, def time.Duration) (time.Duration, error) {
+	raw, set := os.LookupEnv(name)
+	if !set {
+		return def, nil
+	}
+	v, err := time.ParseDuration(strings.TrimSpace(raw))
+	if err != nil {
+		return 0, fmt.Errorf("environment variable %s: invalid duration %q: %w", name, raw, err)
+	}
+	if v < 0 {
+		return 0, fmt.Errorf("environment variable %s: duration %q must not be negative", name, raw)
+	}
+	return v, nil
 }

@@ -18,7 +18,10 @@ package scope
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -137,6 +140,125 @@ func TestNewClusterScope_SetupProxmoxClient(t *testing.T) {
 	require.Error(t, err)
 }
 
+// newPersistedProxmoxCluster stores a ProxmoxCluster with a credentialsRef in the fake
+// client and returns the stored object, so that the scope's patch has something to hit.
+func newPersistedProxmoxCluster(t *testing.T, k8sClient ctrlclient.Client) *infrav1.ProxmoxCluster {
+	t.Helper()
+	proxmoxCluster := &infrav1.ProxmoxCluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: infrav1.GroupVersion.String(),
+			Kind:       "ProxmoxCluster",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "proxmoxcluster",
+			Namespace: "default",
+		},
+		Spec: infrav1.ProxmoxClusterSpec{
+			AllowedNodes: []string{"pve", "pve-2"},
+			CredentialsRef: &corev1.SecretReference{
+				Name:      "test-secret",
+				Namespace: "default",
+			},
+		},
+	}
+	require.NoError(t, k8sClient.Create(context.Background(), proxmoxCluster))
+	return proxmoxCluster
+}
+
+func persistedProxmoxAvailable(t *testing.T, k8sClient ctrlclient.Client, proxmoxCluster *infrav1.ProxmoxCluster) *metav1.Condition {
+	t.Helper()
+	stored := &infrav1.ProxmoxCluster{}
+	require.NoError(t, k8sClient.Get(context.Background(), ctrlclient.ObjectKeyFromObject(proxmoxCluster), stored))
+	return conditions.Get(stored, infrav1.ProxmoxClusterProxmoxAvailableCondition)
+}
+
+func TestNewClusterScope_PersistsCredentialsNotFound(t *testing.T) {
+	k8sClient := getFakeClient(t)
+	proxmoxCluster := newPersistedProxmoxCluster(t, k8sClient)
+
+	_, err := NewClusterScope(ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: proxmoxCluster, IPAMHelper: &ipam.Helper{}})
+	require.ErrorContains(t, err, "failed to get credentials secret")
+
+	cond := persistedProxmoxAvailable(t, k8sClient, proxmoxCluster)
+	require.NotNil(t, cond, "the condition must reach the API server, not only the in-memory object")
+	require.Equal(t, metav1.ConditionFalse, cond.Status)
+	require.Equal(t, infrav1.ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason, cond.Reason)
+}
+
+func TestNewClusterScope_PersistsCredentialsInvalid(t *testing.T) {
+	for _, tc := range []struct {
+		key, value string
+	}{
+		{"insecure", "maybe"},
+		{"insecure", ""},
+		{"endpoint_discovery", "ja"},
+		{"root_ca", "not a certificate"},
+	} {
+		t.Run(tc.key+"="+tc.value, func(t *testing.T) {
+			k8sClient := getFakeClient(t)
+			proxmoxCluster := newPersistedProxmoxCluster(t, k8sClient)
+			// The fake client does not fold StringData into Data as the API server does.
+			creds := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-secret", Namespace: "default"},
+				Data: map[string][]byte{
+					"url":   []byte("https://localhost:8006"),
+					"token": []byte("test-token"), "secret": []byte("test-secret"),
+					tc.key: []byte(tc.value),
+				},
+			}
+			require.NoError(t, k8sClient.Create(context.Background(), &creds))
+
+			_, err := NewClusterScope(ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: proxmoxCluster, IPAMHelper: &ipam.Helper{}})
+			require.ErrorContains(t, err, `credentials secret key "`+tc.key+`"`)
+
+			cond := persistedProxmoxAvailable(t, k8sClient, proxmoxCluster)
+			require.NotNil(t, cond)
+			require.Equal(t, metav1.ConditionFalse, cond.Status)
+			require.Equal(t, infrav1.ProxmoxClusterProxmoxAvailableCredentialsInvalidReason, cond.Reason)
+			require.Contains(t, cond.Message, `"`+tc.key+`"`)
+		})
+	}
+}
+
+func TestSetupProxmoxClient_SecretBooleans(t *testing.T) {
+	// The Secret keys accept the same spellings as PROXMOX_INSECURE; the HTTP client is
+	// built but the API is never reached because the URL is unroutable, so only the
+	// parse step is under test here. A hanging API must also fail within the timeouts.
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	saved := goproxmox.RequestTimeout
+	goproxmox.RequestTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { goproxmox.RequestTimeout = saved })
+
+	for _, value := range []string{"true", "YES", " on ", "0", "No", "f"} {
+		t.Run(value, func(t *testing.T) {
+			k8sClient := getFakeClient(t)
+			proxmoxCluster := newPersistedProxmoxCluster(t, k8sClient)
+			creds := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-secret", Namespace: "default"},
+				Data: map[string][]byte{
+					"url": []byte(srv.URL), "token": []byte("test-token"), "secret": []byte("test-secret"),
+					"insecure": []byte(value), "endpoint_discovery": []byte(value),
+				},
+			}
+			require.NoError(t, k8sClient.Create(context.Background(), &creds))
+
+			start := time.Now()
+			_, err := NewClusterScope(ClusterScopeParams{Client: k8sClient, Cluster: &clusterv1.Cluster{}, ProxmoxCluster: proxmoxCluster, IPAMHelper: &ipam.Helper{}})
+			require.Error(t, err)
+			require.NotContains(t, err.Error(), "invalid boolean value")
+			require.Less(t, time.Since(start), 5*time.Second)
+			cond := persistedProxmoxAvailable(t, k8sClient, proxmoxCluster)
+			if cond != nil {
+				require.NotEqual(t, infrav1.ProxmoxClusterProxmoxAvailableCredentialsInvalidReason, cond.Reason)
+			}
+		})
+	}
+}
+
 func TestListProxmoxMachinesForCluster(t *testing.T) {
 	k8sClient := getFakeClient(t)
 	proxmoxClient := proxmoxtest.NewMockClient(t)
@@ -252,5 +374,5 @@ func getFakeClient(t *testing.T) ctrlclient.Client {
 	err = infrav1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	return fake.NewClientBuilder().WithScheme(scheme).Build()
+	return fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&infrav1.ProxmoxCluster{}).Build()
 }
