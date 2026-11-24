@@ -123,6 +123,26 @@ var _ = Describe("Controller Test", func() {
 			}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
 		})
+
+		It("should disallow a zone node outside the allowed nodes", func() {
+			cluster := validProxmoxCluster("test-az-not-allowed")
+			cluster.Spec.AllowedNodes = []string{"pve1", "pve2"}
+			cluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+				{Name: "az-2", Nodes: []string{"pve3"}},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("is not in spec.allowedNodes")))
+		})
+
+		It("should allow zones whose nodes are all allowed nodes", func() {
+			cluster := validProxmoxCluster("test-az-allowed")
+			cluster.Spec.AllowedNodes = []string{"pve1", "pve2", "pve3"}
+			cluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+				{Name: "az-2", Nodes: []string{"pve3"}},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
 	})
 
 	Context("update proxmox cluster", func() {

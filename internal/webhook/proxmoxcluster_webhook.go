@@ -205,8 +205,15 @@ func validateControlPlaneEndpoint(spec *infrav1.ProxmoxClusterSpec, gk schema.Gr
 // node is listed in more than one zone. A node belonging to multiple zones is ambiguous: the
 // scheduler (first-match) and the controller that records Status.FailureDomain would disagree
 // on which zone owns the node, so VM placement and CAPI failure-domain pinning can diverge.
+//
+// It also rejects, when spec.allowedNodes is set, any zone node that is not an allowed node:
+// a machine pinned to that zone could never be placed on any of its nodes.
 func validateAvailabilityZones(spec *infrav1.ProxmoxClusterSpec, gk schema.GroupKind, name string) error {
 	seen := make(map[string]string) // node -> zone name
+	allowed := make(map[string]bool, len(spec.AllowedNodes))
+	for _, n := range spec.AllowedNodes {
+		allowed[n] = true
+	}
 	var allErrs field.ErrorList
 
 	for i, az := range spec.AvailabilityZones {
@@ -218,6 +225,12 @@ func validateAvailabilityZones(spec *infrav1.ProxmoxClusterSpec, gk schema.Group
 				continue
 			}
 			seen[n] = az.Name
+
+			if len(spec.AllowedNodes) > 0 && !allowed[n] {
+				allErrs = append(allErrs, field.Invalid(
+					field.NewPath("spec", "availabilityZones").Index(i).Key("nodes"),
+					n, fmt.Sprintf("node %q of availability zone %q is not in spec.allowedNodes; a machine pinned to this zone could never be placed on its nodes", n, az.Name)))
+			}
 		}
 	}
 
