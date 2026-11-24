@@ -268,3 +268,19 @@ func TestDeleteVM_QuarantinesVMID(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(101), id)
 }
+
+// An attempt that fails before the clone is issued (here: no node with enough memory) must
+// give its VMID back; otherwise every retry during an outage burns another ID.
+func TestEnsureVirtualMachine_SchedulerErrorReleasesVMID(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node2"}
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).
+		Return(uint64(0), goproxmox.ErrNotAuthorized).Once()
+
+	_, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.Error(t, err)
+
+	reservedVMIDs.mu.Lock()
+	defer reservedVMIDs.mu.Unlock()
+	require.False(t, reservedVMIDs.held(100), "the ID handed out for the failed attempt is reserved no longer")
+}

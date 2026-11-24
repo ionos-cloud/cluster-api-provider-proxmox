@@ -586,6 +586,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 					Message: err.Error(),
 				})
 			}
+			releaseVMID(vmid)
 			return proxmox.VMCloneResponse{}, err
 		}
 	}
@@ -606,12 +607,15 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 					Message: err.Error(),
 				})
 			}
+			releaseVMID(vmid)
 			return proxmox.VMCloneResponse{}, err
 		}
 	}
 	res, err := scope.InfraCluster.ProxmoxClient.CloneVM(ctx, int(templateID), options)
 	if err != nil {
-		// No clone was issued, so the ID is still free for the next machine.
+		// No clone was issued (as on the two returns above), so the ID is free for the next
+		// machine. Leaving it reserved would burn an ID per failed attempt while, say, a node
+		// stays unreachable for a minute.
 		releaseVMID(vmid)
 		return res, err
 	}
