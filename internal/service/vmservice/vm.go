@@ -50,6 +50,9 @@ const (
 	optionDescription = "description"
 	// optionDelete names config keys to remove, comma separated.
 	optionDelete = "delete"
+
+	// lockClone is the config lock a VM carries while its clone task runs.
+	lockClone = "clone"
 )
 
 // ErrNoVMIDInRangeFree is returned if no free VMID is found in the specified vmIDRange.
@@ -319,7 +322,7 @@ func hasActiveTask(ctx context.Context, machineScope *scope.MachineScope) (bool,
 		return false, nil
 	}
 
-	if vm.Lock == "clone" {
+	if vm.Lock == lockClone {
 		machineScope.V(4).Info("waiting for the clone of the vm to finish", "vm", vm.VMID)
 		return true, nil
 	}

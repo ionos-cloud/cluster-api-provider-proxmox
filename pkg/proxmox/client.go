@@ -38,6 +38,11 @@ type Client interface {
 
 	GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error)
 
+	// StopVM issues a hard stop (qmstop) for the VM and returns its task.
+	StopVM(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error)
+
+	// DeleteVM destroys the stopped VM with vmID on nodeName, purging it from HA, backup and
+	// replication jobs as well, and returns the qmdestroy task.
 	DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error)
 
 	GetTask(ctx context.Context, upID string) (*proxmox.Task, error)

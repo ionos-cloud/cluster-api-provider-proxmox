@@ -36,9 +36,6 @@ import (
 
 var _ capmox.Client = &APIClient{}
 
-// ErrVMIDFree is returned if the VMID is free.
-var ErrVMIDFree = errors.New("VMID is free")
-
 // APIClient Proxmox API client object.
 type APIClient struct {
 	*proxmox.Client
@@ -216,7 +213,20 @@ NEXT_VM:
 	return vmTemplate.Node, int32(vmTemplate.VMID), nil
 }
 
-// DeleteVM deletes a VM based on the nodeName and vmID.
+// StopVM issues a hard stop for the VM and returns the qmstop task.
+func (c *APIClient) StopVM(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error) {
+	task, err := vm.Stop(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot stop vm with id %d: %w", vm.VMID, err)
+	}
+	return task, nil
+}
+
+// DeleteVM destroys the VM with vmID on nodeName and returns the qmdestroy task. The VM must be
+// stopped already: Proxmox refuses to destroy a running VM, and a stop is a task of its own, so
+// the caller issues it first and waits for it (see vmservice.DeleteVM). The destroy purges the
+// VM from HA resources, backup jobs and replication jobs, so nothing keeps referring to an ID
+// that Proxmox hands to the next clone.
 func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error) {
 	// A vmID can not be lower than 100.
 	// If the provided vmID is lower (like -1 in issue #31), just error out without calling the API.
@@ -229,29 +239,12 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
 
-	cluster, err := c.Cluster(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get cluster")
-	}
-
-	if vmidFree, err := cluster.CheckID(ctx, int(vmID)); vmidFree {
-		return nil, ErrVMIDFree
-	} else if err != nil {
-		return nil, err
-	}
-
 	vm, err := node.VirtualMachine(ctx, int(vmID))
 	if err != nil {
 		return nil, fmt.Errorf("cannot find vm with id %d: %w", vmID, err)
 	}
 
-	if vm.IsRunning() {
-		if _, err = vm.Stop(ctx); err != nil {
-			return nil, fmt.Errorf("cannot stop vm id %d: %w", vmID, err)
-		}
-	}
-
-	task, err := vm.Delete(ctx, nil)
+	task, err := vm.Delete(ctx, &proxmox.VirtualMachineDeleteOptions{Purge: true})
 	if err != nil {
 		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
 	}

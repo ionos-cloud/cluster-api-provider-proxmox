@@ -569,8 +569,6 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 			// "UPID:$node:$pid:$pstart:$startime:$dtype:$id:$user"
 			upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:qmdestroy:101:root@pam:"
 
-			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
-				newJSONResponder(400, fmt.Sprintf("VM %d already exists", test.vmID)))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
 				newJSONResponder(200, proxmox.Node{Name: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/enoent/status`,
@@ -579,9 +577,11 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 				newJSONResponder(200, proxmox.VirtualMachine{Node: "test", VMID: 101}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/102/status/current`,
 				newJSONResponder(200, proxmox.VirtualMachine{Node: "test", VMID: 102}))
-			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/101`,
+			// The destroy purges the VM from HA, backup and replication jobs: only a DELETE
+			// carrying purge=1 is answered, so a plain destroy fails the test.
+			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/101\?.*purge=1`,
 				newJSONResponder(200, upid))
-			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/102`,
+			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/102\?.*purge=1`,
 				newJSONResponder(403, nil))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/config`,
 				newJSONResponder(200, proxmox.VirtualMachineConfig{CPU: "kvm64"}))
@@ -601,6 +601,52 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 				require.Equal(t, "qmdestroy", task.Type)
 				require.Equal(t, "root@pam", task.User)
 			}
+		})
+	}
+}
+
+func TestProxmoxAPIClient_StopVM(t *testing.T) {
+	tests := []struct {
+		name  string
+		fails bool
+		err   string
+	}{
+		{name: "stop", fails: false},
+		{name: "stop fails", fails: true,
+			err: "cannot stop vm with id 101: not authorized to access endpoint: 403 Forbidden"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+
+			// "UPID:$node:$pid:$pstart:$startime:$dtype:$id:$user"
+			upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:qmstop:101:root@pam:"
+
+			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
+				newJSONResponder(200, proxmox.Node{Name: "test"}))
+			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/status/current`,
+				newJSONResponder(200, proxmox.VirtualMachine{Node: "test", VMID: 101, Status: proxmox.StatusVirtualMachineRunning}))
+			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/config`,
+				newJSONResponder(200, proxmox.VirtualMachineConfig{CPU: "kvm64"}))
+			status := 200
+			if test.fails {
+				status = 403
+			}
+			httpmock.RegisterResponder(http.MethodPost, `=~/nodes/test/qemu/101/status/stop`,
+				newJSONResponder(status, upid))
+
+			vm, err := client.GetVM(context.Background(), "test", 101)
+			require.NoError(t, err)
+
+			task, err := client.StopVM(context.Background(), vm)
+			if test.fails {
+				require.Error(t, err)
+				require.Equal(t, test.err, err.Error())
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "qmstop", task.Type)
+			require.Equal(t, upid, string(task.UPID))
 		})
 	}
 }

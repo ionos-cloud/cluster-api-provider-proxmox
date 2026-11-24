@@ -259,8 +259,10 @@ func TestCloudInitDrives(t *testing.T) {
 func TestDeleteVM_QuarantinesVMID(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(100))
-	proxmoxClient.EXPECT().DeleteVM(context.Background(), "node1", int64(100)).Return(newTask(), nil).Once()
-	require.NoError(t, DeleteVM(context.Background(), machineScope))
+	// The setup reports VMID 100 free: the VM is confirmed gone and the machine is released.
+	requeue, err := DeleteVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.False(t, requeue)
 
 	// The next clone skips 100 although Proxmox would hand it out first.
 	proxmoxClient.EXPECT().CheckID(mock.Anything, int64(101)).Return(true, nil).Once()

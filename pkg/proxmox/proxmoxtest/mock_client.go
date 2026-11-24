@@ -970,6 +970,65 @@ func (_c *MockClient_StartVM_Call) RunAndReturn(run func(context.Context, *go_pr
 	return _c
 }
 
+// StopVM provides a mock function with given fields: ctx, vm
+func (_m *MockClient) StopVM(ctx context.Context, vm *go_proxmox.VirtualMachine) (*go_proxmox.Task, error) {
+	ret := _m.Called(ctx, vm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StopVM")
+	}
+
+	var r0 *go_proxmox.Task
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) (*go_proxmox.Task, error)); ok {
+		return rf(ctx, vm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) *go_proxmox.Task); ok {
+		r0 = rf(ctx, vm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*go_proxmox.Task)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
+		r1 = rf(ctx, vm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_StopVM_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StopVM'
+type MockClient_StopVM_Call struct {
+	*mock.Call
+}
+
+// StopVM is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vm *go_proxmox.VirtualMachine
+func (_e *MockClient_Expecter) StopVM(ctx interface{}, vm interface{}) *MockClient_StopVM_Call {
+	return &MockClient_StopVM_Call{Call: _e.mock.On("StopVM", ctx, vm)}
+}
+
+func (_c *MockClient_StopVM_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine)) *MockClient_StopVM_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine))
+	})
+	return _c
+}
+
+func (_c *MockClient_StopVM_Call) Return(_a0 *go_proxmox.Task, _a1 error) *MockClient_StopVM_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_StopVM_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine) (*go_proxmox.Task, error)) *MockClient_StopVM_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // TagVM provides a mock function with given fields: ctx, vm, tag
 func (_m *MockClient) TagVM(ctx context.Context, vm *go_proxmox.VirtualMachine, tag string) (*go_proxmox.Task, error) {
 	ret := _m.Called(ctx, vm, tag)

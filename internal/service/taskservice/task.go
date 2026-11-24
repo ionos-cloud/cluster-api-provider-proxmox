@@ -46,11 +46,19 @@ const (
 )
 
 var (
-	// ErrTaskNotFound task is not found.
+	// ErrTaskNotFound is returned when Proxmox does not know the task recorded in status.taskRef.
 	ErrTaskNotFound = errors.New("task not found")
 )
 
-// GetTask returns the task relative to the current action.
+// Proxmox task types the deletion path issues; a failure of either is a deletion failure.
+const (
+	taskTypeStopVM    = "qmstop"
+	taskTypeDestroyVM = "qmdestroy"
+)
+
+// GetTask returns the task recorded in status.taskRef, or nil without error when there is none.
+// A task Proxmox does not know is reported as ErrTaskNotFound; any other error means the task
+// could not be read (the API or the node was unreachable) and says nothing about the task.
 func GetTask(ctx context.Context, machineScope *scope.MachineScope) (*proxmox.Task, error) {
 	if machineScope.ProxmoxMachine.Status.TaskRef == nil {
 		return nil, nil
@@ -58,7 +66,10 @@ func GetTask(ctx context.Context, machineScope *scope.MachineScope) (*proxmox.Ta
 
 	task, err := machineScope.InfraCluster.ProxmoxClient.GetTask(ctx, *machineScope.ProxmoxMachine.Status.TaskRef)
 	if err != nil {
-		return nil, ErrTaskNotFound
+		if proxmox.IsNotFound(err) {
+			return nil, fmt.Errorf("%w: %v", ErrTaskNotFound, err)
+		}
+		return nil, err
 	}
 
 	return task, nil
@@ -128,6 +139,11 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 			// with the template's disk would only move the failure into the guest.
 			logger.Info("resize failed because the volume is not visible yet; retrying", "exitStatus", task.ExitStatus)
 			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason
+		case task.Type == taskTypeStopVM || task.Type == taskTypeDestroyVM:
+			// The deletion path owns these tasks and retries them after RetryAfter; the
+			// reason tells the user what failed, with the task's exit status as message.
+			logger.Info("deletion task failed", "description", task.Type, "exitStatus", task.ExitStatus)
+			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedDeletionFailedReason
 		default:
 			logger.Info("task failed", "description", task.Type)
 			// We notify the user that intervention is required. This should stop the state machine.

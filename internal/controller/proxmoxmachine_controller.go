@@ -162,18 +162,24 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope) (ctrl.Result, error) {
 	machineScope.Logger.Info("Handling deleted ProxmoxMachine")
-	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-		Status: metav1.ConditionFalse,
-		Reason: clusterv1.DeletingReason,
-	})
 
-	err := vmservice.DeleteVM(ctx, machineScope)
+	// Deletion runs one Proxmox task per pass (stop, destroy, confirm) and records each in
+	// status.taskRef, so the requeue below is what drives it; a RequeueError carries the
+	// wait after a failed task.
+	requeue, err := vmservice.DeleteVM(ctx, machineScope)
 	if err != nil {
+		if requeueErr := new(taskservice.RequeueError); errors.As(err, &requeueErr) {
+			machineScope.V(4).Info("requeue requested", "after", requeueErr.RequeueAfter(), "reason", err.Error())
+			return reconcile.Result{RequeueAfter: requeueErr.RequeueAfter()}, nil
+		}
 		return reconcile.Result{}, err
 	}
-	// VM is being deleted
-	return reconcile.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
+	if requeue {
+		// VM is being deleted
+		return reconcile.Result{RequeueAfter: infrav1.DefaultReconcilerRequeue}, nil
+	}
+	// The VM is gone and the finalizer is off; the patch in Close lets the object go.
+	return reconcile.Result{}, nil
 }
 
 func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {

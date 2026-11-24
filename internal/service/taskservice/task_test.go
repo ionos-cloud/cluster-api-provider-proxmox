@@ -18,7 +18,7 @@ package taskservice
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -131,16 +131,62 @@ func TestGetTask_NoTaskRef(t *testing.T) {
 	require.Nil(t, task)
 }
 
-// Test missing task erroring.
+// A task Proxmox does not know (400 with "no such task" on the upid parameter) is ErrTaskNotFound.
 func TestGetTask_ErrorNotFound(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)
 	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
 
-	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(nil, errors.New("not found")).Once()
+	apiErr := &proxmox.APIError{StatusCode: 400, Status: "400 Parameter verification failed.", Errors: map[string]string{"upid": "no such task"}}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").
+		Return(nil, fmt.Errorf("cannot get task with UPID UPID:node1:001: %w", apiErr)).Once()
 
 	task, err := GetTask(context.Background(), machineScope)
 	require.ErrorIs(t, err, ErrTaskNotFound)
 	require.Nil(t, task)
+}
+
+// A transport or node error says nothing about the task and must not be mistaken for a missing one.
+func TestGetTask_TransportErrorIsNotNotFound(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
+
+	cause := &proxmox.APIError{StatusCode: 595, Status: "595 Connection refused"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(nil, cause).Once()
+
+	task, err := GetTask(context.Background(), machineScope)
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrTaskNotFound)
+	require.ErrorIs(t, err, proxmox.ErrNodeUnreachable)
+	require.Nil(t, task)
+}
+
+// A failed destroy (or stop) is reported as DeletionFailed with the exit status, and retried
+// after RetryAfter like any other task.
+func TestReconcileInFlightTask_DestroyTaskFailed_SetsDeletionFailed(t *testing.T) {
+	for _, taskType := range []string{"qmdestroy", "qmstop"} {
+		t.Run(taskType, func(t *testing.T) {
+			machineScope, mockClient := setupTaskTest(t)
+			machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
+			conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+				Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status: metav1.ConditionFalse,
+				Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedDeletingReason,
+			})
+
+			task := &proxmox.Task{UPID: "UPID:node1:001", IsFailed: true, IsCompleted: true, Status: "stopped", ExitStatus: "VM 103 is running - destroy failed", Type: taskType}
+			mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(task, nil).Once()
+
+			requeue, err := ReconcileInFlightTask(context.Background(), machineScope)
+			require.NoError(t, err)
+			require.True(t, requeue)
+			require.NotNil(t, machineScope.ProxmoxMachine.Status.RetryAfter)
+
+			cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+			require.NotNil(t, cond)
+			require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedDeletionFailedReason, cond.Reason)
+			require.Equal(t, taskType+": VM 103 is running - destroy failed", cond.Message)
+		})
+	}
 }
 
 // Test successful task returning.
