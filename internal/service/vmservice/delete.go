@@ -52,6 +52,8 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) error {
 		return err
 	}
 
+	// Keep the freed ID out of the next clones for a while; see quarantineVMID.
+	quarantineVMID(vmID)
 	return nil
 }
 

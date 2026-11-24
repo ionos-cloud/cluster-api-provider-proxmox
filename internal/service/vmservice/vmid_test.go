@@ -254,3 +254,17 @@ func TestCloudInitDrives(t *testing.T) {
 		SCSIs: map[string]string{"scsi0": "local-lvm:vm-7-cloudinit-data,size=1G"},
 	}), "a disk whose name merely starts with the cloud-init prefix is kept")
 }
+
+// A destroyed VM's ID is not handed out again right away.
+func TestDeleteVM_QuarantinesVMID(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = new(int64(100))
+	proxmoxClient.EXPECT().DeleteVM(context.Background(), "node1", int64(100)).Return(newTask(), nil).Once()
+	require.NoError(t, DeleteVM(context.Background(), machineScope))
+
+	// The next clone skips 100 although Proxmox would hand it out first.
+	proxmoxClient.EXPECT().CheckID(mock.Anything, int64(101)).Return(true, nil).Once()
+	id, err := getVMID(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, int64(101), id)
+}

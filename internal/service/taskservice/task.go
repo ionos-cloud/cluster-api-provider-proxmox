@@ -20,6 +20,7 @@ package taskservice
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
@@ -117,7 +118,17 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		// In fact qmstart can find a machine already started, because proxmox's api is
 		// eventually consistent here.
 		// For all other jobs we do set the condition to failed.
-		if task.Type != "qmstart" {
+		switch {
+		case task.Type == "qmstart":
+		case task.Type == "resize" && strings.Contains(task.ExitStatus, "does not exist"):
+			// The disk is there (the clone made it) but the node running the resize
+			// cannot see it yet: on shared storage a directory cache can lag a VM
+			// that was destroyed and recreated under the same ID. Go back to the disk
+			// step so the resize is issued again after RetryAfter; starting the VM
+			// with the template's disk would only move the failure into the guest.
+			logger.Info("resize failed because the volume is not visible yet; retrying", "exitStatus", task.ExitStatus)
+			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason
+		default:
 			logger.Info("task failed", "description", task.Type)
 			// We notify the user that intervention is required. This should stop the state machine.
 			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason

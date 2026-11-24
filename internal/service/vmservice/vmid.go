@@ -88,6 +88,21 @@ func releaseVMID(id int64) {
 	}
 }
 
+// quarantineVMID keeps a VMID whose VM was just destroyed out of allocation for
+// vmidReservationTTL. Proxmox hands a freed ID out again at once, but on shared storage
+// another node's directory cache can still report the old VM's image directory as gone
+// when the new clone's disk is already there, so the next step on the new VM fails with
+// "volume ... does not exist" (seen on NFS with a resize). The ID comes back by itself
+// once the reservation expires.
+func quarantineVMID(id int64) {
+	if id <= 0 {
+		return
+	}
+	reservedVMIDs.mu.Lock()
+	defer reservedVMIDs.mu.Unlock()
+	reservedVMIDs.reserve(id)
+}
+
 // getVMID picks the VMID for the machine's clone: the first ID of spec.vmIDRange, or the
 // cluster's next free ID without a range, that no ProxmoxMachine of the cluster records, no
 // other machine of this controller holds a reservation for, and Proxmox reports free. The ID
