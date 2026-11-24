@@ -148,6 +148,34 @@ func TestEnsureVirtualMachine_CreateVM_FullOptions(t *testing.T) {
 	requireConditionIsFalse(t, machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 }
 
+func TestEnsureVirtualMachine_CreateVM_RecordsFailureDomain(t *testing.T) {
+	// createVM records the zone of the node the VM was placed on, so the
+	// ProxmoxMachine advertises the failure domain CAPI pinned it to.
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
+	machineScope.ProxmoxMachine.Spec.AllowedNodes = []string{"node2"}
+	machineScope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+		{Name: "az-1", Nodes: []string{"node1"}},
+		{Name: "az-2", Nodes: []string{"node2"}},
+	}
+
+	expectedOptions := proxmox.VMCloneRequest{
+		Node:   "node1",
+		Name:   "test",
+		Full:   true,
+		Target: "node2",
+	}
+	response := proxmox.VMCloneResponse{NewID: 123, Task: newTask()}
+	proxmoxClient.EXPECT().CloneVM(context.Background(), 123, expectedOptions).Return(response, nil).Once()
+	proxmoxClient.EXPECT().GetReservableMemoryBytes(context.Background(), "node2", int64(100)).Return(^uint64(0), nil).Once()
+
+	requeue, err := ensureVirtualMachine(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	require.Equal(t, "node2", *machineScope.ProxmoxMachine.Status.ProxmoxNode)
+	require.Equal(t, "az-2", machineScope.ProxmoxMachine.Status.FailureDomain)
+}
+
 func TestEnsureVirtualMachine_CreateVM_CloneAlreadyStarted(t *testing.T) {
 	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedCloningReason)
 
