@@ -18,6 +18,7 @@ package goproxmox
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -161,6 +162,69 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
+		require.Equal(t,
+			"cannot find node with name test: not authorized to access endpoint",
+			err.Error())
+	})
+
+	t.Run("Node is offline", func(t *testing.T) {
+		client := newTestClient(t)
+		// Proxmox VE answers for a node it cannot reach with status 595 and an empty body.
+		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
+			httpmock.ResponderFromResponse(&http.Response{
+				StatusCode: 595,
+				Status:     "595 No route to host",
+				Body:       http.NoBody,
+			}).Once())
+		httpmock.RegisterResponder(http.MethodGet, `=~/api2/json/nodes$`,
+			newJSONResponder(200, proxmox.NodeStatuses{
+				{Node: "other", Status: "online"},
+				{Node: "test", Status: "offline"},
+			}))
+		reservable, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
+		require.ErrorIs(t, err, ErrNodeOffline)
+		var syntaxErr *json.SyntaxError
+		require.ErrorAs(t, err, &syntaxErr)
+		require.NotErrorIs(t, err, proxmox.ErrNotAuthorized)
+		require.Equal(t, uint64(0), reservable)
+		require.Equal(t, "node is offline: test: unexpected end of JSON input", err.Error())
+	})
+
+	t.Run("Status fails on an online node", func(t *testing.T) {
+		client := newTestClient(t)
+		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
+			newJSONResponder(401, "Forbidden"))
+		httpmock.RegisterResponder(http.MethodGet, `=~/api2/json/nodes$`,
+			newJSONResponder(200, proxmox.NodeStatuses{{Node: "test", Status: "online"}}))
+		_, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
+		require.NotErrorIs(t, err, ErrNodeOffline)
+		require.Equal(t,
+			"cannot find node with name test: not authorized to access endpoint",
+			err.Error())
+	})
+
+	t.Run("Status fails and the node list fails too", func(t *testing.T) {
+		client := newTestClient(t)
+		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
+			newJSONResponder(401, "Forbidden"))
+		httpmock.RegisterResponder(http.MethodGet, `=~/api2/json/nodes$`,
+			newJSONResponder(500, nil))
+		_, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
+		require.NotErrorIs(t, err, ErrNodeOffline)
+		require.ErrorIs(t, err, proxmox.ErrNotAuthorized)
+		require.Equal(t,
+			"cannot find node with name test: not authorized to access endpoint",
+			err.Error())
+	})
+
+	t.Run("Status fails on a node missing from the node list", func(t *testing.T) {
+		client := newTestClient(t)
+		httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
+			newJSONResponder(401, "Forbidden"))
+		httpmock.RegisterResponder(http.MethodGet, `=~/api2/json/nodes$`,
+			newJSONResponder(200, proxmox.NodeStatuses{{Node: "other", Status: "offline"}}))
+		_, err := client.GetReservableMemoryBytes(context.Background(), "test", 0)
+		require.NotErrorIs(t, err, ErrNodeOffline)
 		require.Equal(t,
 			"cannot find node with name test: not authorized to access endpoint",
 			err.Error())

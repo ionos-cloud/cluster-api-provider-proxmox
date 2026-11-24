@@ -20,6 +20,7 @@ package scheduler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
@@ -72,19 +74,34 @@ func selectNode(
 	allowedNodes []string,
 	schedulerHints *infrav1.SchedulerHints,
 ) (string, error) {
-	byMemory := make(sortByAvailableMemory, len(allowedNodes))
-	for i, nodeName := range allowedNodes {
+	byMemory := make(sortByAvailableMemory, 0, len(allowedNodes))
+	var offlineErrs []error
+	for _, nodeName := range allowedNodes {
 		mem, err := client.GetReservableMemoryBytes(ctx, nodeName, schedulerHints.GetMemoryAdjustment())
+		if errors.Is(err, goproxmox.ErrNodeOffline) {
+			logr.FromContextOrDiscard(ctx).V(4).Info("Skipping offline node", "node", nodeName)
+			offlineErrs = append(offlineErrs, err)
+			continue
+		}
 		if err != nil {
 			return "", err
 		}
-		byMemory[i] = nodeInfo{Name: nodeName, AvailableMemory: mem}
+		byMemory = append(byMemory, nodeInfo{Name: nodeName, AvailableMemory: mem})
+	}
+	if len(byMemory) == 0 {
+		// Joining no errors gives nil, so an empty node list needs an error of its own.
+		return "", errors.Join(errors.New("no node can take the VM"), errors.Join(offlineErrs...))
 	}
 
 	sort.Sort(byMemory)
 
 	requestedMemory := uint64(ptr.Deref(machine.Spec.MemoryMiB, 0)) * 1024 * 1024 // convert to bytes
 	if requestedMemory > byMemory[0].AvailableMemory {
+		if len(offlineErrs) > 0 {
+			// Not an InsufficientMemoryError: createVM marks the machine as failed for that type,
+			// and the offline nodes may come back.
+			return "", fmt.Errorf("the remaining nodes lack the memory for the VM: %w", errors.Join(offlineErrs...))
+		}
 		// no more space on the node with the highest amount of available memory
 		return "", InsufficientMemoryError{
 			node:      byMemory[0].Name,

@@ -24,4 +24,7 @@ var (
 
 	// ErrTemplateNotFound is returned when a VM template is not found.
 	ErrTemplateNotFound = errors.New("VM template not found")
+
+	// ErrNodeOffline is returned when Proxmox VE reports a node as offline.
+	ErrNodeOffline = errors.New("node is offline")
 )

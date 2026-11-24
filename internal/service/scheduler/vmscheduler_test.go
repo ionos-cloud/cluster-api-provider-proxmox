@@ -18,9 +18,11 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
+	"github.com/luthermonson/go-proxmox"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,14 +35,21 @@ import (
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
 )
 
-type fakeResourceClient map[string]uint64
+type fakeResourceClient struct {
+	memory map[string]uint64
+	errs   map[string]error
+}
 
 func (c fakeResourceClient) GetReservableMemoryBytes(_ context.Context, nodeName string, _ int64) (uint64, error) {
-	return c[nodeName], nil
+	if err := c.errs[nodeName]; err != nil {
+		return 0, err
+	}
+	return c.memory[nodeName], nil
 }
 
 func miBytes(in int32) uint64 {
@@ -72,7 +81,7 @@ func TestSelectNode(t *testing.T) {
 				},
 			}
 
-			client := fakeResourceClient(availableMem)
+			client := fakeResourceClient{memory: availableMem}
 
 			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
 			require.NoError(t, err)
@@ -92,7 +101,7 @@ func TestSelectNode(t *testing.T) {
 			},
 		}
 
-		client := fakeResourceClient(availableMem)
+		client := fakeResourceClient{memory: availableMem}
 
 		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
@@ -135,7 +144,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 				},
 			}
 
-			client := fakeResourceClient(availableMem)
+			client := fakeResourceClient{memory: availableMem}
 
 			node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
 			require.NoError(t, err)
@@ -155,7 +164,7 @@ func TestSelectNodeEvenlySpread(t *testing.T) {
 			},
 		}
 
-		client := fakeResourceClient(availableMem)
+		client := fakeResourceClient{memory: availableMem}
 
 		node, err := selectNode(context.Background(), client, proxmoxMachine, locations, allowedNodes, &infrav1.SchedulerHints{})
 		require.ErrorAs(t, err, &InsufficientMemoryError{})
@@ -247,6 +256,85 @@ func TestScheduleVM(t *testing.T) {
 	node, err := ScheduleVM(context.Background(), machineScope)
 	require.NoError(t, err)
 	require.Equal(t, "pve2", node)
+}
+
+func TestSelectNodeOfflineNodes(t *testing.T) {
+	allowedNodes := []string{"pve1", "pve2", "pve3"}
+	// The status error go-proxmox returns for Proxmox VE's 595 answer with an empty body.
+	errStatus := json.Unmarshal(nil, new(any))
+	require.Error(t, errStatus)
+	offline := func(nodeName string) error {
+		return fmt.Errorf("%w: %s: %w", goproxmox.ErrNodeOffline, nodeName, errStatus)
+	}
+	requestMiB := int32(8)
+	machine := &infrav1.ProxmoxMachine{Spec: infrav1.ProxmoxMachineSpec{MemoryMiB: &requestMiB}}
+	hints := &infrav1.SchedulerHints{}
+
+	t.Run("an offline node is skipped", func(t *testing.T) {
+		client := fakeResourceClient{
+			memory: map[string]uint64{"pve1": miBytes(20), "pve3": miBytes(15)},
+			errs:   map[string]error{"pve2": offline("pve2")},
+		}
+
+		node, err := selectNode(context.Background(), client, machine, nil, allowedNodes, hints)
+		require.NoError(t, err)
+		require.Equal(t, "pve1", node)
+	})
+
+	t.Run("all nodes offline names every node", func(t *testing.T) {
+		client := fakeResourceClient{errs: map[string]error{
+			"pve1": offline("pve1"), "pve2": offline("pve2"), "pve3": offline("pve3"),
+		}}
+
+		node, err := selectNode(context.Background(), client, machine, nil, allowedNodes, hints)
+		require.ErrorIs(t, err, goproxmox.ErrNodeOffline)
+		require.ErrorIs(t, err, errStatus)
+		require.NotErrorAs(t, err, &InsufficientMemoryError{})
+		for _, nodeName := range allowedNodes {
+			require.ErrorContains(t, err, nodeName)
+		}
+		require.Empty(t, node)
+	})
+
+	t.Run("an offline node and the rest short of memory is retried and names both", func(t *testing.T) {
+		client := fakeResourceClient{
+			memory: map[string]uint64{"pve1": miBytes(4), "pve3": miBytes(2)},
+			errs:   map[string]error{"pve2": offline("pve2")},
+		}
+
+		node, err := selectNode(context.Background(), client, machine, nil, allowedNodes, hints)
+		require.ErrorIs(t, err, goproxmox.ErrNodeOffline)
+		require.NotErrorAs(t, err, &InsufficientMemoryError{})
+		require.ErrorContains(t, err, "pve2")
+		require.ErrorContains(t, err, "the remaining nodes lack the memory for the VM")
+		require.Empty(t, node)
+	})
+
+	t.Run("no offline node and short of memory stays an insufficient memory error", func(t *testing.T) {
+		client := fakeResourceClient{memory: map[string]uint64{"pve1": miBytes(4), "pve2": miBytes(2), "pve3": miBytes(1)}}
+
+		node, err := selectNode(context.Background(), client, machine, nil, allowedNodes, hints)
+		require.ErrorAs(t, err, &InsufficientMemoryError{})
+		require.Empty(t, node)
+	})
+
+	t.Run("no allowed nodes", func(t *testing.T) {
+		node, err := selectNode(context.Background(), fakeResourceClient{}, machine, nil, nil, hints)
+		require.EqualError(t, err, "no node can take the VM")
+		require.Empty(t, node)
+	})
+
+	t.Run("another error still fails the placement", func(t *testing.T) {
+		client := fakeResourceClient{
+			memory: map[string]uint64{"pve1": miBytes(20), "pve3": miBytes(15)},
+			errs:   map[string]error{"pve2": proxmox.ErrNotAuthorized},
+		}
+
+		node, err := selectNode(context.Background(), client, machine, nil, allowedNodes, hints)
+		require.ErrorIs(t, err, proxmox.ErrNotAuthorized)
+		require.NotErrorIs(t, err, goproxmox.ErrNodeOffline)
+		require.Empty(t, node)
+	})
 }
 
 func TestInsufficientMemoryError_Error(t *testing.T) {
