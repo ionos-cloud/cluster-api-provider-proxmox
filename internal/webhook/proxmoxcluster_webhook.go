@@ -79,6 +79,11 @@ func (*ProxmoxCluster) ValidateCreate(_ context.Context, obj runtime.Object) (wa
 		return warnings, err
 	}
 
+	if err := validateAvailabilityZones(&cluster.Spec, cluster.GroupVersionKind().GroupKind(), cluster.GetName()); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot create proxmox cluster %s", cluster.GetName()))
+		return warnings, err
+	}
+
 	return warnings, nil
 }
 
@@ -88,13 +93,19 @@ func (*ProxmoxCluster) ValidateDelete(_ context.Context, _ runtime.Object) (admi
 }
 
 // ValidateUpdate implements the update validation function.
-func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
+// The signature is imposed by the admission.CustomValidator interface.
+func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) { // NOSONAR
 	newCluster, ok := newObj.(*infrav1.ProxmoxCluster)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
 	}
 
 	if err := validateControlPlaneEndpoint(&newCluster.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
+		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
+		return warnings, err
+	}
+
+	if err := validateAvailabilityZones(&newCluster.Spec, newCluster.GroupVersionKind().GroupKind(), newCluster.GetName()); err != nil {
 		warnings = append(warnings, fmt.Sprintf("cannot update proxmox cluster %s", newCluster.GetName()))
 		return warnings, err
 	}
@@ -188,6 +199,45 @@ func validateControlPlaneEndpoint(spec *infrav1.ProxmoxClusterSpec, gk schema.Gr
 		}
 	}
 
+	return nil
+}
+
+// validateAvailabilityZones rejects availability zone configurations where a single Proxmox
+// node is listed in more than one zone. A node belonging to multiple zones is ambiguous: the
+// scheduler (first-match) and the controller that records Status.FailureDomain would disagree
+// on which zone owns the node, so VM placement and CAPI failure-domain pinning can diverge.
+//
+// It also rejects, when spec.allowedNodes is set, any zone node that is not an allowed node:
+// a machine pinned to that zone could never be placed on any of its nodes.
+func validateAvailabilityZones(spec *infrav1.ProxmoxClusterSpec, gk schema.GroupKind, name string) error {
+	seen := make(map[string]string) // node -> zone name
+	allowed := make(map[string]bool, len(spec.AllowedNodes))
+	for _, n := range spec.AllowedNodes {
+		allowed[n] = true
+	}
+	var allErrs field.ErrorList
+
+	for i, az := range spec.AvailabilityZones {
+		for _, n := range az.Nodes {
+			if prev, ok := seen[n]; ok {
+				allErrs = append(allErrs, field.Invalid(
+					field.NewPath("spec", "availabilityZones").Index(i).Key("nodes"),
+					n, fmt.Sprintf("node %q is listed in multiple availability zones (%q and %q); a node may belong to at most one zone", n, prev, az.Name)))
+				continue
+			}
+			seen[n] = az.Name
+
+			if len(spec.AllowedNodes) > 0 && !allowed[n] {
+				allErrs = append(allErrs, field.Invalid(
+					field.NewPath("spec", "availabilityZones").Index(i).Key("nodes"),
+					n, fmt.Sprintf("node %q of availability zone %q is not in spec.allowedNodes; a machine pinned to this zone could never be placed on its nodes", n, az.Name)))
+			}
+		}
+	}
+
+	if len(allErrs) > 0 {
+		return apierrors.NewInvalid(gk, name, allErrs)
+	}
 	return nil
 }
 

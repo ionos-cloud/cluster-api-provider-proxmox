@@ -1554,6 +1554,12 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              failureDomain:
+                description: failureDomain is the unique identifier of the failure
+                  domain where this Machine has been placed in.
+                maxLength: 256
+                minLength: 1
+                type: string
               initialization:
                 description: |-
                   initialization provides observations of the ProxmoxMachine initialization process.

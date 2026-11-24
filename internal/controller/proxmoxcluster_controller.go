@@ -191,6 +191,12 @@ func (r *ProxmoxClusterReconciler) reconcileNormal(ctx context.Context, clusterS
 	// If the ProxmoxCluster doesn't have our finalizer, add it.
 	ctrlutil.AddFinalizer(clusterScope.ProxmoxCluster, infrav1.ClusterFinalizer)
 
+	// Publish the failure domains before any early return (missing control plane
+	// endpoint, IPAM requeue, credentials error...): CAPI reads them to pin
+	// machine placement, and machines can be created while the cluster is still
+	// waiting on other cluster-level infrastructure to become ready.
+	reconcileFailureDomains(clusterScope)
+
 	if ptr.Deref(clusterScope.ProxmoxCluster.Spec.ExternalManagedControlPlane, false) {
 		if clusterScope.ProxmoxCluster.Spec.ControlPlaneEndpoint.IsZero() {
 			clusterScope.Logger.Info("ProxmoxCluster is not ready, missing or waiting for a ControlPlaneEndpoint")
@@ -379,4 +385,22 @@ func getNamespaceFromProxmoxCluster(proxmoxCluster *infrav1.ProxmoxCluster) stri
 		namespace = proxmoxCluster.GetNamespace()
 	}
 	return namespace
+}
+
+// reconcileFailureDomains syncs Status.FailureDomains from Spec.AvailabilityZones so
+// CAPI can spread MachineDeployments across zones via Machine.Spec.FailureDomain.
+func reconcileFailureDomains(clusterScope *scope.ClusterScope) {
+	azs := clusterScope.ProxmoxCluster.Spec.AvailabilityZones
+	if len(azs) == 0 {
+		clusterScope.ProxmoxCluster.Status.FailureDomains = nil
+		return
+	}
+	fds := make([]clusterv1.FailureDomain, 0, len(azs))
+	for _, az := range azs {
+		fds = append(fds, clusterv1.FailureDomain{
+			Name:         az.Name,
+			ControlPlane: new(true),
+		})
+	}
+	clusterScope.ProxmoxCluster.Status.FailureDomains = fds
 }

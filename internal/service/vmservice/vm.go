@@ -582,6 +582,7 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 	}
 
 	scope.ProxmoxMachine.Status.ProxmoxNode = new(node)
+	scope.ProxmoxMachine.Status.FailureDomain = infrav1.ZoneForNode(scope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones, node)
 
 	// if the creation was successful, we store the information about the node in the
 	// cluster status
@@ -594,24 +595,23 @@ func createVM(ctx context.Context, scope *scope.MachineScope) (proxmox.VMCloneRe
 }
 
 func getVMID(ctx context.Context, scope *scope.MachineScope) (int64, error) {
-	if scope.ProxmoxMachine.Spec.VMIDRange != nil {
-		vmIDRangeStart := scope.ProxmoxMachine.Spec.VMIDRange.Start
-		vmIDRangeEnd := scope.ProxmoxMachine.Spec.VMIDRange.End
-		if vmIDRangeStart != 0 && vmIDRangeEnd != 0 {
-			return getNextFreeVMIDfromRange(ctx, scope, vmIDRangeStart, vmIDRangeEnd)
+	vmIDRange := scope.ProxmoxMachine.Spec.VMIDRange
+	if vmIDRange != nil {
+		if vmIDRange.Start != 0 && vmIDRange.End != 0 {
+			return getNextFreeVMIDfromRange(ctx, scope, vmIDRange)
 		}
 	}
 	// If VMIDRange is not defined, return 0 to let luthermonson/go-proxmox get the next free id.
 	return 0, nil
 }
 
-func getNextFreeVMIDfromRange(ctx context.Context, scope *scope.MachineScope, vmIDRangeStart int64, vmIDRangeEnd int64) (int64, error) {
+func getNextFreeVMIDfromRange(ctx context.Context, scope *scope.MachineScope, vmIDRange *infrav1.VMIDRange) (int64, error) {
 	usedVMIDs, err := getUsedVMIDs(ctx, scope)
 	if err != nil {
 		return 0, err
 	}
 	// Get next free vmid from the range
-	for i := vmIDRangeStart; i <= vmIDRangeEnd; i++ {
+	for i := vmIDRange.Start; i <= vmIDRange.End; i++ {
 		if slices.Contains(usedVMIDs, i) {
 			continue
 		}

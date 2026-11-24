@@ -105,6 +105,44 @@ var _ = Describe("Controller Test", func() {
 			}
 			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("addresses may not contain the endpoint IP")))
 		})
+
+		It("should disallow a node listed in multiple availability zones", func() {
+			cluster := validProxmoxCluster("test-dup-az")
+			cluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+				{Name: "az-2", Nodes: []string{"pve2", "pve3"}},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("listed in multiple availability zones")))
+		})
+
+		It("should allow non-overlapping availability zones", func() {
+			cluster := validProxmoxCluster("test-valid-az")
+			cluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+				{Name: "az-2", Nodes: []string{"pve3", "pve4"}},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
+
+		It("should disallow a zone node outside the allowed nodes", func() {
+			cluster := validProxmoxCluster("test-az-not-allowed")
+			cluster.Spec.AllowedNodes = []string{"pve1", "pve2"}
+			cluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+				{Name: "az-2", Nodes: []string{"pve3"}},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("is not in spec.allowedNodes")))
+		})
+
+		It("should allow zones whose nodes are all allowed nodes", func() {
+			cluster := validProxmoxCluster("test-az-allowed")
+			cluster.Spec.AllowedNodes = []string{"pve1", "pve2", "pve3"}
+			cluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+				{Name: "az-2", Nodes: []string{"pve3"}},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+		})
 	})
 
 	Context("update proxmox cluster", func() {
@@ -117,6 +155,27 @@ var _ = Describe("Controller Test", func() {
 			cluster.Spec.ControlPlaneEndpoint.Host = "10.10.10.2"
 
 			g.Expect(k8sClient.Update(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("addresses may not contain the endpoint IP")))
+
+			g.Eventually(func(g Gomega) {
+				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &cluster))).To(Succeed())
+			}).WithTimeout(time.Second * 10).
+				WithPolling(time.Second).
+				Should(Succeed())
+		})
+
+		It("should disallow updating availability zones so a node overlaps two zones", func() {
+			clusterName := "test-az-update"
+			cluster := validProxmoxCluster(clusterName)
+			cluster.Spec.AvailabilityZones = []infrav1.AvailabilityZoneSpec{
+				{Name: "az-1", Nodes: []string{"pve1", "pve2"}},
+			}
+			g.Expect(k8sClient.Create(testEnv.GetContext(), &cluster)).To(Succeed())
+
+			g.Expect(k8sClient.Get(testEnv.GetContext(), client.ObjectKeyFromObject(&cluster), &cluster)).To(Succeed())
+			cluster.Spec.AvailabilityZones = append(cluster.Spec.AvailabilityZones,
+				infrav1.AvailabilityZoneSpec{Name: "az-2", Nodes: []string{"pve2", "pve3"}})
+
+			g.Expect(k8sClient.Update(testEnv.GetContext(), &cluster)).To(MatchError(ContainSubstring("listed in multiple availability zones")))
 
 			g.Eventually(func(g Gomega) {
 				g.Expect(client.IgnoreNotFound(k8sClient.Delete(testEnv.GetContext(), &cluster))).To(Succeed())
