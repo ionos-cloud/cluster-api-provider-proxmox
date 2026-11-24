@@ -160,7 +160,12 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 
 	if !machineScope.SkipQemuGuestCheck() {
 		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
-			return true, errors.Wrap(err, "error waiting for agent")
+			// The guest is booting and its agent is not answering yet, which is expected
+			// for a while after power-on. A timed requeue keeps the controller polling at a
+			// steady pace; a plain error would be logged as a reconciler error and backed
+			// off exponentially.
+			machineScope.V(4).Info("qemu guest agent not reachable yet, waiting", "vm", machineScope.VirtualMachine.VMID, "cause", err.Error())
+			return true, taskservice.NewRequeueError("waiting for the qemu guest agent: "+err.Error(), infrav1.DefaultReconcilerRequeue)
 		}
 	}
 
