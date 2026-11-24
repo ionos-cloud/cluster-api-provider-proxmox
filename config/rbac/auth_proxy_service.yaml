@@ -16,6 +16,7 @@ spec:
   - name: https
     port: 8443
     protocol: TCP
-    targetPort: https
+    # Must name a containerPort of the manager Deployment, or the Service has no endpoints.
+    targetPort: metrics
   selector:
     control-plane: controller-manager
