@@ -93,7 +93,8 @@ func (*ProxmoxCluster) ValidateDelete(_ context.Context, _ runtime.Object) (admi
 }
 
 // ValidateUpdate implements the update validation function.
-func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
+// The signature is imposed by the admission.CustomValidator interface.
+func (*ProxmoxCluster) ValidateUpdate(_ context.Context, _ runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) { // NOSONAR
 	newCluster, ok := newObj.(*infrav1.ProxmoxCluster)
 	if !ok {
 		return warnings, apierrors.NewBadRequest(fmt.Sprintf("expected a ProxmoxCluster but got %T", newCluster))
