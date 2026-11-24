@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"k8s.io/utils/ptr"
@@ -60,10 +61,18 @@ func ScheduleVM(ctx context.Context, machineScope *scope.MachineScope) (string, 
 		allowedNodes = machineScope.ProxmoxMachine.Spec.AllowedNodes
 	}
 
-	// Restrict to the AZ nodes when CAPI has assigned a failure domain.
+	// Restrict to the AZ nodes when CAPI has assigned a failure domain. Fail with an
+	// explicit error instead of letting the node selection below index an empty
+	// candidate list when the zone's nodes contradict the machine's placement.
 	if fd := machineScope.Machine.Spec.FailureDomain; fd != "" {
 		azNodes := nodesForAvailabilityZone(machineScope.InfraCluster.ProxmoxCluster.Spec.AvailabilityZones, fd)
+		if len(azNodes) == 0 {
+			return "", fmt.Errorf("cannot schedule machine in failure domain %q: no availability zone with this name is configured on the ProxmoxCluster", fd)
+		}
 		allowedNodes = intersectNodes(allowedNodes, azNodes)
+		if len(allowedNodes) == 0 {
+			return "", fmt.Errorf("cannot schedule machine in failure domain %q: none of its nodes (%s) is an allowed node", fd, strings.Join(azNodes, ", "))
+		}
 	}
 
 	// Map every candidate node to its availability zone (nodes without a zone are treated as

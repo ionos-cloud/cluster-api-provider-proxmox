@@ -412,3 +412,100 @@ func TestScheduleVM_FailureDomainPinsZoneCandidates(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "pve1", node)
 }
+
+func TestScheduleVM_FailureDomainRejectsEmptyCandidates(t *testing.T) {
+	// A machine pinned to a failure domain whose zone either doesn't exist or
+	// shares no node with the allowed nodes list must fail with an explicit
+	// error. Previously the empty candidate list reached the node selection,
+	// which indexed a zero-length slice and panicked.
+	tests := []struct {
+		name          string
+		failureDomain string
+		allowedNodes  []string
+		expected      string
+	}{
+		{
+			name:          "unknown zone",
+			failureDomain: "az-x",
+			allowedNodes:  []string{"pve1", "pve2"},
+			expected:      "no availability zone with this name is configured",
+		},
+		{
+			name:          "zone excluded from allowed nodes",
+			failureDomain: "az-9",
+			allowedNodes:  []string{"pve1", "pve2"},
+			expected:      "none of its nodes (pve9) is an allowed node",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctrlClient := setupClient()
+
+			proxmoxCluster := infrav1.ProxmoxCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "bar",
+				},
+				Spec: infrav1.ProxmoxClusterSpec{
+					AllowedNodes: test.allowedNodes,
+					AvailabilityZones: []infrav1.AvailabilityZoneSpec{
+						{Name: "az-1", Nodes: []string{"pve1"}},
+						{Name: "az-9", Nodes: []string{"pve9"}},
+					},
+				},
+				Status: infrav1.ProxmoxClusterStatus{
+					NodeLocations: &infrav1.NodeLocations{
+						ControlPlane: []infrav1.NodeLocation{},
+						Workers:      []infrav1.NodeLocation{},
+					},
+				},
+			}
+			require.NoError(t, ctrlClient.Create(context.Background(), &proxmoxCluster))
+
+			proxmoxMachine := &infrav1.ProxmoxMachine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo-machine",
+					Labels: map[string]string{
+						"cluster.x-k8s.io/cluster-name": "bar",
+					},
+				},
+				Spec: infrav1.ProxmoxMachineSpec{
+					MemoryMiB: new(int32(10)),
+				},
+			}
+
+			cluster := &clusterv1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bar",
+					Namespace: "default",
+				},
+			}
+			machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
+				Client: ctrlClient,
+				Machine: &clusterv1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo-machine",
+						Namespace: "default",
+					},
+					Spec: clusterv1.MachineSpec{
+						FailureDomain: test.failureDomain,
+					},
+				},
+				Cluster: cluster,
+				InfraCluster: &scope.ClusterScope{
+					Cluster:        cluster,
+					ProxmoxCluster: &proxmoxCluster,
+					ProxmoxClient:  proxmoxtest.NewMockClient(t),
+				},
+				ProxmoxMachine: proxmoxMachine,
+				IPAMHelper:     &ipam.Helper{},
+			})
+			require.NoError(t, err)
+
+			_, err = ScheduleVM(context.Background(), machineScope)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), test.expected)
+			require.Contains(t, err.Error(), test.failureDomain)
+		})
+	}
+}
