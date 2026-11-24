@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/record"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
@@ -159,6 +160,7 @@ func locateOwnedVM(ctx context.Context, machineScope *scope.MachineScope, vmID i
 	if rsc.Type != "qemu" {
 		machineScope.Logger.Error(errVMNotOwned, "refusing to destroy: the vmid recorded for this machine is held by a container",
 			"vmID", vmID, "type", rsc.Type, "name", rsc.Name, "node", rsc.Node)
+		record.Warnf(machineScope.ProxmoxMachine, "VMNotOwned", "Not destroying VMID %d on node %s: it is held by a %s named %q, not by this machine", vmID, rsc.Node, rsc.Type, rsc.Name)
 		return nil, errVMNotOwned
 	}
 
@@ -178,6 +180,7 @@ func locateOwnedVM(ctx context.Context, machineScope *scope.MachineScope, vmID i
 	default:
 		machineScope.Logger.Error(errVMNotOwned, "refusing to destroy: the vmid recorded for this machine is held by a vm with another name",
 			"vmID", vmID, "vmName", vm.Name, "node", rsc.Node)
+		record.Warnf(machineScope.ProxmoxMachine, "VMNotOwned", "Not destroying VMID %d on node %s: it is held by a VM named %q, not by this machine", vmID, rsc.Node, vm.Name)
 		return nil, errVMNotOwned
 	}
 }
@@ -207,6 +210,7 @@ func markDeleting(machineScope *scope.MachineScope, force bool) {
 }
 
 func markDeletionFailed(machineScope *scope.MachineScope, err error) {
+	record.Warnf(machineScope.ProxmoxMachine, "VMDeletionFailed", "%v", err)
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status:  metav1.ConditionFalse,
