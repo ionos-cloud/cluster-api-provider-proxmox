@@ -18,6 +18,7 @@ package scope
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -29,10 +30,13 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/kubernetes/ipam"
+	capmox "github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/proxmoxtest"
 )
 
 // fakeProxmox answers the version call NewAPIClient makes and tracks its connections.
@@ -128,4 +132,37 @@ func TestNewClusterScope_ReusesProxmoxClientPerCredentialsSecret(t *testing.T) {
 	require.Equal(t, int32(2), server.versionCalls.Load())
 	require.Eventually(t, func() bool { return server.openConns() == 1 }, 5*time.Second, 10*time.Millisecond,
 		"the replaced client's idle connection is closed")
+}
+
+func TestClientCache_HangingBuildBlocksOnlyItsSecret(t *testing.T) {
+	cache := newClientCache()
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+
+	building := make(chan struct{})
+	go func() {
+		_, _ = cache.get(types.NamespacedName{Namespace: "default", Name: "unreachable"}, "1",
+			func() (capmox.Client, *http.Transport, error) {
+				close(building)
+				<-release
+				return nil, nil, errors.New("unreachable")
+			})
+	}()
+	<-building
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := cache.get(types.NamespacedName{Namespace: "default", Name: "reachable"}, "1",
+			func() (capmox.Client, *http.Transport, error) {
+				return proxmoxtest.NewMockClient(t), &http.Transport{}, nil
+			})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("building a client for one Secret blocked the cache for another")
+	}
 }

@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
@@ -176,6 +177,9 @@ func newProxmoxClientFromSecret(ctx context.Context, logger logr.Logger, secret 
 	}
 
 	tr := &http.Transport{
+		// Without it, a reconcile still using a client the cache has replaced leaves its
+		// connection open for the life of the process.
+		IdleConnTimeout: 90 * time.Second,
 		TLSClientConfig: &tls.Config{
 			// When "insecure" is unset we retain the pre-v0.7 behavior of
 			// setting the connection insecure. If it is set we compare

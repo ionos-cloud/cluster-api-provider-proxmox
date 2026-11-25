@@ -33,6 +33,9 @@ import (
 var credentialsClients = newClientCache()
 
 type clientCacheEntry struct {
+	// mu serialises building this Secret's client, so a Proxmox API that hangs while a
+	// client is built blocks only the reconciles that use the same Secret.
+	mu              sync.Mutex
 	resourceVersion string
 	client          capmox.Client
 	transport       *http.Transport
@@ -40,11 +43,11 @@ type clientCacheEntry struct {
 
 type clientCache struct {
 	mu      sync.Mutex
-	entries map[types.NamespacedName]clientCacheEntry
+	entries map[types.NamespacedName]*clientCacheEntry
 }
 
 func newClientCache() *clientCache {
-	return &clientCache{entries: map[types.NamespacedName]clientCacheEntry{}}
+	return &clientCache{entries: map[types.NamespacedName]*clientCacheEntry{}}
 }
 
 // get returns the client built from the Secret at resourceVersion, building it with create
@@ -54,24 +57,29 @@ func (c *clientCache) get(secret types.NamespacedName, resourceVersion string,
 	create func() (capmox.Client, *http.Transport, error),
 ) (capmox.Client, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	entry, ok := c.entries[secret]
+	if !ok {
+		entry = &clientCacheEntry{}
+		c.entries[secret] = entry
+	}
+	c.mu.Unlock()
 
-	if entry, ok := c.entries[secret]; ok {
-		if entry.resourceVersion == resourceVersion {
-			return entry.client, nil
-		}
-		entry.transport.CloseIdleConnections()
-		delete(c.entries, secret)
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+
+	if entry.client != nil && entry.resourceVersion == resourceVersion {
+		return entry.client, nil
 	}
 
 	pmoxClient, transport, err := create()
 	if err != nil {
 		return nil, err
 	}
-	c.entries[secret] = clientCacheEntry{
-		resourceVersion: resourceVersion,
-		client:          pmoxClient,
-		transport:       transport,
+	if entry.transport != nil {
+		entry.transport.CloseIdleConnections()
 	}
+	entry.resourceVersion = resourceVersion
+	entry.client = pmoxClient
+	entry.transport = transport
 	return pmoxClient, nil
 }
