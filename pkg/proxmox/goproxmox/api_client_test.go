@@ -162,7 +162,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
-			"cannot find node with name test: not authorized to access endpoint",
+			"cannot find node with name test: not authorized to access endpoint: 401 Unauthorized",
 			err.Error())
 	})
 
@@ -176,7 +176,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
-			"cannot list vms for node test: not authorized to access endpoint",
+			"cannot list vms for node test: not authorized to access endpoint: 401 Unauthorized",
 			err.Error())
 	})
 }
@@ -191,7 +191,7 @@ func TestProxmoxAPIClient_CloneVM(t *testing.T) {
 		{name: "no node", http: []int{500, 200, 200, 200, 200, 200}, fails: true,
 			err: "cannot find node with name test: 500 Internal Server Error"},
 		{name: "no template", http: []int{200, 200, 403, 200, 200, 200}, fails: true,
-			err: "unable to find vm template: not authorized to access endpoint"},
+			err: "unable to find vm template: not authorized to access endpoint: 403 Forbidden"},
 		{name: "clone fails", http: []int{200, 200, 200, 200, 500, 200}, fails: true,
 			err: "unable to create new vm: 500 Internal Server Error"},
 		{name: "no node", http: []int{200, 200, 200, 200, 200, 200}, fails: false,
@@ -239,7 +239,7 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 	}{
 		{name: "create conf task", fails: false, err: ""},
 		{name: "conf error", fails: true,
-			err: "unable to configure vm: not authorized to access endpoint"},
+			err: "unable to configure vm: not authorized to access endpoint: 403 Forbidden"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -260,7 +260,7 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 				newJSONResponder(200,
 					proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
 
-			node := (&proxmox.Node{}).New(client.Client, "test")
+			node := client.Client.NodeRef("test")
 			err := node.Status(context.Background())
 			require.NoError(t, err)
 			vm, err := node.VirtualMachine(context.Background(), 101)
@@ -560,7 +560,7 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 		{name: "node not found", node: "enoent", vmID: 101, fails: true,
 			err: "cannot find node with name enoent: 500 Internal Server Error"},
 		{name: "delete fails", node: "test", vmID: 102, fails: true,
-			err: "cannot delete vm with id 102: not authorized to access endpoint"},
+			err: "cannot delete vm with id 102: not authorized to access endpoint: 403 Forbidden"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
