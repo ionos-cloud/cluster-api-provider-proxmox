@@ -18,6 +18,7 @@ package vmservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -895,6 +896,26 @@ func TestCheckCloudInitStatus_AgentNotReadyRequeues(t *testing.T) {
 	require.Equal(t, infrav1.DefaultReconcilerRequeue, requeueErr.RequeueAfter())
 	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason,
 		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+}
+
+// A non-timeout agent error (for example an authentication failure) is a real problem and must
+// reach the controller's error path rather than being masked as a routine timed requeue.
+func TestCheckCloudInitStatus_AgentNonTimeoutErrors(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
+	vm := newRunningVM()
+	machineScope.SetVirtualMachine(vm)
+
+	authErr := fmt.Errorf("error waiting for agent: %w", fmt.Errorf("401 authentication failure"))
+	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(authErr).Once()
+	// no CloudInitStatus expectation: the cloud-init check must not run without the agent
+
+	requeue, err := checkCloudInitStatus(context.Background(), machineScope)
+	require.False(t, requeue)
+	require.Error(t, err)
+	// It is a plain error, not a timed requeue.
+	var requeueErr *taskservice.RequeueError
+	require.False(t, errors.As(err, &requeueErr))
+	require.Contains(t, err.Error(), "authentication failure")
 }
 
 func TestReconcileVM_CloudInitFailedWrapped(t *testing.T) {
