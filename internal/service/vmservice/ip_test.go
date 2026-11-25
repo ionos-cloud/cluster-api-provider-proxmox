@@ -763,3 +763,134 @@ func TestCollectDeviceAddresses_SamePoolByValueAccumulates(t *testing.T) {
 	require.Len(t, addresses["default"], 1)
 	require.Len(t, addresses["default"][key], 2, "both addresses belong to the default pool")
 }
+
+// TestCollectDeviceAddresses_AppliesComputedDefaultToUnannotatedClaim covers an upgrade in
+// which the default pool's IPAddressClaim was created before the default-gateway annotation
+// existed. The resolver overlays the stored claim annotations onto the resolved address, so
+// without this fix the resolved address would report Default=false even though the pool is
+// the cluster default. The computed flag is applied to the resolved copy in memory instead.
+func TestCollectDeviceAddresses_AppliesComputedDefaultToUnannotatedClaim(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
+
+	defaultPool := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
+	}
+
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{{
+			Name:        infrav1.DefaultNetworkDevice,
+			DefaultIPv4: new(true),
+		}},
+	}
+
+	machineScope.SetVirtualMachine(newStoppedVM())
+
+	createIPPools(t, kubeClient, machineScope)
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "10.0.0.10", 0, &defaultPool)
+
+	// Simulate a claim written before the default-gateway annotation existed: strip it from
+	// the stored claim so the resolver cannot recover it from storage.
+	claimName := ipam.IPAddressFormat(machineScope.Name(), infrav1.DefaultNetworkDevice, 0, infrav1.DefaultSuffix)
+	claim := &ipamv1.IPAddressClaim{}
+	require.NoError(t, kubeClient.Get(context.Background(),
+		client.ObjectKey{Namespace: machineScope.Namespace(), Name: claimName}, claim))
+	delete(claim.Annotations, infrav1.ProxmoxDefaultGatewayAnnotation)
+	require.NoError(t, kubeClient.Update(context.Background(), claim))
+
+	addresses := make(map[infrav1.NetName]map[ipam.PoolKey][]ipamv1.IPAddress)
+	requeue, err := collectDeviceAddresses(context.Background(), machineScope, addresses, handleIPAddresses)
+	require.NoError(t, err)
+	require.False(t, requeue)
+
+	key := ipam.PoolKeyFor(defaultPool)
+	resolved := addresses[infrav1.DefaultNetworkDevice][key]
+	require.Len(t, resolved, 1)
+	require.Equal(t, "true", resolved[0].GetAnnotations()[infrav1.ProxmoxDefaultGatewayAnnotation],
+		"the computed default-gateway flag is applied to the resolved address even though the stored claim lacks it")
+	require.Len(t, addresses["default"][key], 1, "the default pool address still reaches the default net")
+}
+
+// TestReconcileIPAddresses_DefaultNetExcludesIPv6DefaultDeviceSharedIPv4Pool covers a second
+// device that is only the IPv6 default but also references the cluster's default IPv4 pool.
+// Its IPv4 address is not a default gateway, so it must not be appended to the synthetic
+// "default" net and published as a MachineInternalIP.
+func TestReconcileIPAddresses_DefaultNetExcludesIPv6DefaultDeviceSharedIPv4Pool(t *testing.T) {
+	machineScope, _, kubeClient := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason)
+
+	proxmoxCluster := machineScope.InfraCluster.ProxmoxCluster
+	proxmoxCluster.Spec.IPv6Config = &infrav1.IPConfigSpec{
+		Addresses: []string{"2001:db8::"},
+		Prefix:    64,
+		Gateway:   "2001:db8::",
+	}
+	require.NoError(t, kubeClient.Update(context.Background(), proxmoxCluster))
+
+	patch := client.MergeFrom(proxmoxCluster.DeepCopy())
+	proxmoxCluster.Status.InClusterIPPoolRef = []corev1.LocalObjectReference{
+		{Name: "test-v4-icip"},
+		{Name: "test-v6-icip"},
+	}
+	proxmoxCluster.Status.InClusterZoneRef = []infrav1.InClusterZoneRef{{
+		Zone:                 new("default"),
+		InClusterIPPoolRefV4: new(corev1.LocalObjectReference{Name: "test-v4-icip"}),
+		InClusterIPPoolRefV6: new(corev1.LocalObjectReference{Name: "test-v6-icip"}),
+	}}
+	require.NoError(t, kubeClient.Status().Patch(context.Background(), proxmoxCluster, patch))
+	require.NoError(t, machineScope.IPAMHelper.CreateOrUpdateInClusterIPPool(context.Background()))
+
+	defaultPoolV4 := corev1.TypedLocalObjectReference{
+		APIGroup: new(ipamicv1.GroupVersion.String()),
+		Kind:     reflect.ValueOf(ipamicv1.InClusterIPPool{}).Type().Name(),
+		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV4.Name,
+	}
+	defaultPoolV6 := corev1.TypedLocalObjectReference{
+		APIGroup: new("ipam.cluster.x-k8s.io"),
+		Kind:     InClusterIPPool,
+		Name:     getDefaultPoolRefs(machineScope).InClusterIPPoolRefV6.Name,
+	}
+
+	machineScope.ProxmoxMachine.Spec.Network = &infrav1.NetworkSpec{
+		NetworkDevices: []infrav1.NetworkDevice{
+			{
+				Name:        infrav1.DefaultNetworkDevice,
+				DefaultIPv4: new(true),
+			},
+			{
+				Name:        "net1",
+				DefaultIPv6: new(true),
+				InterfaceConfig: infrav1.InterfaceConfig{
+					// net1 is only the IPv6 default but explicitly lists the default IPv4 pool.
+					IPPoolRef: []corev1.TypedLocalObjectReference{defaultPoolV4},
+				},
+			},
+		},
+	}
+
+	vm := newStoppedVM()
+	vm.VirtualMachineConfig.Tags = "ip_net0_192.0.2.10"
+	machineScope.SetVirtualMachine(vm)
+
+	// Both devices reference only the cluster default pools, which CreateOrUpdateInClusterIPPool
+	// already created with addresses; createIPPools would recreate the shared default pool empty.
+	createIPAddress(t, kubeClient, machineScope, infrav1.DefaultNetworkDevice, "192.0.2.10", 0, &defaultPoolV4)
+	// net1 prepends the IPv6 default pool (offset 0), then its explicit IPv4 default pool (offset 1).
+	createIPAddress(t, kubeClient, machineScope, "net1", "2001:db8::1", 0, &defaultPoolV6)
+	createIPAddress(t, kubeClient, machineScope, "net1", "192.0.2.20", 1, &defaultPoolV4)
+
+	requeue, err := reconcileIPAddresses(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	// net1 keeps its own IPv4, but the default net must not gain net1's non-default IPv4.
+	require.Equal(t,
+		infrav1.IPAddressesSpec{
+			NetName: "default",
+			IPv4:    []string{"192.0.2.10"},
+			IPv6:    []string{"2001:db8::1"},
+		},
+		*machineScope.ProxmoxMachine.GetIPAddressesNet("default"),
+	)
+	require.Contains(t, machineScope.ProxmoxMachine.GetIPAddressesNet("net1").IPv4, "192.0.2.20")
+}

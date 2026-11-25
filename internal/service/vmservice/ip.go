@@ -340,9 +340,15 @@ func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScop
 					infrav1.ProxmoxPoolOffsetAnnotation: fmt.Sprintf("%d", i),
 				},
 			}
+			// isDefault reports whether THIS device/pool claim is the cluster's default
+			// gateway for its address family: the device must opt in (DefaultIPv4 or
+			// DefaultIPv6) and the pool must be the matching default pool. A device that is
+			// only the IPv6 default but also references the default IPv4 pool is not the
+			// IPv4 default.
 			// TODO: I hate this default pool logic
-			if ptr.Deref(net.DefaultIPv4, false) && defaultV4 != nil && key == *defaultV4 ||
-				ptr.Deref(net.DefaultIPv6, false) && defaultV6 != nil && key == *defaultV6 {
+			isDefault := ptr.Deref(net.DefaultIPv4, false) && defaultV4 != nil && key == *defaultV4 ||
+				ptr.Deref(net.DefaultIPv6, false) && defaultV6 != nil && key == *defaultV6
+			if isDefault {
 				ipClaimDef.Annotations[infrav1.ProxmoxDefaultGatewayAnnotation] = "true"
 			}
 
@@ -356,6 +362,21 @@ func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScop
 				continue
 			}
 
+			// A claim created before the default-gateway annotation existed resolves
+			// without it stored on the IPAddress, so the resolver would report
+			// Default=false even though this claim is the default. Apply the computed flag
+			// to the resolved copies in memory (merging into a fresh map so the shared
+			// annotation map is not mutated) rather than reallocating the claim.
+			if isDefault {
+				for j := range ipAddresses {
+					existing := ipAddresses[j].GetAnnotations()
+					merged := make(map[string]string, len(existing)+1)
+					maps.Copy(merged, existing)
+					merged[infrav1.ProxmoxDefaultGatewayAnnotation] = "true"
+					ipAddresses[j].SetAnnotations(merged)
+				}
+			}
+
 			poolMap := addresses[net.Name]
 			if poolMap == nil {
 				poolMap = make(map[ipam.PoolKey][]ipamv1.IPAddress)
@@ -364,8 +385,10 @@ func collectDeviceAddresses(ctx context.Context, machineScope *scope.MachineScop
 			poolMap[key] = append(poolMap[key], ipAddresses...)
 			addresses[net.Name] = poolMap
 
-			// append default pool addresses to map
-			if _, exists := defaultPoolMap[key]; exists && (ptr.Deref(net.DefaultIPv4, false) || ptr.Deref(net.DefaultIPv6, false)) {
+			// Append to the synthetic "default" net only when this claim actually is the
+			// default gateway, so a device that is the IPv6 default but also lists the IPv4
+			// default pool does not publish its non-default IPv4 as a MachineInternalIP.
+			if _, exists := defaultPoolMap[key]; exists && isDefault {
 				defaultPoolMap[key] = append(defaultPoolMap[key], ipAddresses...)
 			}
 		}
