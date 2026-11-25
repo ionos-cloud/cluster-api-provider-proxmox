@@ -259,6 +259,19 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 	return task, nil
 }
 
+// NextID returns the lowest VMID that is free in the cluster.
+func (c *APIClient) NextID(ctx context.Context) (int64, error) {
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("cannot get cluster: %w", err)
+	}
+	id, err := cluster.NextID(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("cannot get next free vmid: %w", err)
+	}
+	return int64(id), nil
+}
+
 // CheckID checks if the vmid is available on the cluster.
 // Returns true if the vmid is available, false if it is taken.
 func (c *APIClient) CheckID(ctx context.Context, vmid int64) (bool, error) {

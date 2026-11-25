@@ -688,6 +688,62 @@ func (_c *MockClient_HasActiveTask_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// NextID provides a mock function with given fields: ctx
+func (_m *MockClient) NextID(ctx context.Context) (int64, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NextID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_NextID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NextID'
+type MockClient_NextID_Call struct {
+	*mock.Call
+}
+
+// NextID is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockClient_Expecter) NextID(ctx interface{}) *MockClient_NextID_Call {
+	return &MockClient_NextID_Call{Call: _e.mock.On("NextID", ctx)}
+}
+
+func (_c *MockClient_NextID_Call) Run(run func(ctx context.Context)) *MockClient_NextID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockClient_NextID_Call) Return(_a0 int64, _a1 error) *MockClient_NextID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_NextID_Call) RunAndReturn(run func(context.Context) (int64, error)) *MockClient_NextID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // QemuAgentStatus provides a mock function with given fields: ctx, vm
 func (_m *MockClient) QemuAgentStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) error {
 	ret := _m.Called(ctx, vm)

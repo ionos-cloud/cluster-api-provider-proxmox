@@ -33,6 +33,8 @@ type Client interface {
 	FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error)
 
 	CheckID(ctx context.Context, vmID int64) (bool, error)
+	// NextID returns the lowest VMID that is free in the cluster.
+	NextID(ctx context.Context) (int64, error)
 
 	GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error)
 
