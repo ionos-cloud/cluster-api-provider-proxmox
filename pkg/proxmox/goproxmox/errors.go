@@ -24,4 +24,8 @@ var (
 
 	// ErrTemplateNotFound is returned when a VM template is not found.
 	ErrTemplateNotFound = errors.New("VM template not found")
+
+	// ErrVMNameNotUnique is returned when several VMs in the cluster carry the same name, so
+	// none of them can be told to be the one looked for.
+	ErrVMNameNotUnique = errors.New("several VMs carry the name")
 )
