@@ -50,6 +50,12 @@ spec:
         - "--v=${CAPMOX_LOGLEVEL:=0}"
         image: controller:latest
         name: manager
+        ports:
+        # The diagnostics endpoint (/metrics) from --diagnostics-address; the metrics
+        # Service in config/rbac targets this port by name.
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
