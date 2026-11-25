@@ -70,7 +70,7 @@ func NewAPIClient(ctx context.Context, logger logr.Logger, baseURL string, optio
 // CloneVM clones a VM based on templateID and VMCloneRequest.
 func (c *APIClient) CloneVM(ctx context.Context, templateID int, clone capmox.VMCloneRequest) (capmox.VMCloneResponse, error) {
 	// get the node
-	node := (&proxmox.Node{}).New(c.Client, clone.Node)
+	node := c.Client.NodeRef(clone.Node)
 	if err := node.Status(ctx); err != nil {
 		return capmox.VMCloneResponse{}, fmt.Errorf("cannot find node with name %s: %w", clone.Node, err)
 	}
@@ -111,7 +111,7 @@ func (c *APIClient) ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine,
 
 // GetVM returns a VM based on nodeName and vmID.
 func (c *APIClient) GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error) {
-	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	node := c.Client.NodeRef(nodeName)
 	if err := node.Status(ctx); err != nil {
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
@@ -224,7 +224,7 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		return nil, fmt.Errorf("vm with id %d does not exist", vmID)
 	}
 
-	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	node := c.Client.NodeRef(nodeName)
 	if err := node.Status(ctx); err != nil {
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
@@ -296,7 +296,7 @@ func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, er
 
 // HasActiveTask checks whether any task is still running for the VM.
 func (c *APIClient) HasActiveTask(ctx context.Context, vm *proxmox.VirtualMachine) (bool, error) {
-	node := (&proxmox.Node{}).New(c.Client, vm.Node)
+	node := c.Client.NodeRef(vm.Node)
 
 	tasks, err := node.Tasks(ctx, &proxmox.NodeTasksOptions{Source: "active", VMID: int(vm.VMID)})
 	if err != nil {
@@ -308,7 +308,7 @@ func (c *APIClient) HasActiveTask(ctx context.Context, vm *proxmox.VirtualMachin
 
 // GetReservableMemoryBytes returns the memory that can be reserved by a new VM, in bytes.
 func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, error) {
-	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	node := c.Client.NodeRef(nodeName)
 
 	if err := node.Status(ctx); err != nil {
 		return 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
