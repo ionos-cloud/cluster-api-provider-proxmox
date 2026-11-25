@@ -329,3 +329,45 @@ func TestReconcileInFlightTask_UnknownState(t *testing.T) {
 	var requeueErr *RequeueError
 	require.ErrorAs(t, err, &requeueErr)
 }
+
+// A resize that failed because the node could not see the freshly cloned volume yet is
+// transient: the machine goes back to the disk step instead of the terminal TaskFailed.
+func TestReconcileInFlightTask_ResizeVolumeNotVisibleRetries(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:002")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status: metav1.ConditionFalse,
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason,
+	})
+
+	task := &proxmox.Task{UPID: "UPID:node1:002", IsFailed: true, IsCompleted: true, Status: "stopped",
+		ExitStatus: "volume 'nfs:122/vm-122-disk-0.qcow2' does not exist", Type: "resize"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:002").Return(task, nil).Once()
+
+	requeue, err := ReconcileInFlightTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.RetryAfter)
+
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason, cond.Reason)
+	require.Contains(t, cond.Message, "does not exist")
+}
+
+// Any other resize failure stays terminal.
+func TestReconcileInFlightTask_ResizeOtherFailureIsTerminal(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:003")
+
+	task := &proxmox.Task{UPID: "UPID:node1:003", IsFailed: true, IsCompleted: true, Status: "stopped",
+		ExitStatus: "shrinking disks is not supported", Type: "resize"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:003").Return(task, nil).Once()
+
+	_, err := ReconcileInFlightTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason, cond.Reason)
+}
