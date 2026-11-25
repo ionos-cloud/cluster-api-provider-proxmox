@@ -338,11 +338,14 @@ func TestReconcileInFlightTask_ResizeVolumeNotVisibleRetries(t *testing.T) {
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
 		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
 		Status: metav1.ConditionFalse,
-		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason,
+		// reconcileDisks advances the reason to WaitingForStaticIPAllocation when it records
+		// the resize task, so that is the real pre-failure state. Starting here lets the
+		// assertion below verify that the failure actually rewinds to the disk step.
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
 	})
 
 	task := &proxmox.Task{UPID: "UPID:node1:002", IsFailed: true, IsCompleted: true, Status: "stopped",
-		ExitStatus: "volume 'nfs:122/vm-122-disk-0.qcow2' does not exist", Type: "resize"}
+		ExitStatus: "volume 'nfs:122/vm-122-disk-0.qcow2' does not exist", Type: "qmresize"}
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:002").Return(task, nil).Once()
 
 	requeue, err := ReconcileInFlightTask(context.Background(), machineScope)
@@ -362,7 +365,7 @@ func TestReconcileInFlightTask_ResizeOtherFailureIsTerminal(t *testing.T) {
 	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:003")
 
 	task := &proxmox.Task{UPID: "UPID:node1:003", IsFailed: true, IsCompleted: true, Status: "stopped",
-		ExitStatus: "shrinking disks is not supported", Type: "resize"}
+		ExitStatus: "shrinking disks is not supported", Type: "qmresize"}
 	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:003").Return(task, nil).Once()
 
 	_, err := ReconcileInFlightTask(context.Background(), machineScope)

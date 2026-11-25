@@ -120,7 +120,7 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		// For all other jobs we do set the condition to failed.
 		switch {
 		case task.Type == "qmstart":
-		case task.Type == "resize" && strings.Contains(task.ExitStatus, "does not exist"):
+		case task.Type == "qmresize" && strings.Contains(task.ExitStatus, "does not exist"):
 			// The disk is there (the clone made it) but the node running the resize cannot
 			// see it yet: on shared storage a directory cache can lag a VM that was destroyed
 			// and recreated under the same ID, so the resize fails with
