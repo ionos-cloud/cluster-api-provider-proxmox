@@ -235,6 +235,16 @@ For the Proxmox API user/token you create for CAPMOX, these are the minimum requ
 
 The default behavior of the Proxmox API is to skip TLS verification when communicating with the Proxmox API,
 The `PROXMOX_INSECURE` environment variable is set to `true` by default in the CAPMOX manager, to skip the verification of the TLS certificate with the Proxmox API.
+
+`PROXMOX_INSECURE`, the `--proxmox-insecure` flag and the `insecure` key of a credentials Secret all take the same
+values: `true`/`false`, `yes`/`no`, `on`/`off`, `1`/`0`, `t`/`f`, `y`/`n`, in any case and with surrounding white space
+ignored. Any other value, the empty string included, is an error: the manager refuses to start on a bad variable or
+flag, and a bad Secret value sets the ProxmoxCluster's `ProxmoxAvailable` condition to `False` with reason
+`CredentialsInvalid` and a message naming the key.
+
+Every request to the Proxmox API is bounded: 10 s to connect, 10 s for the TLS handshake, 30 s for the response
+headers and, by default, 2 minutes in total (`--proxmox-request-timeout` / `PROXMOX_REQUEST_TIMEOUT`, `0` removes the
+overall bound). A Proxmox node that stops answering therefore fails the reconcile instead of blocking a worker.
 ```
 containers:
   - name: manager

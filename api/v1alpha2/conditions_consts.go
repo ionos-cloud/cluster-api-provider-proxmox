@@ -36,6 +36,12 @@ const (
 	// not set or the referenced credentials secret was not found.
 	ProxmoxClusterProxmoxAvailableCredentialsNotFoundReason = "CredentialsNotFound"
 
+	// ProxmoxClusterProxmoxAvailableCredentialsInvalidReason documents a controller
+	// finding the referenced credentials secret but failing to read one of its keys,
+	// such as a value of "insecure" that is not a boolean. The condition message
+	// names the key.
+	ProxmoxClusterProxmoxAvailableCredentialsInvalidReason = "CredentialsInvalid"
+
 	// ProxmoxClusterProxmoxAvailableMissingControlPlaneEndpointReason documents a
 	// missing Control Plane endpoint when the cluster uses an externally managed
 	// control plane.

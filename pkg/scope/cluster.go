@@ -19,11 +19,7 @@ package scope
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
-	"slices"
-	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
@@ -31,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -125,7 +122,13 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		// using proxmoxcluster.spec.credentialsRef
 		pmoxClient, err := clusterScope.setupProxmoxClient(context.TODO())
 		if err != nil {
-			return nil, errors.Wrap(err, "Unable to initialize ProxmoxClient")
+			// setupProxmoxClient records why on the ProxmoxAvailable condition; persist
+			// it, or the user never sees more than a controller log line.
+			err = errors.Wrap(err, "Unable to initialize ProxmoxClient")
+			if cerr := clusterScope.Close(); cerr != nil {
+				err = kerrors.NewAggregate([]error{err, cerr})
+			}
+			return nil, err
 		}
 		clusterScope.ProxmoxClient = pmoxClient
 	}
@@ -160,31 +163,62 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	tokenSecret := string(secret.Data["secret"])
 	url := string(secret.Data["url"])
 
-	tlsInsecure, tlsInsecureSet := secret.Data["insecure"]
-	tlsRootCA := secret.Data["root_ca"]
-
-	rootCerts, err := tlshelper.SystemRootsWithCert(tlsRootCA)
+	// When "insecure" is unset we retain the pre-v0.7 behavior of skipping
+	// certificate verification. When it is set it must parse as a boolean,
+	// with the same rule as PROXMOX_INSECURE and --proxmox-insecure.
+	tlsInsecure, err := s.secretBool(secret, "insecure", true)
 	if err != nil {
-		return nil, fmt.Errorf("loading cert pool: %w", err)
+		return nil, err
+	}
+	discover, err := s.secretBool(secret, "endpoint_discovery", false)
+	if err != nil {
+		return nil, err
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			// When "insecure" is unset we retain the pre-v0.7 behavior of
-			// setting the connection insecure. If it is set we compare
-			// against YAML true-ish values.
-			//
-			// #nosec:G402 // Intended to enable insecure mode for unknown CAs
-			InsecureSkipVerify: !tlsInsecureSet || slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(tlsInsecure))),
-			RootCAs:            rootCerts,
-		},
+	rootCerts, err := tlshelper.SystemRootsWithCert(secret.Data["root_ca"])
+	if err != nil {
+		s.setCredentialsInvalid("root_ca", err)
+		return nil, fmt.Errorf("credentials secret key %q: loading cert pool: %w", "root_ca", err)
 	}
 
-	httpClient := &http.Client{Transport: tr}
-	return goproxmox.NewAPIClient(ctx, *s.Logger, url,
+	httpClient := goproxmox.NewHTTPClient(goproxmox.HTTPClientConfig{
+		InsecureSkipVerify: tlsInsecure,
+		RootCAs:            rootCerts,
+		Timeouts:           goproxmox.DefaultTimeouts(),
+	})
+	endpoints := goproxmox.Endpoints{
+		Additional: goproxmox.ParseEndpointList(string(secret.Data["additional_urls"])),
+		Discover:   discover,
+	}
+	return goproxmox.NewAPIClientWithEndpoints(ctx, *s.Logger, url, endpoints,
 		proxmox.WithHTTPClient(httpClient),
 		proxmox.WithAPIToken(token, tokenSecret),
 	)
+}
+
+// secretBool reads a boolean key of the credentials secret, returning def when the key is
+// absent. A value that is not a boolean sets ProxmoxAvailable=False with a message naming
+// the key and returns an error.
+func (s *ClusterScope) secretBool(secret corev1.Secret, key string, def bool) (bool, error) {
+	raw, set := secret.Data[key]
+	if !set {
+		return def, nil
+	}
+	value, err := goproxmox.ParseBool(string(raw))
+	if err != nil {
+		s.setCredentialsInvalid(key, err)
+		return false, fmt.Errorf("credentials secret key %q: %w", key, err)
+	}
+	return value, nil
+}
+
+func (s *ClusterScope) setCredentialsInvalid(key string, err error) {
+	conditions.Set(s.ProxmoxCluster, metav1.Condition{
+		Type:    infrav1.ProxmoxClusterProxmoxAvailableCondition,
+		Status:  metav1.ConditionFalse,
+		Reason:  infrav1.ProxmoxClusterProxmoxAvailableCredentialsInvalidReason,
+		Message: fmt.Sprintf("credentials secret key %q: %v", key, err),
+	})
 }
 
 // Name returns the CAPI cluster name.
