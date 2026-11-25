@@ -260,6 +260,25 @@ func TestReconcileInFlightTask_TaskFailed_QMStart(t *testing.T) {
 	require.Equal(t, "WaitingForVMPowerUp", cond.Reason)
 }
 
+// A qmstart failure with no condition to keep must not write an empty reason: the API server
+// rejects it, and the rejected patch loses every other status field of the pass (upstream #733).
+func TestReconcileInFlightTask_TaskFailed_QMStart_NoConditionGetsAReason(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:001")
+	require.False(t, conditions.Has(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+
+	task := &proxmox.Task{UPID: "UPID:node1:001", IsFailed: true, IsCompleted: true, Status: "stopped", ExitStatus: "ERROR: VM already running", Type: "qmstart"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:001").Return(task, nil).Once()
+
+	requeue, err := ReconcileInFlightTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason, cond.Reason)
+}
+
 // Test ReconcileInflightTask on task failure switch case clears timed out task.
 func TestReconcileInFlightTask_TaskFailed_SecondPass_ClearsTaskRef(t *testing.T) {
 	machineScope, mockClient := setupTaskTest(t)

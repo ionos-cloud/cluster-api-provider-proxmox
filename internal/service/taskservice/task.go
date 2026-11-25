@@ -121,6 +121,15 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 			logger.Info("task failed", "description", task.Type)
 			// We notify the user that intervention is required. This should stop the state machine.
 			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason
+		} else if conditionReason == "" {
+			// qmstart keeps the saved reason so the state machine carries on from where it
+			// was. When there is no condition yet there is nothing to keep, and conditions.Set
+			// below would write an empty reason, which the API server rejects
+			// ("conditions[].reason in body should be at least 1 chars long"). A rejected
+			// status patch drops every other field written in the same pass, such as the
+			// virtualMachineID and taskRef of a fresh clone, so the next pass sees no VM and
+			// clones again (upstream #733). Fall back to the state that issues qmstart.
+			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForVMPowerUpReason
 		}
 
 		errorMessage := fmt.Sprintf("%s: %s", task.Type, task.ExitStatus)
