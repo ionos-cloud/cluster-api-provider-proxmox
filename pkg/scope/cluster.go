@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
@@ -156,6 +157,13 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 		return nil, errors.Wrap(err, "failed to get credentials secret")
 	}
 
+	return credentialsClients.get(client.ObjectKeyFromObject(&secret), secret.ResourceVersion, func() (capmox.Client, *http.Transport, error) {
+		return newProxmoxClientFromSecret(ctx, *s.Logger, &secret)
+	})
+}
+
+// newProxmoxClientFromSecret builds a Proxmox client, and the transport it owns, from a credentials Secret.
+func newProxmoxClientFromSecret(ctx context.Context, logger logr.Logger, secret *corev1.Secret) (capmox.Client, *http.Transport, error) {
 	token := string(secret.Data["token"])
 	tokenSecret := string(secret.Data["secret"])
 	url := string(secret.Data["url"])
@@ -165,10 +173,13 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 
 	rootCerts, err := tlshelper.SystemRootsWithCert(tlsRootCA)
 	if err != nil {
-		return nil, fmt.Errorf("loading cert pool: %w", err)
+		return nil, nil, fmt.Errorf("loading cert pool: %w", err)
 	}
 
 	tr := &http.Transport{
+		// Without it, a reconcile still using a client the cache has replaced leaves its
+		// connection open for the life of the process.
+		IdleConnTimeout: 90 * time.Second,
 		TLSClientConfig: &tls.Config{
 			// When "insecure" is unset we retain the pre-v0.7 behavior of
 			// setting the connection insecure. If it is set we compare
@@ -181,10 +192,15 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	return goproxmox.NewAPIClient(ctx, *s.Logger, url,
+	pmoxClient, err := goproxmox.NewAPIClient(ctx, logger, url,
 		proxmox.WithHTTPClient(httpClient),
 		proxmox.WithAPIToken(token, tokenSecret),
 	)
+	if err != nil {
+		tr.CloseIdleConnections()
+		return nil, nil, err
+	}
+	return pmoxClient, tr, nil
 }
 
 // Name returns the CAPI cluster name.
