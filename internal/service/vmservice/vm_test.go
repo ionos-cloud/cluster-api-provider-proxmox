@@ -18,6 +18,7 @@ package vmservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -32,6 +33,7 @@ import (
 
 	infrav1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha2"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/scheduler"
+	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/proxmox/goproxmox"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/pkg/scope"
@@ -874,6 +876,46 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
 	require.NotNil(t, cond)
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
+}
+
+// A guest agent that does not answer yet is the normal state of a booting VM: the pass asks for
+// a timed requeue (no reconciler error, no exponential backoff) and leaves the condition alone.
+func TestCheckCloudInitStatus_AgentNotReadyRequeues(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
+	vm := newRunningVM()
+	machineScope.SetVirtualMachine(vm)
+
+	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).
+		Return(fmt.Errorf("error waiting for agent: %w", lutherproxmox.ErrTimeout)).Once()
+	// no CloudInitStatus expectation: the cloud-init check must not run without the agent
+
+	requeue, err := checkCloudInitStatus(context.Background(), machineScope)
+	require.True(t, requeue)
+	var requeueErr *taskservice.RequeueError
+	require.ErrorAs(t, err, &requeueErr)
+	require.Equal(t, infrav1.DefaultReconcilerRequeue, requeueErr.RequeueAfter())
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason,
+		conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
+}
+
+// A non-timeout agent error (for example an authentication failure) is a real problem and must
+// reach the controller's error path rather than being masked as a routine timed requeue.
+func TestCheckCloudInitStatus_AgentNonTimeoutErrors(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
+	vm := newRunningVM()
+	machineScope.SetVirtualMachine(vm)
+
+	authErr := fmt.Errorf("error waiting for agent: %w", fmt.Errorf("401 authentication failure"))
+	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(authErr).Once()
+	// no CloudInitStatus expectation: the cloud-init check must not run without the agent
+
+	requeue, err := checkCloudInitStatus(context.Background(), machineScope)
+	require.False(t, requeue)
+	require.Error(t, err)
+	// It is a plain error, not a timed requeue.
+	var requeueErr *taskservice.RequeueError
+	require.False(t, errors.As(err, &requeueErr))
+	require.Contains(t, err.Error(), "authentication failure")
 }
 
 func TestReconcileVM_CloudInitFailedWrapped(t *testing.T) {

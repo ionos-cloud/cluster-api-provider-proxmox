@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strings"
 
+	lutherproxmox "github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -160,7 +161,18 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 
 	if !machineScope.SkipQemuGuestCheck() {
 		if err := machineScope.InfraCluster.ProxmoxClient.QemuAgentStatus(ctx, machineScope.VirtualMachine); err != nil {
-			return true, errors.Wrap(err, "error waiting for agent")
+			if !errors.Is(err, lutherproxmox.ErrTimeout) {
+				// A non-timeout failure (for example an authentication or connection
+				// error) is a real problem rather than a booting guest. Surface it to
+				// the controller's error path instead of masking it as a routine requeue.
+				return false, errors.Wrap(err, "error waiting for agent")
+			}
+			// The guest is booting and its agent is not answering yet, which is expected
+			// for a while after power-on. A timed requeue keeps the controller polling at a
+			// steady pace; a plain error would be logged as a reconciler error and backed
+			// off exponentially.
+			machineScope.V(4).Info("qemu guest agent not reachable yet, waiting", "vm", machineScope.VirtualMachine.VMID, "cause", err.Error())
+			return true, taskservice.NewRequeueError("waiting for the qemu guest agent: "+err.Error(), infrav1.DefaultReconcilerRequeue)
 		}
 	}
 

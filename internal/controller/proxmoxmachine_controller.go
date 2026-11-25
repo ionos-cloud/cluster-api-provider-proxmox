@@ -220,7 +220,9 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	vm, err := vmservice.ReconcileVM(ctx, machineScope)
 	if err != nil {
 		if requeueErr := new(taskservice.RequeueError); errors.As(err, &requeueErr) {
-			machineScope.Error(err, "Requeue requested")
+			// A requeue is the state machine pacing itself (a failed task's wait, a guest
+			// agent that is not up yet), not a failure to report at error level.
+			machineScope.V(4).Info("requeue requested", "after", requeueErr.RequeueAfter(), "reason", err.Error())
 			return reconcile.Result{RequeueAfter: requeueErr.RequeueAfter()}, nil
 		}
 		machineScope.Logger.Error(err, "error reconciling VM")
