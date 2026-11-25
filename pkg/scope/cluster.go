@@ -181,7 +181,11 @@ func (s *ClusterScope) setupProxmoxClient(ctx context.Context) (capmox.Client, e
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	return goproxmox.NewAPIClient(ctx, *s.Logger, url,
+	endpoints := goproxmox.Endpoints{
+		Additional: goproxmox.ParseEndpointList(string(secret.Data["additional_urls"])),
+		Discover:   slices.Contains([]string{"1", "on", "true", "yes", "y"}, strings.ToLower(string(secret.Data["endpoint_discovery"]))),
+	}
+	return goproxmox.NewAPIClientWithEndpoints(ctx, *s.Logger, url, endpoints,
 		proxmox.WithHTTPClient(httpClient),
 		proxmox.WithAPIToken(token, tokenSecret),
 	)

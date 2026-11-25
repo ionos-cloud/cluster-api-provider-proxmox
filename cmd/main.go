@@ -76,6 +76,10 @@ var (
 	ProxmoxTokenID string
 	// ProxmoxSecret env variable that defines the Proxmox secret for the given token id.
 	ProxmoxSecret string
+	// ProxmoxAdditionalURLs env variable that lists further API URLs of the same cluster, comma separated.
+	ProxmoxAdditionalURLs string
+	// ProxmoxEndpointDiscovery env variable that adds every online cluster node as an API endpoint.
+	ProxmoxEndpointDiscovery bool
 
 	proxmoxInsecure     bool
 	proxmoxRootCertFile string
@@ -232,7 +236,11 @@ func setupProxmoxClient(ctx context.Context, logger logr.Logger) (capmox.Client,
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	return goproxmox.NewAPIClient(ctx, logger, ProxmoxURL,
+	endpoints := goproxmox.Endpoints{
+		Additional: goproxmox.ParseEndpointList(ProxmoxAdditionalURLs),
+		Discover:   ProxmoxEndpointDiscovery,
+	}
+	return goproxmox.NewAPIClientWithEndpoints(ctx, logger, ProxmoxURL, endpoints,
 		proxmox.WithHTTPClient(httpClient),
 		proxmox.WithAPIToken(ProxmoxTokenID, ProxmoxSecret),
 	)
@@ -260,6 +268,8 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	ProxmoxURL = env.GetString("PROXMOX_URL", "")
 	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
 	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
+	ProxmoxAdditionalURLs = env.GetString("PROXMOX_ADDITIONAL_URLS", "")
+	ProxmoxEndpointDiscovery = env.GetString("PROXMOX_ENDPOINT_DISCOVERY", "false") == "true"
 
 	fs.BoolVar(&proxmoxInsecure, "proxmox-insecure",
 		env.GetString("PROXMOX_INSECURE", "true") == "true",
