@@ -30,6 +30,9 @@ type Client interface {
 	ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine, options ...VirtualMachineOption) (*proxmox.Task, error)
 
 	FindVMResource(ctx context.Context, vmID uint64) (*proxmox.ClusterResource, error)
+	// FindVMByName returns the VM (not a template, not a container) named name anywhere in the
+	// cluster, or nil when there is none; several VMs with the name are an error.
+	FindVMByName(ctx context.Context, name string) (*proxmox.ClusterResource, error)
 	FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error)
 
 	CheckID(ctx context.Context, vmID int64) (bool, error)

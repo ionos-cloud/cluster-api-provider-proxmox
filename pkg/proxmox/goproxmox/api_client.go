@@ -145,6 +145,36 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 	return nil, fmt.Errorf("unable to find VM with ID %d on any of the nodes", vmID)
 }
 
+// FindVMByName returns the VM named name anywhere in the cluster, or nil when there is none.
+// Templates and containers are skipped. Proxmox does not keep names unique; several VMs with
+// the name are reported as ErrVMNameNotUnique rather than picking one.
+func (c *APIClient) FindVMByName(ctx context.Context, name string) (*proxmox.ClusterResource, error) {
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
+	}
+
+	vmResources, err := cluster.Resources(ctx, "vm")
+	if err != nil {
+		return nil, fmt.Errorf("could not list vm resources: %w", err)
+	}
+
+	var found *proxmox.ClusterResource
+	matches := 0
+	for _, vm := range vmResources {
+		if vm.Type != "qemu" || vm.Template != 0 || vm.Name != name {
+			continue
+		}
+		found = vm
+		matches++
+	}
+	if matches > 1 {
+		return nil, fmt.Errorf("%w: %d VMs are named %q", ErrVMNameNotUnique, matches, name)
+	}
+
+	return found, nil
+}
+
 // FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
 func (c *APIClient) FindVMTemplateByTags(ctx context.Context, templateTags []string, matchPolicy string) (string, int32, error) {
 	logger := log.FromContext(ctx)

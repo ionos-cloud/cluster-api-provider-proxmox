@@ -373,6 +373,59 @@ func TestProxmoxAPIClient_FindVMResource(t *testing.T) {
 	}
 }
 
+func TestProxmoxAPIClient_FindVMByName(t *testing.T) {
+	resources := proxmox.ClusterResources{
+		// A template and a container with the name are not the VM looked for.
+		&proxmox.ClusterResource{VMID: 9000, Type: "qemu", Template: 1, Name: "worker-1", Node: "test"},
+		&proxmox.ClusterResource{VMID: 200, Type: "lxc", Name: "worker-1", Node: "test"},
+		&proxmox.ClusterResource{VMID: 101, Type: "qemu", Name: "worker-1", Node: "test2"},
+		&proxmox.ClusterResource{VMID: 102, Type: "qemu", Name: "twin", Node: "test"},
+		&proxmox.ClusterResource{VMID: 103, Type: "qemu", Name: "twin", Node: "test2"},
+	}
+	tests := []struct {
+		name   string
+		lookup string
+		http   []int
+		found  *proxmox.ClusterResource
+		err    error
+		errMsg string
+	}{
+		{name: "find", lookup: "worker-1", http: []int{200, 200}, found: resources[2]},
+		{name: "none", lookup: "worker-2", http: []int{200, 200}},
+		{name: "not unique", lookup: "twin", http: []int{200, 200}, err: ErrVMNameNotUnique},
+		{name: "clusterstatus broken", lookup: "worker-1", http: []int{500, 200},
+			errMsg: "cannot get cluster status: 500 Internal Server Error"},
+		{name: "resourcelisting broken", lookup: "worker-1", http: []int{200, 500},
+			errMsg: "could not list vm resources: 500 Internal Server Error"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+
+			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/status`,
+				newJSONResponder(test.http[0], proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
+			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/resources`,
+				newJSONResponder(test.http[1], resources))
+
+			found, err := client.FindVMByName(context.Background(), test.lookup)
+			switch {
+			case test.err != nil:
+				require.ErrorIs(t, err, test.err)
+				require.Nil(t, found)
+			case test.errMsg != "":
+				require.EqualError(t, err, test.errMsg)
+				require.Nil(t, found)
+			case test.found == nil:
+				require.NoError(t, err)
+				require.Nil(t, found)
+			default:
+				require.NoError(t, err)
+				require.Equal(t, *test.found, *found)
+			}
+		})
+	}
+}
+
 func TestProxmoxAPIClient_FindVMTemplateByTags(t *testing.T) {
 	proxmoxClusterResources := proxmox.ClusterResources{
 		&proxmox.ClusterResource{VMID: 101, Name: "k8s-node01", Node: "capmox01", Tags: ""},

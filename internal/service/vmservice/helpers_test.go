@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -232,6 +233,10 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 		IPAMHelper:     ipamHelper,
 	})
 	require.NoError(t, err)
+
+	// Before cloning, the controller looks for a VM that already carries the machine's name
+	// and adopts it instead of cloning a second one; by default there is none.
+	mockClient.EXPECT().FindVMByName(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	return machineScope, mockClient, kubeClient
 }
