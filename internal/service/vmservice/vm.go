@@ -652,17 +652,51 @@ func unmountCloudInitISO(ctx context.Context, machineScope *scope.MachineScope) 
 
 // cloudInitISODevice returns the drive of the VM that carries its cloud-init ISO,
 // "user-data-<vmid>.iso", wherever the injector attached it (ide0 on x86, a scsiN slot on
-// aarch64). Several matches are resolved to the lowest device name. When no drive carries
-// the ISO the device the injector would pick for this VM is returned, so an unmount still
-// targets the slot the ISO would have been on.
+// aarch64). Several matches are resolved to the lowest device name.
+//
+// When no drive carries the ISO it has already been detached: a previous unmount emptied its
+// slot (go-proxmox leaves it as "none,media=cdrom") but may have failed to delete the ISO
+// file or remove the cloud-init tag. Re-target that emptied CD-ROM so a retry finishes the
+// cleanup idempotently, rather than allocating a new free slot and leaving behind another
+// empty CD-ROM on every failed attempt. Only when there is no emptied CD-ROM either does it
+// fall back to the slot the injector would have used.
 func cloudInitISODevice(vm *lutherproxmox.VirtualMachine) string {
 	if vm == nil {
 		return inject.CloudInitISODevice
 	}
-	if drives := drivesWithVolume(vm.VirtualMachineConfig, fmt.Sprintf(lutherproxmox.UserDataISOFormat, vm.VMID)); len(drives) > 0 {
+	cfg := vm.VirtualMachineConfig
+	if drives := drivesWithVolume(cfg, fmt.Sprintf(lutherproxmox.UserDataISOFormat, vm.VMID)); len(drives) > 0 {
 		return drives[0]
 	}
-	return inject.CloudInitISODeviceFor(vm.VirtualMachineConfig)
+	if drives := emptyCDROMDrives(cfg); len(drives) > 0 {
+		return drives[0]
+	}
+	dev, err := inject.CloudInitISODeviceFor(cfg)
+	if err != nil {
+		// No CD-ROM to reuse and no slot to allocate (an aarch64 virt VM with every SCSI
+		// slot taken): there is nothing an unmount can target, so name the x86 default and
+		// let the unmount no-op.
+		return inject.CloudInitISODevice
+	}
+	return dev
+}
+
+// emptyCDROMDrives lists the drives of cfg that are detached CD-ROMs ("none,media=cdrom"),
+// sorted by device. Unmounting a cloud-init ISO leaves its slot in exactly this state.
+func emptyCDROMDrives(cfg *lutherproxmox.VirtualMachineConfig) []string {
+	if cfg == nil {
+		return nil
+	}
+	var out []string
+	for _, m := range []map[string]string{cfg.IDEs, cfg.SCSIs, cfg.SATAs, cfg.VirtIOs} {
+		for dev, value := range m {
+			if strings.HasPrefix(value, "none") && strings.Contains(value, "media=cdrom") {
+				out = append(out, dev)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // drivesWithVolume lists the drives of cfg whose value names the given volume file

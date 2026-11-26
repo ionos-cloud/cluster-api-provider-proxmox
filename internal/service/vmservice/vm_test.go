@@ -1148,6 +1148,9 @@ func TestCloudInitISODevice(t *testing.T) {
 		{"a cloud-init drive is not the ISO", &lutherproxmox.VirtualMachineConfig{IDEs: map[string]string{"ide2": "local-lvm:vm-123-cloudinit,media=cdrom"}}, "ide0"},
 		{"aarch64 without ISO falls back to the injector's slot", &lutherproxmox.VirtualMachineConfig{Machine: "virt", SCSIs: map[string]string{"scsi0": "local-lvm:vm-123-disk-0,size=20G"}}, "scsi1"},
 		{"lowest device wins on several matches", &lutherproxmox.VirtualMachineConfig{IDEs: map[string]string{"ide2": iso}, SCSIs: map[string]string{"scsi1": iso}}, "ide2"},
+		// After a detach whose ISO delete failed, the slot is left "none,media=cdrom". Reuse
+		// it rather than allocating a new free slot (which would leak another empty CD-ROM).
+		{"detached ISO reuses the emptied cdrom slot", &lutherproxmox.VirtualMachineConfig{Machine: "virt", SCSIs: map[string]string{"scsi0": "local-lvm:vm-123-disk-0,size=20G", "scsi1": "none,media=cdrom"}}, "scsi1"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
