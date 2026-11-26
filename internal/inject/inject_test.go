@@ -20,8 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -428,4 +430,183 @@ func newTestClient(t *testing.T) *goproxmox.APIClient {
 
 func newJSONResponder(status int, data any, times int) httpmock.Responder {
 	return httpmock.NewJsonResponderOrPanic(status, map[string]any{"data": data}).Times(times)
+}
+
+func TestCloudInitISODeviceFor(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     *proxmox.VirtualMachineConfig
+		want    string
+		wantErr bool
+	}{
+		{name: "nil config", cfg: nil, want: "ide0"},
+		{name: "x86 default machine", cfg: &proxmox.VirtualMachineConfig{SCSIs: map[string]string{"scsi0": "local-lvm:vm-100-disk-0,size=32G"}}, want: "ide0"},
+		{name: "x86 q35", cfg: &proxmox.VirtualMachineConfig{Machine: "q35", SCSIs: map[string]string{"scsi0": "local-lvm:vm-100-disk-0,size=32G"}}, want: "ide0"},
+		{name: "x86 pinned pc", cfg: &proxmox.VirtualMachineConfig{Machine: "pc-i440fx-8.1"}, want: "ide0"},
+		{name: "x86 without IDE drives keeps ide0", cfg: &proxmox.VirtualMachineConfig{Machine: "q35", VirtIOs: map[string]string{"virtio0": "local-lvm:vm-100-disk-0,size=32G"}}, want: "ide0"},
+		{name: "aarch64 virt with scsi0 boot disk", cfg: &proxmox.VirtualMachineConfig{Machine: "virt", SCSIs: map[string]string{"scsi0": "local-lvm:vm-100-disk-0,size=32G"}}, want: "scsi1"},
+		{name: "aarch64 pinned virt", cfg: &proxmox.VirtualMachineConfig{Machine: "virt-8.1", SCSIs: map[string]string{"scsi0": "a", "scsi1": "b"}}, want: "scsi2"},
+		{name: "aarch64 virt with options", cfg: &proxmox.VirtualMachineConfig{Machine: "virt,viommu=virtio", SCSIs: map[string]string{"scsi0": "a"}}, want: "scsi1"},
+		{name: "aarch64 virt long form", cfg: &proxmox.VirtualMachineConfig{Machine: "type=virt"}, want: "scsi0"},
+		{name: "aarch64 virt fills the first gap", cfg: &proxmox.VirtualMachineConfig{Machine: "Virt", SCSIs: map[string]string{"scsi0": "a", "scsi2": "c"}}, want: "scsi1"},
+		{name: "aarch64 virt boot disk elsewhere", cfg: &proxmox.VirtualMachineConfig{Machine: "virt", VirtIOs: map[string]string{"virtio0": "a"}}, want: "scsi0"},
+		{name: "virtual is not virt", cfg: &proxmox.VirtualMachineConfig{Machine: "virtual"}, want: "ide0"},
+		{name: "aarch64 virt with every scsi slot taken errors", cfg: &proxmox.VirtualMachineConfig{Machine: "virt", SCSIs: fullSCSIs()}, wantErr: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := CloudInitISODeviceFor(tc.cfg)
+			if tc.wantErr {
+				require.ErrorIs(t, err, ErrNoSCSISlot)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+
+	dev, reused, err := (&ISOInjector{}).device()
+	require.NoError(t, err)
+	require.False(t, reused)
+	require.Equal(t, "ide0", dev)
+
+	dev, reused, err = (&ISOInjector{VirtualMachine: &proxmox.VirtualMachine{VirtualMachineConfig: &proxmox.VirtualMachineConfig{Machine: "virt", SCSIs: map[string]string{"scsi0": "a"}}}}).device()
+	require.NoError(t, err)
+	require.False(t, reused)
+	require.Equal(t, "scsi1", dev)
+
+	// A retry after an accepted attach reuses the drive already carrying the ISO instead of
+	// allocating the next free slot.
+	dev, reused, err = (&ISOInjector{VirtualMachine: &proxmox.VirtualMachine{VMID: 100, VirtualMachineConfig: &proxmox.VirtualMachineConfig{Machine: "virt", SCSIs: map[string]string{"scsi0": "a", "scsi1": "local:iso/user-data-100.iso,media=cdrom"}}}}).device()
+	require.NoError(t, err)
+	require.True(t, reused)
+	require.Equal(t, "scsi1", dev)
+}
+
+// fullSCSIs returns a SCSIs map with every slot scsi0..scsi30 occupied.
+func fullSCSIs() map[string]string {
+	m := make(map[string]string, maxSCSIDevice+1)
+	for i := 0; i <= maxSCSIDevice; i++ {
+		m[fmt.Sprintf("scsi%d", i)] = "occupied"
+	}
+	return m
+}
+
+// TestISOInjectorInjectCloudInit_ARM64Device attaches the ISO of an aarch64 "virt" VM on
+// the first free SCSI slot instead of ide0, which the machine type does not have.
+func TestISOInjectorInjectCloudInit_ARM64Device(t *testing.T) {
+	client := newTestClient(t)
+
+	vm := &proxmox.VirtualMachine{Node: "pve", VMID: proxmox.StringOrUint64(100)}
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/status`, "pve"),
+		newJSONResponder(200, proxmox.Node{Name: "pve"}, 2))
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/status/current`, "pve", 100),
+		newJSONResponder(200, vm, 1))
+
+	// Raw config: the indexed drive keys are only populated by UnmarshalJSON.
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/qemu/%d/config`, "pve", 100),
+		newJSONResponder(200, map[string]any{
+			"agent":   "1",
+			"machine": "virt",
+			"scsihw":  "virtio-scsi-pci",
+			"scsi0":   "local-lvm:vm-100-disk-0,size=32G",
+			"boot":    "order=scsi0",
+			"tags":    "my-vm",
+		}, 1))
+
+	vm, err := client.GetVM(context.Background(), "pve", 100)
+	require.NoError(t, err)
+	require.Equal(t, "virt", vm.VirtualMachineConfig.Machine)
+
+	injector := &ISOInjector{
+		VirtualMachine: vm,
+		BootstrapData:  []byte(""),
+		MetaRenderer:   cloudinit.NewMetadata("xxx-xxxx", "my-custom-vm", "1.2.3", true),
+		NetworkRenderer: cloudinit.NewNetworkConfig([]network.ConfigData{
+			{
+				Type:       "ethernet",
+				Name:       "eth0",
+				MacAddress: "aa:bb:cc:dd:ee:ff",
+				IPConfigs:  []network.IPConfig{{IPAddress: netip.MustParsePrefix("10.1.1.6/24")}},
+				DNSServers: []string{"8.8.8.8", "8.8.4.4"},
+				Routes:     []network.RoutingData{{To: netip.MustParsePrefix("0.0.0.0/0")}},
+			},
+		}),
+	}
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/storage`, "pve"),
+		newJSONResponder(200, &proxmox.Storages{{Name: "iso", Content: "iso", Enabled: 1}}, 1))
+
+	ptask := &proxmox.Task{
+		UPID:       "UPID:pve:003B4235:1DF4ABCA:667C1C45:vncproxy:103:root@pam:",
+		Type:       "upload",
+		User:       "foo",
+		Status:     "stopped",
+		ExitStatus: "OK",
+		Node:       "pve",
+		IsRunning:  false,
+	}
+
+	httpmock.RegisterResponder(http.MethodPost, fmt.Sprintf(`=~/nodes/%s/storage/iso/upload`, "pve"),
+		newJSONResponder(200, ptask.UPID, 1))
+
+	httpmock.RegisterResponder(http.MethodGet, fmt.Sprintf(`=~/nodes/%s/tasks/%s/status`, "pve", string(ptask.UPID)),
+		httpmock.NewJsonResponderOrPanic(200, map[string]any{"data": ptask}))
+
+	var configBodies []string
+	httpmock.RegisterResponder(http.MethodPost, fmt.Sprintf(`=~/nodes/%s/qemu/%d/config`, "pve", 100),
+		func(req *http.Request) (*http.Response, error) {
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, err
+			}
+			configBodies = append(configBodies, string(body))
+			return httpmock.NewJsonResponse(200, map[string]any{"data": ptask.UPID})
+		})
+
+	require.NoError(t, injector.Inject(context.Background(), CloudConfigFormat))
+
+	require.NotEmpty(t, configBodies)
+	attached := false
+	for _, body := range configBodies {
+		require.NotContains(t, body, "ide0", "an aarch64 virt VM has no IDE bus")
+		if strings.Contains(body, `"scsi1":"iso:iso/user-data-100.iso,media=cdrom"`) {
+			attached = true
+			require.Contains(t, body, `"boot":"order=scsi0;scsi1"`)
+		}
+	}
+	require.True(t, attached, "the ISO must be attached on scsi1, got %q", configBodies)
+}
+
+// TestISOInjectorInjectCloudInit_RetryAfterAcceptedAttach covers a retry after an accepted
+// attach whose task wait failed: the ISO is already on scsi1, so re-injection must reuse that
+// drive and not upload or attach a second ISO (cleanup only removes the first) or duplicate
+// the boot-order entry. The attach is treated as done, so no API call is made.
+func TestISOInjectorInjectCloudInit_RetryAfterAcceptedAttach(t *testing.T) {
+	_ = newTestClient(t) // activates httpmock for the duration of the test
+
+	var apiCalls int
+	httpmock.RegisterNoResponder(func(req *http.Request) (*http.Response, error) {
+		apiCalls++
+		return nil, fmt.Errorf("unexpected API call on reinjection: %s %s", req.Method, req.URL)
+	})
+
+	vm := &proxmox.VirtualMachine{
+		Node: "pve", VMID: proxmox.StringOrUint64(100),
+		VirtualMachineConfig: &proxmox.VirtualMachineConfig{
+			Machine: "virt",
+			SCSIs: map[string]string{
+				"scsi0": "local-lvm:vm-100-disk-0,size=32G",
+				"scsi1": "iso:iso/user-data-100.iso,media=cdrom",
+			},
+			Boot: "order=scsi0;scsi1",
+		},
+	}
+
+	injector := &ISOInjector{VirtualMachine: vm, BootstrapData: []byte("")}
+
+	require.NoError(t, injector.Inject(context.Background(), CloudConfigFormat))
+	require.Zero(t, apiCalls, "a retry after an accepted attach must not re-upload or re-attach the ISO")
 }

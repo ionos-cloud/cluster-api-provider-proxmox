@@ -378,6 +378,10 @@ spec:
 * Clusters with IPV6 only is supported.
 * Multiple NICs & Dual-stack setups can be mixed together.
 * If you're looking for more customized setups, you can create your own cluster template and use it with the `clusterctl generate cluster` command, by passing it `--from yourtemplate.yaml`.
+* The cloud-init ISO is attached on `ide0`. A template with the aarch64 `virt` machine type (`machine: virt`) has no
+  IDE bus, so such VMs get the ISO on the first free `scsiN` slot after their SCSI disks instead; the ISO is located by
+  name again when it is detached. Proxmox VE on ARM64 is not an officially supported platform and this path is covered
+  by unit tests only.
 
 ## API Reference
 

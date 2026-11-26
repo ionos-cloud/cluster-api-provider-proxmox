@@ -19,9 +19,12 @@ package vmservice
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
+	lutherproxmox "github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -643,5 +646,91 @@ func getUsedVMIDs(ctx context.Context, scope *scope.MachineScope) ([]int64, erro
 var selectNextNode = scheduler.ScheduleVM
 
 func unmountCloudInitISO(ctx context.Context, machineScope *scope.MachineScope) error {
-	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, machineScope.VirtualMachine, inject.CloudInitISODevice)
+	vm := machineScope.VirtualMachine
+	device, ok := cloudInitISODevice(vm)
+	if !ok {
+		// Nothing carries the ISO and there is no slot the machine type can take (an aarch64
+		// virt VM with every SCSI slot occupied). go-proxmox writes "none,media=cdrom" to the
+		// device it is given before deleting the ISO, and the only device left to name would
+		// be ide0, a bus a virt VM does not have: that drive would stop the VM on its next
+		// start. There is no attached ISO to eject, so leave the config alone.
+		machineScope.Logger.V(4).Info("no drive to unmount the cloud-init ISO from, leaving the VM config alone", "vm", vm.VMID)
+		return nil
+	}
+	return machineScope.InfraCluster.ProxmoxClient.UnmountCloudInitISO(ctx, vm, device)
+}
+
+// cloudInitISODevice returns the drive of the VM that carries its cloud-init ISO,
+// "user-data-<vmid>.iso", wherever the injector attached it (ide0 on x86, a scsiN slot on
+// aarch64). Several matches are resolved to the lowest device name.
+//
+// When no drive carries the ISO it has already been detached: a previous unmount emptied its
+// slot (go-proxmox leaves it as "none,media=cdrom") but may have failed to delete the ISO
+// file or remove the cloud-init tag. Re-target that emptied CD-ROM so a retry finishes the
+// cleanup idempotently, rather than allocating a new free slot and leaving behind another
+// empty CD-ROM on every failed attempt. Only when there is no emptied CD-ROM either does it
+// fall back to the slot the injector would have used.
+//
+// The second result is false when there is no device at all: no drive carries the ISO, no
+// emptied CD-ROM exists and the machine type has no free slot the ISO could live on. An
+// unmount must then not touch the config, since the only device left to name would be one the
+// machine type cannot boot with.
+func cloudInitISODevice(vm *lutherproxmox.VirtualMachine) (string, bool) {
+	if vm == nil {
+		return inject.CloudInitISODevice, true
+	}
+	cfg := vm.VirtualMachineConfig
+	if drives := drivesWithVolume(cfg, fmt.Sprintf(lutherproxmox.UserDataISOFormat, vm.VMID)); len(drives) > 0 {
+		return drives[0], true
+	}
+	if drives := emptyCDROMDrives(cfg); len(drives) > 0 {
+		return drives[0], true
+	}
+	dev, err := inject.CloudInitISODeviceFor(cfg)
+	if err != nil {
+		return "", false
+	}
+	return dev, true
+}
+
+// emptyCDROMDrives lists the drives of cfg that are detached CD-ROMs ("none,media=cdrom"),
+// sorted by device. Unmounting a cloud-init ISO leaves its slot in exactly this state.
+//
+// The volume is the token before the first comma and must be exactly "none": a drive on a
+// storage whose name merely starts with it ("none-iso:iso/installer.iso,media=cdrom") is a
+// mounted CD-ROM that must not be ejected.
+func emptyCDROMDrives(cfg *lutherproxmox.VirtualMachineConfig) []string {
+	if cfg == nil {
+		return nil
+	}
+	var out []string
+	for _, m := range []map[string]string{cfg.IDEs, cfg.SCSIs, cfg.SATAs, cfg.VirtIOs} {
+		for dev, value := range m {
+			volume, _, _ := strings.Cut(value, ",")
+			if volume == "none" && strings.Contains(value, "media=cdrom") {
+				out = append(out, dev)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// drivesWithVolume lists the drives of cfg whose value names the given volume file
+// ("local:iso/user-data-123.iso,media=cdrom" for "user-data-123.iso"), sorted by device.
+func drivesWithVolume(cfg *lutherproxmox.VirtualMachineConfig, file string) []string {
+	if cfg == nil {
+		return nil
+	}
+	pattern := regexp.MustCompile(`(^|[:/])` + regexp.QuoteMeta(file) + `(,|$)`)
+	var out []string
+	for _, m := range []map[string]string{cfg.IDEs, cfg.SCSIs, cfg.SATAs, cfg.VirtIOs} {
+		for dev, value := range m {
+			if pattern.MatchString(value) {
+				out = append(out, dev)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
 }
