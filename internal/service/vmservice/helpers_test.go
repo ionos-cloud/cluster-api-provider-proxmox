@@ -189,6 +189,9 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	reservedVMIDs.reset()
 	mockClient.EXPECT().NextID(mock.Anything).Return(int64(100), nil).Maybe()
 	mockClient.EXPECT().CheckID(mock.Anything, int64(100)).Return(true, nil).Maybe()
+	// Before cloning, and when deleting a machine without a VMID, the controller looks for a
+	// VM that already carries the machine's name; by default there is none.
+	mockClient.EXPECT().FindVMByName(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	// fake indexing tests. TODO: Unify
 

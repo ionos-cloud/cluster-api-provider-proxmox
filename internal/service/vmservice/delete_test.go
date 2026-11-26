@@ -78,17 +78,38 @@ func requireReason(t *testing.T, machineScope *scope.MachineScope, reason string
 	require.Equal(t, reason, conditions.GetReason(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition))
 }
 
-// A machine that never got a VMID has nothing to destroy.
+// A machine that never got a VMID, and has no VM carrying its name, has nothing to destroy.
 func TestDeleteVM_NoVMIDReleasesMachine(t *testing.T) {
 	machineScope, _, _ := setupReconcilerTest(t)
 	machineScope.ProxmoxMachine.Spec.VirtualMachineID = nil
-	// no client expectations: any Proxmox call fails the test
+	// the setup answers the name lookup with "no such VM"; any other Proxmox call fails the test
 
 	requeue, err := DeleteVM(context.TODO(), machineScope)
 	require.NoError(t, err)
 	require.False(t, requeue)
 	require.Empty(t, machineScope.ProxmoxMachine.Finalizers)
 	requireReason(t, machineScope, infrav1.ProxmoxMachineVirtualMachineProvisionedDeletingReason)
+}
+
+// No VMID is recorded, but the clone ran and its status update was lost: the VM carrying the
+// machine's name is found and deleted rather than left behind.
+func TestDeleteVM_NoVMIDFindsVMByName(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTest(t)
+	machineScope.ProxmoxMachine.Spec.VirtualMachineID = nil
+	proxmoxClient.ExpectedCalls = nil
+	proxmoxClient.EXPECT().FindVMByName(context.TODO(), "test").
+		Return(&proxmox.ClusterResource{VMID: uint64(deleteTestVMID), Node: "node1", Type: "qemu", Name: "test"}, nil).Once()
+	vm := newStoppedVM()
+	expectOwnedVM(proxmoxClient, "node1", vm)
+	proxmoxClient.EXPECT().HasActiveTask(context.TODO(), vm).Return(false, nil).Once()
+	proxmoxClient.EXPECT().DeleteVM(context.TODO(), "node1", deleteTestVMID).Return(&proxmox.Task{UPID: destroyUPID}, nil).Once()
+
+	requeue, err := DeleteVM(context.TODO(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.Equal(t, deleteTestVMID, machineScope.GetVirtualMachineID())
+	require.Equal(t, destroyUPID, *machineScope.ProxmoxMachine.Status.TaskRef)
+	require.NotEmpty(t, machineScope.ProxmoxMachine.Finalizers)
 }
 
 // A free VMID means the VM is gone: release without calling destroy.

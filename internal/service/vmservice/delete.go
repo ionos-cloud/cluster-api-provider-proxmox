@@ -70,8 +70,20 @@ func DeleteVM(ctx context.Context, machineScope *scope.MachineScope) (requeue bo
 
 	vmID := machineScope.GetVirtualMachineID()
 	if vmID <= 0 {
-		// The machine never got a VM.
-		return false, releaseMachine(machineScope, vmID)
+		// No VM is recorded, but the status update recording a clone's ID may have been
+		// lost; a VM that carries this machine's name is that clone and is not left behind.
+		rsc, err := machineScope.InfraCluster.ProxmoxClient.FindVMByName(ctx, machineScope.Name())
+		if err != nil {
+			return false, errors.Wrapf(err, "unable to look for a vm named %q", machineScope.Name())
+		}
+		if rsc == nil {
+			// The machine never got a VM.
+			return false, releaseMachine(machineScope, vmID)
+		}
+		vmID = int64(rsc.VMID)
+		machineScope.Info("found a vm carrying this machine's name although none was recorded; deleting it", "vmID", vmID, "node", rsc.Node)
+		record.Eventf(machineScope.ProxmoxMachine, "VMAdoptedForDeletion", "Found VM %d on node %s carrying this machine's name although no VMID was recorded; deleting it", vmID, rsc.Node)
+		machineScope.SetVirtualMachineID(vmID)
 	}
 
 	vm, err := locateOwnedVM(ctx, machineScope, vmID)

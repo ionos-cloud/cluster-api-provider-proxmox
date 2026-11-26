@@ -330,6 +330,65 @@ func (_c *MockClient_DeleteVM_Call) RunAndReturn(run func(context.Context, strin
 	return _c
 }
 
+// FindVMByName provides a mock function with given fields: ctx, name
+func (_m *MockClient) FindVMByName(ctx context.Context, name string) (*go_proxmox.ClusterResource, error) {
+	ret := _m.Called(ctx, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindVMByName")
+	}
+
+	var r0 *go_proxmox.ClusterResource
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*go_proxmox.ClusterResource, error)); ok {
+		return rf(ctx, name)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *go_proxmox.ClusterResource); ok {
+		r0 = rf(ctx, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*go_proxmox.ClusterResource)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_FindVMByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindVMByName'
+type MockClient_FindVMByName_Call struct {
+	*mock.Call
+}
+
+// FindVMByName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+func (_e *MockClient_Expecter) FindVMByName(ctx interface{}, name interface{}) *MockClient_FindVMByName_Call {
+	return &MockClient_FindVMByName_Call{Call: _e.mock.On("FindVMByName", ctx, name)}
+}
+
+func (_c *MockClient_FindVMByName_Call) Run(run func(ctx context.Context, name string)) *MockClient_FindVMByName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockClient_FindVMByName_Call) Return(_a0 *go_proxmox.ClusterResource, _a1 error) *MockClient_FindVMByName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_FindVMByName_Call) RunAndReturn(run func(context.Context, string) (*go_proxmox.ClusterResource, error)) *MockClient_FindVMByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindVMResource provides a mock function with given fields: ctx, vmID
 func (_m *MockClient) FindVMResource(ctx context.Context, vmID uint64) (*go_proxmox.ClusterResource, error) {
 	ret := _m.Called(ctx, vmID)
