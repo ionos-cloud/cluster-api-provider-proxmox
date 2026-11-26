@@ -36,9 +36,6 @@ import (
 
 var _ capmox.Client = &APIClient{}
 
-// ErrVMIDFree is returned if the VMID is free.
-var ErrVMIDFree = errors.New("VMID is free")
-
 // APIClient Proxmox API client object.
 type APIClient struct {
 	*proxmox.Client
@@ -70,7 +67,7 @@ func NewAPIClient(ctx context.Context, logger logr.Logger, baseURL string, optio
 // CloneVM clones a VM based on templateID and VMCloneRequest.
 func (c *APIClient) CloneVM(ctx context.Context, templateID int, clone capmox.VMCloneRequest) (capmox.VMCloneResponse, error) {
 	// get the node
-	node := (&proxmox.Node{}).New(c.Client, clone.Node)
+	node := c.Client.NodeRef(clone.Node)
 	if err := node.Status(ctx); err != nil {
 		return capmox.VMCloneResponse{}, fmt.Errorf("cannot find node with name %s: %w", clone.Node, err)
 	}
@@ -111,7 +108,7 @@ func (c *APIClient) ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine,
 
 // GetVM returns a VM based on nodeName and vmID.
 func (c *APIClient) GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error) {
-	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	node := c.Client.NodeRef(nodeName)
 	if err := node.Status(ctx); err != nil {
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
 	}
@@ -143,6 +140,36 @@ func (c *APIClient) FindVMResource(ctx context.Context, vmID uint64) (*proxmox.C
 	}
 
 	return nil, fmt.Errorf("unable to find VM with ID %d on any of the nodes", vmID)
+}
+
+// FindVMByName returns the VM named name anywhere in the cluster, or nil when there is none.
+// Templates and containers are skipped. Proxmox does not keep names unique; several VMs with
+// the name are reported as ErrVMNameNotUnique rather than picking one.
+func (c *APIClient) FindVMByName(ctx context.Context, name string) (*proxmox.ClusterResource, error) {
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get cluster status: %w", err)
+	}
+
+	vmResources, err := cluster.Resources(ctx, "vm")
+	if err != nil {
+		return nil, fmt.Errorf("could not list vm resources: %w", err)
+	}
+
+	var found *proxmox.ClusterResource
+	matches := 0
+	for _, vm := range vmResources {
+		if vm.Type != "qemu" || vm.Template != 0 || vm.Name != name {
+			continue
+		}
+		found = vm
+		matches++
+	}
+	if matches > 1 {
+		return nil, fmt.Errorf("%w: %d VMs are named %q", ErrVMNameNotUnique, matches, name)
+	}
+
+	return found, nil
 }
 
 // FindVMTemplateByTags tries to find a VMID by its tags across the whole cluster.
@@ -216,7 +243,20 @@ NEXT_VM:
 	return vmTemplate.Node, int32(vmTemplate.VMID), nil
 }
 
-// DeleteVM deletes a VM based on the nodeName and vmID.
+// StopVM issues a hard stop for the VM and returns the qmstop task.
+func (c *APIClient) StopVM(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error) {
+	task, err := vm.Stop(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot stop vm with id %d: %w", vm.VMID, err)
+	}
+	return task, nil
+}
+
+// DeleteVM destroys the VM with vmID on nodeName and returns the qmdestroy task. The VM must be
+// stopped already: Proxmox refuses to destroy a running VM, and a stop is a task of its own, so
+// the caller issues it first and waits for it (see vmservice.DeleteVM). The destroy purges the
+// VM from HA resources, backup jobs and replication jobs, so nothing keeps referring to an ID
+// that Proxmox hands to the next clone.
 func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error) {
 	// A vmID can not be lower than 100.
 	// If the provided vmID is lower (like -1 in issue #31), just error out without calling the API.
@@ -224,20 +264,9 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		return nil, fmt.Errorf("vm with id %d does not exist", vmID)
 	}
 
-	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	node := c.Client.NodeRef(nodeName)
 	if err := node.Status(ctx); err != nil {
 		return nil, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)
-	}
-
-	cluster, err := c.Cluster(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get cluster")
-	}
-
-	if vmidFree, err := cluster.CheckID(ctx, int(vmID)); vmidFree {
-		return nil, ErrVMIDFree
-	} else if err != nil {
-		return nil, err
 	}
 
 	vm, err := node.VirtualMachine(ctx, int(vmID))
@@ -245,18 +274,25 @@ func (c *APIClient) DeleteVM(ctx context.Context, nodeName string, vmID int64) (
 		return nil, fmt.Errorf("cannot find vm with id %d: %w", vmID, err)
 	}
 
-	if vm.IsRunning() {
-		if _, err = vm.Stop(ctx); err != nil {
-			return nil, fmt.Errorf("cannot stop vm id %d: %w", vmID, err)
-		}
-	}
-
-	task, err := vm.Delete(ctx, nil)
+	task, err := vm.Delete(ctx, &proxmox.VirtualMachineDeleteOptions{Purge: true})
 	if err != nil {
 		return nil, fmt.Errorf("cannot delete vm with id %d: %w", vmID, err)
 	}
 
 	return task, nil
+}
+
+// NextID returns the lowest VMID that is free in the cluster.
+func (c *APIClient) NextID(ctx context.Context) (int64, error) {
+	cluster, err := c.Cluster(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("cannot get cluster: %w", err)
+	}
+	id, err := cluster.NextID(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("cannot get next free vmid: %w", err)
+	}
+	return int64(id), nil
 }
 
 // CheckID checks if the vmid is available on the cluster.
@@ -283,7 +319,7 @@ func (c *APIClient) GetTask(ctx context.Context, upID string) (*proxmox.Task, er
 
 // HasActiveTask checks whether any task is still running for the VM.
 func (c *APIClient) HasActiveTask(ctx context.Context, vm *proxmox.VirtualMachine) (bool, error) {
-	node := (&proxmox.Node{}).New(c.Client, vm.Node)
+	node := c.Client.NodeRef(vm.Node)
 
 	tasks, err := node.Tasks(ctx, &proxmox.NodeTasksOptions{Source: "active", VMID: int(vm.VMID)})
 	if err != nil {
@@ -295,7 +331,7 @@ func (c *APIClient) HasActiveTask(ctx context.Context, vm *proxmox.VirtualMachin
 
 // GetReservableMemoryBytes returns the memory that can be reserved by a new VM, in bytes.
 func (c *APIClient) GetReservableMemoryBytes(ctx context.Context, nodeName string, nodeMemoryAdjustment int64) (uint64, error) {
-	node := (&proxmox.Node{}).New(c.Client, nodeName)
+	node := c.Client.NodeRef(nodeName)
 
 	if err := node.Status(ctx); err != nil {
 		return 0, fmt.Errorf("cannot find node with name %s: %w", nodeName, err)

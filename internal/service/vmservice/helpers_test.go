@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/luthermonson/go-proxmox"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -182,6 +183,15 @@ func setupReconcilerTest(t *testing.T) (*scope.MachineScope, *proxmoxtest.MockCl
 	logger := logr.Discard()
 
 	mockClient := proxmoxtest.NewMockClient(t)
+
+	// VMID allocation: without a vmIDRange the controller asks the cluster for its next free ID
+	// and checks it. Reservations are process-wide, so each test starts without any.
+	reservedVMIDs.reset()
+	mockClient.EXPECT().NextID(mock.Anything).Return(int64(100), nil).Maybe()
+	mockClient.EXPECT().CheckID(mock.Anything, int64(100)).Return(true, nil).Maybe()
+	// Before cloning, and when deleting a machine without a VMID, the controller looks for a
+	// VM that already carries the machine's name; by default there is none.
+	mockClient.EXPECT().FindVMByName(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	// fake indexing tests. TODO: Unify
 

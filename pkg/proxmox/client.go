@@ -30,12 +30,23 @@ type Client interface {
 	ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine, options ...VirtualMachineOption) (*proxmox.Task, error)
 
 	FindVMResource(ctx context.Context, vmID uint64) (*proxmox.ClusterResource, error)
+
+	// FindVMByName returns the VM (not a template, not a container) named name anywhere in the
+	// cluster, or nil when there is none; several VMs with the name are an error.
+	FindVMByName(ctx context.Context, name string) (*proxmox.ClusterResource, error)
 	FindVMTemplateByTags(ctx context.Context, templateTags []string, resolutionPolicy string) (string, int32, error)
 
 	CheckID(ctx context.Context, vmID int64) (bool, error)
+	// NextID returns the lowest VMID that is free in the cluster.
+	NextID(ctx context.Context) (int64, error)
 
 	GetVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.VirtualMachine, error)
 
+	// StopVM issues a hard stop (qmstop) for the VM and returns its task.
+	StopVM(ctx context.Context, vm *proxmox.VirtualMachine) (*proxmox.Task, error)
+
+	// DeleteVM destroys the stopped VM with vmID on nodeName, purging it from HA, backup and
+	// replication jobs as well, and returns the qmdestroy task.
 	DeleteVM(ctx context.Context, nodeName string, vmID int64) (*proxmox.Task, error)
 
 	GetTask(ctx context.Context, upID string) (*proxmox.Task, error)

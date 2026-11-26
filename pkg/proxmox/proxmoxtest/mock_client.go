@@ -330,6 +330,65 @@ func (_c *MockClient_DeleteVM_Call) RunAndReturn(run func(context.Context, strin
 	return _c
 }
 
+// FindVMByName provides a mock function with given fields: ctx, name
+func (_m *MockClient) FindVMByName(ctx context.Context, name string) (*go_proxmox.ClusterResource, error) {
+	ret := _m.Called(ctx, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindVMByName")
+	}
+
+	var r0 *go_proxmox.ClusterResource
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*go_proxmox.ClusterResource, error)); ok {
+		return rf(ctx, name)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *go_proxmox.ClusterResource); ok {
+		r0 = rf(ctx, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*go_proxmox.ClusterResource)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_FindVMByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindVMByName'
+type MockClient_FindVMByName_Call struct {
+	*mock.Call
+}
+
+// FindVMByName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+func (_e *MockClient_Expecter) FindVMByName(ctx interface{}, name interface{}) *MockClient_FindVMByName_Call {
+	return &MockClient_FindVMByName_Call{Call: _e.mock.On("FindVMByName", ctx, name)}
+}
+
+func (_c *MockClient_FindVMByName_Call) Run(run func(ctx context.Context, name string)) *MockClient_FindVMByName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockClient_FindVMByName_Call) Return(_a0 *go_proxmox.ClusterResource, _a1 error) *MockClient_FindVMByName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_FindVMByName_Call) RunAndReturn(run func(context.Context, string) (*go_proxmox.ClusterResource, error)) *MockClient_FindVMByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindVMResource provides a mock function with given fields: ctx, vmID
 func (_m *MockClient) FindVMResource(ctx context.Context, vmID uint64) (*go_proxmox.ClusterResource, error) {
 	ret := _m.Called(ctx, vmID)
@@ -688,6 +747,62 @@ func (_c *MockClient_HasActiveTask_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// NextID provides a mock function with given fields: ctx
+func (_m *MockClient) NextID(ctx context.Context) (int64, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NextID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_NextID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NextID'
+type MockClient_NextID_Call struct {
+	*mock.Call
+}
+
+// NextID is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockClient_Expecter) NextID(ctx interface{}) *MockClient_NextID_Call {
+	return &MockClient_NextID_Call{Call: _e.mock.On("NextID", ctx)}
+}
+
+func (_c *MockClient_NextID_Call) Run(run func(ctx context.Context)) *MockClient_NextID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockClient_NextID_Call) Return(_a0 int64, _a1 error) *MockClient_NextID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_NextID_Call) RunAndReturn(run func(context.Context) (int64, error)) *MockClient_NextID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // QemuAgentStatus provides a mock function with given fields: ctx, vm
 func (_m *MockClient) QemuAgentStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) error {
 	ret := _m.Called(ctx, vm)
@@ -910,6 +1025,65 @@ func (_c *MockClient_StartVM_Call) Return(_a0 *go_proxmox.Task, _a1 error) *Mock
 }
 
 func (_c *MockClient_StartVM_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine) (*go_proxmox.Task, error)) *MockClient_StartVM_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StopVM provides a mock function with given fields: ctx, vm
+func (_m *MockClient) StopVM(ctx context.Context, vm *go_proxmox.VirtualMachine) (*go_proxmox.Task, error) {
+	ret := _m.Called(ctx, vm)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StopVM")
+	}
+
+	var r0 *go_proxmox.Task
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) (*go_proxmox.Task, error)); ok {
+		return rf(ctx, vm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) *go_proxmox.Task); ok {
+		r0 = rf(ctx, vm)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*go_proxmox.Task)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
+		r1 = rf(ctx, vm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_StopVM_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StopVM'
+type MockClient_StopVM_Call struct {
+	*mock.Call
+}
+
+// StopVM is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vm *go_proxmox.VirtualMachine
+func (_e *MockClient_Expecter) StopVM(ctx interface{}, vm interface{}) *MockClient_StopVM_Call {
+	return &MockClient_StopVM_Call{Call: _e.mock.On("StopVM", ctx, vm)}
+}
+
+func (_c *MockClient_StopVM_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine)) *MockClient_StopVM_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine))
+	})
+	return _c
+}
+
+func (_c *MockClient_StopVM_Call) Return(_a0 *go_proxmox.Task, _a1 error) *MockClient_StopVM_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_StopVM_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine) (*go_proxmox.Task, error)) *MockClient_StopVM_Call {
 	_c.Call.Return(run)
 	return _c
 }

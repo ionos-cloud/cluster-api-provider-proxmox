@@ -162,7 +162,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
-			"cannot find node with name test: not authorized to access endpoint",
+			"cannot find node with name test: not authorized to access endpoint: 401 Unauthorized",
 			err.Error())
 	})
 
@@ -176,7 +176,7 @@ func TestProxmoxAPIClient_GetReservableMemoryBytes(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, uint64(0), reservable)
 		require.Equal(t,
-			"cannot list vms for node test: not authorized to access endpoint",
+			"cannot list vms for node test: not authorized to access endpoint: 401 Unauthorized",
 			err.Error())
 	})
 }
@@ -191,7 +191,7 @@ func TestProxmoxAPIClient_CloneVM(t *testing.T) {
 		{name: "no node", http: []int{500, 200, 200, 200, 200, 200}, fails: true,
 			err: "cannot find node with name test: 500 Internal Server Error"},
 		{name: "no template", http: []int{200, 200, 403, 200, 200, 200}, fails: true,
-			err: "unable to find vm template: not authorized to access endpoint"},
+			err: "unable to find vm template: not authorized to access endpoint: 403 Forbidden"},
 		{name: "clone fails", http: []int{200, 200, 200, 200, 500, 200}, fails: true,
 			err: "unable to create new vm: 500 Internal Server Error"},
 		{name: "no node", http: []int{200, 200, 200, 200, 200, 200}, fails: false,
@@ -239,7 +239,7 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 	}{
 		{name: "create conf task", fails: false, err: ""},
 		{name: "conf error", fails: true,
-			err: "unable to configure vm: not authorized to access endpoint"},
+			err: "unable to configure vm: not authorized to access endpoint: 403 Forbidden"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -260,7 +260,7 @@ func TestProxmoxAPIClient_ConfigureVM(t *testing.T) {
 				newJSONResponder(200,
 					proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
 
-			node := (&proxmox.Node{}).New(client.Client, "test")
+			node := client.Client.NodeRef("test")
 			err := node.Status(context.Background())
 			require.NoError(t, err)
 			vm, err := node.VirtualMachine(context.Background(), 101)
@@ -368,6 +368,59 @@ func TestProxmoxAPIClient_FindVMResource(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, proxmox.ClusterResource{VMID: 101}, *clusterResource)
+			}
+		})
+	}
+}
+
+func TestProxmoxAPIClient_FindVMByName(t *testing.T) {
+	resources := proxmox.ClusterResources{
+		// A template and a container with the name are not the VM looked for.
+		&proxmox.ClusterResource{VMID: 9000, Type: "qemu", Template: 1, Name: "worker-1", Node: "test"},
+		&proxmox.ClusterResource{VMID: 200, Type: "lxc", Name: "worker-1", Node: "test"},
+		&proxmox.ClusterResource{VMID: 101, Type: "qemu", Name: "worker-1", Node: "test2"},
+		&proxmox.ClusterResource{VMID: 102, Type: "qemu", Name: "twin", Node: "test"},
+		&proxmox.ClusterResource{VMID: 103, Type: "qemu", Name: "twin", Node: "test2"},
+	}
+	tests := []struct {
+		name   string
+		lookup string
+		http   []int
+		found  *proxmox.ClusterResource
+		err    error
+		errMsg string
+	}{
+		{name: "find", lookup: "worker-1", http: []int{200, 200}, found: resources[2]},
+		{name: "none", lookup: "worker-2", http: []int{200, 200}},
+		{name: "not unique", lookup: "twin", http: []int{200, 200}, err: ErrVMNameNotUnique},
+		{name: "clusterstatus broken", lookup: "worker-1", http: []int{500, 200},
+			errMsg: "cannot get cluster status: 500 Internal Server Error"},
+		{name: "resourcelisting broken", lookup: "worker-1", http: []int{200, 500},
+			errMsg: "could not list vm resources: 500 Internal Server Error"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+
+			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/status`,
+				newJSONResponder(test.http[0], proxmox.NodeStatuses{{Name: "test"}, {Name: "test2"}}))
+			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/resources`,
+				newJSONResponder(test.http[1], resources))
+
+			found, err := client.FindVMByName(context.Background(), test.lookup)
+			switch {
+			case test.err != nil:
+				require.ErrorIs(t, err, test.err)
+				require.Nil(t, found)
+			case test.errMsg != "":
+				require.EqualError(t, err, test.errMsg)
+				require.Nil(t, found)
+			case test.found == nil:
+				require.NoError(t, err)
+				require.Nil(t, found)
+			default:
+				require.NoError(t, err)
+				require.Equal(t, *test.found, *found)
 			}
 		})
 	}
@@ -560,7 +613,7 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 		{name: "node not found", node: "enoent", vmID: 101, fails: true,
 			err: "cannot find node with name enoent: 500 Internal Server Error"},
 		{name: "delete fails", node: "test", vmID: 102, fails: true,
-			err: "cannot delete vm with id 102: not authorized to access endpoint"},
+			err: "cannot delete vm with id 102: not authorized to access endpoint: 403 Forbidden"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -569,8 +622,6 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 			// "UPID:$node:$pid:$pstart:$startime:$dtype:$id:$user"
 			upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:qmdestroy:101:root@pam:"
 
-			httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
-				newJSONResponder(400, fmt.Sprintf("VM %d already exists", test.vmID)))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
 				newJSONResponder(200, proxmox.Node{Name: "test"}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/enoent/status`,
@@ -579,9 +630,11 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 				newJSONResponder(200, proxmox.VirtualMachine{Node: "test", VMID: 101}))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/102/status/current`,
 				newJSONResponder(200, proxmox.VirtualMachine{Node: "test", VMID: 102}))
-			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/101`,
+			// The destroy purges the VM from HA, backup and replication jobs: only a DELETE
+			// carrying purge=1 is answered, so a plain destroy fails the test.
+			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/101\?.*purge=1`,
 				newJSONResponder(200, upid))
-			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/102`,
+			httpmock.RegisterResponder(http.MethodDelete, `=~/nodes/test/qemu/102\?.*purge=1`,
 				newJSONResponder(403, nil))
 			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/config`,
 				newJSONResponder(200, proxmox.VirtualMachineConfig{CPU: "kvm64"}))
@@ -601,6 +654,52 @@ func TestProxmoxAPIClient_DeleteVM(t *testing.T) {
 				require.Equal(t, "qmdestroy", task.Type)
 				require.Equal(t, "root@pam", task.User)
 			}
+		})
+	}
+}
+
+func TestProxmoxAPIClient_StopVM(t *testing.T) {
+	tests := []struct {
+		name  string
+		fails bool
+		err   string
+	}{
+		{name: "stop", fails: false},
+		{name: "stop fails", fails: true,
+			err: "cannot stop vm with id 101: not authorized to access endpoint: 403 Forbidden"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t)
+
+			// "UPID:$node:$pid:$pstart:$startime:$dtype:$id:$user"
+			upid := "UPID:test:000D6BDA:041E0A54:654A5A1D:qmstop:101:root@pam:"
+
+			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/status`,
+				newJSONResponder(200, proxmox.Node{Name: "test"}))
+			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/status/current`,
+				newJSONResponder(200, proxmox.VirtualMachine{Node: "test", VMID: 101, Status: proxmox.StatusVirtualMachineRunning}))
+			httpmock.RegisterResponder(http.MethodGet, `=~/nodes/test/qemu/101/config`,
+				newJSONResponder(200, proxmox.VirtualMachineConfig{CPU: "kvm64"}))
+			status := 200
+			if test.fails {
+				status = 403
+			}
+			httpmock.RegisterResponder(http.MethodPost, `=~/nodes/test/qemu/101/status/stop`,
+				newJSONResponder(status, upid))
+
+			vm, err := client.GetVM(context.Background(), "test", 101)
+			require.NoError(t, err)
+
+			task, err := client.StopVM(context.Background(), vm)
+			if test.fails {
+				require.Error(t, err)
+				require.Equal(t, test.err, err.Error())
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "qmstop", task.Type)
+			require.Equal(t, upid, string(task.UPID))
 		})
 	}
 }
@@ -782,4 +881,30 @@ func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
 			require.Equal(t, test.running, running)
 		})
 	}
+}
+
+func TestProxmoxAPIClient_NextID(t *testing.T) {
+	t.Run("returns the cluster's next free id", func(t *testing.T) {
+		client := newTestClient(t)
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/status`,
+			newJSONResponder(200, proxmox.NodeStatuses{{Name: "test"}}))
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
+			newJSONResponder(200, "101"))
+
+		id, err := client.NextID(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, int64(101), id)
+	})
+
+	t.Run("fails when the cluster cannot answer", func(t *testing.T) {
+		client := newTestClient(t)
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/status`,
+			newJSONResponder(200, proxmox.NodeStatuses{{Name: "test"}}))
+		httpmock.RegisterResponder(http.MethodGet, `=~/cluster/nextid`,
+			newJSONResponder(500, nil))
+
+		_, err := client.NextID(context.Background())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "next free vmid")
+	})
 }
