@@ -22,6 +22,11 @@ var (
 	// ErrCloudInitFailed is returned when cloud-init failed execution.
 	ErrCloudInitFailed = errors.New("cloud-init failed execution")
 
+	// ErrCloudInitRecoverable is returned when cloud-init finished but logged recoverable
+	// errors (exit code 2 since cloud-init 23.4). The guest is configured and usable; the
+	// error wraps the status output so the warning can be surfaced to the user.
+	ErrCloudInitRecoverable = errors.New("cloud-init finished with recoverable errors")
+
 	// ErrTemplateNotFound is returned when a VM template is not found.
 	ErrTemplateNotFound = errors.New("VM template not found")
 )

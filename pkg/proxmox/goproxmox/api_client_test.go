@@ -18,6 +18,7 @@ package goproxmox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -717,6 +718,19 @@ func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
 			running:  false,
 			err:      ErrCloudInitFailed,
 		},
+		{
+			// cloud-init >= 23.4 exits 2 for "done, with recoverable errors": the guest is
+			// configured, so this is done with a warning, not a failure.
+			name:     "cloud-init done with recoverable errors",
+			node:     "pve",
+			vmid:     1111,
+			pid:      12234,
+			exited:   1,
+			exitcode: 2,
+			outData:  "status: done\n",
+			running:  false,
+			err:      ErrCloudInitRecoverable,
+		},
 	}
 
 	for _, test := range tests {
@@ -778,7 +792,14 @@ func TestProxmoxAPIClient_CloudInitStatus(t *testing.T) {
 				))
 
 			running, err := client.CloudInitStatus(context.Background(), vm)
-			require.Equal(t, err, test.err)
+			if test.err == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, test.err)
+			}
+			if errors.Is(test.err, ErrCloudInitRecoverable) {
+				require.Contains(t, err.Error(), "status: done", "the status output is carried for the condition message")
+			}
 			require.Equal(t, test.running, running)
 		})
 	}

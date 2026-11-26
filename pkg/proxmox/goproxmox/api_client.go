@@ -373,7 +373,10 @@ func (c *APIClient) UnmountCloudInitISO(ctx context.Context, vm *proxmox.Virtual
 	return err
 }
 
-// CloudInitStatus returns the cloud-init status of the VM.
+// CloudInitStatus returns the cloud-init status of the VM: running while cloud-init is still
+// working, otherwise done. "cloud-init status" exits 1 when it failed (ErrCloudInitFailed) and,
+// since cloud-init 23.4, 2 when it finished with recoverable errors; the latter is reported as
+// done with ErrCloudInitRecoverable carrying the status output, since the guest is usable.
 func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) (running bool, err error) {
 	if err := c.QemuAgentStatus(ctx, vm); err != nil {
 		return false, errors.Wrap(err, "error waiting for agent")
@@ -389,15 +392,23 @@ func (c *APIClient) CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMach
 		return false, errors.Wrap(err, "unable to wait for agent exec")
 	}
 
-	if status.Exited == 1 && status.ExitCode == 0 && strings.Contains(status.OutData, "running") {
-		return true, nil
+	if status.Exited != 1 {
+		return false, nil
 	}
-	if status.Exited == 1 && status.ExitCode != 0 {
+	switch status.ExitCode {
+	case 0:
+		return strings.Contains(status.OutData, "running"), nil
+	case cloudInitExitRecoverable:
+		return false, fmt.Errorf("%w (exit code %d, see \"cloud-init status --long\" in the guest): %s",
+			ErrCloudInitRecoverable, status.ExitCode, strings.TrimSpace(status.OutData))
+	default:
 		return false, ErrCloudInitFailed
 	}
-
-	return false, nil
 }
+
+// cloudInitExitRecoverable is the exit code of "cloud-init status" for a run that finished with
+// recoverable errors (cloud-init >= 23.4); 1 stays a failure.
+const cloudInitExitRecoverable = 2
 
 // QemuAgentStatus returns the qemu-agent status of the VM.
 func (c *APIClient) QemuAgentStatus(ctx context.Context, vm *proxmox.VirtualMachine) error {

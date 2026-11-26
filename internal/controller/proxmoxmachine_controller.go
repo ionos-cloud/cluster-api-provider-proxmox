@@ -244,14 +244,30 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 	machineScope.ProxmoxMachine.SetLabels(labels)
 
 	machineScope.SetReady()
-	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-		Status: metav1.ConditionTrue,
-		Reason: clusterv1.ProvisionedReason,
-	})
+	conditions.Set(machineScope.ProxmoxMachine, provisionedCondition(machineScope.ProxmoxMachine))
 	machineScope.Logger.Info("ProxmoxMachine is ready")
 
 	return reconcile.Result{}, nil
+}
+
+// provisionedCondition is the VirtualMachineProvisioned condition of a machine whose VM is
+// ready. A warning the last provisioning step left in the condition message (cloud-init
+// finished with recoverable errors, see vmservice.checkCloudInitStatus) is carried over, so
+// it stays visible on the ready machine instead of being dropped by the status update that
+// marks it provisioned. Only the message of that step (WaitingForBootstrapReady) or of an
+// earlier pass through here (Provisioned) is kept; any other reason belongs to a state this
+// pass has moved on from.
+func provisionedCondition(machine *infrav1.ProxmoxMachine) metav1.Condition {
+	cond := metav1.Condition{
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status: metav1.ConditionTrue,
+		Reason: clusterv1.ProvisionedReason,
+	}
+	prev := conditions.Get(machine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	if prev != nil && (prev.Reason == infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason || prev.Reason == clusterv1.ProvisionedReason) {
+		cond.Message = prev.Message
+	}
+	return cond
 }
 
 func (r *ProxmoxMachineReconciler) getInfraCluster(ctx context.Context, logger *logr.Logger, cluster *clusterv1.Cluster, proxmoxMachine *infrav1.ProxmoxMachine) (*scope.ClusterScope, error) {
