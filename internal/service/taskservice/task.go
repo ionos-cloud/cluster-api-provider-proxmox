@@ -120,7 +120,11 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 		// For all other jobs we do set the condition to failed.
 		switch {
 		case task.Type == "qmstart":
-		case task.Type == "qmresize" && strings.Contains(task.ExitStatus, "does not exist"):
+		case task.Type == "resize" && strings.HasPrefix(task.ExitStatus, "volume '") && strings.Contains(task.ExitStatus, "does not exist"):
+			// PVE forks the resize worker as "resize" (qemu-server Qemu.pm:
+			// fork_worker('resize', ...)), not "qmresize" — resize is the exception to the
+			// qm* worker naming, so the task type we match here must be "resize".
+			//
 			// The disk is there (the clone made it) but the node running the resize cannot
 			// see it yet: on shared storage a directory cache can lag a VM that was destroyed
 			// and recreated under the same ID, so the resize fails with
@@ -128,6 +132,16 @@ func checkAndRetryTask(scope *scope.MachineScope, task *proxmox.Task) (bool, err
 			// disk step so the resize is issued again after RetryAfter; starting the VM with
 			// the template's disk would only move the failure into the guest (it runs out of
 			// space). Other resize failures stay terminal.
+			//
+			// The match is deliberately anchored on the "volume '" prefix: PVE's resize
+			// handler emits the same "does not exist" wording for a misconfigured
+			// bootVolume.disk ("disk '<x>' does not exist"), which is a terminal user error
+			// and must NOT be retried.
+			//
+			// TODO(resize-retry-cap): there is no hard cap on how many times this rewinds to
+			// the disk step. A volume that never becomes visible (e.g. storage genuinely
+			// gone) will retry on every RetryAfter interval indefinitely. Bounding it cleanly
+			// needs a retry counter in ProxmoxMachine status, which is out of scope here.
 			logger.Info("resize failed because the volume is not visible yet; retrying", "exitStatus", task.ExitStatus)
 			conditionReason = infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason
 		default:
