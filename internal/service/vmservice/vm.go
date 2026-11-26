@@ -165,27 +165,37 @@ func checkCloudInitStatus(ctx context.Context, machineScope *scope.MachineScope)
 	}
 
 	// TODO: Is there a status for Ignition?
+	var message string
 	if !machineScope.SkipCloudInitCheck() {
-		if running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine); err != nil || running {
-			if running {
-				return true, nil
-			}
-			if errors.Is(err, goproxmox.ErrCloudInitFailed) {
-				conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-					Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-					Status:  metav1.ConditionFalse,
-					Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
-					Message: err.Error(),
-				})
-			}
+		running, err := machineScope.InfraCluster.ProxmoxClient.CloudInitStatus(ctx, machineScope.VirtualMachine)
+		if running {
+			return true, nil
+		}
+		switch {
+		case err == nil:
+		case errors.Is(err, goproxmox.ErrCloudInitRecoverable):
+			// cloud-init is done and the guest is usable; keep the warning where the user
+			// sees it instead of failing a machine that will join.
+			machineScope.Info("cloud-init finished with recoverable errors", "vm", machineScope.VirtualMachine.VMID, "detail", err.Error())
+			message = err.Error()
+		case errors.Is(err, goproxmox.ErrCloudInitFailed):
+			conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+				Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+				Status:  metav1.ConditionFalse,
+				Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedVMProvisionFailedReason,
+				Message: err.Error(),
+			})
+			return false, err
+		default:
 			return false, err
 		}
 	}
 
 	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
-		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
-		Status: metav1.ConditionFalse,
-		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason,
+		Type:    infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status:  metav1.ConditionFalse,
+		Reason:  infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason,
+		Message: message,
 	})
 	return false, nil
 }

@@ -876,6 +876,31 @@ func TestReconcileVM_CloudInitFailed(t *testing.T) {
 	require.Equal(t, metav1.ConditionFalse, cond.Status)
 }
 
+// cloud-init >= 23.4 exits 2 when it finished with recoverable errors. The guest is configured
+// and joins, so the machine moves on; the warning is kept in the condition message.
+func TestReconcileVM_CloudInitRecoverableErrorsMoveOn(t *testing.T) {
+	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
+	vm := newRunningVM()
+	machineScope.SetVirtualMachineID(int64(vm.VMID))
+	machineScope.ProxmoxMachine.Status.BootstrapDataProvided = new(true)
+	machineScope.ProxmoxMachine.Status.Initialization.Provisioned = new(true)
+
+	warning := fmt.Errorf("%w (exit code 2): status: done", goproxmox.ErrCloudInitRecoverable)
+	proxmoxClient.EXPECT().GetVM(context.Background(), "node1", int64(123)).Return(vm, nil).Once()
+	proxmoxClient.EXPECT().QemuAgentStatus(context.Background(), vm).Return(nil).Once()
+	proxmoxClient.EXPECT().CloudInitStatus(context.Background(), vm).Return(false, warning).Once()
+
+	result, err := ReconcileVM(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.Equal(t, infrav1.VirtualMachineStateReady, result.State)
+	require.False(t, machineScope.HasFailed())
+
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForBootstrapReadyReason, cond.Reason)
+	require.Equal(t, warning.Error(), cond.Message)
+}
+
 func TestReconcileVM_CloudInitFailedWrapped(t *testing.T) {
 	machineScope, proxmoxClient, _ := setupReconcilerTestWithCondition(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForCloudInitReason)
 	vm := newRunningVM()
