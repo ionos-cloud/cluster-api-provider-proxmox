@@ -329,3 +329,69 @@ func TestReconcileInFlightTask_UnknownState(t *testing.T) {
 	var requeueErr *RequeueError
 	require.ErrorAs(t, err, &requeueErr)
 }
+
+// A resize that failed because the node could not see the freshly cloned volume yet is
+// transient: the machine goes back to the disk step instead of the terminal TaskFailed.
+func TestReconcileInFlightTask_ResizeVolumeNotVisibleRetries(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:002")
+	conditions.Set(machineScope.ProxmoxMachine, metav1.Condition{
+		Type:   infrav1.ProxmoxMachineVirtualMachineProvisionedCondition,
+		Status: metav1.ConditionFalse,
+		// reconcileDisks advances the reason to WaitingForStaticIPAllocation when it records
+		// the resize task, so that is the real pre-failure state. Starting here lets the
+		// assertion below verify that the failure actually rewinds to the disk step.
+		Reason: infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForStaticIPAllocationReason,
+	})
+
+	task := &proxmox.Task{UPID: "UPID:node1:002", IsFailed: true, IsCompleted: true, Status: "stopped",
+		ExitStatus: "volume 'nfs:122/vm-122-disk-0.qcow2' does not exist", Type: "resize"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:002").Return(task, nil).Once()
+
+	requeue, err := ReconcileInFlightTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	require.True(t, requeue)
+	require.NotNil(t, machineScope.ProxmoxMachine.Status.RetryAfter)
+
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason, cond.Reason)
+	require.Contains(t, cond.Message, "does not exist")
+}
+
+// Any other resize failure stays terminal.
+func TestReconcileInFlightTask_ResizeOtherFailureIsTerminal(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:003")
+
+	task := &proxmox.Task{UPID: "UPID:node1:003", IsFailed: true, IsCompleted: true, Status: "stopped",
+		ExitStatus: "shrinking disks is not supported", Type: "resize"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:003").Return(task, nil).Once()
+
+	_, err := ReconcileInFlightTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason, cond.Reason)
+}
+
+// A resize that fails with "disk '<x>' does not exist" is a misconfigured bootVolume.disk,
+// not a transient shared-storage cache lag: PVE's resize handler emits the same
+// "does not exist" wording for both, so the retry match must stay anchored on the
+// "volume '" prefix and this case must stay terminal (TaskFailed), never rewind to the
+// disk step — otherwise a misconfiguration would retry forever.
+func TestReconcileInFlightTask_ResizeDiskDoesNotExistIsTerminal(t *testing.T) {
+	machineScope, mockClient := setupTaskTest(t)
+	machineScope.ProxmoxMachine.Status.TaskRef = new("UPID:node1:004")
+
+	task := &proxmox.Task{UPID: "UPID:node1:004", IsFailed: true, IsCompleted: true, Status: "stopped",
+		ExitStatus: "disk 'scsi0' does not exist", Type: "resize"}
+	mockClient.EXPECT().GetTask(context.Background(), "UPID:node1:004").Return(task, nil).Once()
+
+	_, err := ReconcileInFlightTask(context.Background(), machineScope)
+	require.NoError(t, err)
+	cond := conditions.Get(machineScope.ProxmoxMachine, infrav1.ProxmoxMachineVirtualMachineProvisionedCondition)
+	require.NotNil(t, cond)
+	require.Equal(t, infrav1.ProxmoxMachineVirtualMachineProvisionedTaskFailedReason, cond.Reason)
+	require.NotEqual(t, infrav1.ProxmoxMachineVirtualMachineProvisionedWaitingForDiskReconciliationReason, cond.Reason)
+}
